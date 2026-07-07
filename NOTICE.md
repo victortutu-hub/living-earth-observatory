@@ -9,7 +9,7 @@ assets. This document clarifies attribution and usage boundaries.
 The original code, scene composition, reel/export workflow, UI, visual language,
 and documentation in this repository are covered by the repository `LICENSE`.
 
-Copyright (c) 2026 Mihai / Victor Tutu. All rights reserved.
+Copyright (c) 2026 Mihai / Victor Daniel. All rights reserved.
 
 ## Open-Source Libraries
 
