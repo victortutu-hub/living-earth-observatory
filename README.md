@@ -2,7 +2,13 @@
 
 Living Earth Observatory is a WebGL/Three.js cinematic Earth observatory that combines a physically styled 3D planet with near-real-time natural disaster signals. The project starts from NASA EONET as its primary voice, then adds relief, clouds, real solar day/night timing, physical atmosphere, USGS earthquakes, NASA FIRMS fire hotspots, GDACS disaster alerts, NOAA aurora, a physically driven Moon, Earthshine, ISS tracking, and subtle atmospheric astronomy layers.
 
-Main entry point:
+Public landing page:
+
+```text
+index.html
+```
+
+Main Earth observatory entry point:
 
 ```text
 earth-eonet-relief.html
@@ -18,7 +24,13 @@ From the project root:
 python -m http.server 8765 --bind 127.0.0.1
 ```
 
-Then open:
+Then open the landing page:
+
+```text
+http://127.0.0.1:8765/
+```
+
+Or open the Earth observatory directly:
 
 ```text
 http://127.0.0.1:8765/earth-eonet-relief.html
