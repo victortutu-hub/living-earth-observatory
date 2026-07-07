@@ -1,0 +1,34 @@
+proxy-cache/
+.env
+.env.local
+.env.*.local
+*.local.env
+
+# Codex / local analysis artifacts
+.codex-analysis/
+.codex-validation/
+.claude/
+.agents/
+tmp/
+
+# Generated snapshots and packages
+Back Up/
+exports/
+releases/
+*.zip
+
+# Documentation sources kept out of code commits by default.
+# README.md is intentionally not ignored.
+docs/
+*.pdf
+*.docx
+LEO-documentation-*.md
+glosar-leo.md
+Living Earth Observatory_ Technical Dee...pdf
+
+# Local/demo scratch files
+earth-eonet-relief-demo.html
+live-earth-data-v2_Claude.html
+solar-activity-reel.html
+galaxie-nivel2-praf-turbulent.html
+galaxie-nivel3-nbody-webgpu.html

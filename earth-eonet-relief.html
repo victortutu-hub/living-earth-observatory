@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Living Earth Observatory - NASA EONET - Relief</title>
+<style>
+    :root {
+        --panel-bg: rgba(5, 10, 20, 0.82);
+        --panel-line: rgba(150, 190, 255, 0.18);
+        --text: #dce9ff;
+        --muted: rgba(220, 233, 255, 0.62);
+        --accent: #7fd6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 30% 20%, rgba(186, 125, 72, 0.16), transparent 34%),
+            radial-gradient(circle at 70% 70%, rgba(48, 120, 146, 0.12), transparent 40%),
+            radial-gradient(circle at 50% 100%, rgba(18, 42, 76, 0.18), transparent 44%),
+            #02050d;
+        color: var(--text);
+        font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    canvas { display: block; }
+    #hud {
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        width: min(390px, calc(100vw - 36px));
+        max-height: calc(100vh - 36px);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: auto;
+        padding-right: 4px;
+        pointer-events: none;
+    }
+    #hud::-webkit-scrollbar, #eventList::-webkit-scrollbar {
+        width: 8px;
+    }
+    #hud::-webkit-scrollbar-thumb, #eventList::-webkit-scrollbar-thumb {
+        background: rgba(130, 169, 220, 0.34);
+        border-radius: 999px;
+    }
+    #hud::-webkit-scrollbar-track, #eventList::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    @supports (scrollbar-width: thin) {
+        #hud, #eventList {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(130, 169, 220, 0.34) transparent;
+        }
+    }
+    .panel {
+        pointer-events: auto;
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-line);
+        border-radius: 18px;
+        box-shadow: 0 18px 80px rgba(0, 0, 0, 0.42);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
+    }
+    #title {
+        padding: 18px 18px 16px;
+    }
+    h1 {
+        margin: 0 0 6px;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    #subtitle {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+    }
+    #stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 0 18px 16px;
+    }
+    .stat {
+        border: 1px solid rgba(160, 205, 255, 0.14);
+        border-radius: 12px;
+        padding: 9px 10px;
+        background: rgba(255, 255, 255, 0.035);
+    }
+    .stat b { display: block; font-size: 17px; color: #fff; }
+    .stat span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    #solarPanel {
+        display: grid;
+        gap: 7px;
+        padding: 12px 14px;
+    }
+    .solar-title {
+        color: rgba(255, 217, 163, 0.86);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+    }
+    .solar-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+    }
+    .solar-cell {
+        min-width: 0;
+        padding: 7px 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(160, 205, 255, 0.12);
+        background: rgba(255, 255, 255, 0.028);
+    }
+    .solar-cell span {
+        display: block;
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+    .solar-cell b {
+        display: block;
+        overflow: hidden;
+        margin-top: 2px;
+        color: #f6f9ff;
+        font-size: 11px;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    #toolbar {
+        padding: 10px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+    }
+    button, select {
+        min-height: 30px;
+        border: 1px solid rgba(130, 190, 255, 0.22);
+        border-radius: 12px;
+        background: rgba(18, 32, 55, 0.82);
+        color: var(--text);
+        font: inherit;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    button:hover, select:hover { border-color: rgba(127, 214, 255, 0.55); }
+    #cloudSourceStatus,
+    #liveLayerStatus,
+    #firmsLayerStatus,
+    #auroraLayerStatus,
+    #moonStatus,
+    #issStatus,
+    #airglowStatus,
+    #zodiacalLightStatus,
+    #noctilucentCloudStatus,
+    #dataSourceStatus,
+    #eonetRefreshStatus {
+        grid-column: 1 / -1;
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        padding: 5px 9px;
+        border: 1px solid rgba(160, 205, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.026);
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+    #eonetRefreshStatus[data-state="on"] {
+        color: #d7f2ff;
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    #dataSourceStatus[data-state="on"],
+    #dataSourceStatus[data-state="stale"] {
+        color: #d7f2ff;
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    #eonetRefreshStatus[data-state="refreshing"] {
+        color: #ffd2a0;
+        border-color: rgba(255, 190, 120, 0.28);
+    }
+    #cloudSourceStatus[data-state="nasa"] {
+        color: #d7f2ff;
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    #liveLayerStatus[data-state="on"],
+    #firmsLayerStatus[data-state="on"],
+    #auroraLayerStatus[data-state="on"],
+    #moonStatus[data-state="on"],
+    #issStatus[data-state="on"],
+    #airglowStatus[data-state="on"],
+    #zodiacalLightStatus[data-state="on"],
+    #noctilucentCloudStatus[data-state="on"] {
+        color: #d7f2ff;
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    #liveLayerStatus[data-state="refreshing"],
+    #firmsLayerStatus[data-state="refreshing"],
+    #auroraLayerStatus[data-state="refreshing"],
+    #moonStatus[data-state="pending"],
+    #issStatus[data-state="pending"],
+    #airglowStatus[data-state="pending"],
+    #zodiacalLightStatus[data-state="pending"],
+    #noctilucentCloudStatus[data-state="pending"] {
+        color: #ffd2a0;
+        border-color: rgba(255, 190, 120, 0.28);
+    }
+    #cloudSourceStatus[data-state="error"],
+    #liveLayerStatus[data-state="error"],
+    #firmsLayerStatus[data-state="error"],
+    #auroraLayerStatus[data-state="error"],
+    #moonStatus[data-state="error"],
+    #issStatus[data-state="error"],
+    #airglowStatus[data-state="error"],
+    #zodiacalLightStatus[data-state="error"],
+    #noctilucentCloudStatus[data-state="error"],
+    #dataSourceStatus[data-state="error"],
+    #eonetRefreshStatus[data-state="error"] {
+        color: #ffd1bd;
+        border-color: rgba(255, 128, 90, 0.28);
+        background: rgba(255, 106, 51, 0.055);
+    }
+    #todayPanel {
+        padding: 12px;
+        display: grid;
+        gap: 9px;
+    }
+    .source-panel {
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.45;
+    }
+    .source-panel summary {
+        cursor: pointer;
+        color: rgba(255, 217, 163, 0.86);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+    }
+    .source-panel ul {
+        display: grid;
+        gap: 5px;
+        margin: 9px 0 0;
+        padding-left: 16px;
+    }
+    .source-panel li {
+        overflow-wrap: anywhere;
+    }
+    .editorial-kicker {
+        color: rgba(255, 217, 163, 0.86);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+    }
+    .editorial-headline {
+        min-width: 0;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.25;
+        color: #f5f8ff;
+        overflow-wrap: anywhere;
+    }
+    .editorial-subtitle {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+    .today-feed {
+        display: grid;
+        gap: 8px;
+    }
+    .today-item {
+        padding: 10px 11px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.03);
+        cursor: pointer;
+        transition: background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .today-item:hover, .today-item.active {
+        background: rgba(127, 214, 255, 0.08);
+        border-color: rgba(127, 214, 255, 0.24);
+        transform: translateY(-1px);
+    }
+    .today-meta {
+        min-width: 0;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        overflow-wrap: anywhere;
+    }
+    .today-title {
+        min-width: 0;
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+    .toolbar-span {
+        grid-column: 1 / -1;
+    }
+    .toolbar-range {
+        display: grid;
+        gap: 5px;
+        padding: 8px 10px 10px;
+        border: 1px solid rgba(130, 190, 255, 0.16);
+        border-radius: 12px;
+        background: rgba(12, 20, 34, 0.62);
+        pointer-events: auto;
+    }
+    .toolbar-range label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+    .toolbar-range input[type="range"] {
+        width: 100%;
+        margin: 0;
+        accent-color: #7fd6ff;
+    }
+    #eventList {
+        flex: 1 1 auto;
+        min-height: 220px;
+        overflow: auto;
+        max-height: none;
+        padding: 8px;
+    }
+    .event {
+        display: grid;
+        gap: 4px;
+        padding: 11px 12px;
+        border-radius: 13px;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    .event:hover, .event.active {
+        background: rgba(127, 214, 255, 0.08);
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    .event-title {
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+    .event-meta {
+        min-width: 0;
+        font-size: 11px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+    }
+    .badge {
+        display: inline-block;
+        margin-left: 7px;
+        margin-top: 3px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        border: 1px solid rgba(127, 214, 255, 0.22);
+        background: rgba(127, 214, 255, 0.08);
+        color: rgba(220, 233, 255, 0.82);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+    .badge.live {
+        border-color: rgba(255, 106, 51, 0.48);
+        background: rgba(255, 106, 51, 0.14);
+        color: #ffd3bd;
+        box-shadow: 0 0 18px rgba(255, 106, 51, 0.18);
+    }
+    .badge.recent {
+        border-color: rgba(127, 214, 255, 0.38);
+        background: rgba(127, 214, 255, 0.12);
+        color: #bfefff;
+    }
+    .chip {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 6px;
+        box-shadow: 0 0 14px currentColor;
+    }
+    #details {
+        position: absolute;
+        right: 18px;
+        bottom: 18px;
+        width: min(430px, calc(100vw - 36px));
+        padding: 16px 18px;
+        pointer-events: none;
+    }
+    #details h2 {
+        margin: 0 0 7px;
+        font-size: 15px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+    #details p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+        white-space: pre-line;
+    }
+    #loading {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        color: rgba(220, 233, 255, 0.72);
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        font-size: 12px;
+    }
+    #portraitGuide {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: min(var(--guide-width, 0px), calc(100vw - 24px));
+        height: min(var(--guide-height, 0px), calc(100vh - 24px));
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(255, 240, 214, 0.68);
+        border-radius: 22px;
+        box-shadow:
+            0 0 0 9999px rgba(0, 0, 0, 0.24),
+            inset 0 0 0 1px rgba(127, 214, 255, 0.12);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .2s ease;
+    }
+    #portraitGuide::before,
+    #portraitGuide::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+    }
+    #portraitGuide::before {
+        background:
+            linear-gradient(to right, transparent 33.33%, rgba(255,255,255,0.1) 33.33%, rgba(255,255,255,0.1) 34%, transparent 34%, transparent 66.66%, rgba(255,255,255,0.1) 66.66%, rgba(255,255,255,0.1) 67.33%, transparent 67.33%),
+            linear-gradient(to bottom, transparent 33.33%, rgba(255,255,255,0.08) 33.33%, rgba(255,255,255,0.08) 34%, transparent 34%, transparent 66.66%, rgba(255,255,255,0.08) 66.66%, rgba(255,255,255,0.08) 67.33%, transparent 67.33%);
+    }
+    #portraitGuide::after {
+        inset: 12px;
+        border: 1px dashed rgba(255, 222, 173, 0.24);
+        border-radius: 16px;
+    }
+    body.guide-916 #portraitGuide {
+        opacity: 1;
+    }
+    body.capture-mode #hud,
+    body.capture-mode #details {
+        opacity: 0;
+        transform: translateY(12px);
+        pointer-events: none;
+    }
+    body.capture-mode #hud,
+    body.capture-mode #details,
+    #hud,
+    #details {
+        transition: opacity .22s ease, transform .22s ease;
+    }
+    #hudToggle {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 30;
+        display: none;
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: #dce8ff;
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-line);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
+        cursor: pointer;
+        pointer-events: auto;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    body.panels-hidden #hud,
+    body.panels-hidden #details {
+        opacity: 0;
+        transform: translateY(12px);
+        pointer-events: none;
+    }
+    body.capture-mode #hudToggle {
+        opacity: 0;
+        pointer-events: none;
+    }
+    @media (max-width: 760px) {
+        #hud { width: calc(100vw - 24px); left: 12px; top: 12px; max-height: 78vh; }
+        #details { left: 12px; right: 12px; bottom: 12px; width: auto; }
+        #eventList { min-height: 0; max-height: 30vh; }
+        #hudToggle { display: flex; }
+    }
+</style>
+<script type="importmap">
+{
+    "imports": {
+        "earcut": "https://cdn.jsdelivr.net/npm/earcut@2.2.4/+esm",
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+</head>
+<body>
+<div id="loading">Loading NASA EONET live events...</div>
+<div id="portraitGuide" aria-hidden="true"></div>
+<button id="hudToggle" aria-label="Show or hide panels">&#9776;</button>
+<div id="hud">
+    <section id="title" class="panel">
+        <h1>Living Earth Observatory</h1>
+        <div id="subtitle">NASA EONET near real-time natural events mapped onto a cinematic 3D Earth.</div>
+        <div id="stats">
+            <div class="stat"><b id="totalEvents">0</b><span>events</span></div>
+            <div class="stat"><b id="activeCategories">0</b><span>categories</span></div>
+            <div class="stat"><b id="daysWindow">20</b><span>days</span></div>
+        </div>
+    </section>
+    <section id="solarPanel" class="panel" aria-label="Solar clock">
+        <div class="solar-title">Solar clock</div>
+        <div class="solar-grid">
+            <div class="solar-cell"><span>Romania</span><b id="solarRomania">--:--</b></div>
+            <div class="solar-cell"><span>UTC</span><b id="solarUtc">--:--</b></div>
+            <div class="solar-cell"><span>Subsolar lon</span><b id="solarLon">--</b></div>
+            <div class="solar-cell"><span>Subsolar lat</span><b id="solarLat">--</b></div>
+        </div>
+    </section>
+    <section id="toolbar" class="panel">
+        <select id="categoryFilter" title="Category filter">
+            <option value="all">All categories</option>
+        </select>
+        <select id="daysFilter" title="Days filter">
+            <option value="7">Last 7 days</option>
+            <option value="20" selected>Last 20 days</option>
+            <option value="60">Last 60 days</option>
+            <option value="120">Last 120 days</option>
+        </select>
+        <select id="statusFilter" title="Event status">
+            <option value="open" selected>Open events</option>
+            <option value="all">All statuses</option>
+        </select>
+        <select id="dataSourceFilter" title="Disaster data source">
+            <option value="eonet" selected>EONET default</option>
+            <option value="smart">Smart fallback</option>
+            <option value="gdacs">GDACS only</option>
+        </select>
+        <button id="refreshBtn">Refresh NASA data</button>
+        <div id="dataSourceStatus" data-state="on">Data source: NASA EONET default</div>
+        <button id="autoRefreshBtn">Auto refresh: off</button>
+        <div id="eonetRefreshStatus" data-state="off">EONET: manual refresh</div>
+        <button id="nightBtn">NASA night look</button>
+        <button id="realCloudBtn" title="Daily NASA GIBS cloud snapshot; not live minute-by-minute.">Daily clouds: off</button>
+        <div id="cloudSourceStatus" data-state="artistic">Clouds: artistic procedural layer</div>
+        <button id="seismicLayerBtn" title="USGS earthquakes for the selected time window. Separate source, integrated into Earthquakes.">USGS quakes: off</button>
+        <div id="liveLayerStatus" data-state="off">USGS quakes: off</div>
+        <button id="firmsLayerBtn" title="NASA FIRMS MODIS/VIIRS near-real-time wildfire hotspots, via local proxy (nasa-proxy-server.js).">NASA FIRMS fires: off</button>
+        <div id="firmsLayerStatus" data-state="off">NASA FIRMS: off</div>
+        <button id="auroraLayerBtn" title="NOAA SWPC OVATION aurora forecast layer.">Aurora: off</button>
+        <div id="auroraLayerStatus" data-state="off">Aurora: NOAA OVATION off</div>
+        <div id="moonStatus" data-state="pending">Moon: calculating Astronomy Engine position...</div>
+        <button id="issLayerBtn" title="CelesTrak TLE + satellite.js SGP4 position for the International Space Station.">ISS: off</button>
+        <button id="trackIssBtn" title="Move the camera to a cinematic live ISS tracking arc.">Track ISS</button>
+        <div id="issStatus" data-state="off">ISS: off</div>
+        <button id="airglowLayerBtn" title="Subtle night-side airglow representation; OI green-dominant, procedural intensity.">Airglow: off</button>
+        <div id="airglowStatus" data-state="off">Airglow: off</div>
+        <select id="airglowPreset" title="Airglow visibility preset">
+            <option value="scientific" selected>Airglow scientific</option>
+            <option value="cinematic">Airglow cinematic</option>
+        </select>
+        <div class="toolbar-range toolbar-span" title="Visibility multiplier for Airglow only. It remains a procedural representation of a real phenomenon, not a live snapshot.">
+            <label for="airglowIntensity">
+                <span>Airglow intensity</span>
+                <span id="airglowIntensityValue">1.0x</span>
+            </label>
+            <input id="airglowIntensity" type="range" min="0.25" max="2.4" step="0.05" value="1">
+        </div>
+        <button id="zodiacalLightBtn" title="Subtle sunlight scattered by interplanetary dust, aligned with the ecliptic.">Zodiacal light: off</button>
+        <div id="zodiacalLightStatus" data-state="off">Zodiacal light: off</div>
+        <div class="toolbar-range toolbar-span" title="Cinematic visibility multiplier for Zodiacal Light only. 1.0 is the scientific baseline.">
+            <label for="zodiacalIntensity">
+                <span>Zodiacal intensity</span>
+                <span id="zodiacalIntensityValue">1.0x</span>
+            </label>
+            <input id="zodiacalIntensity" type="range" min="0.35" max="2.2" step="0.05" value="1">
+        </div>
+        <button id="noctilucentCloudBtn" title="Seasonal mesospheric ice clouds constrained to high-latitude twilight; procedural morphology, not a live cloud snapshot.">Noctilucent: off</button>
+        <div id="noctilucentCloudStatus" data-state="off">Noctilucent: off</div>
+        <select id="noctilucentPreset" title="Noctilucent visibility preset">
+            <option value="scientific" selected>Noctilucent scientific</option>
+            <option value="cinematic">Noctilucent cinematic</option>
+        </select>
+        <div class="toolbar-range toolbar-span" title="Visibility multiplier for noctilucent clouds only; geography, season, and twilight constraints stay physical.">
+            <label for="noctilucentIntensity">
+                <span>Noctilucent intensity</span>
+                <span id="noctilucentIntensityValue">1.0x</span>
+            </label>
+            <input id="noctilucentIntensity" type="range" min="0.25" max="2.4" step="0.05" value="1">
+        </div>
+        <button id="moonTextureBtn" title="Switch Moon color texture between the default (CoryG89 mosaic) and the public-domain NASA LROC WAC map.">Moon texture: CoryG89 (default)</button>
+        <button id="moonMarkersBtn" title="Toggle real Moon landmarks (Apollo landing sites, named craters and maria). Click a marker to zoom in and see details.">Moon markers: off</button>
+        <button id="atmosphereModeBtn" title="Toggle physical ray-marched atmosphere scattering.">Atmosphere: dot</button>
+        <button id="oceanFresnelBtn" title="Fresnel reflectivity on oceans (Schlick approximation) - water becomes mirror-like at grazing view angles, like real ISS photos at the limb.">Fresnel oceans: on</button>
+        <button id="sssIceBtn" title="Subsurface scattering on ice/snow (wrap lighting) - gives polar caps and glaciers their characteristic translucent glow instead of a hard Lambertian falloff.">SSS ice: on</button>
+        <button id="materialModeBtn" title="Switch Earth surface material between Phong (default, with Fresnel ocean glint) and PBR roughness/metalness (approximate surface classification from NASA Blue Marble color heuristics - not true MODIS land cover data).">Surface: Phong (default)</button>
+        <button id="brandPresetBtn">Brand: off</button>
+        <button id="captureBtn">Capture: off</button>
+        <button id="guide916Btn">Guide 9:16: off</button>
+        <button id="fit916Btn">Fit 9:16</button>
+        <button id="verticalDirectorBtn" title="Optimize vertical composition, reel cards, and export bloom for social video.">Vertical director: off</button>
+        <select id="motionPreset" title="Motion preset">
+            <option value="slowOrbit" selected>Slow orbit</option>
+            <option value="heroDrift">Hero drift</option>
+            <option value="focusPulse">Focus pulse</option>
+        </select>
+        <select id="reelMood" title="Reel mood preset">
+            <option value="news">News mood</option>
+            <option value="cinematic" selected>Cinematic mood</option>
+            <option value="dramatic">Dramatic mood</option>
+        </select>
+        <select id="earthLook" title="Earth look preset">
+            <option value="scientific">Scientific Earth</option>
+            <option value="cinematic" selected>Cinematic Earth</option>
+            <option value="showcase">Showcase Earth</option>
+        </select>
+        <select id="socialPreset" title="Social/demo export preset">
+            <option value="custom" selected>Custom preset</option>
+            <option value="igCinematic">IG Cinematic</option>
+            <option value="tiktokImpact">TikTok Impact</option>
+            <option value="dramaticNature">Dramatic Nature</option>
+            <option value="minimalPoetic">Minimal Poetic</option>
+            <option value="quietPower">Quiet Power</option>
+            <option value="dataAsLight">Data as Light</option>
+            <option value="orbitalStory">Orbital Story</option>
+        </select>
+        <select id="captionStyle" title="Caption overlay style">
+            <option value="minimal">Minimal captions</option>
+            <option value="cinematic" selected>Cinematic captions</option>
+            <option value="impact">Impact captions</option>
+        </select>
+        <button id="poeticCaptionBtn" title="Optional artistic line generated from event category.">Poetic line: off</button>
+        <button id="dataRhythmBtn" title="Let recency, magnitude, and cluster size guide camera rhythm and marker pulse.">Data rhythm: on</button>
+        <button id="exportReelBtn">Reel PNG</button>
+        <button id="exportReelVideoBtn">Reel Video</button>
+        <button id="exportReelVideoH264Btn" title="Records the same reel, then converts it to H.264 MP4 via FFmpeg on the local proxy server (needs nasa-proxy-server.js running and FFmpeg installed).">Export H.264</button>
+        <button id="showcaseReelBtn">Showcase reel</button>
+        <button id="demoReelBtn">Demo reel</button>
+        <button id="exportPngBtn">Still PNG</button>
+        <div class="toolbar-range toolbar-span">
+            <label for="reelDuration">
+                <span>Reel duration</span>
+                <span id="reelDurationValue">8s</span>
+            </label>
+            <input id="reelDuration" type="range" min="5" max="30" step="1" value="8">
+        </div>
+        <div class="toolbar-range toolbar-span">
+            <label for="spinSpeed">
+                <span>Spin speed</span>
+                <span id="spinSpeedValue">6.0</span>
+            </label>
+            <input id="spinSpeed" type="range" min="2" max="12" step="0.5" value="6">
+        </div>
+        <div class="toolbar-range toolbar-span">
+            <label for="snapDuration">
+                <span>Snap stop</span>
+                <span id="snapDurationValue">0.45s</span>
+            </label>
+            <input id="snapDuration" type="range" min="0.2" max="1" step="0.05" value="0.45">
+        </div>
+    </section>
+    <details id="sourcesPanel" class="panel source-panel">
+        <summary>Data sources</summary>
+        <ul>
+            <li>NASA EONET: near real-time natural event metadata.</li>
+            <li>GDACS: EU JRC / UN OCHA global disaster alerts, available as smart fallback or GDACS-only event source.</li>
+            <li>NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional supplemental fire layer requiring a FIRMS MAP_KEY.</li>
+            <li>NASA GIBS: daily cloud snapshot layer.</li>
+            <li>NOAA SWPC OVATION: aurora oval forecast intensity.</li>
+            <li>USGS: earthquake feed integrated into Earthquakes.</li>
+            <li>NOAA ETOPO1-derived relief: terrain and bathymetry reference.</li>
+            <li>Astronomy Engine: apparent Sun position and Moon position/phase geometry.</li>
+            <li>Astronomy Engine: real lunar libration (Astronomy.Libration) and real north-pole axis (Astronomy.RotationAxis) drive the Moon's actual visible-hemisphere orientation and disc roll.</li>
+            <li>Moon color/normal maps: Clementine/LRO satellite mosaic (default, CoryG89) or NASA LROC WAC (public domain, toggle available).</li>
+            <li>Moon relief: NASA SVS CGI Moon Kit — LOLA laser altimeter elevation data (local asset, NASA's CDN blocks direct CORS fetch).</li>
+            <li>CelesTrak + satellite.js (SGP4): ISS orbital position, altitude and velocity.</li>
+            <li>Airglow: real upper-atmosphere emission represented procedurally, OI green-dominant, not a live intensity snapshot.</li>
+            <li>Zodiacal light: sunlight scattered by interplanetary dust, approximated along the real Sun direction and ecliptic plane.</li>
+            <li>Noctilucent clouds: physically constrained procedural mesospheric layer, limited by latitude, season and twilight geometry; not a live morphology snapshot.</li>
+        </ul>
+    </details>
+    <section id="todayPanel" class="panel"></section>
+    <section id="eventList" class="panel"></section>
+</div>
+<section id="details" class="panel">
+    <h2>Select an event</h2>
+    <p>Click a marker or list entry to inspect NASA EONET metadata: category, date, source and coordinates.</p>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import * as earcutModule from 'earcut';
+import { createEarthAppBootstrap } from './src/earth/earth-app-bootstrap.js?v=earthBaseMap2';
+import { createSceneRuntime } from './src/earth/scene-runtime.js?v=smaa1';
+import { createInitialEarthState } from './src/earth/app-state.js?v=v3sss1';
+import { createEarthAppServices } from './src/earth/app-services.js?v=appServices109';
+
+const earcutTriangulate = earcutModule.default || earcutModule.earcut;
+const state = createInitialEarthState();
+const sceneRuntime = createSceneRuntime({ THREE });
+
+const bootstrap = createEarthAppBootstrap({
+    THREE,
+    scene: sceneRuntime.scene,
+    camera: sceneRuntime.camera,
+    controls: sceneRuntime.controls,
+    renderer: sceneRuntime.renderer
+});
+
+const appServices = createEarthAppServices({
+    THREE,
+    earcut: earcutTriangulate,
+    state,
+    sceneRuntime,
+    bootstrap
+});
+const { appRuntime } = appServices;
+if (new URLSearchParams(location.search).has('debug')) {
+    window.__livingEarthDebug = { state, sceneRuntime, appServices };
+}
+appRuntime.start();
+</script>
+</body>
+</html>
