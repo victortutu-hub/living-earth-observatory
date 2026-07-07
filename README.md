@@ -215,3 +215,12 @@ This snapshot includes:
 - For external data, keep fallback behavior and status messages explicit.
 - For reels, always test in 9:16 and verify text-safe margins.
 - After a stable milestone, create a new snapshot under `Back Up`.
+
+## License
+
+This repository is source-available for viewing, evaluation, portfolio review,
+research discussion, and personal learning. It is not released under MIT or
+another permissive open-source license.
+
+See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md) for usage terms, source
+attribution, and third-party data/asset notes.

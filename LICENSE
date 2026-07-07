@@ -1,0 +1,37 @@
+Living Earth Observatory Source-Available License
+
+Copyright (c) 2026 Mihai / Victor Tutu. All rights reserved.
+
+This repository is published for viewing, evaluation, portfolio review,
+research discussion, and personal learning only.
+
+You may:
+
+- view and run the project locally for personal, non-commercial evaluation;
+- read the source code for educational purposes;
+- reference the project publicly with clear attribution to the author.
+
+You may not, without prior written permission from the copyright holder:
+
+- copy, redistribute, sublicense, sell, lease, or publish modified versions of
+  this project;
+- use this project, its source code, its visual system, or its generated
+  presentation/export workflow in a commercial product, client project,
+  software-as-a-service product, paid content package, or public derivative;
+- remove author attribution or imply endorsement by the author or by any data
+  provider;
+- redistribute third-party data, imagery, textures, or external assets beyond
+  what their own licenses allow.
+
+Third-party libraries, public data sources, and external assets remain governed
+by their respective licenses and terms. This license applies only to the
+original code, composition, visual design, project structure, editorial reel
+logic, and documentation created for Living Earth Observatory.
+
+No warranty is provided. The software and visual outputs are provided "as is",
+without warranty of any kind, including but not limited to accuracy, fitness for
+a particular purpose, uninterrupted operation, or suitability for emergency,
+scientific, operational, legal, or financial decision-making.
+
+For permission requests, contact the repository owner:
+https://github.com/victortutu-hub/living-earth-observatory
