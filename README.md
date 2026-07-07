@@ -1,138 +1,138 @@
 # Living Earth Observatory
 
-Living Earth Observatory este o scena WebGL/Three.js care combina o planeta 3D cinematica cu evenimente naturale aproape in timp real. Proiectul porneste de la NASA EONET si adauga straturi vizuale pentru relief, nori, zi/noapte cu Astronomy Engine, atmosfera fizica, cutremure USGS, NASA FIRMS, GDACS, aurora NOAA, Luna reala si ISS.
+Living Earth Observatory is a WebGL/Three.js cinematic Earth observatory that combines a physically styled 3D planet with near-real-time natural disaster signals. The project starts from NASA EONET as its primary voice, then adds relief, clouds, real solar day/night timing, physical atmosphere, USGS earthquakes, NASA FIRMS fire hotspots, GDACS disaster alerts, NOAA aurora, a physically driven Moon, Earthshine, ISS tracking, and subtle atmospheric astronomy layers.
 
-Fisierul principal este:
+Main entry point:
 
 ```text
 earth-eonet-relief.html
 ```
 
-Versiunea curenta include presetul `Showcase reel`, panou `Data sources`, export video 9:16, pacing de demo reel single-card sincronizat cu target-ul, card intro reparat, restore atomic dupa Demo reel, Vertical Director, caption system, Data Rhythm Camera, Moon/Earthshine reel moment, ISS trail si straturi atmosferice subtile controlabile.
+The current version includes the `Showcase reel` preset, `Data sources` panel, 9:16 video export, synchronized single-card reel pacing, restored intro card layout, atomic state restore after Demo reel, Vertical Director, caption system, Data Rhythm Camera, Moon/Earthshine reel moment, ISS trail, and controllable subtle atmospheric phenomena.
 
-## Rulare Locala
+## Local Run
 
-Din radacina proiectului:
+From the project root:
 
 ```bash
 python -m http.server 8765 --bind 127.0.0.1
 ```
 
-Apoi deschide:
+Then open:
 
 ```text
 http://127.0.0.1:8765/earth-eonet-relief.html
 ```
 
-Pentru a evita cache-ul browserului in timpul dezvoltarii, poti adauga un query string:
+To avoid browser cache during development, append a query string:
 
 ```text
 http://127.0.0.1:8765/earth-eonet-relief.html?dev=1
 ```
 
-### Proxy local pentru GDACS / FIRMS / H.264
+### Local Proxy For GDACS / FIRMS / H.264
 
-Pentru surse fara CORS deschis si pentru conversia optionala H.264:
+Some upstream data sources do not expose browser-friendly CORS headers. The local proxy keeps the browser app clean while allowing server-to-server requests to GDACS, NASA FIRMS, and NASA EONET fallback endpoints.
 
 ```bash
 node nasa-proxy-server.js
 ```
 
-Pentru NASA FIRMS, copiaza `.env.example` in `.env` si seteaza:
+For NASA FIRMS, copy `.env.example` to `.env` and set:
 
 ```text
 FIRMS_MAP_KEY=your_firms_map_key_here
 ```
 
-Cheia reala ramane locala. `.env` si `proxy-cache/` sunt ignorate de git.
+The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 
-## Ce Face Aplicatia
+## What The App Does
 
-- Afiseaza un glob 3D cu relief si bathymetry pe baza de texturi ETOPO.
-- Incarca evenimente naturale din NASA EONET.
-- Poate folosi GDACS ca fallback inteligent sau sursa principala temporara.
-- Integreaza cutremure USGS in categoria `Earthquakes`.
-- Integreaza NASA FIRMS ca layer suplimentar pentru hotspot-uri de incendiu prin proxy local.
-- Poate afisa daily clouds din NASA GIBS.
-- Poate afisa aurora NOAA SWPC OVATION ca oval polar discret.
-- Sincronizeaza iluminarea zi/noapte cu pozitia solara reala.
-- Are atmosfera `dot` sau `physical` cu scattering fizic aproximat.
-- Include Luna cu pozitie, faza, distanta, orientare/libration, relief lunar si Earthshine.
-- Include ISS cu telemetrie, tracking si trail vizual subtil.
-- Include Airglow, Zodiacal Light si Noctilucent Clouds ca fenomene reale reprezentate procedural, cu toggle/preset/intensitate.
-- Exporta PNG si video reel vertical 9:16.
+- Renders a 3D Earth with relief and bathymetry based on ETOPO-style local textures.
+- Loads natural events from NASA EONET.
+- Uses GDACS as an intelligent fallback or temporary primary data source.
+- Integrates USGS earthquakes into the shared `Earthquakes` category.
+- Adds NASA FIRMS wildfire hotspots through the local proxy.
+- Supports NASA GIBS daily cloud snapshots.
+- Renders NOAA SWPC OVATION aurora as a restrained polar oval.
+- Synchronizes day/night lighting with the real solar position.
+- Provides `dot` and `physical` atmosphere modes.
+- Includes the Moon with real position, phase, distance, orientation/libration, lunar relief, and Earthshine.
+- Includes ISS telemetry, tracking, and a subtle data-driven orbital trail.
+- Includes Airglow, Zodiacal Light, and Noctilucent Clouds as physically grounded procedural phenomena with toggles, presets, and intensity sliders.
+- Exports still PNGs and vertical 9:16 reel videos.
 
-## Surse De Date
+## Data Sources
 
-- NASA EONET: evenimente naturale aproape in timp real.
-- GDACS: EU JRC / UN OCHA global disaster alerts, folosit ca fallback sau mod GDACS-only.
-- NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional prin proxy local si `FIRMS_MAP_KEY`.
-- NASA GIBS: daily cloud snapshot, nu live minut-cu-minut.
-- USGS: feed de cutremure, integrat local ca evenimente `earthquakes`.
-- NOAA SWPC OVATION: forecast aurora, folosit pentru intensitatea ovalului polar.
-- NOAA/ETOPO-derived relief assets: texturi locale pentru relief si normal map.
-- Astronomy Engine: pozitie solara aparenta, Solar clock, Luna, faza, distanta si geometrie astronomica.
-- TLE/SGP4: pozitie ISS si tracking orbital.
-- Airglow: fenomen real de emisie in atmosfera superioara, intensitate procedurala, nu snapshot live.
-- Zodiacal Light: lumina solara imprastiata de praf interplanetar, aproximata pe ecliptica.
-- Noctilucent Clouds: fereastra reala de latitudine/sezon/twilight, morfologie procedurala.
+- NASA EONET: near-real-time natural event metadata.
+- GDACS: EU JRC / UN OCHA global disaster alerts, used as fallback or GDACS-only mode.
+- NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional through the local proxy and `FIRMS_MAP_KEY`.
+- NASA GIBS: daily cloud snapshot, not minute-by-minute live clouds.
+- USGS: earthquake feed, normalized into local `earthquakes` events.
+- NOAA SWPC OVATION: aurora forecast, used to drive polar oval intensity.
+- NOAA/ETOPO-derived relief assets: local relief and normal-map textures.
+- Astronomy Engine: apparent solar position, solar clock, Moon position, phase, distance, and astronomical geometry.
+- TLE/SGP4: ISS position and orbital tracking.
+- Airglow: real upper-atmosphere emission phenomenon; procedural intensity, not a live snapshot.
+- Zodiacal Light: sunlight scattered by interplanetary dust, approximated along the ecliptic.
+- Noctilucent Clouds: real seasonal, latitude, and twilight window; procedural morphology.
 
-Assets locale importante:
+Important local assets:
 
 ```text
 assets/etopo2022-bedrock-relief-2160x1080.png
 assets/etopo2022-bedrock-normal-2160x1080.png
 ```
 
-## Module Principale
+## Main Modules
 
-### Bootstrap si runtime
+### Bootstrap And Runtime
 
-- `src/earth/scene-runtime.js` creeaza scena, renderer, camera, controls si composer.
-- `src/earth/earth-app-bootstrap.js` incarca texturile si pregateste scena initiala.
-- `src/earth/app-services.js` leaga serviciile principale ale aplicatiei.
-- `src/earth/app-runtime.js` porneste lifecycle-ul, UI wiring-ul, animation loop-ul si demo reel.
-- `src/earth/app-state.js` defineste starea initiala si presetul default.
-- `src/earth/scene-runtime.js` foloseste `EffectComposer` cu `UnrealBloomPass`, `SMAAPass` si `OutputPass`.
+- `src/earth/scene-runtime.js` creates the scene, renderer, camera, controls, and composer.
+- `src/earth/earth-app-bootstrap.js` loads textures and prepares the initial scene.
+- `src/earth/app-services.js` connects the main application services.
+- `src/earth/app-runtime.js` starts lifecycle hooks, UI wiring, the animation loop, and demo reel runtime.
+- `src/earth/app-state.js` defines the initial state and default preset.
+- `src/earth/scene-runtime.js` uses `EffectComposer` with `UnrealBloomPass`, `SMAAPass`, and `OutputPass`.
 
-### Planeta, lumina si atmosfera
+### Planet, Light, And Atmosphere
 
-- `src/earth/app-visual-foundation.js` compune fundatia vizuala: geo utils, event utils, solar runtime, earth layers, stars si clouds.
-- `src/earth/earth-layers.js` creeaza mesh-urile pentru Earth, night lights si atmosphere.
-- `src/earth/earth-material.js`, `earth-look.js`, `earth-appearance.js` controleaza materialele si look preset-urile.
-- `src/earth/atmosphere.js` contine atmosfera `dot` si `physical`.
-- `src/earth/solar-runtime.js`, `solar-system.js` calculeaza pozitia solara si solar clock.
+- `src/earth/app-visual-foundation.js` composes the visual foundation: geo utilities, event utilities, solar runtime, Earth layers, stars, and clouds.
+- `src/earth/earth-layers.js` creates the Earth, night lights, and atmosphere meshes.
+- `src/earth/earth-material.js`, `earth-look.js`, and `earth-appearance.js` control materials and look presets.
+- `src/earth/atmosphere.js` contains the `dot` and `physical` atmosphere modes.
+- `src/earth/solar-runtime.js` and `solar-system.js` compute solar position and solar clock values.
 
-### Date si UI EONET / multi-source
+### EONET / Multi-Source Data And UI
 
-- `src/earth/eonet-data.js` incarca feed-ul NASA EONET, providerii suplimentari si fallback-ul GDACS.
-- `src/earth/eonet-ui.js` randeaza lista, Today on Earth, detaliile si filtrele.
-- `src/earth/eonet-workflow.js` coordoneaza load/filter/select.
-- `src/earth/event-scene.js`, `marker-system.js`, `polygon-overlays.js` randeaza markeri, clustere si poligoane. Calea stabila pastreaza mesh-uri individuale pentru EONET/highlights si foloseste un `Points` shader layer pentru cutremure USGS de fundal cand sunt multe evenimente.
-- `src/earth/gdacs-provider.js`, `firms-wildfires.js`, `usgs-earthquakes.js` normalizeaza sursele alternative in modelul comun de eveniment.
+- `src/earth/eonet-data.js` loads NASA EONET, supplemental providers, and GDACS fallback.
+- `src/earth/eonet-ui.js` renders the event list, Today on Earth, details panel, and filters.
+- `src/earth/eonet-workflow.js` coordinates load, filter, and selection behavior.
+- `src/earth/event-scene.js`, `marker-system.js`, and `polygon-overlays.js` render markers, clusters, and polygon overlays. The stable path keeps individual meshes for EONET/highlights and uses a `Points` shader layer for dense USGS earthquake background events.
+- `src/earth/gdacs-provider.js`, `firms-wildfires.js`, and `usgs-earthquakes.js` normalize alternative sources into the shared event model.
 
-### Live layers
+### Live Layers
 
-- `src/earth/live-data-layers.js` conecteaza USGS, NASA FIRMS si NOAA aurora.
-- `src/earth/usgs-earthquakes.js` transforma feed-ul USGS in evenimente compatibile cu UI-ul EONET.
-- `src/earth/noaa-aurora-layer.js` creeaza ovalul polar pe baza de intensitate NOAA.
-- `src/earth/iss-system.js` calculeaza pozitia ISS si randarea trail-ului orbital.
-- `src/earth/moon-system.js` calculeaza Luna, faza, libration/orientare, texturi si Earthshine.
-- `src/earth/airglow-system.js`, `zodiacal-light-system.js`, `noctilucent-cloud-system.js` adauga fenomene atmosferice/astronomice subtile cu intensitate controlata.
+- `src/earth/live-data-layers.js` connects USGS, NASA FIRMS, and NOAA aurora.
+- `src/earth/usgs-earthquakes.js` converts the USGS feed into events compatible with the EONET UI.
+- `src/earth/noaa-aurora-layer.js` creates the polar aurora oval from NOAA intensity data.
+- `src/earth/iss-system.js` calculates ISS position and renders the orbital trail.
+- `src/earth/moon-system.js` calculates the Moon, phase, libration/orientation, textures, relief, and Earthshine.
+- `src/earth/airglow-system.js`, `zodiacal-light-system.js`, and `noctilucent-cloud-system.js` add subtle atmospheric and astronomical phenomena with controllable intensity.
 
-### Reel si export
+### Reel And Export
 
-- `src/earth/reel-timeline.js` controleaza Demo reel: intro, evenimente, outro, restore.
-- `src/earth/reel-overlay.js` deseneaza cardurile, caption-urile, locator line si signal pulse.
-- `src/earth/reel-presets.js` contine mood-urile si motion preset-urile.
-- `src/earth/vertical-director.js`, `caption-system.js`, `data-rhythm-camera.js` controleaza compozitia 9:16, textul social si ritmul camerei bazat pe date.
-- `src/earth/export-system.js` exporta PNG si video 9:16 cu acelasi bloom + SMAA polish ca scena interactiva.
+- `src/earth/reel-timeline.js` controls the Demo reel: intro, events, Moon/Earthshine moment, outro, and restore.
+- `src/earth/reel-overlay.js` draws cards, captions, locator line, and signal pulse.
+- `src/earth/reel-presets.js` contains mood and motion presets.
+- `src/earth/vertical-director.js`, `caption-system.js`, and `data-rhythm-camera.js` control 9:16 composition, social text, and data-driven camera rhythm.
+- `src/earth/export-system.js` exports PNG and 9:16 video using the same bloom and SMAA polish as the interactive scene.
 
-## Preseturi Importante
+## Important Presets
 
 ### Default
 
-La pornire, aplicatia foloseste:
+On startup, the application uses:
 
 - `Cinematic Earth`
 - `Cinematic mood`
@@ -141,9 +141,9 @@ La pornire, aplicatia foloseste:
 - `USGS quakes: off`
 - `Aurora: off`
 
-### Showcase reel
+### Showcase Reel
 
-Butonul `Showcase reel` seteaza un mod pregatit pentru social/reel:
+The `Showcase reel` button prepares a social/reel-friendly state:
 
 - `Reel duration: 24s`
 - `Cinematic mood`
@@ -153,64 +153,65 @@ Butonul `Showcase reel` seteaza un mod pregatit pentru social/reel:
 - `Guide 9:16: on`
 - `Fit 9:16`
 
-Nu forteaza `Brand: on`; brand-ul ramane alegerea utilizatorului.
+It does not force `Brand: on`; branding remains the user's choice.
 
-### Demo reel
+### Demo Reel
 
-Butonul `Demo reel` porneste exportul publicabil:
+The `Demo reel` button starts the publishable export:
 
-- seteaza temporar un look cinematic/showcase;
-- foloseste atmosfera fizica;
-- ruleaza un tur editorial prin evenimentele selectate;
-- exporta video 1080x1920;
-- afiseaza progresul exportului;
-- restaureaza starea initiala dupa final.
+- temporarily applies a cinematic/showcase look;
+- uses physical atmosphere;
+- runs an editorial tour through selected events;
+- includes the Moon/Earthshine moment when enabled by the current reel mode;
+- exports a 1080x1920 video;
+- displays export progress;
+- restores the initial state after completion.
 
-Restore-ul Demo reel pastreaza:
+Demo reel restore preserves:
 
-- durata reel;
-- brand/capture;
+- reel duration;
+- brand/capture state;
 - motion preset;
-- earth look;
+- Earth look;
 - atmosphere mode;
 - reel mood;
 - spin speed;
 - snap duration;
 - night look.
 
-## Workflow Recomandat Pentru Reel
+## Recommended Reel Workflow
 
-1. Porneste serverul local.
-2. Deschide `earth-eonet-relief.html`.
-3. Apasa `Showcase reel`.
-4. Alege `Brand: on/off` dupa preferinta.
-5. Verifica incadrarea in ghidul 9:16.
-6. Apasa `Demo reel`.
-7. Asteapta exportul pana la 100%.
-8. Verifica fisierul `.webm` descarcat.
+1. Start the local server.
+2. Open `earth-eonet-relief.html`.
+3. Press `Showcase reel`.
+4. Choose `Brand: on/off`.
+5. Verify framing in the 9:16 guide.
+6. Press `Demo reel`.
+7. Wait for the export to reach 100%.
+8. Review the downloaded `.webm` file.
 
 ## Backup / Freeze
 
-Snapshot-ul final curent este:
+The current stable baseline is:
 
 ```text
-Back Up/earth-eonet-relief-v2.4.4-earthshine-reel-moment-20260703-0942
+Back Up/earth-eonet-relief-v2.4.5-pre-freeze-stabilization-20260707-093948
 ```
 
-Acest snapshot include:
+This snapshot includes:
 
 - multi-source data layer: EONET, GDACS, USGS, FIRMS;
-- proxy local cu `.env` pentru FIRMS si cache local;
-- Moon V2.1+ cu faza, distanta, libration, Earthshine si texturi comutabile;
-- ISS tracking si trail vizual subtil;
-- Zodiacal Light, Noctilucent Clouds si Airglow cu toggle/preset/intensitate;
-- Showcase reel, Vertical Director, captions si Data Rhythm Camera;
-- restore atomic pentru Demo reel si export video 9:16.
+- local proxy with `.env` support for FIRMS and local cache;
+- Moon V2.1+ with phase, distance, libration, Earthshine, relief, and switchable textures;
+- ISS tracking and subtle visual trail;
+- Zodiacal Light, Noctilucent Clouds, and Airglow with toggle/preset/intensity controls;
+- Showcase reel, Vertical Director, captions, and Data Rhythm Camera;
+- atomic restore for Demo reel and 9:16 video export.
 
-## Note De Dezvoltare
+## Development Notes
 
-- Proiectul este modularizat; evita schimbari mari direct in HTML.
-- Pentru editari vizuale, prefera modulele din `src/earth`.
-- Pentru date externe, pastreaza fallback-uri si statusuri clare in UI.
-- Pentru reel, testeaza intotdeauna in 9:16 si verifica daca textul ramane in safe margins.
-- Dupa o stare buna, creeaza un nou snapshot in `Back Up`.
+- The project is modularized; avoid large changes directly in the HTML file.
+- For visual edits, prefer the modules in `src/earth`.
+- For external data, keep fallback behavior and status messages explicit.
+- For reels, always test in 9:16 and verify text-safe margins.
+- After a stable milestone, create a new snapshot under `Back Up`.
