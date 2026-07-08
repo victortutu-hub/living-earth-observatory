@@ -573,8 +573,8 @@
         </select>
         <select id="dataSourceFilter" title="Disaster data source">
             <option value="eonet" selected>EONET default</option>
-            <option value="smart">Smart fallback</option>
-            <option value="gdacs">GDACS only</option>
+            <option value="smart">Smart fallback (proxy)</option>
+            <option value="gdacs">GDACS only (proxy)</option>
         </select>
         <button id="refreshBtn">Refresh NASA data</button>
         <div id="dataSourceStatus" data-state="on">Data source: NASA EONET default</div>
@@ -585,7 +585,7 @@
         <div id="cloudSourceStatus" data-state="artistic">Clouds: artistic procedural layer</div>
         <button id="seismicLayerBtn" title="USGS earthquakes for the selected time window. Separate source, integrated into Earthquakes.">USGS quakes: off</button>
         <div id="liveLayerStatus" data-state="off">USGS quakes: off</div>
-        <button id="firmsLayerBtn" title="NASA FIRMS MODIS/VIIRS near-real-time wildfire hotspots, via local proxy (nasa-proxy-server.js).">NASA FIRMS fires: off</button>
+        <button id="firmsLayerBtn" title="NASA FIRMS MODIS/VIIRS near-real-time wildfire hotspots. Public demo keeps this off unless a local proxy or proxyBase is configured.">NASA FIRMS fires: off</button>
         <div id="firmsLayerStatus" data-state="off">NASA FIRMS: off</div>
         <button id="auroraLayerBtn" title="NOAA SWPC OVATION aurora forecast layer.">Aurora: off</button>
         <div id="auroraLayerStatus" data-state="off">Aurora: NOAA OVATION off</div>
@@ -703,8 +703,8 @@
         <summary>Data sources</summary>
         <ul>
             <li>NASA EONET: near real-time natural event metadata.</li>
-            <li>GDACS: EU JRC / UN OCHA global disaster alerts, available as smart fallback or GDACS-only event source.</li>
-            <li>NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional supplemental fire layer requiring a FIRMS MAP_KEY.</li>
+            <li>GDACS: EU JRC / UN OCHA global disaster alerts. In the public demo it is explicit proxy-only fallback; locally it can be used as smart fallback or GDACS-only source.</li>
+            <li>NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional supplemental fire layer requiring the local proxy and FIRMS_MAP_KEY.</li>
             <li>NASA GIBS: daily cloud snapshot layer.</li>
             <li>NOAA SWPC OVATION: aurora oval forecast intensity.</li>
             <li>USGS: earthquake feed integrated into Earthquakes.</li>
@@ -724,7 +724,7 @@
 </div>
 <section id="details" class="panel">
     <h2>Select an event</h2>
-    <p>Click a marker or list entry to inspect NASA EONET metadata: category, date, source and coordinates.</p>
+    <p>Click a marker or list entry to inspect event metadata: provider, category, date, source and coordinates.</p>
 </section>
 
 <script type="module">

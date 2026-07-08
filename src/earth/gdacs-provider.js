@@ -1,3 +1,5 @@
+import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
+
 function parseDate(value) {
     const date = value ? new Date(value) : null;
     return date && Number.isFinite(date.getTime()) ? date : null;
@@ -84,6 +86,12 @@ export function createGdacsProvider({
     let lastProxyStatus = null;
 
     async function fetchEvents(filters = {}) {
+        if (isPublicProxyDisabledRuntime()) {
+            lastError = createProxyRequiredError('GDACS');
+            lastCount = 0;
+            throw lastError;
+        }
+
         const proxyBase = readProxyBase();
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -119,6 +127,7 @@ export function createGdacsProvider({
     }
 
     function getStatus() {
+        if (isPublicProxyDisabledRuntime()) return { state: 'off', message: proxyRequiredMessage('GDACS') };
         if (lastError) return { state: 'error', message: `GDACS: ${lastError.message || 'network error'} (is nasa-proxy-server.js running?)` };
         if (!lastUpdated) return { state: 'off', message: 'GDACS: standby fallback source' };
         const time = new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });

@@ -1,3 +1,5 @@
+import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
+
 export function createEonetDataSource({
     apiUrl,
     latestGeometry,
@@ -103,6 +105,15 @@ export function createEonetDataSource({
         const sourceMode = filters.dataSource || 'eonet';
 
         if (sourceMode === 'gdacs') {
+            if (isPublicProxyDisabledRuntime()) {
+                onSourceStateChange({
+                    mode: sourceMode,
+                    activeProvider: 'GDACS',
+                    state: 'off',
+                    message: `Data source: GDACS only - ${proxyRequiredMessage('GDACS')}`
+                });
+                return [];
+            }
             const fallback = await fetchFallbackEvents(filters, 'primary');
             // FIRMS (incendii) e un layer separat, paralel - trebuie sa functioneze
             // indiferent de alegerea EONET/GDACS ca sursa principala de evenimente,
@@ -128,6 +139,19 @@ export function createEonetDataSource({
         const supplementalEvents = await fetchSupplementalEvents(filters);
 
         if (sourceMode === 'smart') {
+            if (isPublicProxyDisabledRuntime()) {
+                const events = dedupeEvents([...nasaEvents, ...supplementalEvents]).filter(latestGeometry);
+                onSourceStateChange({
+                    mode: sourceMode,
+                    activeProvider: 'NASA EONET',
+                    state: nasaError ? 'error' : 'on',
+                    message: nasaError
+                        ? `Data source: public demo - NASA EONET failed; GDACS fallback needs proxy (${nasaError.message})`
+                        : `Data source: public demo - NASA EONET live (${nasaEvents.length} events); GDACS fallback needs proxy`
+                });
+                if (!events.length && nasaError) throw nasaError;
+                return events;
+            }
             const newest = newestEventTime(nasaEvents);
             const stale = !newest || (Date.now() - newest > staleThresholdMs);
             if (nasaError || !nasaEvents.length || stale) {

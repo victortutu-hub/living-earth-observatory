@@ -1,3 +1,5 @@
+import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
+
 function formatClock(timestamp) {
     if (!timestamp) return '--:--';
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -97,6 +99,12 @@ export function createFirmsWildfireProvider({
         if (!enabled) return [];
         if (filters.category && filters.category !== 'all' && filters.category !== 'wildfires') return [];
 
+        if (isPublicProxyDisabledRuntime()) {
+            lastError = createProxyRequiredError('NASA FIRMS');
+            lastCount = 0;
+            return [];
+        }
+
         loading = true;
         lastError = null;
         const controller = new AbortController();
@@ -151,6 +159,9 @@ export function createFirmsWildfireProvider({
     }
 
     function getStatus() {
+        if (enabled && isPublicProxyDisabledRuntime()) {
+            return { enabled, loading: false, state: 'off', message: proxyRequiredMessage('NASA FIRMS') };
+        }
         if (loading) return { enabled, loading, state: 'refreshing', message: 'NASA FIRMS: loading wildfire hotspots...' };
         if (!enabled) return { enabled, loading, state: 'off', message: 'NASA FIRMS: off' };
         if (lastError) return { enabled, loading, state: 'error', message: `NASA FIRMS: ${lastError.message || 'network error'}` };
