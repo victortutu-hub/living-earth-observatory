@@ -3,7 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>LUMINOMORPHISM - Portal Ring Gateway</title>
+  <title>LUMINOMORPHISM — Portal Ring Gateway</title>
+  <meta name="description" content="Luminomorphism — a generative science-art platform where every color and every visual event is grounded in real data or real physics. Enter the Living Earth Observatory or the Living Protein Observatory." />
+  <meta property="og:title" content="LUMINOMORPHISM — Generative Science-Art Platform" />
+  <meta property="og:description" content="Real NASA data. Real AlphaFold structures. REAL LIGHT — nothing on screen is decorative." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#050508" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%2300E5FF' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%2300E5FF' fill-opacity='.35'/%3E%3C/svg%3E" />
   <style>
     :root{
       --bg:#050508;
@@ -26,8 +32,9 @@
     html,body{height:100%;margin:0;background:var(--bg);overflow:hidden;font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;color:var(--text)}
     body{min-height:100svh;letter-spacing:.02em;}
 
-    #stage{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--bg);cursor:default;touch-action:none;}
-    body[data-hover="earth"] #stage{cursor:pointer;}
+    #stage{position:fixed;inset:0;width:100%;height:100%;display:block;background:var(--bg);cursor:default;touch-action:none;z-index:1;}
+    body[data-hover="earth"] #stage,
+    body[data-hover="protein"] #stage{cursor:pointer;}
 
     .hud{position:fixed;inset:0;pointer-events:none;z-index:3;}
     .brand{position:absolute;top:clamp(28px,5.2vh,48px);left:50%;transform:translateX(-50%);text-align:center;width:min(88vw,880px);}
@@ -52,13 +59,12 @@
     body[data-hover="protein"] #label-protein{opacity:1;transform:translate(-50%,0) scale(1.03);}
     body[data-hover="earth"] #label-protein,
     body[data-hover="protein"] #label-earth{opacity:.62;}
-
     .enter{position:absolute;left:50%;bottom:clamp(25px,5.6vh,58px);transform:translateX(-50%);display:flex;align-items:center;gap:16px;font-size:clamp(9px,.9vw,12px);letter-spacing:.16em;text-transform:uppercase;color:rgba(230,235,255,.50);white-space:nowrap;}
     .enter::before,.enter::after{content:"";width:clamp(48px,8vw,118px);height:1px;background:linear-gradient(90deg,transparent,rgba(var(--cyan-rgb),.38));}
     .enter::after{background:linear-gradient(90deg,rgba(var(--magenta-rgb),.38),transparent);}
 
     .corner{position:absolute;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:rgba(205,225,255,.36);display:flex;gap:8px;align-items:center;}
-    .corner::before{content:"+";opacity:.45;color:var(--thin)}
+    .corner::before{content:"✣";opacity:.45;color:var(--thin)}
     .tl{top:10px;left:12px}.tr{top:10px;right:14px}.bl{bottom:10px;left:12px}.br{bottom:10px;right:14px}
     .tr strong{color:rgba(var(--blue-rgb),.86);font-weight:500}.tl strong{font-weight:500;color:rgba(var(--cyan-rgb),.66)}.bl strong{font-weight:500;color:rgba(220,230,255,.52)}.br strong{font-weight:500;color:rgba(var(--violet-rgb),.70)}
 
@@ -66,10 +72,6 @@
     .edge-left{left:10px}.edge-right{right:10px}
     .edge-left::before,.edge-right::before{content:"";position:absolute;top:42%;width:1px;height:32px;background:rgba(255,255,255,.92)}
     .edge-left::before{left:0}.edge-right::before{right:0}
-    .glyph{position:absolute;right:7.8%;bottom:13.4%;width:48px;height:48px;opacity:.62;filter:drop-shadow(0 0 24px rgba(220,225,255,.15));}
-    .glyph::before,.glyph::after{content:"";position:absolute;inset:0;background:rgba(230,235,245,.9);clip-path:polygon(50% 0,62% 37%,100% 50%,62% 63%,50% 100%,38% 63%,0 50%,38% 37%);}
-    .glyph::after{transform:scale(.44);opacity:.35;background:var(--bg)}
-
     .side-dots{position:absolute;right:20px;top:50%;display:grid;gap:10px;transform:translateY(-50%);opacity:.55;}
     .side-dots span{display:block;width:5px;height:5px;border:1px solid rgba(220,230,255,.52);border-radius:50%;}
     .barcode{position:absolute;right:9px;bottom:16px;width:9px;height:58px;opacity:.35;background:repeating-linear-gradient(180deg,rgba(220,230,255,.7) 0 1px,transparent 1px 4px);}
@@ -78,6 +80,60 @@
     .fallback strong{display:block;margin-bottom:12px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;}
     .fallback span{color:rgba(225,235,255,.58);font-size:14px;line-height:1.6;}
     body.no-webgl .fallback{display:grid;}
+
+    #loadingScreen{
+      position:fixed;inset:0;z-index:20;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+      background:var(--bg);
+      transition:opacity .6s ease, background 1.2s ease;
+    }
+    #loadingScreen.hidden{opacity:0;pointer-events:none;}
+    #loadingScreen.hidden .loading-mark,
+    #loadingScreen.hidden .loading-bar{
+      opacity:0;
+    }
+    body.is-exiting #loadingScreen.hidden,
+    body.is-exiting #loadingScreen{
+      opacity:1;
+      pointer-events:auto;
+      background:
+        radial-gradient(circle at 50% 46%, rgba(0,229,255,.08), transparent 24%),
+        radial-gradient(circle at 50% 54%, rgba(180,124,255,.07), transparent 34%),
+        rgba(2,5,13,.98);
+      transition:opacity 1.25s cubic-bezier(.2,.8,.2,1), background 1.25s ease;
+    }
+    body.is-exiting #stage,
+    body.is-exiting .hud{
+      opacity:0;
+      transform:scale(1.045);
+      filter:blur(12px) saturate(1.08);
+      transition:opacity 1.2s cubic-bezier(.2,.8,.2,1), transform 1.2s cubic-bezier(.2,.8,.2,1), filter 1.2s ease;
+    }
+    body.is-exiting #loadingScreen .loading-mark{
+      opacity:1;
+      transition:opacity .65s ease .72s, filter .65s ease .72s;
+      filter:drop-shadow(0 0 30px rgba(var(--cyan-rgb),.28));
+    }
+    body.is-exiting #loadingScreen .loading-bar{
+      opacity:.52;
+      transition:opacity .55s ease .92s;
+    }
+    .loading-mark{
+      font-size:clamp(16px,2.4vw,22px);font-weight:200;letter-spacing:.42em;text-indent:.42em;
+      color:rgba(230,238,255,.82);
+      transition:opacity .35s ease, filter .35s ease;
+    }
+    .loading-bar{width:min(38vw,220px);height:1px;background:rgba(220,230,255,.14);overflow:hidden;}
+    .loading-bar span{
+      display:block;height:100%;width:40%;
+      background:linear-gradient(90deg,transparent,rgba(var(--cyan-rgb),.9),transparent);
+      animation:loadingSweep 1.3s ease-in-out infinite;
+    }
+    @keyframes loadingSweep{
+      0%{transform:translateX(-120%);}
+      100%{transform:translateX(320%);}
+    }
+    body.no-webgl #loadingScreen{display:none;}
 
     @media (max-width: 760px){
       h1{font-size:clamp(24px,7.6vw,42px);letter-spacing:.18em;text-indent:.18em;}
@@ -89,11 +145,15 @@
       .portal-label p{display:none;}
       .enter{bottom:18px;font-size:8px;gap:8px;}
       .enter::before,.enter::after{width:36px;}
-      .glyph,.side-dots,.edge-left,.edge-right{display:none;}
+      .side-dots,.edge-left,.edge-right{display:none;}
     }
   </style>
 </head>
 <body>
+  <div id="loadingScreen">
+    <div class="loading-mark">LUMINOMORPHISM</div>
+    <div class="loading-bar"><span></span></div>
+  </div>
   <canvas id="stage" aria-label="LUMINOMORPHISM portal gateway"></canvas>
 
   <div class="hud" aria-hidden="true">
@@ -116,12 +176,11 @@
     <div class="enter">Click or tap the Earth portal to enter</div>
     <div class="corner tl">Status <strong>real-data</strong></div>
     <div class="corner tr">Status <strong>webgl</strong></div>
-    <div class="corner bl">Status <strong>grounded render</strong></div>
+    <div class="corner bl" id="cornerEvents">Status <strong>grounded render</strong></div>
     <div class="corner br">lumi:iii</div>
     <div class="edge-left"></div>
     <div class="edge-right"></div>
     <div class="side-dots"><span></span><span></span><span></span><span></span><span></span></div>
-    <div class="glyph"></div>
     <div class="barcode"></div>
   </div>
 
@@ -186,6 +245,9 @@
     uniform sampler2D uProteinTex;
     uniform float uEarthLoaded;
     uniform float uProteinLoaded;
+    uniform vec2 uParallax;
+    uniform float uSkipFinish;
+    uniform float uIntro;
 
     #define PI 3.14159265358979323846264
     #define TAU 6.28318530717958647692528
@@ -329,6 +391,15 @@
         tex = texture2D(uEarthTex, uv).rgb;
       }
 
+      // Animated procedural cloud layer, drifting independently of the
+      // rotating surface texture — keeps the sphere feeling alive rather
+      // than a static photo spinning in place.
+      vec2 cloudUv = uv * vec2(6.5, 3.2) + vec2(t * 0.028, t * 0.006);
+      float cloudN = fbm(cloudUv);
+      float cloudN2 = fbm(cloudUv * 2.1 - vec2(t * 0.017, 0.0));
+      float clouds = smoothstep(0.52, 0.86, cloudN * 0.65 + cloudN2 * 0.35);
+      tex = mix(tex, vec3(0.92, 0.97, 1.0), clouds * 0.42);
+
       vec3 lightDir = normalize(vec3(-0.7, 0.5, 0.8));
       float diffuse = max(0.15, dot(n, lightDir));
       float fresnel = pow(1.0 - max(0.0, n.z), 3.5);
@@ -399,15 +470,25 @@
       float inner = ringBand(dist, rad * 0.925, 0.0045);
       float microA = ringBand(dist, rad * 0.780, 0.0022);
       float microB = ringBand(dist, rad * 1.115, 0.0020);
+      float glassOuter = ringBand(dist, rad * 1.018, 0.019);
+      float glassInner = ringBand(dist, rad * 0.970, 0.014);
+      float bevel = exp(-abs(dist - rad) * 46.0);
 
       float circuit = step(0.72, fract((ang / TAU + 0.5) * 96.0 + sin(dist * 70.0) * 0.02));
       circuit *= smoothstep(rad * 0.86, rad * 0.96, dist) * (1.0 - smoothstep(rad * 0.99, rad * 1.08, dist));
       float radialCuts = pow(abs(sin(ang * 152.0 + t * 0.18)), 28.0) * smoothstep(rad * 0.72, rad * 1.08, dist);
       float anis = pow(0.5 + 0.5 * sin(ang * 24.0 + dist * 82.0 - t * 1.2), 8.0);
+      float glint = pow(max(0.0, sin(ang * 2.0 - 0.55 + id * 1.7)), 18.0) * bevel;
+      float fiber = pow(max(0.0, sin(ang * 64.0 + t * 0.34 + id * 3.1)), 10.0) * glassOuter;
+      float scratches = step(0.965, fbm(vec2(ang * 21.0, dist * 84.0) + vec2(t * 0.018, id * 9.0))) * glassOuter;
 
       col += color * main * (0.92 + anis * 0.38) * energy;
       col += color * (outer * 0.42 + inner * 0.50 + microA * 0.33 + microB * 0.24) * energy;
-      col += vec3(0.9,1.0,1.0) * main * 0.18;
+      col += color * (glassOuter * 0.16 + glassInner * 0.10) * (0.9 + hover * 0.18);
+      col += vec3(0.85,0.96,1.0) * glint * (0.26 + hover * 0.20);
+      col += vec3(1.0) * fiber * 0.020;
+      col += vec3(0.95,1.0,1.0) * scratches * 0.030;
+      col += vec3(0.9,1.0,1.0) * main * 0.13;
       col += color * (circuit * 0.12 + radialCuts * 0.15) * energy;
 
       vec2 eq = rot(-0.42 + id * 0.22 + sin(t * 0.18 + id) * 0.025) * q;
@@ -420,14 +501,14 @@
 
       float chromaR = ringBand(dist, rad + 0.010, 0.003);
       float chromaB = ringBand(dist, rad - 0.010, 0.003);
-      col += vec3(0.55,0.06,0.02) * chromaR * 0.18;
-      col += vec3(0.05,0.18,0.60) * chromaB * 0.20;
+      col += vec3(0.55,0.06,0.02) * chromaR * 0.11;
+      col += vec3(0.05,0.18,0.60) * chromaB * 0.13;
 
       float rays = 0.0;
       rays += pow(max(0.0, sin(ang * 10.0 + t * 0.21)), 18.0);
       rays += pow(max(0.0, sin(ang * 17.0 - t * 0.18)), 28.0) * 0.55;
       float rayMask = smoothstep(rad * 0.95, rad * 1.08, dist) * (1.0 - smoothstep(rad * 1.05, rad * 2.0, dist));
-      col += color * rays * rayMask * 0.18 * energy;
+      col += color * rays * rayMask * 0.18 * energy * (1.0 - hover);
 
       for(int i=0;i<12;i++){
         float fi = float(i);
@@ -450,26 +531,251 @@
       return col;
     }
 
+    vec3 observatoryStarBand(vec2 p, float t, float amount){
+      vec2 bp = rot(-0.52) * (p + vec2(0.10, -0.03) + uParallax * 0.018);
+      float band = exp(-pow(bp.y * 2.25, 2.0));
+      band *= smoothstep(-1.55, -0.65, bp.x) * (1.0 - smoothstep(0.58, 1.65, bp.x));
+      float dust = fbm(bp * vec2(1.35, 6.2) + vec2(t * 0.010, -t * 0.004));
+      float stars = starField(bp * 0.70 + vec2(0.0, t * 0.002), t);
+      stars += starField(bp * 1.45 + vec2(31.0, 11.0), t * 0.65) * 0.55;
+
+      vec3 col = vec3(0.004, 0.005, 0.009);
+      col += vec3(0.92, 0.78, 0.55) * band * (0.055 + dust * 0.105);
+      col += vec3(0.76, 0.88, 1.0) * stars * (0.34 + band * 0.80);
+      col += vec3(0.08, 0.28, 0.35) * exp(-pow(length(bp * vec2(0.62, 1.28)), 2.0)) * 0.10;
+      return col * amount;
+    }
+
+    vec3 earthMemoryPreview(vec2 p, float t, float amount){
+      vec3 scene = observatoryStarBand(p, t, amount);
+      vec2 c = vec2(-0.18, -0.02) + uParallax * 0.022;
+      vec2 q = p - c;
+      float radius = mix(0.48, 0.43, uMobile);
+      float r = length(q);
+      float disc = 1.0 - smoothstep(radius, radius + 0.012, r);
+
+      vec2 sphere = q / radius;
+      float rr = dot(sphere, sphere);
+      if(rr > 1.0) {
+        float halo = exp(-pow((r - radius) * 5.0, 2.0));
+        scene += vec3(0.12, 0.55, 0.82) * halo * amount * 0.18;
+        return scene;
+      }
+
+      float z = sqrt(max(0.0, 1.0 - rr));
+      vec3 n = normalize(vec3(sphere.x, sphere.y, z));
+      n = rotateX(n, -0.18);
+      n = rotateY(n, t * 0.035 + 1.05);
+      float lon = atan(n.z, n.x);
+      float lat = asin(clamp(n.y, -1.0, 1.0));
+      vec2 mapUv = vec2(lon / TAU + 0.5, 0.5 - lat / PI);
+
+      vec3 tex = earthFallback(q * 0.34, vec3(0.165, 0.776, 0.918), t, 1.0);
+      if(uEarthLoaded > 0.5){
+        tex = texture2D(uEarthTex, mapUv).rgb;
+      }
+
+      vec3 lightDir = normalize(vec3(0.58, 0.22, 0.78));
+      float day = smoothstep(-0.18, 0.86, dot(n, lightDir));
+      float limb = pow(1.0 - max(0.0, n.z), 2.2);
+      float blurMask = disc * (0.76 + 0.24 * smoothstep(0.92, 0.20, r / radius));
+      vec2 cloudUv = mapUv * vec2(5.8, 2.8) + vec2(t * 0.018, t * 0.004);
+      float cloud = smoothstep(0.54, 0.86, fbm(cloudUv) * 0.72 + fbm(cloudUv * 2.1) * 0.28);
+
+      vec3 night = vec3(0.01, 0.045, 0.075);
+      vec3 col = mix(night, tex, day);
+      col = mix(col, vec3(0.80, 0.93, 1.0), cloud * 0.24);
+      col += vec3(0.12, 0.66, 0.92) * limb * 0.38;
+      scene += col * blurMask * amount * 0.88;
+      return scene;
+    }
+
+    vec3 proteinMemoryPreview(vec2 p, float t, float amount){
+      vec2 q = rot(-0.22) * (p - vec2(-0.05, -0.02) - uParallax * 0.018);
+      float field = 0.0;
+      for(int i=0;i<5;i++){
+        float fi = float(i);
+        vec2 rq = rot(fi * 0.52 - 0.8) * q;
+        float y = sin(rq.x * (2.4 + fi * 0.25) + t * (0.18 + fi * 0.02) + fi) * (0.12 + fi * 0.012);
+        float ribbon = 1.0 - smoothstep(0.010, 0.050, abs(rq.y - y));
+        float window = smoothstep(-1.25, -0.55, rq.x) * (1.0 - smoothstep(0.55, 1.32, rq.x));
+        field += ribbon * window * (0.50 + 0.11 * fi);
+      }
+
+      float nodes = 0.0;
+      for(int i=0;i<18;i++){
+        float fi = float(i);
+        vec2 id = vec2(fi, floor(fi * 1.7));
+        vec2 anchor = vec2(
+          sin(fi * 12.989 + 0.4) * 0.82,
+          cos(fi * 7.233 - 1.2) * 0.42
+        );
+        anchor += vec2(sin(t * 0.08 + fi), cos(t * 0.07 + fi * 1.3)) * 0.025;
+        float d = length(q - anchor);
+        nodes += exp(-d * 32.0) * (0.55 + 0.45 * hash21(id));
+      }
+
+      float veil = smoothstep(1.28, 0.18, length(q * vec2(0.72, 1.25)));
+      vec3 col = vec3(0.70, 0.38, 1.0) * field * 0.10;
+      col += vec3(0.20, 0.82, 0.92) * nodes * 0.09;
+      col += vec3(0.30, 0.13, 0.50) * veil * 0.10;
+      return col * amount;
+    }
+
     void main(){
       vec2 uv = gl_FragCoord.xy / uResolution.xy;
+
+      vec2 lensCentered = uv - 0.5;
+      float lensR2 = dot(lensCentered, lensCentered);
+      uv = 0.5 + lensCentered * (1.0 + 0.065 * lensR2);
+
       vec2 p = uv * 2.0 - 1.0;
       p.x *= uResolution.x / uResolution.y;
 
+      float breatheAmp = mix(1.0, 0.5, uMobile);
+      vec2 breatheDrift = vec2(
+        sin(uTime * 0.05) * 0.014,
+        cos(uTime * 0.037) * 0.010
+      ) * breatheAmp;
+      float breatheZoom = 1.0 + sin(uTime * 0.028) * 0.006 * breatheAmp;
+      float introZoom = mix(1.55, 1.0, uIntro);
+      p = p * breatheZoom * introZoom + breatheDrift;
+
       float aspect = uResolution.x / uResolution.y;
       float layout = smoothstep(1.15, 1.55, aspect);
-      vec2 cEarth = mix(vec2(0.0, 0.47), vec2(-0.54, 0.035), layout);
-      vec2 cProtein = mix(vec2(0.0, -0.47), vec2(0.54, 0.035), layout);
-      float rad = mix(0.315, 0.345, layout);
-      if(uMobile > 0.5){ rad = 0.315; }
+      vec2 cEarth = mix(vec2(0.0, 0.42), vec2(-0.54, 0.035), layout);
+      vec2 cProtein = mix(vec2(0.0, -0.32), vec2(0.54, 0.035), layout);
+      float rad = mix(0.24, 0.345, layout);
 
-      vec3 col = background(p, uTime, cEarth, cProtein, rad, rad);
-      col += portal(p, cEarth, rad, vec3(0.165, 0.776, 0.918), 0.0, uHover.x, uTime);
-      col += portal(p, cProtein, rad, vec3(0.792, 0.486, 0.941), 1.0, uHover.y, uTime);
+      vec3 col = background(p + uParallax * 0.012, uTime, cEarth, cProtein, rad, rad);
+      col += portal(p + uParallax * 0.035, cEarth, rad, vec3(0.165, 0.776, 0.918), 0.0, uHover.x, uTime);
+      col += portal(p + uParallax * 0.035, cProtein, rad, vec3(0.792, 0.486, 0.941), 1.0, uHover.y, uTime);
 
-      float vignette = 1.0 - smoothstep(0.34, 1.32, length((uv - 0.5) * vec2(1.1, 1.0)));
+      vec3 hoverGlowColor = vec3(0.165, 0.776, 0.918) * uHover.x + vec3(0.792, 0.486, 0.941) * uHover.y;
+      col += hoverGlowColor * (uHover.x + uHover.y) * 0.06;
+      col *= uIntro;
+
+      if (uSkipFinish < 0.5) {
+        vec2 centered = p * vec2(1.0 / max(uResolution.x / uResolution.y, 1.0), 1.0);
+        float vignette = 1.0 - smoothstep(0.34, 1.32, length(centered * vec2(1.1, 1.0)));
+        col *= 0.55 + 0.62 * vignette;
+        col += vec3(0.014, 0.0, 0.028) * (1.0 - vignette);
+        col = col / (1.0 + col * 0.82);
+        col = pow(col, vec3(0.92));
+        float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        vec3 shadowTint = vec3(-0.014, 0.010, 0.022);
+        vec3 highlightTint = vec3(0.026, 0.010, -0.016);
+        col += shadowTint * (1.0 - smoothstep(0.0, 0.55, luma));
+        col += highlightTint * smoothstep(0.30, 1.0, luma);
+        col = clamp(col, 0.0, 1.0);
+        float grain = (hash21(uv * vec2(1920.0, 1080.0) + fract(uTime) * 97.0) - 0.5) * 0.028;
+        col += grain;
+      }
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  const postVertexSource = `
+    attribute vec2 aPosition;
+    varying vec2 vUv;
+    void main(){
+      vUv = aPosition * 0.5 + 0.5;
+      gl_Position = vec4(aPosition, 0.0, 1.0);
+    }
+  `;
+
+  const brightPassSource = `
+    precision highp float;
+    uniform sampler2D uScene;
+    uniform float uThreshold;
+    varying vec2 vUv;
+    void main(){
+      vec3 color = texture2D(uScene, vUv).rgb;
+      float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+      float contribution = smoothstep(uThreshold, uThreshold + 0.35, luminance);
+      gl_FragColor = vec4(color * contribution, 1.0);
+    }
+  `;
+
+  const blurSource = `
+    precision highp float;
+    uniform sampler2D uInput;
+    uniform vec2 uDirection;
+    varying vec2 vUv;
+    void main(){
+      vec4 sum = vec4(0.0);
+      sum += texture2D(uInput, vUv - uDirection * 3.2307) * 0.070;
+      sum += texture2D(uInput, vUv - uDirection * 1.3846) * 0.318;
+      sum += texture2D(uInput, vUv)                        * 0.227;
+      sum += texture2D(uInput, vUv + uDirection * 1.3846) * 0.318;
+      sum += texture2D(uInput, vUv + uDirection * 3.2307) * 0.070;
+      gl_FragColor = sum;
+    }
+  `;
+
+  const compositeSource = `
+    precision highp float;
+    uniform sampler2D uScene;
+    uniform sampler2D uBloom;
+    uniform float uBloomStrength;
+    uniform float uTime;
+    uniform vec2 uActiveCenterUv;
+    uniform float uTransitionAmt;
+    varying vec2 vUv;
+
+    float hash21(vec2 p){
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    void main(){
+      vec2 uv = vUv;
+
+      // subtle chromatic aberration — sample each channel with a tiny
+      // radial offset from screen center, strongest toward the edges
+      vec2 centered = uv - 0.5;
+      float edgeAmount = dot(centered, centered);
+      vec2 caOffset = centered * edgeAmount * 0.006;
+      float r = texture2D(uScene, uv - caOffset).r;
+      float g = texture2D(uScene, uv).g;
+      float b = texture2D(uScene, uv + caOffset).b;
+      vec3 col = vec3(r, g, b);
+
+      if(uTransitionAmt > 0.001){
+        vec3 streakSum = vec3(0.0);
+        const int SAMPLES = 6;
+        for(int i = 0; i < SAMPLES; i++){
+          float fi = float(i) / float(SAMPLES - 1);
+          vec2 sampleUv = mix(uv, uActiveCenterUv, fi * uTransitionAmt * 0.55);
+          streakSum += texture2D(uScene, clamp(sampleUv, 0.0, 1.0)).rgb;
+        }
+        vec3 streaked = streakSum / float(SAMPLES);
+        col = mix(col, streaked, smoothstep(0.0, 1.0, uTransitionAmt));
+        col *= 1.0 + uTransitionAmt * 0.55;
+      }
+
+      col += texture2D(uBloom, uv).rgb * uBloomStrength;
+
+      float vignette = 1.0 - smoothstep(0.34, 1.32, length(centered * vec2(1.1, 1.0)));
       col *= 0.55 + 0.62 * vignette;
+      col += vec3(0.014, 0.0, 0.028) * (1.0 - vignette);
+
       col = col / (1.0 + col * 0.82);
       col = pow(col, vec3(0.92));
+
+      float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      vec3 shadowTint = vec3(-0.014, 0.010, 0.022);
+      vec3 highlightTint = vec3(0.026, 0.010, -0.016);
+      col += shadowTint * (1.0 - smoothstep(0.0, 0.55, luma));
+      col += highlightTint * smoothstep(0.30, 1.0, luma);
+      col = clamp(col, 0.0, 1.0);
+
+      // fine film grain, cheap per-pixel dither so gradients don't band
+      float grain = (hash21(uv * vec2(1920.0, 1080.0) + fract(uTime) * 97.0) - 0.5) * 0.028;
+      col += grain;
+
       gl_FragColor = vec4(col, 1.0);
     }
   `;
@@ -531,8 +837,76 @@
     earthTex: gl.getUniformLocation(program, 'uEarthTex'),
     proteinTex: gl.getUniformLocation(program, 'uProteinTex'),
     earthLoaded: gl.getUniformLocation(program, 'uEarthLoaded'),
-    proteinLoaded: gl.getUniformLocation(program, 'uProteinLoaded')
+    proteinLoaded: gl.getUniformLocation(program, 'uProteinLoaded'),
+    parallax: gl.getUniformLocation(program, 'uParallax'),
+    skipFinish: gl.getUniformLocation(program, 'uSkipFinish'),
+    intro: gl.getUniformLocation(program, 'uIntro')
   };
+
+  // --- Post-processing programs (bloom + composite) ---
+  let brightProgram, blurProgram, compositeProgram;
+  try {
+    brightProgram = createProgram(postVertexSource, brightPassSource);
+    blurProgram = createProgram(postVertexSource, blurSource);
+    compositeProgram = createProgram(postVertexSource, compositeSource);
+  } catch (err) {
+    console.error('Post-processing shader compile failed, continuing without bloom.', err);
+  }
+
+  const postUniforms = brightProgram ? {
+    bright: {
+      scene: gl.getUniformLocation(brightProgram, 'uScene'),
+      threshold: gl.getUniformLocation(brightProgram, 'uThreshold')
+    },
+    blur: {
+      input: gl.getUniformLocation(blurProgram, 'uInput'),
+      direction: gl.getUniformLocation(blurProgram, 'uDirection')
+    },
+    composite: {
+      scene: gl.getUniformLocation(compositeProgram, 'uScene'),
+      bloom: gl.getUniformLocation(compositeProgram, 'uBloom'),
+      bloomStrength: gl.getUniformLocation(compositeProgram, 'uBloomStrength'),
+      time: gl.getUniformLocation(compositeProgram, 'uTime'),
+      activeCenterUv: gl.getUniformLocation(compositeProgram, 'uActiveCenterUv'),
+      transitionAmt: gl.getUniformLocation(compositeProgram, 'uTransitionAmt')
+    }
+  } : null;
+
+  function bindQuadAttrib(prog) {
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    const loc = gl.getAttribLocation(prog, 'aPosition');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  }
+
+  function createFBO(w, h) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return { framebuffer: fb, texture: tex, width: w, height: h };
+  }
+
+  let sceneFBO = null, brightFBO = null, blurFBO_A = null, blurFBO_B = null;
+  let bloomEnabled = !!brightProgram;
+
+  function rebuildFBOs(w, h) {
+    if (!bloomEnabled) return;
+    const hw = Math.max(1, Math.floor(w / 2));
+    const hh = Math.max(1, Math.floor(h / 2));
+    sceneFBO = createFBO(w, h);
+    brightFBO = createFBO(hw, hh);
+    blurFBO_A = createFBO(hw, hh);
+    blurFBO_B = createFBO(hw, hh);
+  }
 
   function makeTexture() {
     const tex = gl.createTexture();
@@ -636,6 +1010,7 @@
         const res = await fetch(DATA_SOURCES.eonet, { mode: 'cors' });
         const json = await res.json();
         const events = Array.isArray(json.events) ? json.events : [];
+        let drawnCount = 0;
         for (const event of events) {
           const geometry = Array.isArray(event.geometry) ? event.geometry[event.geometry.length - 1] : null;
           const coords = geometry && Array.isArray(geometry.coordinates) ? geometry.coordinates : null;
@@ -656,8 +1031,16 @@
           ctx.lineWidth = 1;
           ctx.arc(x, y, 10, 0, Math.PI * 2);
           ctx.stroke();
+          drawnCount++;
         }
         ctx.shadowBlur = 0;
+
+        // Turns the "data-driven reality" claim into something visibly
+        // demonstrable rather than just a slogan — a real, live count.
+        const cornerEl = document.getElementById('cornerEvents');
+        if (cornerEl && drawnCount > 0) {
+          cornerEl.innerHTML = `Status <strong>${drawnCount} live events</strong>`;
+        }
       } catch (eventErr) {
         console.warn('EONET overlay unavailable, using Earth texture only.', eventErr);
       }
@@ -822,15 +1205,28 @@
   let transition = 0;
   let lastFrame = 0;
   let lowPower = false;
+  let parallaxTarget = [0, 0];
+  let parallaxCurrent = [0, 0];
+  let hoverCurrent = [0, 0];
+  let framesRendered = 0;
+  let introStart = null;
+  const INTRO_DURATION_MS = 2400;
 
   const labelEarth = document.getElementById('label-earth');
   const labelProtein = document.getElementById('label-protein');
+  const urlParams = new URLSearchParams(window.location.search);
+  const resolutionMode = urlParams.get('resolution') || 'balanced';
 
   function resize() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     mobile = vw < 760 || vh > vw * 1.18;
-    const maxDpr = mobile ? 1.15 : 1.35;
+    const resolutionDpr = {
+      performance: mobile ? 1.15 : 1.35,
+      balanced: mobile ? 1.35 : 1.65,
+      cinematic: mobile ? 1.5 : 2.0
+    };
+    const maxDpr = resolutionDpr[resolutionMode] || resolutionDpr.balanced;
     dpr = Math.min(window.devicePixelRatio || 1, lowPower ? 1 : maxDpr);
     width = Math.max(1, Math.floor(vw * dpr));
     height = Math.max(1, Math.floor(vh * dpr));
@@ -840,6 +1236,7 @@
     canvas.style.height = vh + 'px';
     gl.viewport(0, 0, width, height);
     positionLabels();
+    rebuildFBOs(width, height);
   }
 
   function portalScreenCenters() {
@@ -855,26 +1252,19 @@
 
     const layout = smoothstep(1.15, 1.55, aspect);
 
-    let cEarth, cProtein, rad;
-    if (mobile) {
-      cEarth = { x: 0.0, y: 0.47 };
-      cProtein = { x: 0.0, y: -0.47 };
-      rad = 0.315;
-    } else {
-      cEarth = {
-        x: (1 - layout) * 0.0 + layout * (-0.54),
-        y: (1 - layout) * 0.47 + layout * 0.035
-      };
-      cProtein = {
-        x: (1 - layout) * 0.0 + layout * 0.54,
-        y: (1 - layout) * (-0.47) + layout * 0.035
-      };
-      rad = (1 - layout) * 0.315 + layout * 0.345;
-    }
+    const cEarth = {
+      x: (1 - layout) * 0.0 + layout * (-0.54),
+      y: (1 - layout) * 0.42 + layout * 0.035
+    };
+    const cProtein = {
+      x: (1 - layout) * 0.0 + layout * 0.54,
+      y: (1 - layout) * (-0.32) + layout * 0.035
+    };
+    const rad = (1 - layout) * 0.24 + layout * 0.345;
 
     const toScreen = (c) => ({
       x: ((c.x / aspect) + 1) * 0.5 * vw,
-      y: ((c.y + 1) * 0.5) * vh
+      y: (1 - ((c.y + 1) * 0.5)) * vh
     });
 
     // The visible navigation ring extends beyond the base radius because of the tilted orbit ring.
@@ -926,11 +1316,25 @@
     if (!target) return;
     active = which === 'earth' ? 0 : 1;
     transitionStart = performance.now();
-    window.setTimeout(() => { window.location.href = target; }, 980);
+    const loadingEl = document.getElementById('loadingScreen');
+    const loadingMark = loadingEl ? loadingEl.querySelector('.loading-mark') : null;
+    if (loadingMark) loadingMark.textContent = 'ENTERING EARTH OBSERVATORY';
+    requestAnimationFrame(() => {
+      if (loadingEl) loadingEl.classList.remove('hidden');
+      document.body.classList.add('is-exiting');
+    });
+    const exitDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 260 : 1680;
+    window.setTimeout(() => { window.location.href = target; }, exitDelay);
   }
 
   canvas.addEventListener('pointermove', (event) => {
     updateHover(event.clientX, event.clientY);
+    // normalized offset from viewport center, clamped to a gentle range —
+    // this drives the depth-parallax tilt, not meant to be a large motion
+    const nx = (event.clientX / window.innerWidth) * 2 - 1;
+    const ny = (event.clientY / window.innerHeight) * 2 - 1;
+    parallaxTarget[0] = Math.max(-1, Math.min(1, nx));
+    parallaxTarget[1] = Math.max(-1, Math.min(1, -ny));
   }, { passive: true });
 
   canvas.addEventListener('pointerleave', () => {
@@ -943,6 +1347,25 @@
   canvas.addEventListener('pointerdown', (event) => {
     updateHover(event.clientX, event.clientY);
     if (hover === 'earth' || hover === 'protein') activate(hover);
+  });
+
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted) return;
+    active = -1;
+    transition = 0;
+    transitionStart = 0;
+    introStart = null;
+    document.body.classList.remove('is-exiting');
+    document.body.dataset.hover = 'none';
+    hover = 'none';
+    hoverVec[0] = 0;
+    hoverVec[1] = 0;
+    hoverCurrent[0] = 0;
+    hoverCurrent[1] = 0;
+    const loadingEl = document.getElementById('loadingScreen');
+    const loadingMark = loadingEl ? loadingEl.querySelector('.loading-mark') : null;
+    if (loadingMark) loadingMark.textContent = 'LUMINOMORPHISM';
+    if (loadingEl) loadingEl.classList.add('hidden');
   });
 
   window.addEventListener('resize', resize, { passive: true });
@@ -958,21 +1381,109 @@
       transition = easeInOutCubic(Math.min(1, (now - transitionStart) / 950));
     }
 
+    if (introStart === null) introStart = now;
+    const introEased = easeInOutCubic(Math.min(1, (now - introStart) / INTRO_DURATION_MS));
+
+    // smooth the parallax toward its target — gives a floaty, inertial
+    // feel rather than snapping instantly to the mouse position
+    parallaxCurrent[0] += (parallaxTarget[0] - parallaxCurrent[0]) * 0.06;
+    parallaxCurrent[1] += (parallaxTarget[1] - parallaxCurrent[1]) * 0.06;
+    hoverCurrent[0] += (hoverVec[0] - hoverCurrent[0]) * 0.045;
+    hoverCurrent[1] += (hoverVec[1] - hoverCurrent[1]) * 0.045;
+
+    const useBloom = bloomEnabled && sceneFBO;
+
+    // --- Pass 1: render the actual scene, to the FBO if bloom is active,
+    // otherwise straight to the screen (graceful no-bloom fallback) ---
     gl.useProgram(program);
+    bindQuadAttrib(program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, useBloom ? sceneFBO.framebuffer : null);
+    gl.viewport(0, 0, width, height);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, earthTexture);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, proteinTexture);
     gl.uniform2f(uniforms.resolution, width, height);
     gl.uniform1f(uniforms.time, now * 0.001);
-    gl.uniform2f(uniforms.hover, hoverVec[0], hoverVec[1]);
+    gl.uniform2f(uniforms.hover, hoverCurrent[0], hoverCurrent[1]);
     gl.uniform1f(uniforms.active, active);
     gl.uniform1f(uniforms.transition, transition);
     gl.uniform1f(uniforms.mobile, mobile ? 1 : 0);
     gl.uniform1f(uniforms.earthLoaded, earthLoaded);
     gl.uniform1f(uniforms.proteinLoaded, proteinLoaded);
+    gl.uniform2f(uniforms.parallax, parallaxCurrent[0], parallaxCurrent[1]);
+    gl.uniform1f(uniforms.skipFinish, useBloom ? 1 : 0);
+    gl.uniform1f(uniforms.intro, introEased);
+    gl.uniform1i(uniforms.earthTex, 0);
+    gl.uniform1i(uniforms.proteinTex, 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    if (useBloom) {
+      const hw = brightFBO.width, hh = brightFBO.height;
+
+      // --- Pass 2: bright-pass extraction (half-res) ---
+      gl.useProgram(brightProgram);
+      bindQuadAttrib(brightProgram);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, brightFBO.framebuffer);
+      gl.viewport(0, 0, hw, hh);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sceneFBO.texture);
+      gl.uniform1i(postUniforms.bright.scene, 0);
+      gl.uniform1f(postUniforms.bright.threshold, 0.55);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      // --- Pass 3/4: two-pass gaussian blur, ping-ponged (half-res) ---
+      gl.useProgram(blurProgram);
+      bindQuadAttrib(blurProgram);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, blurFBO_A.framebuffer);
+      gl.viewport(0, 0, hw, hh);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, brightFBO.texture);
+      gl.uniform1i(postUniforms.blur.input, 0);
+      gl.uniform2f(postUniforms.blur.direction, 1 / hw, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, blurFBO_B.framebuffer);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, blurFBO_A.texture);
+      gl.uniform2f(postUniforms.blur.direction, 0, 1 / hh);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+      // --- Pass 5: composite (scene + bloom + CA + vignette + grain) to screen ---
+      gl.useProgram(compositeProgram);
+      bindQuadAttrib(compositeProgram);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, width, height);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sceneFBO.texture);
+      gl.uniform1i(postUniforms.composite.scene, 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, blurFBO_B.texture);
+      gl.uniform1i(postUniforms.composite.bloom, 1);
+      gl.uniform1f(postUniforms.composite.bloomStrength, 1.1);
+      gl.uniform1f(postUniforms.composite.time, now * 0.001);
+      if (active !== -1) {
+        const centers = portalScreenCenters();
+        const activeCenter = active === 0 ? centers.earth : centers.protein;
+        gl.uniform2f(
+          postUniforms.composite.activeCenterUv,
+          activeCenter.x / Math.max(1, canvas.clientWidth),
+          1 - activeCenter.y / Math.max(1, canvas.clientHeight)
+        );
+        gl.uniform1f(postUniforms.composite.transitionAmt, transition);
+      } else {
+        gl.uniform1f(postUniforms.composite.transitionAmt, 0);
+      }
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
     requestAnimationFrame(frame);
+
+    framesRendered++;
+    if (framesRendered === 2) {
+      const loadingEl = document.getElementById('loadingScreen');
+      if (loadingEl) loadingEl.classList.add('hidden');
+    }
   }
 
   document.body.dataset.hover = 'none';
