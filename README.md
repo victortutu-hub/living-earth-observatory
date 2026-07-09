@@ -207,18 +207,22 @@ Demo reel restore preserves:
 The current stable baseline is:
 
 ```text
-Back Up/earth-eonet-relief-v2.4.5-pre-freeze-stabilization-20260707-093948
+releases/living-earth-observatory-v2.4.2-geographic-integrity-fix-20260709
 ```
 
 This snapshot includes:
 
 - multi-source data layer: EONET, GDACS, USGS, FIRMS;
+- corrected EONET polygon coordinate normalization for GDACS-derived flood polygons delivered through NASA EONET;
+- geographic marker/card integrity for polygon centroids, including New Zealand, Australia, Finland, Ecuador, and similar flood signals;
 - local proxy with `.env` support for FIRMS and local cache;
 - Moon V2.1+ with phase, distance, libration, Earthshine, relief, and switchable textures;
 - ISS tracking and subtle visual trail;
 - Zodiacal Light, Noctilucent Clouds, and Airglow with toggle/preset/intensity controls;
 - Showcase reel, Vertical Director, captions, and Data Rhythm Camera;
 - atomic restore for Demo reel and 9:16 video export.
+
+V2.4.2 note: NASA EONET polygon geometries used by some GDACS-linked flood events can arrive as `[lat, lon]` coordinate pairs, while point geometries remain GeoJSON-style `[lon, lat]`. The event normalization layer now handles both points and polygons before centroid calculation, so markers, Today on Earth cards, Select Event details, and camera targeting stay geographically aligned.
 
 ## Development Notes
 
