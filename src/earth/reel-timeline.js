@@ -84,13 +84,16 @@ export function createDemoReelTimeline({
 
     function buildBeats(tour, mood) {
         const introEnd = Math.max(0.16, mood.introEnd);
-        const pulloutAt = Math.min(0.9, Math.max(0.82, mood.pulloutAt));
-        // Fereastra earthshine largita din nou (0.16 -> 0.22, ~5.3s la 24s
-        // total): duratele de zbor au crescut la 2.6s fiecare (mai gratios,
-        // mai putin "repezit"), deci fereastra trebuie sa incapa confortabil
-        // zborul de dus + timp real de vizionare, inainte de pullout.
-        const earthshineAt = Math.max(introEnd + 0.12, pulloutAt - 0.22);
-        const eventWindowEnd = earthshineAt - 0.1;
+        const duration = Math.max(1, state.reelDurationSec || demo.duration || 24);
+        const pulloutAt = Math.min(0.92, Math.max(0.84, mood.pulloutAt));
+        // Moon/Earthshine are not just another event card: the camera needs a
+        // readable flight window, a quiet hold on the lit face, then a separate
+        // return to Earth. Keeping these as seconds instead of compact
+        // percentages prevents short social reels from cutting the Moon beat.
+        const moonFlightSec = 4.6;
+        const moonHoldSec = 3.0;
+        const earthshineAt = Math.max(introEnd + 0.18, pulloutAt - (moonFlightSec + moonHoldSec) / duration);
+        const eventWindowEnd = Math.max(introEnd + 0.18, earthshineAt - 0.08);
         const slot = tour.length ? (eventWindowEnd - introEnd) / tour.length : 0;
         const timedTour = tour.map((event, i) => {
             const moveAt = introEnd + i * slot + slot * 0.04;
@@ -149,7 +152,6 @@ export function createDemoReelTimeline({
                 // simetric cu plecarea spre Luna, evita salturile brusce de camera
                 // pe care heroDrift le facea cand prelua controlul direct de langa Luna.
                 startReturnFromMoon?.();
-                applyMotionPreset('heroDrift');
             }
         });
         beats.push({ at: 0.995, run: () => hideReelCaption() });
@@ -186,7 +188,7 @@ export function createDemoReelTimeline({
         // privitorul sa apuce sa citeasca titlul/caption-ul inainte de tranzitia
         // spre urmatorul eveniment.
         state.reelDurationSec = directorModeActive
-            ? Math.max(24, state.reelDurationSec || 34)
+            ? Math.max(30, state.reelDurationSec || 34)
             : 34;
         updateReelDurationUi();
         applyReelMood(directorModeActive ? state.reelMood : 'cinematic');

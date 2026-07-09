@@ -3,7 +3,7 @@ import { heroDriftProfiles, motionPresets, reelMoodPresets } from './reel-preset
 import { EONET_API, officialCategories, officialCategoryLabels } from './eonet-config.js?v=usgsIntegrated1';
 import { createGdacsProvider } from './gdacs-provider.js?v=polyFix2';
 import { createReelOverlay } from './reel-overlay.js?v=ffmpegExport1';
-import { editorialSelection } from './reel-timeline.js?v=ffmpegExport1';
+import { editorialSelection } from './reel-timeline.js?v=reelSyncPolish1';
 import { createExportSystem } from './export-system.js?v=ffmpegExport1';
 import { createControlPanel } from './control-panel.js?v=v3sss1';
 import { createEonetAutoRefreshController } from './eonet-data.js?v=polyFix2';
