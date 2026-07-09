@@ -1,4 +1,5 @@
 import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
+import { normalizeLonLatCoordinates } from './event-utils.js?v=polyFix2';
 
 function parseDate(value) {
     const date = value ? new Date(value) : null;
@@ -40,8 +41,8 @@ function featureToEvent(feature, proxyBase) {
     const eventType = props.eventtype || '';
     const alertLevel = props.alertlevel || props.episodealertlevel || '';
     const date = parseDate(props.fromdate) || new Date();
-    const coords = feature?.geometry?.coordinates;
-    if (!Array.isArray(coords) || coords.length < 2) return null;
+    const coords = normalizeLonLatCoordinates(feature?.geometry?.coordinates);
+    if (!coords) return null;
 
     const idSeed = `${props.eventtype || ''}-${props.eventid || ''}-${props.episodeid || ''}` || `${title}:${date.toISOString()}`;
     const category = normalizeEventType(eventType, title);

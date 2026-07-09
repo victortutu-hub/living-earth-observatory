@@ -3,7 +3,7 @@ import { createSolarRuntime } from './solar-runtime.js?v=solarEngine2';
 import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-config.js?v=usgsIntegrated1';
 import { createGeoUtils } from './geo.js';
 import { createStarField } from './star-field.js?v=milkyWay1';
-import { createEventUtils } from './event-utils.js?v=usgsWindow1';
+import { createEventUtils } from './event-utils.js?v=polyFix2';
 import { createEarthLayers } from './earth-layers.js?v=refraction1';
 import { createMoonSystem } from './moon-system.js?v=moonMarkers1';
 import { createIssSystem } from './iss-system.js?v=issTrail2';

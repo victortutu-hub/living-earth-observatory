@@ -23,6 +23,55 @@ function polygonRingCentroid(ring) {
     return [lonSum / sample.length, latSum / sample.length];
 }
 
+export function normalizeLonLatCoordinates(coordinates) {
+    if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+    const first = Number(coordinates[0]);
+    const second = Number(coordinates[1]);
+    if (!Number.isFinite(first) || !Number.isFinite(second)) return null;
+
+    let lon = first;
+    let lat = second;
+
+    // Some upstream disaster feeds wrap [lat, lon] in a GeoJSON-like point.
+    // If the second value cannot be a latitude but the first can, repair it.
+    if (Math.abs(second) > 90 && Math.abs(first) <= 90) {
+        lon = second;
+        lat = first;
+    }
+
+    if (Math.abs(lon) > 180 || Math.abs(lat) > 90) return null;
+    return [lon, lat, ...coordinates.slice(2)];
+}
+
+// NASA EONET stores Polygon-shaped flood/storm extents in [lat, lon] order,
+// the reverse of the [lon, lat] order used by its own Point geometries and
+// by the GeoJSON spec in general. Confirmed against the live API across many
+// events (every Polygon ring, no exceptions) - so unlike normalizeLonLatCoordinates
+// (which must guess for Points), this swap is unconditional for Polygon rings.
+function swapPolygonRingLonLat(ring) {
+    if (!Array.isArray(ring)) return ring;
+    return ring.map(point => (Array.isArray(point) && point.length >= 2)
+        ? [Number(point[1]), Number(point[0]), ...point.slice(2)]
+        : point);
+}
+
+export function normalizeEventGeometry(event) {
+    const geoms = event?.geometry || [];
+    return {
+        ...event,
+        geometry: geoms.map(geometry => {
+            if (geometry?.type === 'Point') {
+                const coordinates = normalizeLonLatCoordinates(geometry.coordinates);
+                return coordinates ? { ...geometry, coordinates } : geometry;
+            }
+            if (geometry?.type === 'Polygon' && Array.isArray(geometry.coordinates)) {
+                return { ...geometry, coordinates: geometry.coordinates.map(swapPolygonRingLonLat) };
+            }
+            return geometry;
+        })
+    };
+}
+
 export function createEventUtils({ THREE, categoryColors, fallbackColor, futureDateToleranceMs }) {
     function latestGeometry(event) {
         const geoms = event.geometry || [];

@@ -1,4 +1,5 @@
 import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
+import { normalizeEventGeometry } from './event-utils.js?v=polyFix2';
 
 export function createEonetDataSource({
     apiUrl,
@@ -38,6 +39,7 @@ export function createEonetDataSource({
             if (!res.ok) throw new Error(`NASA EONET returned ${res.status}`);
             const data = await res.json();
             return (data.events || [])
+                .map(normalizeEventGeometry)
                 .filter(latestGeometry)
                 .map(event => ({
                     ...event,
