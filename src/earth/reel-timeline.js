@@ -57,6 +57,10 @@ export function createDemoReelTimeline({
     exportReelVideo,
     triggerSignalPulse,
     moonSystem,
+    issSystem,
+    updateIssLayerUi,
+    startIssTracking,
+    stopIssTracking,
     startMoonTracking,
     stopMoonTracking,
     startReturnFromMoon
@@ -82,7 +86,8 @@ export function createDemoReelTimeline({
         }).filter(event => eventLonLat(event));
     }
 
-    function buildBeats(tour, mood) {
+    function buildBeats(tour, mood, options = {}) {
+        const includeIssBeat = Boolean(options.includeIssBeat);
         const introEnd = Math.max(0.16, mood.introEnd);
         const duration = Math.max(1, state.reelDurationSec || demo.duration || 24);
         const pulloutAt = Math.min(0.92, Math.max(0.84, mood.pulloutAt));
@@ -93,7 +98,11 @@ export function createDemoReelTimeline({
         const moonFlightSec = 4.6;
         const moonHoldSec = 3.0;
         const earthshineAt = Math.max(introEnd + 0.18, pulloutAt - (moonFlightSec + moonHoldSec) / duration);
-        const eventWindowEnd = Math.max(introEnd + 0.18, earthshineAt - 0.08);
+        const issWindowSec = 5.8;
+        const issAt = includeIssBeat
+            ? Math.max(introEnd + 0.2, earthshineAt - issWindowSec / duration)
+            : null;
+        const eventWindowEnd = Math.max(introEnd + 0.18, (issAt ?? earthshineAt) - 0.08);
         const slot = tour.length ? (eventWindowEnd - introEnd) / tour.length : 0;
         const timedTour = tour.map((event, i) => {
             const moveAt = introEnd + i * slot + slot * 0.04;
@@ -132,11 +141,27 @@ export function createDemoReelTimeline({
                 }
             });
         });
+        if (includeIssBeat && issAt !== null) {
+            beats.push({
+                at: issAt,
+                run: () => {
+                    const issState = issSystem?.issState;
+                    if (!issState?.visible) return;
+                    demo.spinning = false;
+                    deselectAll();
+                    updateReelTitleCard('iss', timedTour.length);
+                    startIssTracking?.(issState);
+                    updateIssLayerUi?.({ enabled: true, tracking: true });
+                }
+            });
+        }
         beats.push({
             at: earthshineAt,
             run: () => {
                 if (!moonSystem?.moon || !moonSystem?.moonState?.visible) return;
                 demo.spinning = false;
+                stopIssTracking?.();
+                updateIssLayerUi?.({ enabled: state.issLayer, tracking: false });
                 deselectAll();
                 moonSystem.setEarthshineBoost?.(1.28);
                 startMoonTracking?.(moonSystem.moon, moonSystem.moonState?.sunWorldDir);
@@ -147,6 +172,8 @@ export function createDemoReelTimeline({
             at: pulloutAt,
             run: () => {
                 updateReelTitleCard('outro', timedTour.length);
+                stopIssTracking?.();
+                updateIssLayerUi?.({ enabled: state.issLayer, tracking: false });
                 deselectAll();
                 // Zbor de intoarcere explicit spre Pamant (nu doar stop+heroDrift) -
                 // simetric cu plecarea spre Luna, evita salturile brusce de camera
@@ -179,10 +206,17 @@ export function createDemoReelTimeline({
             spinFast: state.spinFast,
             snapDuration: state.snapDuration,
             night: state.night,
-            captureMode: state.captureMode
+            captureMode: state.captureMode,
+            issLayer: state.issLayer
         };
         dataRhythmCamera?.reset?.();
         const directorModeActive = state.socialPreset && state.socialPreset !== 'custom';
+        const includeIssBeat = state.socialPreset === 'orbitalStory' && state.includeIssBeat !== false;
+        if (includeIssBeat && !state.issLayer) {
+            state.issLayer = true;
+            updateIssLayerUi?.({ enabled: true });
+            await issSystem?.setEnabled?.(true);
+        }
         // Marit de la 18/24 la 24/34: fereastra alocata fiecarui eveniment
         // (calculata proportional in buildBeats) era prea ingusta pentru ca
         // privitorul sa apuce sa citeasca titlul/caption-ul inainte de tranzitia
@@ -199,7 +233,7 @@ export function createDemoReelTimeline({
 
         const mood = currentReelMood();
         const tourEvents = buildTour(events);
-        const timeline = buildBeats(tourEvents, mood);
+        const timeline = buildBeats(tourEvents, mood, { includeIssBeat });
         demo.introEnd = timeline.introEnd;
         demo.spinFrom = 0.4;
         demo.spinTo = state.spinFast;
@@ -218,6 +252,12 @@ export function createDemoReelTimeline({
             demo.pendingPulseEvent = null;
             hideReelCaption();
             deselectAll();
+            stopIssTracking?.();
+            if (includeIssBeat && !previous.issLayer && state.issLayer) {
+                state.issLayer = false;
+                await issSystem?.setEnabled?.(false);
+            }
+            updateIssLayerUi?.({ enabled: state.issLayer, tracking: false });
             stopMoonTracking?.();
             startReturnFromMoon?.(6.4);
             moonSystem?.setEarthshineBoost?.(1);

@@ -1,5 +1,15 @@
-const SATELLITE_JS_URL = 'https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/+esm';
+const SATELLITE_JS_URLS = [
+    'https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/+esm',
+    'https://esm.sh/satellite.js@6.0.2'
+];
 const ISS_TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE';
+const ISS_TLE_CACHE_KEY = 'leo-iss-tle-v1';
+const NETWORK_TIMEOUT_MS = 8500;
+const ISS_BUNDLED_TLE = {
+    line1: '1 25544U 98067A   26189.73419088  .00005258  00000+0  10370-3 0  9999',
+    line2: '2 25544  51.6304 193.4497 0006669 272.1743  87.8481 15.48947664575097',
+    source: 'bundled-celestrak-2026-07-08'
+};
 const EARTH_RADIUS_KM = 6371;
 const EARTH_SCENE_RADIUS = 2.0; // trebuie sa coincida cu raza geometriei Earth din earth-layers.js
 const ISS_FALLBACK_ALTITUDE_KM = 408; // altitudine medie reala ISS, doar ca valoare initiala de stare
@@ -52,6 +62,39 @@ function updateIssStatus(state) {
 
 // Punct luminos simplu — ISS nu are disc rezolvabil la aceasta scara,
 // e un punct stelar foarte stralucitor (magnitudine pana la -4, mai luminos decat Venus).
+function withTimeout(promise, ms, label) {
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
+function readCachedTle() {
+    try {
+        const raw = window.localStorage?.getItem(ISS_TLE_CACHE_KEY);
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (!cached?.line1 || !cached?.line2) return null;
+        return cached;
+    } catch (error) {
+        console.warn('[ISS] Could not read cached TLE.', error);
+        return null;
+    }
+}
+
+function writeCachedTle(tle) {
+    try {
+        window.localStorage?.setItem(ISS_TLE_CACHE_KEY, JSON.stringify({
+            ...tle,
+            source: tle.source || 'cached-celestrak',
+            cachedAt: new Date().toISOString()
+        }));
+    } catch (error) {
+        console.warn('[ISS] Could not cache TLE.', error);
+    }
+}
+
 function createIssPointTexture(THREE) {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -326,16 +369,20 @@ export function createIssSystem({
     async function loadSatelliteJs() {
         if (satelliteLib || satelliteLoadFailed) return satelliteLib;
         if (!satelliteLoadPromise) {
-            satelliteLoadPromise = import(SATELLITE_JS_URL)
-                .then(module => {
-                    satelliteLib = module;
-                    return module;
-                })
-                .catch(error => {
-                    satelliteLoadFailed = true;
-                    console.warn('[ISS] satellite.js unavailable; ISS tracking disabled.', error);
-                    return null;
-                });
+            satelliteLoadPromise = (async () => {
+                for (const url of SATELLITE_JS_URLS) {
+                    try {
+                        const module = await withTimeout(import(url), NETWORK_TIMEOUT_MS, `satellite.js import ${url}`);
+                        satelliteLib = module;
+                        return module;
+                    } catch (error) {
+                        console.warn(`[ISS] satellite.js import failed from ${url}.`, error);
+                    }
+                }
+                satelliteLoadFailed = true;
+                console.warn('[ISS] satellite.js unavailable; ISS tracking disabled.');
+                return null;
+            })();
         }
         return satelliteLoadPromise;
     }
@@ -368,21 +415,35 @@ export function createIssSystem({
             return;
         }
         try {
-            const response = await fetch(ISS_TLE_URL, { cache: 'no-store' });
+            const controller = new AbortController();
+            const response = await withTimeout(
+                fetch(ISS_TLE_URL, { cache: 'no-store', signal: controller.signal })
+                    .catch(error => {
+                        controller.abort();
+                        throw error;
+                    }),
+                NETWORK_TIMEOUT_MS,
+                'ISS TLE fetch'
+            );
             if (!response.ok) throw new Error(`CelesTrak HTTP ${response.status}`);
             const text = await response.text();
             const { line1, line2 } = parseTleResponse(text);
             satrec = satellite.twoline2satrec(line1, line2);
             state.source = 'celestrak';
+            writeCachedTle({ line1, line2, source: 'cached-celestrak' });
         } catch (error) {
-            console.warn('[ISS] TLE fetch failed; keeping last known orbit if available.', error);
-            // Daca nu exista deja un satrec valid dintr-un fetch anterior, marcam indisponibil.
-            // Daca exista unul vechi, continuam sa propagam din el (mai bun decat nimic pe termen scurt).
+            console.warn('[ISS] TLE fetch failed; keeping last known orbit or fallback if available.', error);
             if (!satrec) {
-                state.source = 'unavailable';
-                state.visible = false;
-                hideIssObjects();
-                updateIssStatus(state);
+                const fallbackTle = readCachedTle() || ISS_BUNDLED_TLE;
+                if (fallbackTle?.line1 && fallbackTle?.line2) {
+                    satrec = satellite.twoline2satrec(fallbackTle.line1, fallbackTle.line2);
+                    state.source = fallbackTle.source || 'cached-celestrak';
+                } else {
+                    state.source = 'unavailable';
+                    state.visible = false;
+                    hideIssObjects();
+                    updateIssStatus(state);
+                }
             }
         }
     }
@@ -475,6 +536,8 @@ export function createIssSystem({
             return state;
         }
         await refreshTle();
+        updatePosition(new Date());
+        updateIssStatus(state);
         return state;
     }
 

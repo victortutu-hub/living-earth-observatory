@@ -1,7 +1,7 @@
 import { createAppLifecycle } from './app-lifecycle.js?v=resizeObserver1';
 import { createAppStartup } from './app-startup.js?v=firms1';
-import { createDemoReelTimeline } from './reel-timeline.js?v=reelSyncPolish1';
-import { createSocialPresetSystem } from './preset-system.js?v=directorModes1';
+import { createDemoReelTimeline } from './reel-timeline.js?v=issOrbitalBeat1';
+import { createSocialPresetSystem } from './preset-system.js?v=issOrbitalBeat1';
 
 export function createEarthAppRuntime({
     state,
@@ -130,6 +130,10 @@ export function createEarthAppRuntime({
         exportReelVideo,
         triggerSignalPulse,
         moonSystem,
+        issSystem,
+        updateIssLayerUi,
+        startIssTracking,
+        stopIssTracking,
         startMoonTracking,
         stopMoonTracking,
         startReturnFromMoon

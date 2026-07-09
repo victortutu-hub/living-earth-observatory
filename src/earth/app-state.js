@@ -48,6 +48,7 @@ export function createInitialEarthState() {
         captionStyle: 'cinematic',
         poeticCaptions: false,
         dataRhythm: true,
+        includeIssBeat: false,
         dataRhythmPulseAmp: 1,
         dataRhythmDriftAmp: 1
     };

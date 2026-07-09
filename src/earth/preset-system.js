@@ -88,7 +88,7 @@ export const socialPresets = {
     },
     orbitalStory: {
         label: 'Orbital Story',
-        reelDurationSec: 26,
+        reelDurationSec: 34,
         reelMood: 'cinematic',
         earthLook: 'showcase',
         atmosphereMode: 'physical',
@@ -98,7 +98,8 @@ export const socialPresets = {
         captionStyle: 'cinematic',
         poeticCaptions: true,
         dataRhythm: true,
-        brandPreset: false
+        brandPreset: false,
+        includeIssBeat: true
     }
 };
 
@@ -141,6 +142,7 @@ export function createSocialPresetSystem({
         updateCaptionUi?.();
         state.dataRhythm = Boolean(preset.dataRhythm);
         updateDataRhythmUi?.();
+        state.includeIssBeat = Boolean(preset.includeIssBeat);
 
         state.reelDurationSec = preset.reelDurationSec;
         updateReelDurationUi?.();

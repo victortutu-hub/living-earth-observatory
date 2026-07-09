@@ -157,6 +157,9 @@ export function createReelOverlay({
         anchor: new THREE.Vector3(),
         color: new THREE.Color(0xffd2a0)
     };
+    const reelCaptionState = {
+        kind: 'event'
+    };
 
     const signalPulseCanvas = document.createElement('canvas');
     signalPulseCanvas.width = 512;
@@ -213,6 +216,7 @@ export function createReelOverlay({
     function updateReelCaption(event, snap = false, index = 1, total = 3) {
         const ll = eventLonLat(event);
         if (!event || !ll) return hideReelCaption();
+        reelCaptionState.kind = 'event';
         setReelLocator(event);
         const ctx = reelCaptionCtx;
         const w = reelCaptionCanvas.width;
@@ -272,6 +276,7 @@ export function createReelOverlay({
     }
 
     function updateReelTransitionCard(event, index = 1, total = 3) {
+        reelCaptionState.kind = 'transition';
         setReelLocator(event);
         const ctx = reelCaptionCtx;
         const w = reelCaptionCanvas.width;
@@ -335,6 +340,7 @@ export function createReelOverlay({
     function updateReelDetailsCard(event) {
         const ll = eventLonLat(event);
         if (!event || !ll) return hideReelCaption();
+        reelCaptionState.kind = 'details';
         setReelLocator(event);
         const ctx = reelCaptionCtx;
         const w = reelCaptionCanvas.width;
@@ -389,6 +395,7 @@ export function createReelOverlay({
     }
 
     function updateReelTitleCard(mode, count = 3) {
+        reelCaptionState.kind = `title-${mode || 'outro'}`;
         clearReelLocator();
         const ctx = reelCaptionCtx;
         const w = reelCaptionCanvas.width;
@@ -443,29 +450,29 @@ export function createReelOverlay({
             });
             drawFittedText(ctx, caption.subtitle, 78, 206, w - 156, {
                 weight: style.titleWeight,
-                maxSize: 50,
-                minSize: 28,
+                maxSize: mode === 'earthshine' ? 46 : 50,
+                minSize: mode === 'earthshine' ? 24 : 28,
                 color: '#f8fbff'
             });
             drawFittedText(ctx, caption.meta, 78, 252, w - 156, {
                 weight: 600,
-                maxSize: 24,
-                minSize: 20,
+                maxSize: mode === 'earthshine' ? 22 : 24,
+                minSize: 18,
                 color: 'rgba(220, 232, 255, 0.84)'
             });
         }
         if (mode !== 'intro') {
-            drawFittedText(ctx, caption.footer, 78, 282, w - 156, {
+            drawFittedText(ctx, caption.footer, 78, 274, w - 156, {
                 weight: 600,
                 maxSize: 16,
-                minSize: 14,
+                minSize: 13,
                 color: 'rgba(255, 255, 255, 0.5)'
             });
         } else if (caption.footer) {
-            drawFittedText(ctx, caption.footer, 78, 282, w - 156, {
+            drawFittedText(ctx, caption.footer, 78, 274, w - 156, {
                 weight: 600,
                 maxSize: 16,
-                minSize: 14,
+                minSize: 13,
                 color: 'rgba(255, 255, 255, 0.5)'
             });
         }
@@ -507,12 +514,25 @@ export function createReelOverlay({
         _captionUp.setFromMatrixColumn(activeCamera.matrixWorld, 1);
         const aspect = activeCamera.aspect || innerWidth / innerHeight;
         const verticalLayout = getVerticalCaptionLayout(state, aspect);
-        const verticalOffset = verticalLayout?.verticalOffset ?? (aspect < 1 ? -0.66 : -0.88);
+        const isVertical = aspect < 1;
+        const isTitleCard = reelCaptionState.kind.startsWith('title-');
+        const isLongTitleCard = reelCaptionState.kind === 'title-earthshine' || reelCaptionState.kind === 'title-iss';
+        const baseOffset = verticalLayout?.verticalOffset ?? (isVertical ? -0.66 : -0.88);
+        const titleOffsetLift = isTitleCard
+            ? (isVertical ? 0.055 : 0.035)
+            : 0;
+        const verticalOffset = baseOffset + titleOffsetLift;
         reelCaption.position.copy(activeCamera.position)
             .add(_captionDir.clone().multiplyScalar(distance))
             .add(_captionUp.clone().multiplyScalar(verticalOffset));
         const visibleHeight = 2 * Math.tan(THREE.MathUtils.degToRad(activeCamera.fov) / 2) * distance;
-        const captionHeight = visibleHeight * (verticalLayout?.heightRatio ?? (aspect < 1 ? 0.145 : 0.18));
+        const baseHeightRatio = verticalLayout?.heightRatio ?? (isVertical ? 0.145 : 0.18);
+        const titleHeightScale = isLongTitleCard
+            ? (isVertical ? 0.94 : 0.9)
+            : isTitleCard
+                ? (isVertical ? 0.97 : 0.94)
+                : 1;
+        const captionHeight = visibleHeight * baseHeightRatio * titleHeightScale;
         reelCaption.scale.set(captionHeight * (reelCaptionCanvas.width / reelCaptionCanvas.height), captionHeight, 1);
         updateReelLocatorForCamera(activeCamera, _captionUp, _captionRight, captionHeight, verticalLayout, options, fadeOpacity);
     }
