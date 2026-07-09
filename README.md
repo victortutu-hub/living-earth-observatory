@@ -14,7 +14,7 @@ Main Earth observatory entry point:
 earth-eonet-relief.html
 ```
 
-The current version includes the `Showcase reel` preset, `Data sources` panel, 9:16 video export, synchronized single-card reel pacing, restored intro card layout, atomic state restore after Demo reel, Vertical Director, caption system, Data Rhythm Camera, Moon/Earthshine reel moment, ISS trail, and controllable subtle atmospheric phenomena.
+The current version includes the `Showcase reel` preset, `Data sources` panel, 9:16 video export, synchronized single-card reel pacing, restored intro card layout, atomic state restore after Demo reel, Vertical Director, caption system, Data Rhythm Camera, Moon/Earthshine reel moment, ISS trail, and controllable subtle atmospheric phenomena. 
 
 ## Local Run
 
