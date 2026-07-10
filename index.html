@@ -3,323 +3,174 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>LUMINOMORPHISM — Portal Ring Gateway</title>
-  <meta name="description" content="Luminomorphism — a generative science-art platform where every color and every visual event is grounded in real data or real physics. Enter the Living Earth Observatory or the Living Protein Observatory." />
-  <meta property="og:title" content="LUMINOMORPHISM — Generative Science-Art Platform" />
-  <meta property="og:description" content="Real NASA data. Real AlphaFold structures. REAL LIGHT — nothing on screen is decorative." />
+  <title>LUMINOMORPHISM — Orbital Data Atlas</title>
+  <meta name="description" content="Luminomorphism — an extensible network of generative science-art observatories where every color and visual event is grounded in real data, documented physics, prediction or clearly declared interpretation." />
+  <meta property="og:title" content="LUMINOMORPHISM — Orbital Data Atlas" />
+  <meta property="og:description" content="A multi-scale scientific observatory network built from traceable data, physical models and clearly declared interpretation." />
   <meta property="og:type" content="website" />
   <meta name="theme-color" content="#05060e" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%2322D3EE' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%2322D3EE' fill-opacity='.35'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet" />
-  <style>
-    :root{
-      /* Luminomorphism standard palette — exact tokens from styles.css / bg.js */
-      --bg:#05060e;
-      --bg2:#0a0b18;
-      --cyan:#22d3ee;
-      --cyan-light:#67e8f9;
-      --violet:#8b5cf6;
-      --violet-light:#c4b5fd;
-      --blue:#6366f1;
-      --magenta:#ec4899;
-      --fuchsia:#e879f9;
-      --amber:#fbbf24;
-      --cyan-rgb:34,211,238;
-      --cyan-light-rgb:103,232,249;
-      --blue-rgb:99,102,241;
-      --violet-rgb:139,92,246;
-      --violet-light-rgb:196,181,253;
-      --magenta-rgb:236,72,153;
-      --fuchsia-rgb:232,121,249;
-      --amber-rgb:251,191,36;
-      --text:#eef1ff;
-      --muted:#8a90b4;
-      --muted2:#5c618a;
-      --thin:rgba(255,255,255,.16);
-      --line:rgba(255,255,255,.08);
-    }
-
-    *{box-sizing:border-box}
-    html{scroll-behavior:smooth;}
-    html,body{margin:0;background:var(--bg);font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;color:var(--text)}
-    body{letter-spacing:.02em;}
-
-    #hero{position:relative;height:100svh;min-height:560px;overflow:hidden;background:var(--bg);}
-
-    #stage{position:absolute;inset:0;width:100%;height:100%;display:block;background:var(--bg);cursor:default;touch-action:none;z-index:1;}
-    body[data-hover="earth"] #stage{cursor:pointer;}
-
-    .hud{position:absolute;inset:0;pointer-events:none;z-index:3;}
-    .brand{position:absolute;top:clamp(28px,5.2vh,48px);left:50%;transform:translateX(-50%);text-align:center;width:min(88vw,880px);}
-    h1{margin:0;font-weight:200;font-size:clamp(28px,4.2vw,58px);line-height:1;letter-spacing:clamp(.32em,1.05vw,.58em);text-indent:clamp(.32em,1.05vw,.58em);background:linear-gradient(90deg, rgba(var(--cyan-rgb),1) 0%, rgba(226,248,255,.98) 30%, rgba(var(--blue-rgb),.98) 58%, rgba(var(--violet-rgb),.98) 78%, rgba(var(--magenta-rgb),.96) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 0 22px rgba(var(--cyan-rgb),.10)) drop-shadow(0 0 24px rgba(var(--violet-rgb),.08));}
-    .subtitle{margin-top:14px;font-size:clamp(10px,1vw,14px);font-weight:400;letter-spacing:.16em;text-transform:uppercase;color:rgba(226,235,255,.68);}
-    .real-light{margin-top:7px;font-size:clamp(9px,.82vw,11px);letter-spacing:.13em;text-transform:uppercase;color:rgba(210,225,255,.42);}
-
-    .portal-label{position:absolute;width:min(36vw,420px);transform:translate(-50%,0);text-align:center;transition:opacity .25s ease, transform .35s cubic-bezier(.2,.8,.2,1), filter .35s ease;pointer-events:none;mix-blend-mode:screen;}
-    .portal-label h2{margin:0;font-size:clamp(17px,2.2vw,31px);font-weight:300;letter-spacing:.06em;text-transform:uppercase;line-height:.96;color:rgba(246,248,255,.96);text-shadow:0 0 18px rgba(255,255,255,.22);}
-    .portal-label .small{display:block;margin-top:6px;font-size:clamp(10px,1.1vw,15px);font-weight:400;letter-spacing:.14em;}
-    .portal-label p{position:relative;left:50%;transform:translateX(-50%);margin:12px 0 0;width:max-content;max-width:min(38vw,420px);font-size:clamp(7px,.68vw,9px);line-height:1.45;letter-spacing:.11em;text-transform:uppercase;text-align:center;color:rgba(230,238,255,.72);}
-    .portal-label p::before{content:"";display:block;width:46%;height:1px;margin:0 auto 10px;background:linear-gradient(90deg,transparent,currentColor,transparent);opacity:.75;}
-    #label-earth{left:30%;color:rgba(230,255,255,.96);filter:drop-shadow(0 0 14px rgba(var(--cyan-rgb),.26));}
-    #label-earth .small{color:rgba(var(--cyan-rgb),.96);}
-    #label-earth p{color:rgba(230,243,255,.70);}
-    #label-earth p::before{background:linear-gradient(90deg,transparent,rgba(var(--cyan-rgb),.82),transparent);}
-    #label-protein{left:70%;color:rgba(246,244,255,.96);filter:drop-shadow(0 0 14px rgba(var(--violet-rgb),.26));}
-    #label-protein .small{color:rgba(var(--magenta-rgb),.96);}
-    #label-protein p{color:rgba(232,226,255,.72);}
-    #label-protein p::before{background:linear-gradient(90deg,transparent,rgba(var(--magenta-rgb),.82),transparent);}
-    body[data-hover="earth"] #label-earth,
-    body[data-hover="protein"] #label-protein{opacity:1;transform:translate(-50%,0) scale(1.03);}
-    body[data-hover="earth"] #label-protein,
-    body[data-hover="protein"] #label-earth{opacity:.62;}
-    .enter{position:absolute;left:50%;bottom:clamp(25px,5.6vh,58px);transform:translateX(-50%);display:flex;align-items:center;gap:16px;font-size:clamp(9px,.9vw,12px);letter-spacing:.16em;text-transform:uppercase;color:rgba(230,235,255,.50);white-space:nowrap;}
-    .enter::before,.enter::after{content:"";width:clamp(48px,8vw,118px);height:1px;background:linear-gradient(90deg,transparent,rgba(var(--cyan-rgb),.38));}
-    .enter::after{background:linear-gradient(90deg,rgba(var(--magenta-rgb),.38),transparent);}
-
-    .corner{position:absolute;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:rgba(205,225,255,.36);display:flex;gap:8px;align-items:center;}
-    .corner::before{content:"✣";opacity:.45;color:var(--thin)}
-    .tl{top:10px;left:12px}.tr{top:10px;right:14px}.bl{bottom:10px;left:12px}.br{bottom:10px;right:14px}
-    .tr strong{color:rgba(var(--blue-rgb),.86);font-weight:500}.tl strong{font-weight:500;color:rgba(var(--cyan-rgb),.66)}.bl strong{font-weight:500;color:rgba(220,230,255,.52)}.br strong{font-weight:500;color:rgba(var(--violet-rgb),.70)}
-
-    .edge-left,.edge-right{position:absolute;top:50%;height:112px;width:1px;background:linear-gradient(180deg,transparent,rgba(230,240,255,.55),transparent);opacity:.58;}
-    .edge-left{left:10px}.edge-right{right:10px}
-    .edge-left::before,.edge-right::before{content:"";position:absolute;top:42%;width:1px;height:32px;background:rgba(255,255,255,.92)}
-    .edge-left::before{left:0}.edge-right::before{right:0}
-    .side-dots{position:absolute;right:20px;top:50%;display:grid;gap:10px;transform:translateY(-50%);opacity:.55;}
-    .side-dots span{display:block;width:5px;height:5px;border:1px solid rgba(220,230,255,.52);border-radius:50%;}
-    .barcode{position:absolute;right:9px;bottom:16px;width:9px;height:58px;opacity:.35;background:repeating-linear-gradient(180deg,rgba(220,230,255,.7) 0 1px,transparent 1px 4px);}
-
-    .fallback{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;background:#05060e;color:rgba(245,248,255,.9);z-index:10;}
-    .fallback strong{display:block;margin-bottom:12px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;}
-    .fallback span{color:rgba(225,235,255,.58);font-size:14px;line-height:1.6;}
-    body.no-webgl .fallback{display:grid;}
-
-    #loadingScreen{
-      position:absolute;inset:0;z-index:20;
-      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
-      background:var(--bg);
-      transition:opacity .6s ease, background 1.2s ease;
-    }
-    #loadingScreen.hidden{opacity:0;pointer-events:none;}
-    #loadingScreen.hidden .loading-mark,
-    #loadingScreen.hidden .loading-bar{
-      opacity:0;
-    }
-    body.is-exiting #loadingScreen.hidden,
-    body.is-exiting #loadingScreen{
-      opacity:1;
-      pointer-events:auto;
-      background:
-        radial-gradient(circle at 50% 46%, rgba(0,229,255,.08), transparent 24%),
-        radial-gradient(circle at 50% 54%, rgba(180,124,255,.07), transparent 34%),
-        rgba(2,5,13,.98);
-      transition:opacity 1.25s cubic-bezier(.2,.8,.2,1), background 1.25s ease;
-    }
-    body.is-exiting #stage,
-    body.is-exiting .hud{
-      opacity:0;
-      transform:scale(1.045);
-      filter:blur(12px) saturate(1.08);
-      transition:opacity 1.2s cubic-bezier(.2,.8,.2,1), transform 1.2s cubic-bezier(.2,.8,.2,1), filter 1.2s ease;
-    }
-    body.is-exiting #loadingScreen .loading-mark{
-      opacity:1;
-      transition:opacity .65s ease .72s, filter .65s ease .72s;
-      filter:drop-shadow(0 0 30px rgba(var(--cyan-rgb),.28));
-    }
-    body.is-exiting #loadingScreen .loading-bar{
-      opacity:.52;
-      transition:opacity .55s ease .92s;
-    }
-    .loading-mark{
-      font-size:clamp(16px,2.4vw,22px);font-weight:200;letter-spacing:.42em;text-indent:.42em;
-      color:rgba(230,238,255,.82);
-      transition:opacity .35s ease, filter .35s ease;
-    }
-    .loading-bar{width:min(38vw,220px);height:1px;background:rgba(220,230,255,.14);overflow:hidden;}
-    .loading-bar span{
-      display:block;height:100%;width:40%;
-      background:linear-gradient(90deg,transparent,rgba(var(--cyan-rgb),.9),transparent);
-      animation:loadingSweep 1.3s ease-in-out infinite;
-    }
-    @keyframes loadingSweep{
-      0%{transform:translateX(-120%);}
-      100%{transform:translateX(320%);}
-    }
-    body.no-webgl #loadingScreen{display:none;}
-
-    @media (max-width: 760px){
-      h1{font-size:clamp(24px,7.6vw,42px);letter-spacing:.18em;text-indent:.18em;}
-      .subtitle{font-size:9px;letter-spacing:.08em;margin-top:10px;}
-      .real-light{display:none;}
-      #label-earth{left:50%;}
-      #label-protein{left:50%;}
-      .portal-label{width:min(84vw,360px);}
-      .portal-label p{display:none;}
-      .enter{bottom:18px;font-size:8px;gap:8px;}
-      .enter::before,.enter::after{width:36px;}
-      .side-dots,.edge-left,.edge-right{display:none;}
-    }
-
-    /* ===== Scroll cue at bottom of hero ===== */
-    .scroll-cue{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:22px;height:36px;border:1px solid rgba(220,230,255,.32);border-radius:12px;z-index:4;text-decoration:none;opacity:.55;transition:opacity .3s ease, transform .3s ease;pointer-events:auto;}
-    .scroll-cue:hover{opacity:1;transform:translateX(-50%) translateY(3px);}
-    .scroll-cue span{position:absolute;left:50%;top:7px;width:3px;height:8px;margin-left:-1.5px;border-radius:2px;background:rgba(var(--cyan-rgb),.85);animation:scrollCueDrift 1.8s ease-in-out infinite;}
-    @keyframes scrollCueDrift{0%{opacity:0;transform:translateY(0);}30%{opacity:1;}100%{opacity:0;transform:translateY(12px);}}
-    @media (max-width:760px){.scroll-cue{bottom:8px;}}
-
-    /* ===== Story sections — presentation content below the hero ===== */
-    .story{position:relative;background:var(--bg);}
-    .story-section{position:relative;padding:clamp(64px,11vh,120px) clamp(20px,5vw,48px);border-top:1px solid rgba(220,230,255,.08);overflow:hidden;}
-    .story-inner{position:relative;z-index:1;max-width:1080px;margin:0 auto;}
-    .story-glow{position:absolute;inset:0;pointer-events:none;opacity:.55;z-index:0;}
-
-    .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:rgba(var(--cyan-rgb),.85);margin:0 0 18px;}
-    .eyebrow::before{content:"✣";opacity:.7;font-size:10px;}
-
-    .story-title{margin:0 0 22px;font-weight:200;font-size:clamp(26px,4vw,44px);line-height:1.1;letter-spacing:.03em;color:var(--text);}
-    .story-title em{font-style:normal;background:linear-gradient(135deg,rgba(var(--magenta-rgb),1),rgba(var(--cyan-rgb),1) 50%,rgba(var(--violet-rgb),1));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 24px rgba(var(--magenta-rgb),.25));}
-
-    .story-lede{max-width:640px;font-size:clamp(14px,1.3vw,17px);line-height:1.75;color:var(--muted);font-weight:300;letter-spacing:.01em;}
-
-    /* Manifesto */
-    #manifesto .story-glow{background:radial-gradient(circle at 18% 20%,rgba(var(--cyan-rgb),.10),transparent 55%);}
-    .manifesto-grid{margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:rgba(220,230,255,.10);border:1px solid rgba(220,230,255,.10);}
-    .manifesto-item{background:var(--bg);padding:26px 24px;}
-    .manifesto-item h3{margin:0 0 10px;font-size:13px;font-weight:500;letter-spacing:.10em;text-transform:uppercase;color:rgba(230,238,255,.86);}
-    .manifesto-item p{margin:0;font-size:13.5px;line-height:1.65;color:var(--muted);font-weight:300;}
-
-    /* Observatories */
-    #observatories .story-glow{background:radial-gradient(circle at 82% 30%,rgba(var(--violet-rgb),.10),transparent 55%);}
-    .obs-grid{margin-top:44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;}
-    .obs-card{position:relative;padding:30px 26px 28px;border:1px solid rgba(220,230,255,.14);background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0));transition:border-color .3s ease, transform .3s ease;}
-    .obs-card:hover{transform:translateY(-3px);}
-    .obs-earth:hover{border-color:rgba(var(--cyan-rgb),.45);}
-    .obs-protein:hover{border-color:rgba(var(--magenta-rgb),.35);}
-    .obs-status{display:inline-block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;padding:4px 9px;border:1px solid currentColor;border-radius:999px;margin-bottom:16px;}
-    .obs-status.live{color:rgba(var(--cyan-rgb),1);}
-    .obs-status.soon{color:rgba(var(--magenta-rgb),1);}
-    .obs-card h3{margin:0 0 12px;font-weight:300;font-size:22px;letter-spacing:.02em;color:var(--text);}
-    .obs-card h3 em{font-style:normal;display:block;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
-    .obs-card > p{margin:0 0 18px;font-size:13.5px;line-height:1.7;color:var(--muted);font-weight:300;}
-    .obs-features{list-style:none;margin:0 0 24px;padding:0;display:flex;flex-wrap:wrap;gap:8px 10px;}
-    .obs-features li{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:rgba(220,230,255,.55);padding:5px 10px;border:1px solid rgba(220,230,255,.14);}
-    .obs-cta{display:inline-flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;text-decoration:none;color:var(--bg);font-weight:600;background:linear-gradient(135deg,rgba(var(--violet-rgb),1),rgba(var(--blue-rgb),1) 50%,rgba(var(--cyan-rgb),1));padding:11px 18px;box-shadow:0 10px 30px -10px rgba(var(--violet-rgb),.6);transition:box-shadow .25s ease,transform .25s ease;}
-    .obs-cta:hover{box-shadow:0 14px 40px -8px rgba(var(--violet-rgb),.8);transform:translateY(-2px);}
-    .obs-cta.disabled{color:rgba(220,230,255,.42);background:none;border:1px solid rgba(220,230,255,.18);cursor:default;}
-
-    /* Data sources */
-    #data-sources .story-glow{background:radial-gradient(circle at 12% 70%,rgba(var(--violet-light-rgb),.10),transparent 55%);}
-    .source-grid{margin-top:44px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
-    .source-card{border:1px solid rgba(220,230,255,.14);padding:16px 16px 18px;position:relative;}
-    .source-card::before{content:"";position:absolute;top:0;left:0;width:26px;height:1px;background:rgba(var(--cyan-rgb),.7);}
-    .source-tag{display:block;font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:rgba(var(--violet-light-rgb),.95);margin-bottom:9px;}
-    .source-card h4{margin:0 0 8px;font-size:14px;font-weight:400;color:var(--text);letter-spacing:.01em;}
-    .source-card p{margin:0;font-size:12px;line-height:1.55;color:var(--muted);font-weight:300;}
-
-    /* Craft */
-    #craft .story-glow{background:radial-gradient(circle at 86% 20%,rgba(var(--blue-rgb),.10),transparent 55%);}
-    .craft-list{margin-top:40px;display:flex;flex-direction:column;}
-    .craft-row{padding:20px 0;border-top:1px solid rgba(220,230,255,.10);}
-    .craft-row:first-child{border-top:none;}
-    .craft-row-head{display:grid;grid-template-columns:52px 1fr auto;gap:20px;align-items:baseline;}
-    .craft-num{font-size:12px;letter-spacing:.08em;color:rgba(var(--blue-rgb),.75);font-weight:300;padding-top:2px;}
-    .craft-row h4{margin:0 0 6px;font-size:14.5px;font-weight:400;color:var(--text);}
-    .craft-row p{margin:0;font-size:13px;line-height:1.65;color:var(--muted);font-weight:300;max-width:600px;}
-
-    /* Roadmap */
-    #roadmap .story-glow{background:radial-gradient(circle at 20% 30%,rgba(var(--magenta-rgb),.08),transparent 55%);}
-    .roadmap-cols{margin-top:40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px;}
-    .roadmap-col h4{margin:0 0 16px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);padding-bottom:12px;border-bottom:1px solid rgba(220,230,255,.14);}
-    .roadmap-col ul{list-style:none;margin:0;padding:0;}
-    .roadmap-col li{position:relative;padding:9px 0 9px 20px;font-size:13px;line-height:1.5;color:rgba(230,238,255,.78);font-weight:300;border-bottom:1px solid rgba(220,230,255,.06);}
-    .roadmap-col li::before{content:"";position:absolute;left:0;top:15px;width:8px;height:1px;background:rgba(var(--cyan-rgb),.6);}
-    .roadmap-col.next li::before{background:rgba(var(--magenta-rgb),.6);}
-    .roadmap-col.next li{color:rgba(230,238,255,.60);}
-
-    /* Footer */
-    #site-footer{padding:52px clamp(20px,5vw,48px) 60px;border-top:1px solid rgba(220,230,255,.10);background:var(--bg);}
-    .footer-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;}
-    .footer-brand{font-size:12px;letter-spacing:.32em;text-indent:.32em;color:rgba(230,238,255,.55);}
-    .footer-note{flex:1 1 420px;margin:0;font-size:11px;line-height:1.7;letter-spacing:.02em;color:rgba(220,230,255,.42);}
-    .footer-top{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(var(--cyan-rgb),.75);text-decoration:none;white-space:nowrap;}
-    .footer-top:hover{color:rgba(var(--cyan-rgb),1);}
-
-    @media (max-width:760px){
-      .story-section{padding:52px 18px;}
-      .manifesto-grid{grid-template-columns:1fr;}
-      .craft-row-head{grid-template-columns:32px 1fr;}
-      .craft-row-head .craft-toggle{grid-column:1 / -1;}
-    }
-
-    /* ===== Scroll reveal — everything below the hero is currently static;
-       this brings each section/card in on scroll, matching the hero's own
-       sense of motion. Respects prefers-reduced-motion. ===== */
-    .reveal{
-      opacity:0;
-      transform:translateY(22px);
-      transition:opacity .8s cubic-bezier(.2,.8,.2,1) var(--reveal-delay,0ms),
-                 transform .8s cubic-bezier(.2,.8,.2,1) var(--reveal-delay,0ms);
-      will-change:opacity, transform;
-    }
-    .reveal.is-visible{opacity:1;transform:translateY(0);}
-    @media (prefers-reduced-motion: reduce){
-      .reveal{opacity:1;transform:none;transition:none;}
-    }
-
-    /* ===== Data source live ping (EONET card) — a real timestamp, not a
-       decorative dot, proving the "not decoration" claim in the manifesto. ===== */
-    .source-card.is-live{border-color:rgba(var(--cyan-rgb),.32);}
-    .source-ping{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:10px;letter-spacing:.04em;color:rgba(var(--cyan-rgb),.85);}
-    .source-ping .dot{width:5px;height:5px;border-radius:50%;background:rgba(var(--cyan-rgb),1);box-shadow:0 0 8px rgba(var(--cyan-rgb),.9);animation:pingPulse 2.2s ease-in-out infinite;flex:none;}
-    @keyframes pingPulse{0%,100%{opacity:.5;transform:scale(.85);}50%{opacity:1;transform:scale(1);}}
-    @media (prefers-reduced-motion: reduce){.source-ping .dot{animation:none;}}
-
-    /* ===== Earth observatory mini-chart — real EONET category counts,
-       shown as a self-explanatory label+bar+count list (not an abstract
-       sparkline) - single sequential hue (magnitude, not identity). ===== */
-    .obs-spark{margin-top:18px;margin-bottom:18px;}
-    .obs-spark-label{display:block;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(220,230,255,.42);margin-bottom:10px;}
-    .obs-spark-row{display:grid;grid-template-columns:88px 1fr 22px;align-items:center;gap:10px;padding:4px 0;}
-    .obs-spark-row .obs-spark-name{font-size:11px;color:rgba(220,230,255,.68);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .obs-spark-row .obs-spark-track{position:relative;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;}
-    .obs-spark-row .obs-spark-fill{position:absolute;inset:0 auto 0 0;border-radius:3px;background:rgba(var(--cyan-rgb),.8);transition:width .6s cubic-bezier(.2,.8,.2,1);}
-    .obs-spark-row .obs-spark-count{font-size:11px;font-variant-numeric:tabular-nums;color:rgba(230,238,255,.8);text-align:right;}
-
-    /* ===== Craft — hover/tap to reveal the actual formula behind each line ===== */
-    .craft-row{cursor:pointer;}
-    .craft-row-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
-    .craft-toggle{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(var(--blue-rgb),.68);white-space:nowrap;flex:none;}
-    .craft-formula{max-height:0;overflow:hidden;opacity:0;transition:max-height .4s cubic-bezier(.2,.8,.2,1), opacity .3s ease, margin-top .4s ease;margin-top:0;}
-    .craft-row.is-open .craft-formula{max-height:120px;opacity:1;margin-top:12px;}
-    .craft-row.is-open .craft-toggle{color:rgba(var(--cyan-rgb),.9);}
-    .craft-formula code{display:block;font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:12px;line-height:1.6;color:rgba(var(--cyan-light-rgb),.92);background:rgba(255,255,255,.03);border:1px solid rgba(220,230,255,.10);border-left:2px solid rgba(var(--cyan-rgb),.55);padding:12px 14px;white-space:pre-wrap;}
-
-    /* ===== Roadmap — connecting timeline instead of two flat columns ===== */
-    .roadmap-track{position:relative;height:2px;margin:0 0 40px;background:rgba(220,230,255,.10);}
-    .roadmap-track-fill{position:absolute;top:0;left:0;height:100%;width:0;background:linear-gradient(90deg,rgba(var(--cyan-rgb),.9),rgba(var(--magenta-rgb),.75));transition:width 1.4s cubic-bezier(.2,.8,.2,1) .1s;}
-    .reveal.is-visible .roadmap-track-fill{width:62%;}
-    .roadmap-node{position:absolute;top:50%;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%);background:var(--bg);}
-    .roadmap-node.done{left:0;border:2px solid rgba(var(--cyan-rgb),1);}
-    .roadmap-node.next{left:62%;border:2px solid rgba(var(--magenta-rgb),.85);}
-    .roadmap-node.future{left:100%;border:2px solid rgba(220,230,255,.28);}
-
-    /* ===== Footer — live UTC clock, echoing the Earth app's own solar clock ===== */
-    .footer-status{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.1em;color:rgba(220,230,255,.48);}
-    .footer-status .dot{width:6px;height:6px;border-radius:50%;background:rgba(var(--cyan-rgb),1);box-shadow:0 0 8px rgba(var(--cyan-rgb),.85);animation:pingPulse 2.2s ease-in-out infinite;flex:none;}
-    .footer-status time{font-variant-numeric:tabular-nums;color:rgba(230,238,255,.72);}
-    @media (prefers-reduced-motion: reduce){.footer-status .dot{animation:none;}}
-  </style>
+  <link rel="stylesheet" href="./styles/main.css" />
 </head>
 <body>
+
+  <nav class="atlas-index" aria-label="Orbital Data Atlas sections">
+    <a href="#hero" data-section="hero" class="is-active"><span>Gateway</span></a>
+    <a href="#manifesto" data-section="manifesto"><span>Philosophy</span></a>
+    <a href="#observatories" data-section="observatories" data-tone="violet"><span>Observatories</span></a>
+    <a href="#data-sources" data-section="data-sources"><span>Provenance</span></a>
+    <a href="#craft" data-section="craft"><span>Principles</span></a>
+    <a href="#roadmap" data-section="roadmap" data-tone="violet"><span>Roadmap</span></a>
+  </nav>
+
+  <div class="atlas-spine" aria-hidden="true"><span class="atlas-spine-progress" id="atlasSpineProgress"></span></div>
+
+  <aside class="atlas-telemetry" id="atlasTelemetry" aria-label="Live platform telemetry" aria-hidden="true" inert>
+    <div class="atlas-telemetry-head">
+      <div class="atlas-telemetry-head-main">
+        <span class="atlas-telemetry-title">System telemetry</span>
+        <span class="atlas-telemetry-live" id="atlasTelemetryLive" data-state="standby">standby</span>
+      </div>
+      <button class="atlas-telemetry-close" id="atlasTelemetryClose" type="button" aria-label="Hide system telemetry">×</button>
+    </div>
+    <div class="atlas-telemetry-context" aria-live="polite">
+      <span id="atlasContextKicker">Gateway</span>
+      <strong id="atlasContextTitle">Portal systems</strong>
+      <p id="atlasContextNote">Live source readiness, renderer state and current quality profile.</p>
+    </div>
+    <dl class="atlas-telemetry-grid">
+      <div class="atlas-metric"><dt>EONET</dt><dd id="atlasStatusEonet" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>Open events</dt><dd id="atlasStatusEvents" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>GIBS texture</dt><dd id="atlasStatusGibs" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>AlphaFold</dt><dd id="atlasStatusAlpha" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>Renderer</dt><dd id="atlasStatusRender" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>Quality</dt><dd id="atlasStatusQuality" data-state="ready">BALANCED</dd></div>
+      <div class="atlas-metric"><dt>Frame average</dt><dd id="atlasStatusFps" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>Persistent cache</dt><dd id="atlasStatusCache" data-state="pending">—</dd></div>
+      <div class="atlas-metric"><dt>Prefetch budget</dt><dd id="atlasStatusPrefetch" data-state="ready">0 ACTIVE · 0 QUEUED</dd></div>
+      <div class="atlas-metric"><dt>Runtime mode</dt><dd id="atlasStatusRuntimeMode" data-state="ready">ONLINE</dd></div>
+      <div class="atlas-metric"><dt>UTC</dt><dd id="atlasStatusUtc" data-state="pending">—</dd></div>
+    </dl>
+    <div class="atlas-layer-key" aria-label="Provenance layers">
+      <span class="observed"><i></i>Observed</span>
+      <span class="physical"><i></i>Physical</span>
+      <span class="interpretive"><i></i>Interpretive</span>
+      <span class="fallback-layer"><i></i>Fallback</span>
+    </div>
+  </aside>
+  <button class="atlas-telemetry-toggle" id="atlasTelemetryToggle" type="button" aria-controls="atlasTelemetry" aria-expanded="false" aria-label="Show system telemetry">
+    <span class="atlas-telemetry-toggle-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="atlas-telemetry-toggle-label">Telemetry</span>
+  </button>
+
+
+  <button class="runtime-control-toggle" id="runtimeControlToggle" type="button" aria-controls="runtimeControlCenter" aria-expanded="false" aria-label="Open runtime control center">
+    <span class="runtime-control-toggle-icon" aria-hidden="true">⌁</span>
+    <span class="runtime-control-toggle-label">Runtime</span>
+  </button>
+  <div class="runtime-control-backdrop" id="runtimeControlBackdrop" hidden></div>
+  <aside class="runtime-control-center" id="runtimeControlCenter" aria-label="Runtime control center" aria-hidden="true" inert>
+    <header class="runtime-control-head">
+      <div>
+        <span>Platform diagnostics</span>
+        <strong>Runtime Control Center</strong>
+      </div>
+      <div class="runtime-control-head-actions">
+        <span class="runtime-mode-badge" id="runtimeModeBadge" data-state="online">ONLINE</span>
+        <button type="button" id="runtimeControlClose" aria-label="Close runtime control center">×</button>
+      </div>
+    </header>
+
+    <div class="runtime-control-scroll">
+      <section class="runtime-control-section runtime-control-overview" aria-labelledby="runtimeOverviewTitle">
+        <div class="runtime-section-title">
+          <div><span>Control plane</span><h2 id="runtimeOverviewTitle">Runtime mode</h2></div>
+          <button class="runtime-refresh-view" id="runtimeRefreshView" type="button">Refresh diagnostics</button>
+        </div>
+        <div class="runtime-mode-grid">
+          <label class="runtime-offline-switch">
+            <input type="checkbox" id="runtimeOfflineToggle" />
+            <span aria-hidden="true"></span>
+            <strong>Simulate offline</strong>
+            <small>Blocks remote requests but leaves persistent cache and procedural fallbacks available.</small>
+          </label>
+          <div class="runtime-actions">
+            <button type="button" id="runtimeReloadAll">Reload all gateway sources</button>
+            <button type="button" id="runtimeAbortAll">Abort active requests</button>
+            <button type="button" class="danger" id="runtimeClearAllCache">Clear all cache</button>
+          </div>
+        </div>
+        <div class="runtime-summary-grid" id="runtimeSummaryGrid" aria-live="polite"></div>
+      </section>
+
+      <details class="runtime-control-section" open>
+        <summary><span>Sources</span><strong>Reload and cache controls</strong></summary>
+        <div class="runtime-source-list" id="runtimeSourceList"></div>
+      </details>
+
+      <details class="runtime-control-section" open>
+        <summary><span>Observatories</span><strong>Aggregated diagnostics</strong></summary>
+        <div class="runtime-observatory-list" id="runtimeObservatoryList"></div>
+      </details>
+
+      <details class="runtime-control-section">
+        <summary><span>Persistent cache</span><strong id="runtimeCacheSummary">Inventory</strong></summary>
+        <div class="runtime-cache-list" id="runtimeCacheList"></div>
+      </details>
+
+      <details class="runtime-control-section">
+        <summary><span>Requests</span><strong>Last runtime diagnostics</strong></summary>
+        <div class="runtime-request-list" id="runtimeRequestList"></div>
+      </details>
+
+
+      <details class="runtime-control-section" open>
+        <summary><span>Diagnostic snapshot</span><strong id="runtimeSnapshotSummary">Export / import</strong></summary>
+        <div class="runtime-snapshot-panel">
+          <div class="runtime-snapshot-intro">
+            <div>
+              <span>Versioned diagnostic state</span>
+              <strong>Capture, validate and replay a platform issue</strong>
+              <p>Report exports contain environment and runtime metadata. Portable replay exports additionally embed cache payloads, including binary textures, for a temporary isolated reproduction session.</p>
+            </div>
+            <span class="runtime-state-badge" id="runtimeSnapshotState" data-state="fallback">NO SNAPSHOT</span>
+          </div>
+          <div class="runtime-snapshot-actions">
+            <button type="button" id="runtimeSnapshotExport">Export report JSON</button>
+            <button type="button" id="runtimeSnapshotExportReplay">Export portable replay JSON</button>
+            <label class="runtime-snapshot-import">Import snapshot<input type="file" id="runtimeSnapshotImport" accept="application/json,.json" /></label>
+          </div>
+          <div class="runtime-snapshot-preview" id="runtimeSnapshotPreview" aria-live="polite"></div>
+          <div class="runtime-snapshot-replay">
+            <label class="runtime-snapshot-cache-option">
+              <input type="checkbox" id="runtimeSnapshotRestoreCache" disabled />
+              <span>Temporarily restore embedded cache payloads</span>
+              <small>The current cache is backed up in memory and restored when replay exits. Network requests remain blocked during replay.</small>
+            </label>
+            <div class="runtime-row-actions">
+              <button type="button" id="runtimeSnapshotApply" disabled>Start diagnostic replay</button>
+              <button type="button" id="runtimeSnapshotExit" disabled>Exit replay</button>
+              <button type="button" class="subtle" id="runtimeSnapshotDiscard" disabled>Discard import</button>
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <footer class="runtime-control-footer">
+      <span id="runtimeControlMessage" role="status" aria-live="polite">Ready.</span>
+      <time id="runtimeControlUpdated">—</time>
+    </footer>
+  </aside>
+
   <section id="hero">
   <div id="loadingScreen">
     <div class="loading-mark">LUMINOMORPHISM</div>
     <div class="loading-bar"><span></span></div>
   </div>
-  <canvas id="stage" aria-label="LUMINOMORPHISM portal gateway"></canvas>
+  <canvas id="stage" tabindex="0" role="link" aria-label="Enter the featured Luminomorphism observatory"></canvas>
 
   <div class="hud" aria-hidden="true">
     <div class="brand">
@@ -328,17 +179,17 @@
       <div class="real-light">REAL LIGHT - every visible event represents a physical or data-grounded phenomenon</div>
     </div>
 
-    <section id="label-earth" class="portal-label">
-      <h2>Living Earth <span class="small">Observatory</span></h2>
-      <p>Multi-source Earth signals + cinematic real-data observatory</p>
+    <section id="label-slot-0" class="portal-label" data-portal-label="slot-0" data-slot-index="0">
+      <h2><span class="portal-title">Featured Observatory</span> <span class="small">Gateway</span></h2>
+      <p>Registry-driven scientific observatory</p>
     </section>
 
-    <section id="label-protein" class="portal-label">
-      <h2>Living Protein <span class="small">Observatory</span></h2>
-      <p>Coming soon - AlphaFold structure + confidence-driven trace</p>
+    <section id="label-slot-1" class="portal-label" data-portal-label="slot-1" data-slot-index="1">
+      <h2><span class="portal-title">Featured Observatory</span> <span class="small">Gateway</span></h2>
+      <p>Registry-driven scientific observatory</p>
     </section>
 
-    <div class="enter">Click or tap the Earth portal to enter</div>
+    <div class="enter" id="gatewayEnterHint">Click or tap a live portal to enter</div>
     <div class="corner tl">Status <strong>real-data</strong></div>
     <div class="corner tr">Status <strong>webgl</strong></div>
     <div class="corner bl" id="cornerEvents">Status <strong>grounded render</strong></div>
@@ -357,8 +208,8 @@
   </div>
 
   <a href="#manifesto" class="scroll-cue" aria-label="Scroll to learn more"><span></span></a>
+  <div class="hero-continuity-axis" aria-hidden="true"></div>
   </section>
-  <!-- ===== end #hero ===== -->
 
   <main class="story">
 
@@ -368,6 +219,12 @@
         <span class="eyebrow reveal">The Philosophy</span>
         <h2 class="story-title reveal">Real <em>Light</em>, Not Decoration</h2>
         <p class="story-lede reveal">Every color you saw in the portal above, every pulse, every point of light, traces back to a measurement or a physical model. Luminomorphism does not simulate beauty — it renders reality closely enough that beauty shows up on its own.</p>
+        <div class="atlas-provenance-strip reveal" aria-label="Visual provenance classification">
+          <div class="atlas-provenance-item observed"><strong>Observed layer</strong><p>Measurements, coordinates and structures retrieved from external scientific sources.</p></div>
+          <div class="atlas-provenance-item physical"><strong>Physical layer</strong><p>Lighting, orbit, scattering and material response derived from documented models.</p></div>
+          <div class="atlas-provenance-item interpretive"><strong>Interpretive layer</strong><p>Composition and transitions that organize the scientific signal without claiming measurement.</p></div>
+          <div class="atlas-provenance-item fallback-layer"><strong>Fallback layer</strong><p>Procedural continuity used only when a remote source cannot be reached.</p></div>
+        </div>
         <div class="manifesto-grid">
           <div class="manifesto-item reveal">
             <h3>Data, not decoration</h3>
@@ -388,62 +245,71 @@
     <section id="observatories" class="story-section">
       <div class="story-glow"></div>
       <div class="story-inner">
-        <span class="eyebrow reveal">The Observatories</span>
-        <h2 class="story-title reveal">Two Windows Into <em>Reality</em></h2>
-        <p class="story-lede reveal">Luminomorphism is a platform of observatories, not a single scene. Each one takes a different real-world subject and asks the same question: what does it actually look like when every visual choice is earned?</p>
-        <div class="obs-grid">
-          <article class="obs-card obs-earth reveal">
-            <span class="obs-status live">Live</span>
-            <h3>Living Earth <em>Observatory</em></h3>
-            <p>A cinematic real-time Earth, built from relief and bathymetry textures, real solar lighting, and a live feed of natural events — earthquakes, wildfires, storms, and disaster alerts arriving as they happen.</p>
-            <ul class="obs-features">
-              <li>NASA EONET events</li>
-              <li>USGS earthquakes</li>
-              <li>NASA FIRMS wildfires</li>
-              <li>GDACS alerts</li>
-              <li>NOAA aurora</li>
-              <li>Moon &amp; Earthshine</li>
-              <li>ISS tracking</li>
-            </ul>
-            <div class="obs-spark" id="obsSpark" hidden>
-              <span class="obs-spark-label">Open events by category, right now</span>
-              <div id="obsSparkList"></div>
-            </div>
-            <a class="obs-cta" href="./earth-eonet-relief.html">Enter Observatory →</a>
-          </article>
-          <article class="obs-card obs-protein reveal">
-            <span class="obs-status soon">Coming soon</span>
-            <h3>Living Protein <em>Observatory</em></h3>
-            <p>A living view into molecular structure — real AlphaFold predictions rendered as light, with per-residue confidence (pLDDT) driving color, motion, and material.</p>
-            <ul class="obs-features">
-              <li>AlphaFold structures</li>
-              <li>pLDDT confidence trace</li>
-              <li>Structure-driven motion</li>
-              <li>EBI live queries</li>
-            </ul>
-            <span class="obs-cta disabled">In development</span>
-          </article>
+        <span class="eyebrow reveal">Observatory Network</span>
+        <h2 class="story-title reveal">A Living Atlas Across <em>Scales</em></h2>
+        <p class="story-lede reveal">Living Earth and Living Protein are the first mapped nodes in an extensible network. Every observatory declares its scientific family, physical scale, maturity, data sources and representation layers.</p>
+
+        <div class="observatory-registry-head reveal">
+          <div><span>Registry state</span><strong id="observatoryRegistrySummary">—</strong></div>
+          <p>Adding a future observatory requires one registry record; navigation, filters, provenance consumers and visual metadata are derived from that record.</p>
         </div>
+
+        <div class="observatory-taxonomy reveal" aria-label="Platform taxonomy">
+          <div class="observatory-taxonomy-label"><span>Scientific families</span><small>Available architecture, not invented active projects</small></div>
+          <div class="observatory-family-grid" id="observatoryFamilyGrid"></div>
+          <div class="observatory-taxonomy-label scale-label"><span>Scale continuum</span><small>Quantum → cosmological</small></div>
+          <div class="observatory-scale-track" id="observatoryScaleTrack"></div>
+        </div>
+
+        <div class="observatory-filterbar reveal" aria-label="Filter observatory registry">
+          <label><span>Family</span><select id="observatoryFamilyFilter"><option value="all">All families</option></select></label>
+          <label><span>Scale</span><select id="observatoryScaleFilter"><option value="all">All scales</option></select></label>
+          <label><span>Status</span><select id="observatoryStatusFilter"><option value="all">All states</option></select></label>
+          <button type="button" id="observatoryFiltersReset">Reset</button>
+        </div>
+
+        <div class="obs-grid observatory-atlas-grid" id="observatoryAtlasGrid" aria-live="polite"></div>
       </div>
     </section>
 
     <section id="data-sources" class="story-section">
       <div class="story-glow"></div>
+      <canvas class="data-sources-bg" id="dataSourcesMap" aria-hidden="true"></canvas>
       <div class="story-inner">
-        <span class="eyebrow reveal">Grounded In</span>
-        <h2 class="story-title reveal">Live &amp; Physical <em>Data Sources</em></h2>
-        <p class="story-lede reveal">This is the evidence behind the "real light" claim — every provider that currently feeds the render.</p>
-        <div class="source-grid">
-          <div class="source-card reveal" id="sourceCardEonet"><span class="source-tag">NASA</span><h4>EONET</h4><p>Near-real-time natural event metadata — the primary voice of the Earth Observatory.</p><div class="source-ping" id="eonetPing" hidden><span class="dot"></span><span id="eonetPingText">Checking for a live signal…</span></div></div>
-          <div class="source-card reveal"><span class="source-tag">EU JRC / UN OCHA</span><h4>GDACS</h4><p>Global disaster alerts, used as an intelligent fallback and cross-check.</p></div>
-          <div class="source-card reveal"><span class="source-tag">NASA</span><h4>FIRMS</h4><p>MODIS/VIIRS wildfire hotspots via a local proxy.</p></div>
-          <div class="source-card reveal"><span class="source-tag">USGS</span><h4>Earthquakes</h4><p>Live seismic feed, normalized into the shared event model.</p></div>
-          <div class="source-card reveal"><span class="source-tag">NASA</span><h4>GIBS</h4><p>Daily cloud snapshots layered over the relief base.</p></div>
-          <div class="source-card reveal"><span class="source-tag">NOAA SWPC</span><h4>OVATION Aurora</h4><p>Real-time aurora forecast driving the polar oval intensity.</p></div>
-          <div class="source-card reveal"><span class="source-tag">NOAA / ETOPO</span><h4>Relief &amp; Bathymetry</h4><p>Local relief and normal-map textures for the planet surface.</p></div>
-          <div class="source-card reveal"><span class="source-tag">Astronomy Engine</span><h4>Solar &amp; Lunar Ephemeris</h4><p>Apparent solar position, solar clock, Moon position, phase, distance, libration.</p></div>
-          <div class="source-card reveal"><span class="source-tag">CelesTrak</span><h4>TLE / SGP4</h4><p>Orbital propagation powering real-time ISS position and trail.</p></div>
-          <div class="source-card reveal"><span class="source-tag">AlphaFold / EBI</span><h4>Protein Structures</h4><p>Predicted structures with per-residue confidence, queried live.</p></div>
+        <span class="eyebrow reveal">Traceable Inputs</span>
+        <h2 class="story-title reveal">Data Provenance <em>Topology</em></h2>
+        <p class="story-lede reveal">Follow each documented dependency from scientific provider, through normalization or physical computation, to the visual phenomenon it controls. Select any flow to inspect its runtime state and parameters.</p>
+        <div class="provenance-toolbar reveal" role="toolbar" aria-label="Filter provenance flows">
+          <span>Show flows</span>
+          <span id="provenanceFilterButtons" class="provenance-filter-buttons"></span>
+        </div>
+        <div class="provenance-workbench reveal" id="provenanceWorkbench">
+          <div class="provenance-topology" id="provenanceTopology" aria-label="Scientific source to visual phenomenon topology">
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="eonet" data-domains="gateway earth"><span class="flow-source"><small>NASA</small><strong>EONET</strong><em data-source-status="eonet" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Normalize</small><strong>geometry · category · time</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>event markers &amp; counts</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="gibs" data-domains="gateway earth"><span class="flow-source"><small>NASA</small><strong>GIBS WMS</strong><em data-source-status="gibs" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Rasterize</small><strong>equirectangular texture</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>Earth surface albedo</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="alpha" data-domains="gateway protein"><span class="flow-source"><small>EMBL-EBI</small><strong>AlphaFold DB</strong><em data-source-status="alpha" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Parse</small><strong>PDB Cα trace · pLDDT</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>protein geometry &amp; color</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="usgs" data-domains="earth"><span class="flow-source"><small>USGS</small><strong>Earthquakes</strong><em data-source-status="usgs" data-state="declared">Earth app</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Normalize</small><strong>magnitude · depth · position</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>seismic event markers</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="firms" data-domains="earth"><span class="flow-source"><small>NASA</small><strong>FIRMS</strong><em data-source-status="firms" data-state="declared">Earth app</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Normalize</small><strong>VIIRS / MODIS detections</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>wildfire hotspots</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="gdacs" data-domains="earth"><span class="flow-source"><small>EU JRC / UN</small><strong>GDACS</strong><em data-source-status="gdacs" data-state="declared">Fallback</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Cross-check</small><strong>alert severity · geometry</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>disaster alert continuity</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="ovation" data-domains="earth"><span class="flow-source"><small>NOAA SWPC</small><strong>OVATION</strong><em data-source-status="ovation" data-state="declared">Earth app</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Sample</small><strong>polar probability field</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>aurora oval intensity</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="etopo" data-domains="earth"><span class="flow-source"><small>NOAA</small><strong>ETOPO</strong><em data-source-status="etopo" data-state="declared">Local asset</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Derive</small><strong>relief · bathymetry · normals</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>surface displacement &amp; light</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="astronomy" data-domains="earth"><span class="flow-source"><small>Model</small><strong>Astronomy Engine</strong><em data-source-status="astronomy" data-state="declared">Earth app</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Compute</small><strong>solar &amp; lunar ephemerides</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>terminator · phase · libration</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="celestrak" data-domains="earth"><span class="flow-source"><small>CelesTrak</small><strong>TLE / SGP4</strong><em data-source-status="celestrak" data-state="declared">Earth app</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Propagate</small><strong>orbital state vector</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>ISS position &amp; trail</strong></span></button>
+          </div>
+          <aside class="source-inspector" id="sourceInspector" aria-label="Selected source inspector" aria-hidden="true" inert>
+            <div class="source-inspector-head"><div><span>Source inspector</span><strong id="sourceInspectorTitle">Select a flow</strong></div><button type="button" id="sourceInspectorClose" aria-label="Close source inspector">×</button></div>
+            <div class="source-inspector-state"><span id="sourceInspectorStatus" data-state="pending">—</span><time id="sourceInspectorUpdated">—</time></div>
+            <dl class="source-inspector-grid">
+              <div><dt>Logical endpoint</dt><dd><code id="sourceInspectorEndpoint">—</code></dd></div>
+              <div><dt>Data type</dt><dd id="sourceInspectorType">—</dd></div>
+              <div><dt>Processing</dt><dd id="sourceInspectorProcess">—</dd></div>
+              <div><dt>Runtime scope</dt><dd id="sourceInspectorScope">—</dd></div>
+              <div><dt>Freshness / cache</dt><dd id="sourceInspectorFreshness">—</dd></div>
+              <div><dt>Network diagnostics</dt><dd id="sourceInspectorDiagnostics">—</dd></div>
+              <div><dt>Used by observatories</dt><dd id="sourceInspectorObservatories">—</dd></div>
+            </dl>
+            <div class="source-inspector-visuals"><span>Visual parameters controlled</span><ul id="sourceInspectorVisuals"><li>Select a provenance flow to inspect it.</li></ul></div>
+          </aside>
         </div>
       </div>
     </section>
@@ -544,1459 +410,6 @@ sss = clamp((sunDot + 0.3) / 1.3, 0, 1)   // Jensen 2001, simplified</code></div
       <a href="#hero" class="footer-top">Back to top ↑</a>
     </div>
   </footer>
-
-<script>
-(() => {
-  'use strict';
-
-  const routes = {
-    earth: './earth-eonet-relief.html',
-    protein: ''
-  };
-  const interactivePortals = new Set(['earth']);
-
-  const DATA_SOURCES = {
-    earthTexture: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?service=WMS&request=GetMap&version=1.3.0&layers=BlueMarble_ShadedRelief&styles=&format=image/jpeg&transparent=false&height=1024&width=2048&crs=EPSG:4326&bbox=-90,-180,90,180',
-    eonet: 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=100',
-    alphaFoldPdb: 'https://alphafold.ebi.ac.uk/files/AF-P04637-F1-model_v4.pdb'
-  };
-
-  const canvas = document.getElementById('stage');
-  const gl = canvas.getContext('webgl', {
-    alpha: false,
-    antialias: false,
-    depth: false,
-    stencil: false,
-    premultipliedAlpha: false,
-    preserveDrawingBuffer: false,
-    powerPreference: 'high-performance'
-  });
-
-  if (!gl) {
-    document.body.classList.add('no-webgl');
-    return;
-  }
-
-  const vertexSource = `
-    attribute vec2 aPosition;
-    varying vec2 vUv;
-    void main(){
-      vUv = aPosition * 0.5 + 0.5;
-      gl_Position = vec4(aPosition, 0.0, 1.0);
-    }
-  `;
-
-  const fragmentSource = `
-    precision highp float;
-
-    varying vec2 vUv;
-    uniform vec2  uResolution;
-    uniform float uTime;
-    uniform vec2  uHover;
-    uniform float uActive;
-    uniform float uTransition;
-    uniform float uMobile;
-    uniform sampler2D uEarthTex;
-    uniform sampler2D uProteinTex;
-    uniform float uEarthLoaded;
-    uniform float uProteinLoaded;
-    uniform vec2 uParallax;
-    uniform float uSkipFinish;
-    uniform float uIntro;
-
-    #define PI 3.14159265358979323846264
-    #define TAU 6.28318530717958647692528
-
-    float hash21(vec2 p){
-      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.x + p3.y) * p3.z);
-    }
-
-    vec2 hash22(vec2 p){
-      float n = sin(dot(p, vec2(41.0, 289.0)));
-      return fract(vec2(262144.0, 32768.0) * n);
-    }
-
-    float noise(vec2 p){
-      vec2 i = floor(p);
-      vec2 f = fract(p);
-      vec2 u = f * f * (3.0 - 2.0 * f);
-      float a = hash21(i);
-      float b = hash21(i + vec2(1.0, 0.0));
-      float c = hash21(i + vec2(0.0, 1.0));
-      float d = hash21(i + vec2(1.0, 1.0));
-      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-    }
-
-    float fbm(vec2 p){
-      float v = 0.0;
-      float a = 0.5;
-      mat2 m = mat2(1.62, 1.12, -1.12, 1.62);
-      for(int i=0;i<5;i++){
-        v += a * noise(p);
-        p = m * p + 17.0;
-        a *= 0.5;
-      }
-      return v;
-    }
-
-    mat2 rot(float a){
-      float s = sin(a), c = cos(a);
-      return mat2(c, -s, s, c);
-    }
-
-    vec3 rotateY(vec3 p, float a){
-      float s = sin(a), c = cos(a);
-      return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
-    }
-
-    vec3 rotateX(vec3 p, float a){
-      float s = sin(a), c = cos(a);
-      return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z);
-    }
-
-    float ringBand(float r, float radius, float w){
-      return 1.0 - smoothstep(w, w * 1.7, abs(r - radius));
-    }
-
-    float ellipseBand(vec2 p, float rx, float ry, float w){
-      float e = abs(length(vec2(p.x / rx, p.y / ry)) - 1.0);
-      return 1.0 - smoothstep(w, w * 2.2, e);
-    }
-
-    float starField(vec2 p, float t){
-      vec2 drift = vec2(t * 0.006, -t * 0.003);
-      vec2 gp = p * 118.0 + drift * 60.0;
-      vec2 id = floor(gp);
-      vec2 gv = fract(gp) - 0.5;
-      float rnd = hash21(id);
-      vec2 off = hash22(id) - 0.5;
-      float d = length(gv - off * 0.72);
-      float sparse = step(0.972, rnd);
-      float star = sparse * (1.0 - smoothstep(0.0, 0.055, d));
-      float twinkle = 0.65 + 0.35 * sin(t * (1.2 + rnd * 4.0) + rnd * 20.0);
-      return star * twinkle;
-    }
-
-    vec3 nebula(vec2 p, float t){
-      float n1 = fbm(p * 1.15 + vec2(t * 0.012, -t * 0.006));
-      float n2 = fbm(p * 2.2 - vec2(t * 0.008, t * 0.004));
-      float band = smoothstep(0.28, 1.0, n1 * n2);
-      vec3 cold = vec3(0.02, 0.09, 0.12);
-      vec3 warm = vec3(0.12, 0.035, 0.16);
-      return mix(cold, warm, smoothstep(-0.2, 0.6, p.x)) * band * 0.32;
-    }
-
-    vec3 background(vec2 p, float t, vec2 c0, vec2 c1, float r0, float r1){
-      vec2 bp = p;
-      vec2 q0 = bp - c0;
-      vec2 q1 = bp - c1;
-      float d0 = max(length(q0), 0.02);
-      float d1 = max(length(q1), 0.02);
-      float l0 = exp(-pow(abs(d0 - r0) * 5.0, 2.0)) * 0.010;
-      float l1 = exp(-pow(abs(d1 - r1) * 5.0, 2.0)) * 0.010;
-      bp += normalize(q0) * l0;
-      bp += normalize(q1) * l1;
-
-      float s = starField(bp, t);
-      s += 0.35 * starField(bp * 1.7 + 17.0, t * 0.7);
-      vec3 col = vec3(0.004, 0.004, 0.007) + nebula(bp, t);
-      col += vec3(0.72, 0.82, 1.0) * s * 0.72;
-      col += vec3(0.40, 0.70, 1.0) * s * s * 0.9;
-      return col;
-    }
-
-    vec3 earthFallback(vec2 q, vec3 color, float t, float disc){
-      float r = length(q);
-      float a = atan(q.y, q.x);
-      vec2 sphereUv = vec2(a / TAU + 0.5, r * 3.3);
-      float n = fbm(vec2(sphereUv.x * 4.8 + t * 0.018, sphereUv.y * 1.8 - t * 0.015));
-      float bands = sin(a * 5.0 + n * 6.0 + t * 0.26) * 0.5 + 0.5;
-      float clouds = smoothstep(0.47, 0.84, fbm(q * 7.0 + vec2(t * 0.018, -t * 0.012)) + bands * 0.25);
-      vec3 deep = vec3(0.005, 0.035, 0.052);
-      vec3 cyan = color * 0.46;
-      vec3 cloud = vec3(0.58, 0.96, 1.0);
-      vec3 col = mix(deep, cyan, n * 0.65) * disc;
-      col += cloud * clouds * disc * 0.22;
-      col *= 1.0 - smoothstep(0.18, 0.255, r) * 0.52;
-      col += color * ringBand(r, 0.247, 0.004) * 0.23;
-      return col * disc;
-    }
-
-    vec3 earthCore(vec2 q, vec3 color, float t){
-      float coreRadius = 0.245;
-      float r = length(q);
-      float disc = 1.0 - smoothstep(coreRadius, coreRadius + 0.010, r);
-      if(disc <= 0.0) return vec3(0.0);
-
-      vec2 sphere = q / coreRadius;
-      float rr = dot(sphere, sphere);
-      if(rr > 1.0) return vec3(0.0);
-      float z = sqrt(max(0.0, 1.0 - rr));
-      vec3 n = normalize(vec3(sphere.x, sphere.y, z));
-      n = rotateX(n, -0.22);
-      n = rotateY(n, t * 0.10 + 0.85);
-      float lon = atan(n.z, n.x);
-      float lat = asin(clamp(n.y, -1.0, 1.0));
-      vec2 uv = vec2(lon / TAU + 0.5, 0.5 - lat / PI);
-
-      vec3 tex = earthFallback(q, color, t, disc);
-      if(uEarthLoaded > 0.5){
-        tex = texture2D(uEarthTex, uv).rgb;
-      }
-
-      // Animated procedural cloud layer, drifting independently of the
-      // rotating surface texture — keeps the sphere feeling alive rather
-      // than a static photo spinning in place.
-      vec2 cloudUv = uv * vec2(6.5, 3.2) + vec2(t * 0.028, t * 0.006);
-      float cloudN = fbm(cloudUv);
-      float cloudN2 = fbm(cloudUv * 2.1 - vec2(t * 0.017, 0.0));
-      float clouds = smoothstep(0.52, 0.86, cloudN * 0.65 + cloudN2 * 0.35);
-      tex = mix(tex, vec3(0.92, 0.97, 1.0), clouds * 0.42);
-
-      vec3 lightDir = normalize(vec3(-0.7, 0.5, 0.8));
-      float diffuse = max(0.15, dot(n, lightDir));
-      float fresnel = pow(1.0 - max(0.0, n.z), 3.5);
-      vec3 atmosphere = vec3(0.22, 0.72, 1.0) * fresnel * 0.55;
-      vec3 col = tex * (0.18 + diffuse * 1.05);
-      col += atmosphere;
-      col += vec3(0.9, 0.98, 1.0) * pow(max(0.0, dot(reflect(-lightDir, n), vec3(0.0, 0.0, 1.0))), 18.0) * 0.12;
-      col *= disc;
-      col += color * ringBand(r, coreRadius + 0.002, 0.004) * 0.22;
-      return col;
-    }
-
-    vec3 proteinFallback(vec2 q, vec3 color, float t, float disc){
-      vec2 p = rot(0.35) * q;
-      float ribbon0 = 1.0 - smoothstep(0.008, 0.026, abs((p.y + 0.02) - sin((p.x * 3.2 + 0.3) * 4.6 + t * 0.35) * 0.075));
-      float ribbon1 = 1.0 - smoothstep(0.008, 0.026, abs(((rot(-0.8) * q).y + 0.04) - sin(((rot(-0.8) * q).x * 3.2 - 0.2) * 4.6 + 1.6 + t * 0.28) * 0.075));
-      float grid = smoothstep(0.77, 1.0, fbm(q * 10.0 + t * 0.05));
-      vec3 col = vec3(0.025, 0.018, 0.010) * disc;
-      col += color * (ribbon0 * 0.42 + ribbon1 * 0.34 + grid * 0.05) * disc;
-      col += vec3(0.28, 0.62, 0.72) * ribbon0 * disc * 0.08;
-      return col * disc;
-    }
-
-    vec3 proteinCore(vec2 q, vec3 color, float t){
-      float coreRadius = 0.245;
-      float r = length(q);
-      float disc = 1.0 - smoothstep(coreRadius, coreRadius + 0.010, r);
-      if(disc <= 0.0) return vec3(0.0);
-
-      vec2 uv = q / (coreRadius * 1.65) + 0.5;
-      vec3 tex = proteinFallback(q, color, t, disc);
-      if(uProteinLoaded > 0.5 && uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0){
-        tex = texture2D(uProteinTex, uv).rgb;
-      }
-
-      float innerShade = 1.0 - smoothstep(0.0, coreRadius, r);
-      vec3 base = vec3(0.018, 0.013, 0.008) * disc;
-      vec3 col = base + tex * (0.82 + innerShade * 0.18);
-      col += color * ringBand(r, coreRadius + 0.002, 0.004) * 0.20;
-      col += vec3(1.0, 0.96, 0.82) * pow(max(0.0, 1.0 - r / coreRadius), 5.0) * 0.06;
-      return col * disc;
-    }
-
-    vec3 portal(vec2 p, vec2 center, float radius, vec3 color, float id, float hover, float t){
-      float active = 1.0 - smoothstep(0.08, 0.12, abs(uActive - id));
-      float flight = uTransition * active;
-      vec2 c = mix(center, vec2(0.0, 0.02), flight);
-      float rad = mix(radius, 1.06, flight);
-      vec2 q = p - c;
-      float dist = length(q);
-      float ang = atan(q.y, q.x);
-      float pulse = 0.5 + 0.5 * sin(t * 1.45 + id * 2.7);
-      float energy = 1.0 + hover * 0.30 + pulse * 0.035 + flight * 1.25;
-      vec3 col = vec3(0.0);
-
-      float innerFade = 1.0 - smoothstep(0.0, rad * 0.90, dist);
-      float membraneNoise = fbm(q * 9.0 + vec2(t * 0.025, -t * 0.018));
-      float membrane = innerFade * (0.13 + 0.16 * membraneNoise);
-      col += color * membrane * 0.45 * energy;
-      col += vec3(0.8,0.95,1.0) * innerFade * 0.015;
-
-      vec3 core = id < 0.5 ? earthCore(q / max(rad,0.001) * 0.34, color, t) : proteinCore(q / max(rad,0.001) * 0.34, color, t);
-      col += core * (1.0 + hover * 0.2) * (1.0 - flight * 0.15);
-
-      float varW = 0.013 + 0.007 * sin(ang * 7.0 + t * 1.7 + id) + 0.004 * sin(ang * 17.0 - t * 0.72);
-      float main = ringBand(dist, rad, max(0.007, varW));
-      float outer = ringBand(dist, rad * 1.055, 0.0055);
-      float inner = ringBand(dist, rad * 0.925, 0.0045);
-      float microA = ringBand(dist, rad * 0.780, 0.0022);
-      float microB = ringBand(dist, rad * 1.115, 0.0020);
-      float glassOuter = ringBand(dist, rad * 1.018, 0.019);
-      float glassInner = ringBand(dist, rad * 0.970, 0.014);
-      float bevel = exp(-abs(dist - rad) * 46.0);
-
-      float circuit = step(0.72, fract((ang / TAU + 0.5) * 96.0 + sin(dist * 70.0) * 0.02));
-      circuit *= smoothstep(rad * 0.86, rad * 0.96, dist) * (1.0 - smoothstep(rad * 0.99, rad * 1.08, dist));
-      float radialCuts = pow(abs(sin(ang * 152.0 + t * 0.18)), 28.0) * smoothstep(rad * 0.72, rad * 1.08, dist);
-      float anis = pow(0.5 + 0.5 * sin(ang * 24.0 + dist * 82.0 - t * 1.2), 8.0);
-      float glint = pow(max(0.0, sin(ang * 2.0 - 0.55 + id * 1.7)), 18.0) * bevel;
-      float fiber = pow(max(0.0, sin(ang * 64.0 + t * 0.34 + id * 3.1)), 10.0) * glassOuter;
-      float scratches = step(0.965, fbm(vec2(ang * 21.0, dist * 84.0) + vec2(t * 0.018, id * 9.0))) * glassOuter;
-
-      col += color * main * (0.92 + anis * 0.38) * energy;
-      col += color * (outer * 0.42 + inner * 0.50 + microA * 0.33 + microB * 0.24) * energy;
-      col += color * (glassOuter * 0.16 + glassInner * 0.10) * (0.9 + hover * 0.18);
-      col += vec3(0.85,0.96,1.0) * glint * (0.26 + hover * 0.20);
-      col += vec3(1.0) * fiber * 0.020;
-      col += vec3(0.95,1.0,1.0) * scratches * 0.030;
-      col += vec3(0.9,1.0,1.0) * main * 0.13;
-      col += color * (circuit * 0.12 + radialCuts * 0.15) * energy;
-
-      vec2 eq = rot(-0.42 + id * 0.22 + sin(t * 0.18 + id) * 0.025) * q;
-      float saturn = ellipseBand(eq, rad * 1.30, rad * 0.335, 0.010);
-      float saturn2 = ellipseBand(eq, rad * 1.25, rad * 0.310, 0.0038);
-      float occlusion = smoothstep(-0.02, 0.08, eq.y);
-      float saturnMix = mix(0.42, 1.0, occlusion);
-      col += color * saturn * saturnMix * (0.52 + hover * 0.18 + flight * 0.52);
-      col += vec3(1.0) * saturn2 * saturnMix * 0.08;
-
-      float chromaR = ringBand(dist, rad + 0.010, 0.003);
-      float chromaB = ringBand(dist, rad - 0.010, 0.003);
-      col += vec3(0.55,0.06,0.02) * chromaR * 0.11;
-      col += vec3(0.05,0.18,0.60) * chromaB * 0.13;
-
-      float rays = 0.0;
-      rays += pow(max(0.0, sin(ang * 10.0 + t * 0.21)), 18.0);
-      rays += pow(max(0.0, sin(ang * 17.0 - t * 0.18)), 28.0) * 0.55;
-      float rayMask = smoothstep(rad * 0.95, rad * 1.08, dist) * (1.0 - smoothstep(rad * 1.05, rad * 2.0, dist));
-      col += color * rays * rayMask * 0.18 * energy * (1.0 - hover);
-
-      for(int i=0;i<12;i++){
-        float fi = float(i);
-        float rr = rad * (1.08 + 0.045 * sin(fi * 1.73 + id));
-        float aa = t * (0.32 + 0.025 * fi + id * 0.08) + fi * TAU / 12.0 + id * 0.6;
-        vec2 pp = c + vec2(cos(aa), sin(aa)) * rr;
-        vec2 tangent = vec2(-sin(aa), cos(aa));
-        vec2 pq = p - pp;
-        float dotT = dot(pq, tangent);
-        float dotN = length(pq - tangent * clamp(dotT, -0.036, 0.0));
-        float spark = 1.0 - smoothstep(0.0, 0.012, length(pq));
-        float trail = (1.0 - smoothstep(0.0, 0.012, dotN)) * smoothstep(-0.040, -0.002, dotT) * (1.0 - smoothstep(0.0, 0.018, abs(dot(pq, normalize(pp-c)))));
-        col += color * (spark * 0.9 + trail * 0.28) * (0.8 + hover * 0.35);
-        col += vec3(1.0) * spark * 0.12;
-      }
-
-      float horizon = exp(-abs(dist - rad) * 17.0) * 0.045;
-      col += color * horizon * energy;
-      col *= mix(1.0, 0.16, uTransition * (1.0 - active));
-      return col;
-    }
-
-    vec3 observatoryStarBand(vec2 p, float t, float amount){
-      vec2 bp = rot(-0.52) * (p + vec2(0.10, -0.03) + uParallax * 0.018);
-      float band = exp(-pow(bp.y * 2.25, 2.0));
-      band *= smoothstep(-1.55, -0.65, bp.x) * (1.0 - smoothstep(0.58, 1.65, bp.x));
-      float dust = fbm(bp * vec2(1.35, 6.2) + vec2(t * 0.010, -t * 0.004));
-      float stars = starField(bp * 0.70 + vec2(0.0, t * 0.002), t);
-      stars += starField(bp * 1.45 + vec2(31.0, 11.0), t * 0.65) * 0.55;
-
-      vec3 col = vec3(0.004, 0.005, 0.009);
-      col += vec3(0.92, 0.78, 0.55) * band * (0.055 + dust * 0.105);
-      col += vec3(0.76, 0.88, 1.0) * stars * (0.34 + band * 0.80);
-      col += vec3(0.08, 0.28, 0.35) * exp(-pow(length(bp * vec2(0.62, 1.28)), 2.0)) * 0.10;
-      return col * amount;
-    }
-
-    vec3 earthMemoryPreview(vec2 p, float t, float amount){
-      vec3 scene = observatoryStarBand(p, t, amount);
-      vec2 c = vec2(-0.18, -0.02) + uParallax * 0.022;
-      vec2 q = p - c;
-      float radius = mix(0.48, 0.43, uMobile);
-      float r = length(q);
-      float disc = 1.0 - smoothstep(radius, radius + 0.012, r);
-
-      vec2 sphere = q / radius;
-      float rr = dot(sphere, sphere);
-      if(rr > 1.0) {
-        float halo = exp(-pow((r - radius) * 5.0, 2.0));
-        scene += vec3(0.12, 0.55, 0.82) * halo * amount * 0.18;
-        return scene;
-      }
-
-      float z = sqrt(max(0.0, 1.0 - rr));
-      vec3 n = normalize(vec3(sphere.x, sphere.y, z));
-      n = rotateX(n, -0.18);
-      n = rotateY(n, t * 0.035 + 1.05);
-      float lon = atan(n.z, n.x);
-      float lat = asin(clamp(n.y, -1.0, 1.0));
-      vec2 mapUv = vec2(lon / TAU + 0.5, 0.5 - lat / PI);
-
-      vec3 tex = earthFallback(q * 0.34, vec3(0.165, 0.776, 0.918), t, 1.0);
-      if(uEarthLoaded > 0.5){
-        tex = texture2D(uEarthTex, mapUv).rgb;
-      }
-
-      vec3 lightDir = normalize(vec3(0.58, 0.22, 0.78));
-      float day = smoothstep(-0.18, 0.86, dot(n, lightDir));
-      float limb = pow(1.0 - max(0.0, n.z), 2.2);
-      float blurMask = disc * (0.76 + 0.24 * smoothstep(0.92, 0.20, r / radius));
-      vec2 cloudUv = mapUv * vec2(5.8, 2.8) + vec2(t * 0.018, t * 0.004);
-      float cloud = smoothstep(0.54, 0.86, fbm(cloudUv) * 0.72 + fbm(cloudUv * 2.1) * 0.28);
-
-      vec3 night = vec3(0.01, 0.045, 0.075);
-      vec3 col = mix(night, tex, day);
-      col = mix(col, vec3(0.80, 0.93, 1.0), cloud * 0.24);
-      col += vec3(0.12, 0.66, 0.92) * limb * 0.38;
-      scene += col * blurMask * amount * 0.88;
-      return scene;
-    }
-
-    vec3 proteinMemoryPreview(vec2 p, float t, float amount){
-      vec2 q = rot(-0.22) * (p - vec2(-0.05, -0.02) - uParallax * 0.018);
-      float field = 0.0;
-      for(int i=0;i<5;i++){
-        float fi = float(i);
-        vec2 rq = rot(fi * 0.52 - 0.8) * q;
-        float y = sin(rq.x * (2.4 + fi * 0.25) + t * (0.18 + fi * 0.02) + fi) * (0.12 + fi * 0.012);
-        float ribbon = 1.0 - smoothstep(0.010, 0.050, abs(rq.y - y));
-        float window = smoothstep(-1.25, -0.55, rq.x) * (1.0 - smoothstep(0.55, 1.32, rq.x));
-        field += ribbon * window * (0.50 + 0.11 * fi);
-      }
-
-      float nodes = 0.0;
-      for(int i=0;i<18;i++){
-        float fi = float(i);
-        vec2 id = vec2(fi, floor(fi * 1.7));
-        vec2 anchor = vec2(
-          sin(fi * 12.989 + 0.4) * 0.82,
-          cos(fi * 7.233 - 1.2) * 0.42
-        );
-        anchor += vec2(sin(t * 0.08 + fi), cos(t * 0.07 + fi * 1.3)) * 0.025;
-        float d = length(q - anchor);
-        nodes += exp(-d * 32.0) * (0.55 + 0.45 * hash21(id));
-      }
-
-      float veil = smoothstep(1.28, 0.18, length(q * vec2(0.72, 1.25)));
-      vec3 col = vec3(0.70, 0.38, 1.0) * field * 0.10;
-      col += vec3(0.20, 0.82, 0.92) * nodes * 0.09;
-      col += vec3(0.30, 0.13, 0.50) * veil * 0.10;
-      return col * amount;
-    }
-
-    void main(){
-      vec2 uv = gl_FragCoord.xy / uResolution.xy;
-
-      vec2 lensCentered = uv - 0.5;
-      float lensR2 = dot(lensCentered, lensCentered);
-      uv = 0.5 + lensCentered * (1.0 + 0.065 * lensR2);
-
-      vec2 p = uv * 2.0 - 1.0;
-      p.x *= uResolution.x / uResolution.y;
-
-      float breatheAmp = mix(1.0, 0.5, uMobile);
-      vec2 breatheDrift = vec2(
-        sin(uTime * 0.05) * 0.014,
-        cos(uTime * 0.037) * 0.010
-      ) * breatheAmp;
-      float breatheZoom = 1.0 + sin(uTime * 0.028) * 0.006 * breatheAmp;
-      float introZoom = mix(1.55, 1.0, uIntro);
-      p = p * breatheZoom * introZoom + breatheDrift;
-
-      float aspect = uResolution.x / uResolution.y;
-      float layout = smoothstep(1.15, 1.55, aspect);
-      vec2 cEarth = mix(vec2(0.0, 0.42), vec2(-0.54, 0.035), layout);
-      vec2 cProtein = mix(vec2(0.0, -0.32), vec2(0.54, 0.035), layout);
-      float rad = mix(0.24, 0.345, layout);
-
-      vec3 col = background(p + uParallax * 0.012, uTime, cEarth, cProtein, rad, rad);
-      col += portal(p + uParallax * 0.035, cEarth, rad, vec3(0.165, 0.776, 0.918), 0.0, uHover.x, uTime);
-      col += portal(p + uParallax * 0.035, cProtein, rad, vec3(0.792, 0.486, 0.941), 1.0, uHover.y, uTime);
-
-      vec3 hoverGlowColor = vec3(0.165, 0.776, 0.918) * uHover.x + vec3(0.792, 0.486, 0.941) * uHover.y;
-      col += hoverGlowColor * (uHover.x + uHover.y) * 0.06;
-      col *= uIntro;
-
-      if (uSkipFinish < 0.5) {
-        vec2 centered = p * vec2(1.0 / max(uResolution.x / uResolution.y, 1.0), 1.0);
-        float vignette = 1.0 - smoothstep(0.34, 1.32, length(centered * vec2(1.1, 1.0)));
-        col *= 0.55 + 0.62 * vignette;
-        col += vec3(0.014, 0.0, 0.028) * (1.0 - vignette);
-        col = col / (1.0 + col * 0.82);
-        col = pow(col, vec3(0.92));
-        float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-        vec3 shadowTint = vec3(-0.014, 0.010, 0.022);
-        vec3 highlightTint = vec3(0.026, 0.010, -0.016);
-        col += shadowTint * (1.0 - smoothstep(0.0, 0.55, luma));
-        col += highlightTint * smoothstep(0.30, 1.0, luma);
-        col = clamp(col, 0.0, 1.0);
-        float grain = (hash21(uv * vec2(1920.0, 1080.0) + fract(uTime) * 97.0) - 0.5) * 0.028;
-        col += grain;
-      }
-
-      gl_FragColor = vec4(col, 1.0);
-    }
-  `;
-
-  const postVertexSource = `
-    attribute vec2 aPosition;
-    varying vec2 vUv;
-    void main(){
-      vUv = aPosition * 0.5 + 0.5;
-      gl_Position = vec4(aPosition, 0.0, 1.0);
-    }
-  `;
-
-  const brightPassSource = `
-    precision highp float;
-    uniform sampler2D uScene;
-    uniform float uThreshold;
-    varying vec2 vUv;
-    void main(){
-      vec3 color = texture2D(uScene, vUv).rgb;
-      float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
-      float contribution = smoothstep(uThreshold, uThreshold + 0.35, luminance);
-      gl_FragColor = vec4(color * contribution, 1.0);
-    }
-  `;
-
-  const blurSource = `
-    precision highp float;
-    uniform sampler2D uInput;
-    uniform vec2 uDirection;
-    varying vec2 vUv;
-    void main(){
-      vec4 sum = vec4(0.0);
-      sum += texture2D(uInput, vUv - uDirection * 3.2307) * 0.070;
-      sum += texture2D(uInput, vUv - uDirection * 1.3846) * 0.318;
-      sum += texture2D(uInput, vUv)                        * 0.227;
-      sum += texture2D(uInput, vUv + uDirection * 1.3846) * 0.318;
-      sum += texture2D(uInput, vUv + uDirection * 3.2307) * 0.070;
-      gl_FragColor = sum;
-    }
-  `;
-
-  const compositeSource = `
-    precision highp float;
-    uniform sampler2D uScene;
-    uniform sampler2D uBloom;
-    uniform float uBloomStrength;
-    uniform float uTime;
-    uniform vec2 uActiveCenterUv;
-    uniform float uTransitionAmt;
-    varying vec2 vUv;
-
-    float hash21(vec2 p){
-      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-      p3 += dot(p3, p3.yzx + 33.33);
-      return fract((p3.x + p3.y) * p3.z);
-    }
-
-    void main(){
-      vec2 uv = vUv;
-
-      // subtle chromatic aberration — sample each channel with a tiny
-      // radial offset from screen center, strongest toward the edges
-      vec2 centered = uv - 0.5;
-      float edgeAmount = dot(centered, centered);
-      vec2 caOffset = centered * edgeAmount * 0.006;
-      float r = texture2D(uScene, uv - caOffset).r;
-      float g = texture2D(uScene, uv).g;
-      float b = texture2D(uScene, uv + caOffset).b;
-      vec3 col = vec3(r, g, b);
-
-      if(uTransitionAmt > 0.001){
-        vec3 streakSum = vec3(0.0);
-        const int SAMPLES = 6;
-        for(int i = 0; i < SAMPLES; i++){
-          float fi = float(i) / float(SAMPLES - 1);
-          vec2 sampleUv = mix(uv, uActiveCenterUv, fi * uTransitionAmt * 0.55);
-          streakSum += texture2D(uScene, clamp(sampleUv, 0.0, 1.0)).rgb;
-        }
-        vec3 streaked = streakSum / float(SAMPLES);
-        col = mix(col, streaked, smoothstep(0.0, 1.0, uTransitionAmt));
-        col *= 1.0 + uTransitionAmt * 0.55;
-      }
-
-      col += texture2D(uBloom, uv).rgb * uBloomStrength;
-
-      float vignette = 1.0 - smoothstep(0.34, 1.32, length(centered * vec2(1.1, 1.0)));
-      col *= 0.55 + 0.62 * vignette;
-      col += vec3(0.014, 0.0, 0.028) * (1.0 - vignette);
-
-      col = col / (1.0 + col * 0.82);
-      col = pow(col, vec3(0.92));
-
-      float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      vec3 shadowTint = vec3(-0.014, 0.010, 0.022);
-      vec3 highlightTint = vec3(0.026, 0.010, -0.016);
-      col += shadowTint * (1.0 - smoothstep(0.0, 0.55, luma));
-      col += highlightTint * smoothstep(0.30, 1.0, luma);
-      col = clamp(col, 0.0, 1.0);
-
-      // fine film grain, cheap per-pixel dither so gradients don't band
-      float grain = (hash21(uv * vec2(1920.0, 1080.0) + fract(uTime) * 97.0) - 0.5) * 0.028;
-      col += grain;
-
-      gl_FragColor = vec4(col, 1.0);
-    }
-  `;
-
-  function compileShader(type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      const error = gl.getShaderInfoLog(shader) || 'Unknown shader compile error';
-      gl.deleteShader(shader);
-      throw new Error(error);
-    }
-    return shader;
-  }
-
-  function createProgram(vs, fs) {
-    const program = gl.createProgram();
-    gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vs));
-    gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fs));
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      const error = gl.getProgramInfoLog(program) || 'Unknown shader link error';
-      gl.deleteProgram(program);
-      throw new Error(error);
-    }
-    return program;
-  }
-
-  let program;
-  try {
-    program = createProgram(vertexSource, fragmentSource);
-  } catch (err) {
-    console.error(err);
-    document.body.classList.add('no-webgl');
-    return;
-  }
-
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-    -1, -1,
-     3, -1,
-    -1,  3
-  ]), gl.STATIC_DRAW);
-
-  gl.useProgram(program);
-  const aPosition = gl.getAttribLocation(program, 'aPosition');
-  gl.enableVertexAttribArray(aPosition);
-  gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
-
-  const uniforms = {
-    resolution: gl.getUniformLocation(program, 'uResolution'),
-    time: gl.getUniformLocation(program, 'uTime'),
-    hover: gl.getUniformLocation(program, 'uHover'),
-    active: gl.getUniformLocation(program, 'uActive'),
-    transition: gl.getUniformLocation(program, 'uTransition'),
-    mobile: gl.getUniformLocation(program, 'uMobile'),
-    earthTex: gl.getUniformLocation(program, 'uEarthTex'),
-    proteinTex: gl.getUniformLocation(program, 'uProteinTex'),
-    earthLoaded: gl.getUniformLocation(program, 'uEarthLoaded'),
-    proteinLoaded: gl.getUniformLocation(program, 'uProteinLoaded'),
-    parallax: gl.getUniformLocation(program, 'uParallax'),
-    skipFinish: gl.getUniformLocation(program, 'uSkipFinish'),
-    intro: gl.getUniformLocation(program, 'uIntro')
-  };
-
-  // --- Post-processing programs (bloom + composite) ---
-  let brightProgram, blurProgram, compositeProgram;
-  try {
-    brightProgram = createProgram(postVertexSource, brightPassSource);
-    blurProgram = createProgram(postVertexSource, blurSource);
-    compositeProgram = createProgram(postVertexSource, compositeSource);
-  } catch (err) {
-    console.error('Post-processing shader compile failed, continuing without bloom.', err);
-  }
-
-  const postUniforms = brightProgram ? {
-    bright: {
-      scene: gl.getUniformLocation(brightProgram, 'uScene'),
-      threshold: gl.getUniformLocation(brightProgram, 'uThreshold')
-    },
-    blur: {
-      input: gl.getUniformLocation(blurProgram, 'uInput'),
-      direction: gl.getUniformLocation(blurProgram, 'uDirection')
-    },
-    composite: {
-      scene: gl.getUniformLocation(compositeProgram, 'uScene'),
-      bloom: gl.getUniformLocation(compositeProgram, 'uBloom'),
-      bloomStrength: gl.getUniformLocation(compositeProgram, 'uBloomStrength'),
-      time: gl.getUniformLocation(compositeProgram, 'uTime'),
-      activeCenterUv: gl.getUniformLocation(compositeProgram, 'uActiveCenterUv'),
-      transitionAmt: gl.getUniformLocation(compositeProgram, 'uTransitionAmt')
-    }
-  } : null;
-
-  function bindQuadAttrib(prog) {
-    gl.useProgram(prog);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    const loc = gl.getAttribLocation(prog, 'aPosition');
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  }
-
-  function createFBO(w, h) {
-    const tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    const fb = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return { framebuffer: fb, texture: tex, width: w, height: h };
-  }
-
-  let sceneFBO = null, brightFBO = null, blurFBO_A = null, blurFBO_B = null;
-  let bloomEnabled = !!brightProgram;
-
-  function rebuildFBOs(w, h) {
-    if (!bloomEnabled) return;
-    const hw = Math.max(1, Math.floor(w / 2));
-    const hh = Math.max(1, Math.floor(h / 2));
-    sceneFBO = createFBO(w, h);
-    brightFBO = createFBO(hw, hh);
-    blurFBO_A = createFBO(hw, hh);
-    blurFBO_B = createFBO(hw, hh);
-  }
-
-  function makeTexture() {
-    const tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
-    return tex;
-  }
-
-  function uploadTexture(tex, source) {
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  }
-
-  const earthTexture = makeTexture();
-  const proteinTexture = makeTexture();
-  let earthLoaded = 0;
-  let proteinLoaded = 0;
-
-  function createCanvas(size) {
-    const c = document.createElement('canvas');
-    c.width = size;
-    c.height = size;
-    return c;
-  }
-
-  function seedFallbackEarth() {
-    const c = createCanvas(512);
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#08131a';
-    ctx.fillRect(0, 0, c.width, c.height);
-    const g = ctx.createRadialGradient(c.width * 0.45, c.height * 0.40, 10, c.width * 0.5, c.height * 0.5, c.width * 0.6);
-    g.addColorStop(0, 'rgba(24,120,140,.95)');
-    g.addColorStop(.55, 'rgba(11,65,92,.95)');
-    g.addColorStop(1, 'rgba(3,14,22,1)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, c.width, c.height);
-    for (let i = 0; i < 28; i++) {
-      ctx.beginPath();
-      ctx.strokeStyle = `rgba(${120 + (i % 2) * 60}, ${200 + i % 30}, 255, ${0.03 + (i % 5) * 0.01})`;
-      ctx.lineWidth = 8 + (i % 5) * 2;
-      ctx.arc(c.width * (0.3 + (i % 7) * 0.08), c.height * (0.2 + (i % 6) * 0.1), 40 + (i % 8) * 18, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    uploadTexture(earthTexture, c);
-  }
-
-  function seedFallbackProtein() {
-    const c = createCanvas(768);
-    const ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, c.width, c.height);
-    ctx.fillStyle = 'rgba(12,9,6,1)';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.translate(c.width / 2, c.height / 2);
-    ctx.strokeStyle = 'rgba(202,124,240,.82)';
-    ctx.lineWidth = 8;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (let i = 0; i < 220; i++) {
-      const t = i / 219;
-      const x = Math.sin(t * 17.0) * 170 + Math.sin(t * 5.0) * 40;
-      const y = Math.cos(t * 11.0) * 130 + Math.sin(t * 23.0) * 18;
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    ctx.resetTransform();
-    uploadTexture(proteinTexture, c);
-  }
-
-  seedFallbackEarth();
-  seedFallbackProtein();
-
-  async function loadImage(url) {
-    return await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = url;
-    });
-  }
-
-  async function loadEarthData() {
-    try {
-      const img = await loadImage(DATA_SOURCES.earthTexture);
-      const map = document.createElement('canvas');
-      map.width = 2048;
-      map.height = 1024;
-      const ctx = map.getContext('2d');
-      ctx.drawImage(img, 0, 0, map.width, map.height);
-
-      try {
-        const res = await fetch(DATA_SOURCES.eonet, { mode: 'cors' });
-        const json = await res.json();
-        const events = Array.isArray(json.events) ? json.events : [];
-        let drawnCount = 0;
-        for (const event of events) {
-          const geometry = Array.isArray(event.geometry) ? event.geometry[event.geometry.length - 1] : null;
-          const coords = geometry && Array.isArray(geometry.coordinates) ? geometry.coordinates : null;
-          if (!coords || coords.length < 2) continue;
-          const lon = Number(coords[0]);
-          const lat = Number(coords[1]);
-          if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
-          const x = ((lon + 180) / 360) * map.width;
-          const y = ((90 - lat) / 180) * map.height;
-          ctx.beginPath();
-          ctx.fillStyle = 'rgba(0,229,255,0.95)';
-          ctx.shadowBlur = 12;
-          ctx.shadowColor = 'rgba(0,229,255,0.95)';
-          ctx.arc(x, y, 4, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.strokeStyle = 'rgba(255,255,255,0.42)';
-          ctx.lineWidth = 1;
-          ctx.arc(x, y, 10, 0, Math.PI * 2);
-          ctx.stroke();
-          drawnCount++;
-        }
-        ctx.shadowBlur = 0;
-
-        // Turns the "data-driven reality" claim into something visibly
-        // demonstrable rather than just a slogan — a real, live count.
-        const cornerEl = document.getElementById('cornerEvents');
-        if (cornerEl) {
-          cornerEl.replaceChildren(document.createTextNode('Status '));
-          const strong = document.createElement('strong');
-          strong.textContent = drawnCount > 0 ? `${drawnCount} live events` : 'grounded render';
-          cornerEl.appendChild(strong);
-        }
-      } catch (eventErr) {
-        console.warn('EONET overlay unavailable, using Earth texture only.', eventErr);
-        const cornerEl = document.getElementById('cornerEvents');
-        if (cornerEl) {
-          cornerEl.replaceChildren(document.createTextNode('Status '));
-          const strong = document.createElement('strong');
-          strong.textContent = 'live feed pending';
-          cornerEl.appendChild(strong);
-        }
-      }
-
-      uploadTexture(earthTexture, map);
-      earthLoaded = 1;
-    } catch (err) {
-      console.warn('Earth texture unavailable, keeping fallback.', err);
-      earthLoaded = 0;
-    }
-  }
-
-  function parseAlphaFoldPdb(text) {
-    const atoms = [];
-    const lines = text.split(/\r?\n/);
-    for (const line of lines) {
-      if (!line.startsWith('ATOM')) continue;
-      const atomName = line.slice(12, 16).trim();
-      if (atomName !== 'CA') continue;
-      const x = parseFloat(line.slice(30, 38));
-      const y = parseFloat(line.slice(38, 46));
-      const z = parseFloat(line.slice(46, 54));
-      const b = parseFloat(line.slice(60, 66));
-      if ([x, y, z].every(Number.isFinite)) atoms.push({ x, y, z, b: Number.isFinite(b) ? b : 70 });
-    }
-    return atoms;
-  }
-
-  function projectStructure(points) {
-    if (!points.length) return [];
-    let minX = Infinity, minY = Infinity, minZ = Infinity;
-    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-    for (const p of points) {
-      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-      if (p.z < minZ) minZ = p.z; if (p.z > maxZ) maxZ = p.z;
-    }
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const cz = (minZ + maxZ) / 2;
-
-    const rotY = -0.75;
-    const rotX = 0.55;
-    const projected = [];
-    for (const p of points) {
-      let x = p.x - cx;
-      let y = p.y - cy;
-      let z = p.z - cz;
-      const c1 = Math.cos(rotY), s1 = Math.sin(rotY);
-      let tx = c1 * x + s1 * z;
-      let tz = -s1 * x + c1 * z;
-      x = tx; z = tz;
-      const c2 = Math.cos(rotX), s2 = Math.sin(rotX);
-      const ty = c2 * y - s2 * z;
-      tz = s2 * y + c2 * z;
-      projected.push({ x, y: ty, z: tz, b: p.b });
-    }
-    let pMinX = Infinity, pMinY = Infinity, pMaxX = -Infinity, pMaxY = -Infinity;
-    for (const p of projected) {
-      if (p.x < pMinX) pMinX = p.x; if (p.x > pMaxX) pMaxX = p.x;
-      if (p.y < pMinY) pMinY = p.y; if (p.y > pMaxY) pMaxY = p.y;
-    }
-    const sx = pMaxX - pMinX || 1;
-    const sy = pMaxY - pMinY || 1;
-    const scale = 1 / Math.max(sx, sy);
-    return projected.map(p => ({
-      x: (p.x - (pMinX + pMaxX) / 2) * scale,
-      y: (p.y - (pMinY + pMaxY) / 2) * scale,
-      z: p.z,
-      b: p.b
-    }));
-  }
-
-  function confidenceColor(plddt) {
-    if (plddt >= 90) return 'rgba(42,198,234,0.98)';
-    if (plddt >= 70) return 'rgba(75,137,234,0.94)';
-    if (plddt >= 50) return 'rgba(116,98,244,0.90)';
-    return 'rgba(202,124,240,0.84)';
-  }
-
-  function drawProteinTexture(points) {
-    const c = createCanvas(768);
-    const ctx = c.getContext('2d');
-    ctx.clearRect(0, 0, c.width, c.height);
-
-    const bg = ctx.createRadialGradient(c.width * 0.52, c.height * 0.48, 10, c.width * 0.5, c.height * 0.5, c.width * 0.6);
-    bg.addColorStop(0, 'rgba(22,15,8,0.98)');
-    bg.addColorStop(1, 'rgba(6,4,3,1)');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, c.width, c.height);
-
-    ctx.translate(c.width / 2, c.height / 2);
-    const scale = c.width * 0.72;
-
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1];
-      const b = points[i];
-      ctx.beginPath();
-      ctx.moveTo(a.x * scale, a.y * scale);
-      ctx.lineTo(b.x * scale, b.y * scale);
-      ctx.strokeStyle = confidenceColor((a.b + b.b) * 0.5);
-      ctx.lineWidth = 3.8;
-      ctx.lineCap = 'round';
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = 'rgba(202,124,240,0.34)';
-      ctx.stroke();
-    }
-
-    for (let i = 0; i < points.length; i += 4) {
-      const p = points[i];
-      ctx.beginPath();
-      ctx.fillStyle = confidenceColor(p.b);
-      ctx.arc(p.x * scale, p.y * scale, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.shadowBlur = 0;
-    ctx.resetTransform();
-    uploadTexture(proteinTexture, c);
-  }
-
-  async function loadProteinData() {
-    try {
-      // Query the prediction API first for the current pdbUrl — AlphaFold
-      // DB's model version number changes over time (e.g. v4 -> v6), so
-      // hardcoding a versioned filename goes stale. This mirrors the
-      // robust fetch pattern already used in the Protein Observatory.
-      const metaRes = await fetch('https://alphafold.ebi.ac.uk/api/prediction/P04637', { mode: 'cors' });
-      if (!metaRes.ok) throw new Error(`AlphaFold API returned HTTP ${metaRes.status}`);
-      const meta = await metaRes.json();
-      if (!meta.length || !meta[0].pdbUrl) throw new Error('AlphaFold API returned no pdbUrl');
-
-      const res = await fetch(meta[0].pdbUrl, { mode: 'cors' });
-      if (!res.ok) throw new Error(`Structure fetch returned HTTP ${res.status}`);
-      const text = await res.text();
-      const raw = parseAlphaFoldPdb(text);
-      if (!raw.length) throw new Error('No CA atoms parsed from AlphaFold structure');
-      const projected = projectStructure(raw);
-      drawProteinTexture(projected);
-      proteinLoaded = 1;
-    } catch (err) {
-      console.warn('AlphaFold structure unavailable, keeping fallback.', err);
-      proteinLoaded = 0;
-    }
-  }
-
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, earthTexture);
-  gl.uniform1i(uniforms.earthTex, 0);
-  gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, proteinTexture);
-  gl.uniform1i(uniforms.proteinTex, 1);
-
-  let width = 1;
-  let height = 1;
-  let dpr = 1;
-  let mobile = false;
-  let hover = 'none';
-  let hoverVec = [0, 0];
-  let active = -1;
-  let transitionStart = 0;
-  let transition = 0;
-  let lastFrame = 0;
-  let lowPower = false;
-  let parallaxTarget = [0, 0];
-  let parallaxCurrent = [0, 0];
-  let hoverCurrent = [0, 0];
-  let framesRendered = 0;
-  let introStart = null;
-  const INTRO_DURATION_MS = 2400;
-
-  const labelEarth = document.getElementById('label-earth');
-  const labelProtein = document.getElementById('label-protein');
-  const urlParams = new URLSearchParams(window.location.search);
-  const resolutionMode = urlParams.get('resolution') || 'balanced';
-
-  function resize() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    mobile = vw < 760 || vh > vw * 1.18;
-    const resolutionDpr = {
-      performance: mobile ? 1.15 : 1.35,
-      balanced: mobile ? 1.35 : 1.65,
-      cinematic: mobile ? 1.5 : 2.0
-    };
-    const maxDpr = resolutionDpr[resolutionMode] || resolutionDpr.balanced;
-    dpr = Math.min(window.devicePixelRatio || 1, lowPower ? 1 : maxDpr);
-    width = Math.max(1, Math.floor(vw * dpr));
-    height = Math.max(1, Math.floor(vh * dpr));
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.width = vw + 'px';
-    canvas.style.height = vh + 'px';
-    gl.viewport(0, 0, width, height);
-    positionLabels();
-    rebuildFBOs(width, height);
-  }
-
-  function portalScreenCenters() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const aspect = vw / Math.max(vh, 1);
-
-    // Must match the shader layout exactly.
-    const smoothstep = (a, b, x) => {
-      const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
-      return t * t * (3 - 2 * t);
-    };
-
-    const layout = smoothstep(1.15, 1.55, aspect);
-
-    const cEarth = {
-      x: (1 - layout) * 0.0 + layout * (-0.54),
-      y: (1 - layout) * 0.42 + layout * 0.035
-    };
-    const cProtein = {
-      x: (1 - layout) * 0.0 + layout * 0.54,
-      y: (1 - layout) * (-0.32) + layout * 0.035
-    };
-    const rad = (1 - layout) * 0.24 + layout * 0.345;
-
-    const toScreen = (c) => ({
-      x: ((c.x / aspect) + 1) * 0.5 * vw,
-      y: (1 - ((c.y + 1) * 0.5)) * vh
-    });
-
-    // The visible navigation ring extends beyond the base radius because of the tilted orbit ring.
-    const visibleOuterRadius = rad * 1.34 * vh * 0.5;
-    const hitRadius = rad * 1.18 * vh * 0.5;
-
-    const earth = toScreen(cEarth);
-    const protein = toScreen(cProtein);
-    earth.r = hitRadius;
-    earth.outerR = visibleOuterRadius;
-    protein.r = hitRadius;
-    protein.outerR = visibleOuterRadius;
-
-    return { earth, protein };
-  }
-
-  function positionLabels() {
-    const centers = portalScreenCenters();
-    const gap = mobile ? 10 : 16;
-
-    labelEarth.style.left = centers.earth.x + 'px';
-    labelEarth.style.top = (centers.earth.y + centers.earth.outerR + gap) + 'px';
-
-    labelProtein.style.left = centers.protein.x + 'px';
-    labelProtein.style.top = (centers.protein.y + centers.protein.outerR + gap) + 'px';
-  }
-
-  function updateHover(clientX, clientY) {
-    const centers = portalScreenCenters();
-    const de = Math.hypot(clientX - centers.earth.x, clientY - centers.earth.y);
-    const dp = Math.hypot(clientX - centers.protein.x, clientY - centers.protein.y);
-    const radius = centers.earth.r * 0.98;
-    let next = 'none';
-    if (de < radius && de < dp) next = 'earth';
-    if (dp < radius && dp < de) next = 'protein';
-    hover = next;
-    hoverVec[0] = hover === 'earth' ? 1 : 0;
-    hoverVec[1] = hover === 'protein' ? 1 : 0;
-    document.body.dataset.hover = hover;
-  }
-
-  function easeInOutCubic(x) {
-    return x < 0.5 ? 4.0 * x * x * x : 1.0 - Math.pow(-2.0 * x + 2.0, 3.0) / 2.0;
-  }
-
-  function activate(which) {
-    if (active !== -1) return;
-    const target = routes[which];
-    if (!target) return;
-    active = which === 'earth' ? 0 : 1;
-    transitionStart = performance.now();
-    const loadingEl = document.getElementById('loadingScreen');
-    const loadingMark = loadingEl ? loadingEl.querySelector('.loading-mark') : null;
-    if (loadingMark) loadingMark.textContent = 'ENTERING EARTH OBSERVATORY';
-    requestAnimationFrame(() => {
-      if (loadingEl) loadingEl.classList.remove('hidden');
-      document.body.classList.add('is-exiting');
-    });
-    const exitDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 260 : 1680;
-    window.setTimeout(() => { window.location.href = target; }, exitDelay);
-  }
-
-  canvas.addEventListener('pointermove', (event) => {
-    updateHover(event.clientX, event.clientY);
-    // normalized offset from viewport center, clamped to a gentle range —
-    // this drives the depth-parallax tilt, not meant to be a large motion
-    const nx = (event.clientX / window.innerWidth) * 2 - 1;
-    const ny = (event.clientY / window.innerHeight) * 2 - 1;
-    parallaxTarget[0] = Math.max(-1, Math.min(1, nx));
-    parallaxTarget[1] = Math.max(-1, Math.min(1, -ny));
-  }, { passive: true });
-
-  canvas.addEventListener('pointerleave', () => {
-    hover = 'none';
-    hoverVec[0] = 0;
-    hoverVec[1] = 0;
-    document.body.dataset.hover = 'none';
-  }, { passive: true });
-
-  canvas.addEventListener('pointerdown', (event) => {
-    updateHover(event.clientX, event.clientY);
-    if (interactivePortals.has(hover)) activate(hover);
-  });
-
-  window.addEventListener('pageshow', (event) => {
-    if (!event.persisted) return;
-    active = -1;
-    transition = 0;
-    transitionStart = 0;
-    introStart = null;
-    document.body.classList.remove('is-exiting');
-    document.body.dataset.hover = 'none';
-    hover = 'none';
-    hoverVec[0] = 0;
-    hoverVec[1] = 0;
-    hoverCurrent[0] = 0;
-    hoverCurrent[1] = 0;
-    const loadingEl = document.getElementById('loadingScreen');
-    const loadingMark = loadingEl ? loadingEl.querySelector('.loading-mark') : null;
-    if (loadingMark) loadingMark.textContent = 'LUMINOMORPHISM';
-    if (loadingEl) loadingEl.classList.add('hidden');
-  });
-
-  window.addEventListener('resize', resize, { passive: true });
-
-  function frame(now) {
-    if (lastFrame && now - lastFrame > 46 && !lowPower) {
-      lowPower = true;
-      resize();
-    }
-    lastFrame = now;
-
-    if (active !== -1) {
-      transition = easeInOutCubic(Math.min(1, (now - transitionStart) / 950));
-    }
-
-    if (introStart === null) introStart = now;
-    const introEased = easeInOutCubic(Math.min(1, (now - introStart) / INTRO_DURATION_MS));
-
-    // smooth the parallax toward its target — gives a floaty, inertial
-    // feel rather than snapping instantly to the mouse position
-    parallaxCurrent[0] += (parallaxTarget[0] - parallaxCurrent[0]) * 0.06;
-    parallaxCurrent[1] += (parallaxTarget[1] - parallaxCurrent[1]) * 0.06;
-    hoverCurrent[0] += (hoverVec[0] - hoverCurrent[0]) * 0.045;
-    hoverCurrent[1] += (hoverVec[1] - hoverCurrent[1]) * 0.045;
-
-    const useBloom = bloomEnabled && sceneFBO;
-
-    // --- Pass 1: render the actual scene, to the FBO if bloom is active,
-    // otherwise straight to the screen (graceful no-bloom fallback) ---
-    gl.useProgram(program);
-    bindQuadAttrib(program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, useBloom ? sceneFBO.framebuffer : null);
-    gl.viewport(0, 0, width, height);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, earthTexture);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, proteinTexture);
-    gl.uniform2f(uniforms.resolution, width, height);
-    gl.uniform1f(uniforms.time, now * 0.001);
-    gl.uniform2f(uniforms.hover, hoverCurrent[0], hoverCurrent[1]);
-    gl.uniform1f(uniforms.active, active);
-    gl.uniform1f(uniforms.transition, transition);
-    gl.uniform1f(uniforms.mobile, mobile ? 1 : 0);
-    gl.uniform1f(uniforms.earthLoaded, earthLoaded);
-    gl.uniform1f(uniforms.proteinLoaded, proteinLoaded);
-    gl.uniform2f(uniforms.parallax, parallaxCurrent[0], parallaxCurrent[1]);
-    gl.uniform1f(uniforms.skipFinish, useBloom ? 1 : 0);
-    gl.uniform1f(uniforms.intro, introEased);
-    gl.uniform1i(uniforms.earthTex, 0);
-    gl.uniform1i(uniforms.proteinTex, 1);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-    if (useBloom) {
-      const hw = brightFBO.width, hh = brightFBO.height;
-
-      // --- Pass 2: bright-pass extraction (half-res) ---
-      gl.useProgram(brightProgram);
-      bindQuadAttrib(brightProgram);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, brightFBO.framebuffer);
-      gl.viewport(0, 0, hw, hh);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, sceneFBO.texture);
-      gl.uniform1i(postUniforms.bright.scene, 0);
-      gl.uniform1f(postUniforms.bright.threshold, 0.55);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-      // --- Pass 3/4: two-pass gaussian blur, ping-ponged (half-res) ---
-      gl.useProgram(blurProgram);
-      bindQuadAttrib(blurProgram);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, blurFBO_A.framebuffer);
-      gl.viewport(0, 0, hw, hh);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, brightFBO.texture);
-      gl.uniform1i(postUniforms.blur.input, 0);
-      gl.uniform2f(postUniforms.blur.direction, 1 / hw, 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-      gl.bindFramebuffer(gl.FRAMEBUFFER, blurFBO_B.framebuffer);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, blurFBO_A.texture);
-      gl.uniform2f(postUniforms.blur.direction, 0, 1 / hh);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-      // --- Pass 5: composite (scene + bloom + CA + vignette + grain) to screen ---
-      gl.useProgram(compositeProgram);
-      bindQuadAttrib(compositeProgram);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, width, height);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, sceneFBO.texture);
-      gl.uniform1i(postUniforms.composite.scene, 0);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, blurFBO_B.texture);
-      gl.uniform1i(postUniforms.composite.bloom, 1);
-      gl.uniform1f(postUniforms.composite.bloomStrength, 1.1);
-      gl.uniform1f(postUniforms.composite.time, now * 0.001);
-      if (active !== -1) {
-        const centers = portalScreenCenters();
-        const activeCenter = active === 0 ? centers.earth : centers.protein;
-        gl.uniform2f(
-          postUniforms.composite.activeCenterUv,
-          activeCenter.x / Math.max(1, canvas.clientWidth),
-          1 - activeCenter.y / Math.max(1, canvas.clientHeight)
-        );
-        gl.uniform1f(postUniforms.composite.transitionAmt, transition);
-      } else {
-        gl.uniform1f(postUniforms.composite.transitionAmt, 0);
-      }
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-    }
-
-    requestAnimationFrame(frame);
-
-    framesRendered++;
-    if (framesRendered === 2) {
-      const loadingEl = document.getElementById('loadingScreen');
-      if (loadingEl) loadingEl.classList.add('hidden');
-    }
-  }
-
-  document.body.dataset.hover = 'none';
-  resize();
-  requestAnimationFrame(frame);
-  loadEarthData();
-  loadProteinData();
-})();
-</script>
-
-<!-- ===== Story-section behavior — independent of the hero WebGL script
-     above (hero still works untouched if this fails for any reason). ===== -->
-<script>
-(() => {
-  'use strict';
-
-  // --- Scroll reveal --------------------------------------------------
-  const revealEls = document.querySelectorAll('.reveal');
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if (prefersReducedMotion || !('IntersectionObserver' in window)) {
-    revealEls.forEach(el => el.classList.add('is-visible'));
-  } else {
-    let staggerIndex = 0;
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        entry.target.style.setProperty('--reveal-delay', `${(staggerIndex % 5) * 70}ms`);
-        staggerIndex++;
-        entry.target.classList.add('is-visible');
-        io.unobserve(entry.target);
-      });
-    }, { threshold: 0.16, rootMargin: '0px 0px -8% 0px' });
-    revealEls.forEach(el => io.observe(el));
-  }
-
-  // --- Craft rows: click/keyboard to reveal the underlying formula ----
-  document.querySelectorAll('.craft-row').forEach(row => {
-    const toggle = row.querySelector('.craft-toggle');
-    const openLabel = toggle ? toggle.textContent : null;
-    function setOpen(open) {
-      row.classList.toggle('is-open', open);
-      row.setAttribute('aria-expanded', String(open));
-      if (toggle) toggle.textContent = open ? 'Hide' : openLabel;
-    }
-    row.addEventListener('click', () => setOpen(!row.classList.contains('is-open')));
-    row.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        setOpen(!row.classList.contains('is-open'));
-      }
-    });
-  });
-
-  // --- Footer live UTC clock ------------------------------------------
-  const clockEl = document.getElementById('footerClock');
-  if (clockEl) {
-    function tickClock() {
-      const now = new Date();
-      const pad = (n) => String(n).padStart(2, '0');
-      clockEl.textContent = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
-    }
-    tickClock();
-    setInterval(tickClock, 1000);
-  }
-
-  // --- EONET live ping + Earth-card sparkline --------------------------
-  // A small, independent fetch (deliberately separate from the hero's own
-  // EONET call above) so this widget can never affect the portal itself.
-  const EONET_URL = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=100';
-
-  function timeAgo(dateStr) {
-    const diffMs = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.round(diffMs / 60000);
-    if (mins < 1) return 'moments ago';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.round(mins / 60);
-    if (hours < 48) return `${hours}h ago`;
-    return `${Math.round(hours / 24)}d ago`;
-  }
-
-  function renderSpark(counts) {
-    const list = document.getElementById('obsSparkList');
-    const wrap = document.getElementById('obsSpark');
-    if (!list || !wrap || !counts.length) return;
-    const max = Math.max(...counts.map(c => c.count), 1);
-    list.replaceChildren(...counts.map((c) => {
-      const row = document.createElement('div');
-      row.className = 'obs-spark-row';
-
-      const name = document.createElement('span');
-      name.className = 'obs-spark-name';
-      name.textContent = c.label;
-
-      const track = document.createElement('span');
-      track.className = 'obs-spark-track';
-      const fill = document.createElement('span');
-      fill.className = 'obs-spark-fill';
-      // Sequential single hue (cyan) — bar length encodes magnitude, not category identity.
-      fill.style.width = `${Math.max(3, Math.round((c.count / max) * 100))}%`;
-      track.appendChild(fill);
-
-      const count = document.createElement('span');
-      count.className = 'obs-spark-count';
-      count.textContent = String(c.count);
-
-      row.append(name, track, count);
-      return row;
-    }));
-    wrap.hidden = false;
-  }
-
-  async function loadEonetPing() {
-    const pingWrap = document.getElementById('eonetPing');
-    const pingText = document.getElementById('eonetPingText');
-    try {
-      const res = await fetch(EONET_URL, { mode: 'cors' });
-      const json = await res.json();
-      const events = Array.isArray(json.events) ? json.events : [];
-      if (!events.length) throw new Error('empty');
-
-      let latest = null;
-      const categoryCounts = new Map();
-      for (const ev of events) {
-        const geom = Array.isArray(ev.geometry) ? ev.geometry[ev.geometry.length - 1] : null;
-        const date = geom && geom.date;
-        if (date && (!latest || new Date(date) > new Date(latest))) latest = date;
-        const cats = Array.isArray(ev.categories) ? ev.categories : [];
-        const label = cats[0] && cats[0].title ? cats[0].title : 'Other';
-        categoryCounts.set(label, (categoryCounts.get(label) || 0) + 1);
-      }
-
-      if (pingText) pingText.textContent = latest ? `Latest signal ${timeAgo(latest)}` : `${events.length} open events`;
-      if (pingWrap) pingWrap.hidden = false;
-      document.getElementById('sourceCardEonet')?.classList.add('is-live');
-
-      const sorted = [...categoryCounts.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 4)
-        .map(([label, count]) => ({ label, count }));
-      renderSpark(sorted);
-    } catch (err) {
-      console.warn('EONET ping unavailable — leaving the static card as-is.', err);
-    }
-  }
-
-  loadEonetPing();
-})();
-</script>
+  <script type="module" src="./src/main.js"></script>
 </body>
 </html>
