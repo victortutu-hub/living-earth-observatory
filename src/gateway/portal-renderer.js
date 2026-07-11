@@ -5,7 +5,7 @@ import { createProgram, createFullscreenTriangle } from './gl/webgl-utils.js';
 import { createPostProcessor } from './post-processing.js';
 import { createQualityManager } from './quality-manager.js';
 import { createPortalAssets } from './portal-assets.js';
-import { createPortalInteraction } from './portal-interaction.js';
+import { createPortalInteraction } from './portal-interaction.js?v=atlasContinuity6';
 import { getPortalSlotGeometry, positionPortalLabels } from './portal-layout.js';
 import { resolveGatewaySlots } from './gateway-slots.js';
 import { validateGatewaySlots } from './gateway-validation.js';

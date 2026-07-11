@@ -1,4 +1,5 @@
 import { getDefaultGatewaySlot } from './gateway-slots.js';
+import { consumeAtlasReturn, markPortalEntry } from '../portal-continuity.js?v=atlasContinuity6';
 
 const INTRO_DURATION_MS = 2400;
 
@@ -28,6 +29,7 @@ export function createPortalInteraction({
     active: -1,
     transitionStart: 0,
     transition: 0,
+    transitionMode: null,
     introStart: null,
     intro: 0,
   };
@@ -69,6 +71,7 @@ export function createPortalInteraction({
     if (!target) return;
     state.active = slot.index;
     state.transitionStart = performance.now();
+    state.transitionMode = 'enter';
 
     const loadingScreen = document.getElementById('loadingScreen');
     const loadingMark = loadingScreen?.querySelector('.loading-mark');
@@ -81,7 +84,36 @@ export function createPortalInteraction({
       document.body.classList.add('is-exiting');
     });
     const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 260 : 1680;
-    window.setTimeout(() => { window.location.href = target; }, delay);
+    window.setTimeout(() => {
+      markPortalEntry(observatory.id);
+      const destination = new URL(target, window.location.href);
+      destination.searchParams.set('portal', 'atlas');
+      window.location.href = destination.href;
+    }, delay);
+  }
+
+  function beginReturnTransition() {
+    if (!consumeAtlasReturn()) return;
+    const defaultSlot = getDefaultGatewaySlot(slots);
+    if (!defaultSlot) return;
+
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loadingMark = loadingScreen?.querySelector('.loading-mark');
+    state.active = defaultSlot.index;
+    state.transitionStart = performance.now();
+    state.transitionMode = 'return';
+    if (loadingMark) loadingMark.textContent = 'RETURNING TO ORBITAL ATLAS';
+    loadingScreen?.classList.remove('hidden');
+    document.body.classList.add('is-returning');
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const revealDelay = reduced ? 90 : 860;
+    const cleanupDelay = reduced ? 280 : 1420;
+    window.setTimeout(() => loadingScreen?.classList.add('hidden'), revealDelay);
+    window.setTimeout(() => {
+      document.body.classList.remove('is-returning');
+      if (loadingMark) loadingMark.textContent = 'LUMINOMORPHISM';
+    }, cleanupDelay);
   }
 
   function onPointerMove(event) {
@@ -114,10 +146,11 @@ export function createPortalInteraction({
   }
 
   function onPageShow(event) {
-    if (!event.persisted) return;
+    if (document.body.classList.contains('is-returning')) return;
     state.active = -1;
     state.transition = 0;
     state.transitionStart = 0;
+    state.transitionMode = null;
     state.introStart = null;
     state.intro = 0;
     state.hoverCurrent = slots.map(() => 0);
@@ -126,8 +159,12 @@ export function createPortalInteraction({
     setHover(null);
     const loadingScreen = document.getElementById('loadingScreen');
     const loadingMark = loadingScreen?.querySelector('.loading-mark');
-    if (loadingMark) loadingMark.textContent = 'LUMINOMORPHISM';
-    loadingScreen?.classList.add('hidden');
+    if (event.persisted) {
+      if (!document.body.classList.contains('is-returning')) beginReturnTransition();
+    } else {
+      if (loadingMark) loadingMark.textContent = 'LUMINOMORPHISM';
+      loadingScreen?.classList.add('hidden');
+    }
   }
 
   canvas.addEventListener('pointermove', onPointerMove, { passive: true });
@@ -137,13 +174,20 @@ export function createPortalInteraction({
   canvas.addEventListener('focus', onFocus);
   window.addEventListener('pageshow', onPageShow);
   document.body.dataset.hoverSlot = 'none';
+  beginReturnTransition();
 
   return Object.freeze({
     state,
     activate,
     update(now) {
       if (state.active !== -1) {
-        state.transition = easeInOutCubic(Math.min(1, (now - state.transitionStart) / 950));
+        const progress = easeInOutCubic(Math.min(1, (now - state.transitionStart) / 1100));
+        state.transition = state.transitionMode === 'return' ? 1 - progress : progress;
+        if (state.transitionMode === 'return' && progress >= 1) {
+          state.active = -1;
+          state.transition = 0;
+          state.transitionMode = null;
+        }
       }
       if (state.introStart === null) state.introStart = now;
       state.intro = easeInOutCubic(Math.min(1, (now - state.introStart) / INTRO_DURATION_MS));

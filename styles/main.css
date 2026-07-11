@@ -95,6 +95,15 @@
         rgba(2,5,13,.98);
       transition:opacity 1.25s cubic-bezier(.2,.8,.2,1), background 1.25s ease;
     }
+    body.is-returning #loadingScreen{
+      opacity:1;
+      pointer-events:auto;
+      background:
+        radial-gradient(circle at 50% 46%, rgba(0,229,255,.16), transparent 18%),
+        radial-gradient(circle at 50% 54%, rgba(94,117,255,.10), transparent 38%),
+        rgba(2,5,13,.72);
+      transition:opacity 1.05s cubic-bezier(.2,.8,.2,1), background 1.05s ease;
+    }
     body.is-exiting #stage,
     body.is-exiting .hud{
       opacity:0;
@@ -110,6 +119,19 @@
     body.is-exiting #loadingScreen .loading-bar{
       opacity:.52;
       transition:opacity .55s ease .92s;
+    }
+    body.is-returning #loadingScreen .loading-mark{
+      opacity:1;
+      color:rgba(216,248,255,.9);
+      filter:drop-shadow(0 0 28px rgba(var(--cyan-rgb),.34));
+    }
+    body.is-returning #loadingScreen .loading-bar{opacity:.42;}
+    body.is-returning #stage,
+    body.is-returning .hud{
+      opacity:.64;
+      transform:scale(1.025);
+      filter:blur(5px) saturate(1.06);
+      transition:opacity 1.05s cubic-bezier(.2,.8,.2,1), transform 1.05s cubic-bezier(.2,.8,.2,1), filter 1.05s ease;
     }
     .loading-mark{
       font-size:clamp(16px,2.4vw,22px);font-weight:200;letter-spacing:.42em;text-indent:.42em;
@@ -689,7 +711,7 @@
     #hero::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle at 50% 46%,transparent 0 28%,rgba(2,4,11,.48) 100%);opacity:var(--hero-retreat-veil);will-change:opacity}
     body:not(.is-exiting) #stage{filter:blur(var(--hero-stage-blur)) saturate(var(--hero-stage-saturation)) brightness(var(--hero-stage-brightness))}
     @media (max-width:1080px){.provenance-workbench.has-inspector{grid-template-columns:1fr}.source-inspector{position:relative;top:auto;order:-1}.provenance-flow{grid-template-columns:minmax(120px,.7fr) 22px minmax(150px,1fr) 22px minmax(135px,.82fr)}}
-    @media (max-width:900px){.atlas-spine{display:none}.atlas-index{bottom:calc(10px + env(safe-area-inset-bottom));transition:opacity .25s ease,visibility .25s ease}.atlas-telemetry-toggle{right:14px;top:auto;bottom:calc(66px + env(safe-area-inset-bottom));width:42px;height:42px;padding:0;transform:none;border-radius:50%}.atlas-telemetry-toggle:hover,.atlas-telemetry-toggle:focus-visible{transform:translateY(-3px)}body.telemetry-open .atlas-telemetry-toggle{transform:translateY(10px)}.atlas-telemetry-toggle-label{display:none}.atlas-telemetry{left:10px;right:10px;top:auto;bottom:calc(72px + env(safe-area-inset-bottom));width:auto;max-height:calc(100svh - 150px);transform:translateY(22px) scale(.985);transform-origin:center bottom}.telemetry-open .atlas-telemetry{transform:none}.telemetry-open .atlas-index{opacity:0;visibility:hidden;pointer-events:none}}
+    @media (max-width:900px){.atlas-spine{display:none}.atlas-index{bottom:calc(10px + env(safe-area-inset-bottom));transition:opacity .25s ease,visibility .25s ease}.atlas-telemetry-toggle{right:14px;top:auto;bottom:calc(66px + env(safe-area-inset-bottom));width:42px;height:42px;padding:0;transform:none;border-radius:50%}.atlas-telemetry-toggle:hover,.atlas-telemetry-toggle:focus-visible{transform:translateY(-3px)}body.telemetry-open .atlas-telemetry-toggle{transform:translateY(10px)}.atlas-telemetry-toggle-label{display:none}.atlas-telemetry{left:10px;right:10px;top:auto!important;bottom:calc(72px + env(safe-area-inset-bottom));width:auto;max-height:min(66svh,560px);transform:translateY(22px) scale(.985);transform-origin:center bottom}.telemetry-open .atlas-telemetry{transform:none!important}.telemetry-open .atlas-index{opacity:0;visibility:hidden;pointer-events:none}}
     @media (max-width:760px){.scroll-cue{bottom:8px;}}
     @media (max-width:480px){.atlas-index a{width:32px}.atlas-telemetry-grid{grid-template-columns:1fr}.atlas-layer-key{grid-template-columns:repeat(4,1fr)}.source-inspector-grid{grid-template-columns:1fr}.provenance-flow{grid-template-columns:1fr}.provenance-flow>.flow-arrow{display:none}.flow-process{border-left:0;border-top:1px solid rgba(220,232,255,.06)}.flow-output{grid-column:auto}.atlas-telemetry{left:8px;right:8px}}
     @media (prefers-reduced-motion:reduce){.atlas-spine-progress,.atlas-telemetry,.atlas-telemetry-toggle,.atlas-telemetry-close,.provenance-flow{transition:none}.atlas-telemetry-live::before{animation:none}body:not(.is-exiting) #stage{transform:none;filter:none;opacity:1}body:not(.is-exiting) #hero .hud{transform:none;opacity:1}}

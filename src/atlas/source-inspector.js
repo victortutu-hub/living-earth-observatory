@@ -1,5 +1,5 @@
 import { platformRegistry } from '../core/platform-registry.js';
-import { atlasStatus } from '../core/status-store.js';
+import { atlasStatus, formatSourceStatus } from '../core/status-store.js';
 
 function formatSourceTime(value) {
   if (!value) return 'No live timestamp available';
@@ -67,7 +67,7 @@ export function initSourceInspector() {
     });
 
     inspectorTitle.textContent = definition.title;
-    inspectorStatus.textContent = status.value;
+    inspectorStatus.textContent = formatSourceStatus(key, status);
     inspectorStatus.dataset.state = status.state;
     inspectorUpdated.textContent = formatSourceTime(status.sourceTime || status.updated);
     inspectorEndpoint.textContent = definition.endpoint;

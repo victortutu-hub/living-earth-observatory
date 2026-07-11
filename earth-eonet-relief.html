@@ -460,6 +460,25 @@
         text-transform: uppercase;
         filter: drop-shadow(0 0 24px rgba(127, 214, 255, 0.22));
     }
+    #appFadeOverlay .app-fade-kicker {
+        display: none;
+        margin-bottom: 12px;
+        color: rgba(128, 226, 255, 0.7);
+        font-size: clamp(8px, 0.9vw, 10px);
+        letter-spacing: .2em;
+        text-transform: uppercase;
+    }
+    body.portal-entry #appFadeOverlay {
+        background:
+            radial-gradient(circle at 50% 44%, rgba(0, 222, 255, 0.18), transparent 18%),
+            radial-gradient(circle at 50% 58%, rgba(86, 116, 255, 0.11), transparent 36%),
+            #02050d;
+    }
+    body.portal-entry #appFadeOverlay .app-fade-kicker { display: block; }
+    body.portal-entry #appFadeOverlay .app-fade-mark {
+        color: rgba(220, 248, 255, 0.9);
+        filter: drop-shadow(0 0 28px rgba(0, 214, 255, 0.3));
+    }
     body.app-entered #appFadeOverlay {
         opacity: 0;
         filter: blur(8px);
@@ -570,6 +589,7 @@
 </head>
 <body>
 <div id="appFadeOverlay" aria-hidden="true">
+    <div class="app-fade-kicker"></div>
     <div class="app-fade-mark">Living Earth Observatory</div>
 </div>
 <div id="loading">Loading NASA EONET live events...</div>
@@ -771,8 +791,13 @@ import { createEarthAppBootstrap } from './src/earth/earth-app-bootstrap.js?v=ea
 import { createSceneRuntime } from './src/earth/scene-runtime.js?v=smaa1';
 import { createInitialEarthState } from './src/earth/app-state.js?v=issOrbitalBeat1';
 import { createEarthAppServices } from './src/earth/app-services.js?v=issRobust1';
+import { prepareObservatoryEntry } from './src/portal-continuity.js?v=atlasContinuity6';
 
 const earcutTriangulate = earcutModule.default || earcutModule.earcut;
+const portalEntry = prepareObservatoryEntry({
+    observatoryId: 'living-earth',
+    title: 'Living Earth Observatory'
+});
 const state = createInitialEarthState();
 const sceneRuntime = createSceneRuntime({ THREE });
 
@@ -799,7 +824,7 @@ appRuntime.start();
 requestAnimationFrame(() => {
     window.setTimeout(() => {
         document.body.classList.add('app-entered');
-    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 80 : 520);
+    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 80 : portalEntry.fromAtlas ? 1180 : 520);
 });
 </script>
 </body>

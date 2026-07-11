@@ -20,9 +20,37 @@ const sourceStatus = new Map(
   }]),
 );
 
+const GATEWAY_SOURCE_IDS = new Set(['eonet', 'gibs', 'alpha']);
+
+export function formatSourceStatus(key, record, { compact = false } = {}) {
+  const value = record?.value || '—';
+
+  if (value === 'LIVE') {
+    return GATEWAY_SOURCE_IDS.has(key)
+      ? (compact ? 'LIVE IN ATLAS' : 'LIVE IN THIS ATLAS SESSION')
+      : 'LIVE IN LIVING EARTH';
+  }
+
+  if (value === 'OBSERVATORY') {
+    return compact ? 'EARTH ON DEMAND' : 'LIVE ON DEMAND IN LIVING EARTH';
+  }
+
+  if (value === 'FALLBACK') {
+    if (key === 'gdacs') return compact ? 'FALLBACK WHEN NEEDED' : 'FALLBACK WHEN NEEDED IN LIVING EARTH';
+    return GATEWAY_SOURCE_IDS.has(key)
+      ? (compact ? 'ATLAS FALLBACK' : 'ATLAS FALLBACK ACTIVE')
+      : 'FALLBACK WHEN NEEDED';
+  }
+
+  if (value === 'LOCAL ASSET') return 'LOCAL SCIENTIFIC ASSET';
+  if (value === 'PHYSICAL MODEL') return 'COMPUTED LOCALLY';
+
+  return value;
+}
+
 function broadcastSourceStatus(key, record) {
   document.querySelectorAll(`[data-source-status="${key}"]`).forEach((element) => {
-    element.textContent = record.value;
+    element.textContent = formatSourceStatus(key, record, { compact: true });
     element.dataset.state = record.state;
     if (record.phase) element.dataset.phase = record.phase;
   });

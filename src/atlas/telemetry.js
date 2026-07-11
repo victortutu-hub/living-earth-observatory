@@ -51,6 +51,7 @@ export function initTelemetry() {
   const contextKicker = document.getElementById('atlasContextKicker');
   const contextTitle = document.getElementById('atlasContextTitle');
   const contextNote = document.getElementById('atlasContextNote');
+  const compactViewport = window.matchMedia('(max-width: 900px)');
 
   function updateContext(id) {
     const context = contexts[id] || contexts.hero;
@@ -109,7 +110,7 @@ export function initTelemetry() {
   } catch (_) {
     rememberedOpen = false;
   }
-  setTelemetryOpen(rememberedOpen, { remember: false, focusPanel: false });
+  setTelemetryOpen(rememberedOpen && !compactViewport.matches, { remember: false, focusPanel: false });
 
   toggle?.addEventListener('click', () => setTelemetryOpen(true));
   close?.addEventListener('click', () => setTelemetryOpen(false, { returnFocus: true }));
@@ -117,6 +118,9 @@ export function initTelemetry() {
     if (event.key === 'Escape' && document.body.classList.contains('telemetry-open')) {
       setTelemetryOpen(false, { returnFocus: true });
     }
+  });
+  compactViewport.addEventListener('change', (event) => {
+    if (event.matches) setTelemetryOpen(false, { remember: false, focusPanel: false });
   });
 
   let scrollFrame = 0;

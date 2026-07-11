@@ -12,7 +12,7 @@ import { initObservatoryAtlas } from './atlas/observatory-atlas.js';
 import { initSourceInspector } from './atlas/source-inspector.js';
 import { initTelemetry } from './atlas/telemetry.js';
 import { initStoryRuntime } from './atlas/story-runtime.js';
-import { initPortalRenderer } from './gateway/portal-renderer.js';
+import { initPortalRenderer } from './gateway/portal-renderer.js?v=atlasContinuity6';
 import { resolveGatewaySlots } from './gateway/gateway-slots.js';
 import { listPortalAdapters } from './gateway/adapters/portal-adapter-registry.js';
 import { listPortalMaterials } from './gateway/materials/material-registry.js';
