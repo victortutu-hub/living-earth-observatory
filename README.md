@@ -1,6 +1,16 @@
-# Living Earth Observatory
+# Luminomorphism: Orbital Data Atlas
 
-Living Earth Observatory is a WebGL/Three.js cinematic Earth observatory that combines a physically styled 3D planet with near-real-time natural disaster signals. The project starts from NASA EONET as its primary voice, then adds relief, clouds, real solar day/night timing, physical atmosphere, USGS earthquakes, NASA FIRMS fire hotspots, GDACS disaster alerts, NOAA aurora, a physically driven Moon, Earthshine, ISS tracking, and subtle atmospheric astronomy layers.
+Luminomorphism is a source-available generative science-art platform for
+traceable, data-grounded observatories. Each visible layer is classified as
+observed data, a documented physical model, a declared interpretation, or a
+fallback. The Orbital Data Atlas is the public entry point for this network.
+
+The first production observatory is **Living Earth**: a WebGL/Three.js
+cinematic Earth that combines a physically styled 3D planet with near-real-time
+natural-disaster signals. **Living Protein V0.1** is the second live
+observatory: a single-molecule view built from AlphaFold structure predictions,
+per-residue model confidence, and UniProt functional annotations. Its data
+model is explicitly prediction-derived rather than experimental structure data.
 
 Public landing page:
 
@@ -12,6 +22,12 @@ Main Earth observatory entry point:
 
 ```text
 earth-eonet-relief.html
+```
+
+Living Protein V0.1 entry point:
+
+```text
+living-protein.html
 ```
 
 The current version includes the `Showcase reel` preset, `Data sources` panel, 9:16 video export, synchronized single-card reel pacing, restored intro card layout, atomic state restore after Demo reel, Vertical Director, caption system, Data Rhythm Camera, Moon/Earthshine reel moment, ISS trail, and controllable subtle atmospheric phenomena. 
@@ -58,7 +74,9 @@ FIRMS_MAP_KEY=your_firms_map_key_here
 
 The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 
-## What The App Does
+## Observatory Network
+
+### Living Earth Observatory
 
 - Renders a 3D Earth with relief and bathymetry based on ETOPO-style local textures.
 - Loads natural events from NASA EONET.
@@ -74,6 +92,18 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Includes Airglow, Zodiacal Light, and Noctilucent Clouds as physically grounded procedural phenomena with toggles, presets, and intensity sliders.
 - Exports still PNGs and vertical 9:16 reel videos.
 
+### Living Protein V0.1
+
+- Loads AlphaFold DB prediction metadata and the corresponding PDB structure.
+- Parses only C-alpha atoms, preserving chain boundaries and residue gaps so
+  the trace never invents a connection across missing structure.
+- Uses AlphaFold's official pLDDT bands for trace colour. pLDDT is always
+  presented as **model confidence**, not experimental measurement.
+- Loads selected UniProt features and reports the pLDDT mean together with
+  residue coverage for each feature.
+- Keeps a documented procedural fallback visible when AlphaFold DB or UniProt
+  cannot be reached; remote data failure never becomes a fabricated live state.
+
 ## Data Sources
 
 - NASA EONET: near-real-time natural event metadata.
@@ -88,6 +118,9 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Airglow: real upper-atmosphere emission phenomenon; procedural intensity, not a live snapshot.
 - Zodiacal Light: sunlight scattered by interplanetary dust, approximated along the ecliptic.
 - Noctilucent Clouds: real seasonal, latitude, and twilight window; procedural morphology.
+- AlphaFold DB / EMBL-EBI: predicted protein structures and per-residue pLDDT
+  confidence values. These are model predictions, not experimental structures.
+- UniProt: curated protein names and functional feature annotations.
 
 Important local assets:
 
@@ -139,6 +172,18 @@ assets/etopo2022-bedrock-normal-2160x1080.png
 - `src/earth/reel-presets.js` contains mood and motion presets.
 - `src/earth/vertical-director.js`, `caption-system.js`, and `data-rhythm-camera.js` control 9:16 composition, social text, and data-driven camera rhythm.
 - `src/earth/export-system.js` exports PNG and 9:16 video using the same bloom and SMAA polish as the interactive scene.
+
+### Living Protein
+
+- `src/protein/protein-data.js` fetches and normalizes AlphaFold DB and UniProt data.
+- `src/protein/protein-geometry.js` parses PDB C-alpha atoms and splits valid
+  contiguous trace segments.
+- `src/protein/protein-analysis.js` cross-references UniProt features with
+  model-confidence coverage.
+- `src/protein/protein-scene.js` renders the molecule and manages camera
+  framing and interaction.
+- `src/protein/protein-app.js` connects provenance UI, fallback behavior, and
+  the Protein observatory page.
 
 ## Important Presets
 
@@ -231,6 +276,8 @@ V2.4.2 note: NASA EONET polygon geometries used by some GDACS-linked flood event
 - For external data, keep fallback behavior and status messages explicit.
 - For reels, always test in 9:16 and verify text-safe margins.
 - After a stable milestone, create a new snapshot under `Back Up`.
+- Do not describe AlphaFold pLDDT as measured biological certainty. It is a
+  prediction-confidence signal and must remain explicitly labelled.
 
 ## License
 

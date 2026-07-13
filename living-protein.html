@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Living Protein Observatory</title>
+  <meta name="description" content="A traceable molecular observatory built from AlphaFold model predictions and UniProt annotations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles/protein.css">
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+  <div id="appFadeOverlay" aria-hidden="true">Living Protein Observatory</div>
+  <canvas id="proteinStage" aria-label="Interactive AlphaFold protein structure"></canvas>
+  <header class="protein-header">
+    <div class="protein-brand"><span>Luminomorphism / Molecular Scale</span><h1>Living Protein Observatory</h1><p>One predicted structure at a time, with source and model confidence kept visible.</p></div>
+    <a class="protein-return" href="./index.html?portalReturn=atlas">Return to Atlas</a>
+  </header>
+  <section class="protein-panel protein-summary" aria-live="polite">
+    <span class="protein-kicker">Model subject</span><h2 id="proteinName">Cellular tumor antigen p53</h2><p id="proteinAccession">P04637 - preparing model structure</p><div class="protein-status" id="proteinStatus">Preparing documented fallback trace</div><p id="proteinProvenance"></p>
+  </section>
+  <aside class="protein-panel protein-data" aria-label="Protein provenance and confidence">
+    <span class="protein-kicker">Provenance / confidence</span><h2>Model-derived structure</h2>
+    <div class="metric"><span>Mean pLDDT</span><strong id="confidenceValue">-</strong><p id="confidenceNote">Awaiting AlphaFold model data.</p><ul id="proteinBands"></ul></div>
+    <div class="metric"><span>UniProt cross-reference</span><p id="uniprotStatus">Awaiting functional annotations.</p><ul id="proteinFeatures"></ul></div>
+  </aside>
+  <script type="module">import { startProteinApp } from './src/protein/protein-app.js?v=proteinV01'; startProteinApp();</script>
+</body>
+</html>
