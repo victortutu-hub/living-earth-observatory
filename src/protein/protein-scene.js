@@ -37,6 +37,15 @@ export function createProteinScene(canvas) {
   scene.add(root);
   let frameId = 0;
   let structure = null;
+  let structureCenter = null;
+  let currentSegments = [];
+  let featureFocus = null;
+  let featureFrame = null;
+  let focusTransition = false;
+  let defaultCameraDistance = 120;
+  const focusCameraDirection = new THREE.Vector3(0, 0, 1);
+  const focusWorldTarget = new THREE.Vector3();
+  const focusCameraTarget = new THREE.Vector3();
 
   function resize() {
     const width = canvas.clientWidth;
@@ -51,9 +60,11 @@ export function createProteinScene(canvas) {
     if (structure) { root.remove(structure); dispose(structure); }
     structure = new THREE.Group();
     const allAtoms = segments.flat();
-    const center = allAtoms.reduce((sum, atom) => sum.add(new THREE.Vector3(atom.x, atom.y, atom.z)), new THREE.Vector3()).multiplyScalar(1 / allAtoms.length);
+    featureFocus = null;
+    currentSegments = segments;
+    structureCenter = allAtoms.reduce((sum, atom) => sum.add(new THREE.Vector3(atom.x, atom.y, atom.z)), new THREE.Vector3()).multiplyScalar(1 / allAtoms.length);
     for (const atoms of segments) {
-      const points = atoms.map((atom) => new THREE.Vector3(atom.x, atom.y, atom.z).sub(center));
+      const points = atoms.map((atom) => new THREE.Vector3(atom.x, atom.y, atom.z).sub(structureCenter));
       const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
       const geometry = new THREE.TubeGeometry(curve, Math.max(16, atoms.length * 2), 0.52, 7, false);
       const colors = new Float32Array(geometry.attributes.position.count * 3);
@@ -90,11 +101,83 @@ export function createProteinScene(canvas) {
     camera.position.set(0, span * 0.06, span * 1.2);
     controls.target.set(0, 0, 0);
     controls.update();
+    defaultCameraDistance = camera.position.distanceTo(controls.target);
+    featureFrame = null;
+    focusTransition = false;
+  }
+
+  function clearFeatureFocus() {
+    if (!featureFocus || !structure) return;
+    structure.remove(featureFocus);
+    dispose(featureFocus);
+    featureFocus = null;
+    featureFrame = null;
+    focusTransition = false;
+  }
+
+  function focusFeature(start, end) {
+    clearFeatureFocus();
+    if (!structure || !structureCenter) return false;
+    const focusGroup = new THREE.Group();
+    const focusAtoms = [];
+    for (const segment of currentSegments) {
+      const atoms = segment.filter((atom) => atom.residue >= start && atom.residue <= end);
+      if (atoms.length < 2) continue;
+      focusAtoms.push(...atoms);
+      const points = atoms.map((atom) => new THREE.Vector3(atom.x, atom.y, atom.z).sub(structureCenter));
+      const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+      const geometry = new THREE.TubeGeometry(curve, Math.max(14, atoms.length * 2), 0.88, 8, false);
+      const core = new THREE.Mesh(
+        geometry,
+        new THREE.MeshBasicMaterial({ color: 0xf8f5ff, fog: false, toneMapped: false }),
+      );
+      const glow = new THREE.Mesh(
+        geometry.clone(),
+        new THREE.MeshBasicMaterial({ color: 0x31d7ed, transparent: true, opacity: 0.34, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }),
+      );
+      glow.scale.setScalar(1.26);
+      focusGroup.add(glow, core);
+    }
+    if (!focusGroup.children.length) {
+      dispose(focusGroup);
+      return false;
+    }
+    const localCenter = focusAtoms.reduce(
+      (sum, atom) => sum.add(new THREE.Vector3(atom.x, atom.y, atom.z).sub(structureCenter)),
+      new THREE.Vector3(),
+    ).multiplyScalar(1 / focusAtoms.length);
+    const radius = Math.max(
+      4,
+      ...focusAtoms.map((atom) => localCenter.distanceTo(new THREE.Vector3(atom.x, atom.y, atom.z).sub(structureCenter))),
+    );
+    featureFocus = focusGroup;
+    focusCameraDirection.copy(camera.position).sub(controls.target).normalize();
+    featureFrame = {
+      localCenter,
+      distance: THREE.MathUtils.clamp(radius * 4.8, 26, defaultCameraDistance * 0.78),
+    };
+    focusTransition = true;
+    structure.add(featureFocus);
+    return true;
   }
 
   function loop() {
     frameId = requestAnimationFrame(loop);
-    if (structure) structure.rotation.y += 0.0008;
+    if (structure && !featureFocus) {
+      structure.rotation.y += 0.0008;
+      structure.updateWorldMatrix(true, false);
+    }
+    if (focusTransition && featureFrame && structure) {
+      focusWorldTarget.copy(featureFrame.localCenter).applyMatrix4(structure.matrixWorld);
+      focusCameraTarget.copy(focusCameraDirection).multiplyScalar(featureFrame.distance).add(focusWorldTarget);
+      controls.target.lerp(focusWorldTarget, 0.055);
+      camera.position.lerp(focusCameraTarget, 0.045);
+      if (camera.position.distanceTo(focusCameraTarget) < 0.08 && controls.target.distanceTo(focusWorldTarget) < 0.02) {
+        camera.position.copy(focusCameraTarget);
+        controls.target.copy(focusWorldTarget);
+        focusTransition = false;
+      }
+    }
     controls.update();
     renderer.render(scene, camera);
   }
@@ -102,5 +185,10 @@ export function createProteinScene(canvas) {
   observer.observe(canvas);
   resize();
   loop();
-  return { renderAtoms, dispose() { cancelAnimationFrame(frameId); observer.disconnect(); controls.dispose(); renderer.dispose(); if (structure) dispose(structure); } };
+  return {
+    renderAtoms,
+    focusFeature,
+    clearFeatureFocus,
+    dispose() { cancelAnimationFrame(frameId); observer.disconnect(); controls.dispose(); renderer.dispose(); if (structure) dispose(structure); },
+  };
 }

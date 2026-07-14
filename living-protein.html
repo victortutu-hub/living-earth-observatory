@@ -19,13 +19,21 @@
     <a class="protein-return" href="./index.html?portalReturn=atlas">Return to Atlas</a>
   </header>
   <section class="protein-panel protein-summary" aria-live="polite">
-    <span class="protein-kicker">Model subject</span><h2 id="proteinName">Cellular tumor antigen p53</h2><p id="proteinAccession">P04637 - preparing model structure</p><div class="protein-status" id="proteinStatus">Preparing documented fallback trace</div><p id="proteinProvenance"></p>
+    <span class="protein-kicker">Model subject</span><h2 id="proteinName">Cellular tumor antigen p53</h2><p id="proteinAccession">P04637 - preparing model structure</p>
+    <label class="protein-model-picker" for="proteinModel"><span>Protein model</span><select id="proteinModel"><option value="P04637">p53 - cellular tumor antigen</option><option value="P69905">Hemoglobin subunit alpha</option><option value="P61626">Lysozyme C</option><option value="P00918">Carbonic anhydrase II</option></select></label>
+    <div class="protein-status" id="proteinStatus">Preparing documented fallback trace</div><p id="proteinProvenance"></p>
   </section>
   <aside class="protein-panel protein-data" aria-label="Protein provenance and confidence">
     <span class="protein-kicker">Provenance / confidence</span><h2>Model-derived structure</h2>
     <div class="metric"><span>Mean pLDDT</span><strong id="confidenceValue">-</strong><p id="confidenceNote">Awaiting AlphaFold model data.</p><ul id="proteinBands"></ul></div>
     <div class="metric"><span>UniProt cross-reference</span><p id="uniprotStatus">Awaiting functional annotations.</p><ul id="proteinFeatures"></ul></div>
+    <div class="metric protein-feature-inspector" id="featureInspector" hidden>
+      <span>Selected UniProt feature</span>
+      <h3 id="featureInspectorTitle">-</h3>
+      <p id="featureInspectorRange"></p>
+      <p id="featureInspectorConfidence"></p>
+    </div>
   </aside>
-  <script type="module">import { startProteinApp } from './src/protein/protein-app.js?v=proteinV01'; startProteinApp();</script>
+  <script type="module">import { startProteinApp } from './src/protein/protein-app.js?v=proteinV02'; startProteinApp();</script>
 </body>
 </html>

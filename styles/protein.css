@@ -23,6 +23,10 @@ body { overflow: hidden; background: radial-gradient(circle at 50% 25%, #14112b 
 .protein-summary { top: 190px; left: 28px; width: min(350px, calc(100vw - 56px)); padding: 20px; }
 .protein-summary h2 { margin: 7px 0 4px; font-size: 18px; font-weight: 500; }
 .protein-summary p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.protein-model-picker { display: grid; gap: 6px; margin-top: 17px; }
+.protein-model-picker span { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.protein-model-picker select { width: 100%; border: 1px solid var(--line); border-radius: 0; padding: 10px 32px 10px 11px; color: var(--text); background: rgba(8, 7, 17, 0.72); font: inherit; font-size: 12px; cursor: pointer; }
+.protein-model-picker select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
 .protein-status { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.5; color: #d8d5ff; }
 .protein-data { right: 28px; bottom: 28px; width: min(390px, calc(100vw - 56px)); padding: 20px; }
 .protein-data h2 { margin: 5px 0 16px; font-size: 15px; letter-spacing: 0.05em; font-weight: 500; }
@@ -31,10 +35,16 @@ body { overflow: hidden; background: radial-gradient(circle at 50% 25%, #14112b 
 .metric span { display: block; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .metric strong { display: block; margin-top: 5px; font-size: 25px; font-weight: 400; color: var(--cyan); }
 .metric p { margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--muted); }
+.protein-feature-inspector h3 { margin: 7px 0 0; color: #f5f6ff; font-size: 15px; font-weight: 500; line-height: 1.35; }
+.protein-feature-inspector p + p { color: #c8eefa; }
 ul { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
 #proteinBands li { font-size: 11px; color: #c9c8e2; }
 #proteinFeatures { max-height: 215px; overflow: auto; padding-right: 4px; }
-#proteinFeatures li { padding: 9px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+#proteinFeatures li { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.protein-feature { width: 100%; padding: 9px 8px; border: 0; border-left: 2px solid transparent; color: inherit; text-align: left; background: transparent; cursor: pointer; transition: background 180ms ease, border-color 180ms ease; }
+.protein-feature:hover { background: rgba(49, 215, 237, 0.07); }
+.protein-feature.is-active { border-left-color: var(--cyan); background: linear-gradient(90deg, rgba(49, 215, 237, 0.16), rgba(119, 103, 216, 0.04)); }
+.protein-feature:focus-visible { outline: 1px solid var(--cyan); outline-offset: -2px; }
 #proteinFeatures strong { display: block; font-size: 12px; font-weight: 500; }
 #proteinFeatures span { display: block; margin-top: 4px; font-size: 10px; line-height: 1.45; color: var(--muted); }
 
