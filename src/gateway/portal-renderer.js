@@ -1,4 +1,4 @@
-import { atlasStatus } from '../core/status-store.js';
+import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
 import { dataBroker } from '../core/data-broker.js';
 import { vertexSource, fragmentSource } from './shaders/portal-shaders.js';
 import { createProgram, createFullscreenTriangle } from './gl/webgl-utils.js';

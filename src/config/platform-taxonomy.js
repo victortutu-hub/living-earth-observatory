@@ -17,7 +17,18 @@ export const PLATFORM_TAXONOMY = Object.freeze({
         {id:'planetary',label:'Planetary',order:6},
         {id:'stellar',label:'Stellar',order:7},
         {id:'galactic',label:'Galactic',order:8},
-        {id:'cosmological',label:'Cosmological',order:9}
+        {id:'cosmological',label:'Cosmological',order:9},
+        {id:'abstract',label:'Conceptual: Abstract',order:10,axis:'conceptual'},
+        {id:'global-network',label:'Network: Global network',order:11,axis:'network'}
+      ]),
+      scaleAxes: Object.freeze([
+        {id:'physical',label:'Physical scale',description:'Observable spatial scale, from quantum phenomena to cosmological systems.'},
+        {id:'conceptual',label:'Conceptual scale',description:'Mathematical or model space that does not map cleanly onto a physical size.'},
+        {id:'network',label:'Network scale',description:'Connected infrastructure and topology described by public measurements.'}
+      ]),
+      conceptualScales: Object.freeze([
+        {id:'state-space',label:'State space',axis:'conceptual'},
+        {id:'autonomous-systems',label:'Autonomous systems',axis:'network'}
       ]),
       statuses: Object.freeze([
         {id:'live',label:'Live'},

@@ -1,5 +1,5 @@
 import { platformRegistry } from '../core/platform-registry.js';
-import { atlasStatus, formatSourceStatus } from '../core/status-store.js';
+import { atlasStatus, formatSourceStatus } from '../core/status-store.js?v=sourceInspectorV4';
 
 function formatSourceTime(value) {
   if (!value) return 'No live timestamp available';
@@ -33,6 +33,23 @@ function formatDiagnostics(status) {
   return parts.length ? parts.join(' · ') : 'Not executed by this index';
 }
 
+function formatAccess(access) {
+  if (!access) return 'Not declared';
+  const proxy = access.requiresProxy ? ' · proxy required' : '';
+  return `${access.label || access.kind || 'Not declared'}${proxy}`;
+}
+
+const SOURCE_CLASSIFICATION = Object.freeze({
+  public: { label: 'Public source', description: 'Publicly accessible provider data', tone: 'public' },
+  'proxy-only': { label: 'Proxy only', description: 'Requires a local proxy or credential', tone: 'proxy' },
+  'local-asset': { label: 'Local asset', description: 'Bundled or derived project asset', tone: 'asset' },
+  'physical-model': { label: 'Physical model', description: 'Local deterministic scientific computation', tone: 'model' },
+});
+
+function getSourceClassification(definition) {
+  return SOURCE_CLASSIFICATION[definition.accessClass] || SOURCE_CLASSIFICATION.public;
+}
+
 export function initSourceInspector() {
   const topology = document.getElementById('provenanceTopology');
   const workbench = document.getElementById('provenanceWorkbench');
@@ -41,7 +58,12 @@ export function initSourceInspector() {
   const inspectorTitle = document.getElementById('sourceInspectorTitle');
   const inspectorStatus = document.getElementById('sourceInspectorStatus');
   const inspectorUpdated = document.getElementById('sourceInspectorUpdated');
+  const inspectorClassification = document.getElementById('sourceInspectorClassification');
   const inspectorEndpoint = document.getElementById('sourceInspectorEndpoint');
+  const inspectorAuthority = document.getElementById('sourceInspectorAuthority');
+  const inspectorAccess = document.getElementById('sourceInspectorAccess');
+  const inspectorLicense = document.getElementById('sourceInspectorLicense');
+  const inspectorPrivacy = document.getElementById('sourceInspectorPrivacy');
   const inspectorType = document.getElementById('sourceInspectorType');
   const inspectorProcess = document.getElementById('sourceInspectorProcess');
   const inspectorScope = document.getElementById('sourceInspectorScope');
@@ -70,7 +92,19 @@ export function initSourceInspector() {
     inspectorStatus.textContent = formatSourceStatus(key, status);
     inspectorStatus.dataset.state = status.state;
     inspectorUpdated.textContent = formatSourceTime(status.sourceTime || status.updated);
+    if (inspectorClassification) {
+      const classification = getSourceClassification(definition);
+      const badge = document.createElement('span');
+      badge.className = `source-class-badge source-class-${classification.tone}`;
+      badge.textContent = classification.label;
+      badge.title = classification.description;
+      inspectorClassification.replaceChildren(badge);
+    }
     inspectorEndpoint.textContent = definition.endpoint;
+    if (inspectorAuthority) inspectorAuthority.textContent = definition.authority;
+    if (inspectorAccess) inspectorAccess.textContent = formatAccess(definition.access);
+    if (inspectorLicense) inspectorLicense.textContent = definition.license;
+    if (inspectorPrivacy) inspectorPrivacy.textContent = definition.privacyClass;
     inspectorType.textContent = definition.type;
     inspectorProcess.textContent = definition.process;
     inspectorScope.textContent = definition.scope;

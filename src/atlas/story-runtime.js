@@ -1,5 +1,5 @@
 import { dataBroker } from '../core/data-broker.js';
-import { atlasStatus } from '../core/status-store.js';
+import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
 
 export function initStoryRuntime() {
   'use strict';

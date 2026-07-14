@@ -1,8 +1,8 @@
 import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
-import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
+import { SOURCE_DEFINITIONS } from '../config/source-registry.js?v=sourceInspectorV4';
 import { RUNTIME_RESOURCE_CATALOG } from '../core/runtime/resource-catalog.js';
-import { atlasStatus } from '../core/status-store.js';
+import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
 import { runtimeControl } from '../core/runtime/runtime-control.js';
 import { resolveGatewaySlots } from '../gateway/gateway-slots.js';

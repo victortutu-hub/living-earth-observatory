@@ -1,11 +1,13 @@
-import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js';
-import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
+import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js?v=taxonomyV4';
+import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js?v=taxonomyV4';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
 
 let platformFilters = { family: 'all', scale: 'all', status: 'all' };
 
 const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]));
     const scaleById = new Map(PLATFORM_TAXONOMY.scales.map(item => [item.id,item]));
+    const scaleAxisById = new Map(PLATFORM_TAXONOMY.scaleAxes.map(item => [item.id,item]));
+    const conceptualScaleById = new Map(PLATFORM_TAXONOMY.conceptualScales.map(item => [item.id,item]));
     const statusById = new Map(PLATFORM_TAXONOMY.statuses.map(item => [item.id,item]));
     const representationById = new Map(PLATFORM_TAXONOMY.representations.map(item => [item.id,item]));
 
@@ -14,6 +16,22 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
       if (className) element.className = className;
       if (textContent !== undefined) element.textContent = textContent;
       return element;
+    }
+
+    function getScopeLabel(item) {
+      const scale = scaleById.get(item.scale)?.label || item.scale;
+      const axis = scaleAxisById.get(item.scaleAxis || 'physical');
+      const conceptual = item.conceptualScale
+        ? conceptualScaleById.get(item.conceptualScale)?.label || item.conceptualScale
+        : null;
+      return item.scaleAxis && item.scaleAxis !== 'physical'
+        ? `${axis?.label || item.scaleAxis}: ${conceptual || scale}`
+        : scale;
+    }
+
+    function getScopeCoordinate(item) {
+      const family = familyById.get(item.family)?.short || item.family;
+      return `${family} / ${getScopeLabel(item)}`;
     }
 
     function renderFeaturedObservatories() {
@@ -42,10 +60,12 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
         const head = createElement('div','obs-card-meta');
         const status = createElement('span',`obs-status ${item.status === 'live' ? 'live' : item.status === 'development' ? 'soon' : ''}`,statusById.get(item.status)?.label || item.status);
         const coordinate = createElement('span','obs-coordinate',`${familyById.get(item.family)?.short || item.family} · ${scaleById.get(item.scale)?.label || item.scale}`);
-        const runtime = observatoryRuntime.get(item.id);
-        const runtimeStatus = createElement('span','obs-runtime-status',runtime?.value || 'FALLBACK');
+        coordinate.textContent = getScopeCoordinate(item);
+        const hasPublicRoute = Boolean(item.route);
+        const runtime = hasPublicRoute ? observatoryRuntime.get(item.id) : null;
+        const runtimeStatus = createElement('span','obs-runtime-status',runtime?.value || (hasPublicRoute ? 'FALLBACK' : 'ROADMAP'));
         runtimeStatus.dataset.observatoryRuntime = item.id;
-        runtimeStatus.dataset.state = runtime?.state || 'fallback';
+        runtimeStatus.dataset.state = runtime?.state || (hasPublicRoute ? 'fallback' : 'declared');
         head.append(status,runtimeStatus,coordinate);
 
         const title = createElement('h3');
@@ -72,7 +92,12 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
           const link = createElement('a','obs-cta',`Enter ${item.title} →`);
           link.href = item.route; article.append(link);
         } else {
-          article.append(createElement('span','obs-cta disabled','In development'));
+          const availabilityLabel = item.status === 'research'
+            ? 'Research mapped'
+            : item.status === 'planned'
+              ? 'Planned'
+              : 'In development';
+          article.append(createElement('span','obs-cta disabled',availabilityLabel));
         }
         return article;
       }));
@@ -162,7 +187,9 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
       const entries = [
         {id:'all',label:'All'},
         {id:'gateway',label:'Gateway'},
-        ...OBSERVATORY_REGISTRY.map(item => ({id:item.provenanceTag,label:item.title.replace(/^Living\s+/,'')}))
+        ...OBSERVATORY_REGISTRY
+          .filter(item => item.route)
+          .map(item => ({id:item.provenanceTag,label:item.title.replace(/^Living\s+/,'')}))
       ];
       host.replaceChildren(...entries.map((entry,index) => {
         const button = createElement('button',`provenance-filter${index===0?' is-active':''}`,entry.label);
@@ -171,8 +198,50 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
       }));
     }
 
+    function renderRoadmapPortfolio() {
+      const host = document.getElementById('roadmapModuleBoard');
+      const summary = document.getElementById('roadmapPortfolioSummary');
+      if (!host) return;
+
+      const counts = OBSERVATORY_REGISTRY.reduce((result, item) => {
+        result[item.status] = (result[item.status] || 0) + 1;
+        return result;
+      }, {});
+      if (summary) {
+        summary.textContent = `${counts.live || 0} live / ${counts.development || 0} in development / ${(counts.research || 0) + (counts.planned || 0)} research-planned`;
+      }
+
+      host.replaceChildren(...OBSERVATORY_REGISTRY.map((item) => {
+        const roadmap = item.roadmap || { progress: 0, stage: 'Mapped', next: 'Define the first evidence-backed milestone' };
+        const card = createElement('article', 'roadmap-module');
+        card.dataset.state = item.status;
+        card.style.setProperty('--module-progress', `${roadmap.progress}%`);
+
+        const head = createElement('div', 'roadmap-module-head');
+        const status = createElement('span', 'roadmap-module-status', statusById.get(item.status)?.label || item.status);
+        const progressLabel = roadmap.progress > 0 ? `${roadmap.progress}%` : 'Not started';
+        const progress = createElement('strong', 'roadmap-module-progress-label', progressLabel);
+        head.append(status, progress);
+
+        const title = createElement('h3', null, item.title);
+        const subtitle = createElement('p', 'roadmap-module-scope', `${familyById.get(item.family)?.label || item.family} / ${scaleById.get(item.scale)?.label || item.scale}`);
+        subtitle.textContent = `${familyById.get(item.family)?.label || item.family} / ${getScopeLabel(item)}`;
+        const stage = createElement('p', 'roadmap-module-stage', roadmap.stage);
+        const rail = createElement('div', 'roadmap-module-rail');
+        rail.setAttribute('aria-label', roadmap.progress > 0
+          ? `${item.title} platform integration progress: ${roadmap.progress}%`
+          : `${item.title} has no shipped implementation yet`);
+        rail.append(createElement('span'));
+        const next = createElement('p', 'roadmap-module-next');
+        next.append(document.createTextNode('Next threshold: '), createElement('strong', null, roadmap.next));
+        card.append(head, title, subtitle, stage, rail, next);
+        return card;
+      }));
+    }
+
 export function initObservatoryAtlas() {
   renderTaxonomy();
   renderProvenanceFilters();
+  renderRoadmapPortfolio();
   observatoryRuntime.broadcastInitial();
 }

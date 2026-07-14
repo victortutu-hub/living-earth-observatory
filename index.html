@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles/main.css" />
+  <link rel="stylesheet" href="./styles/main.css?v=taxonomyV4" />
 </head>
 <body>
 
@@ -247,23 +247,23 @@
       <div class="story-inner">
         <span class="eyebrow reveal">Observatory Network</span>
         <h2 class="story-title reveal">A Living Atlas Across <em>Scales</em></h2>
-        <p class="story-lede reveal">Living Earth and Living Protein are the first mapped nodes in an extensible network. Every observatory declares its scientific family, physical scale, maturity, data sources and representation layers.</p>
+        <p class="story-lede reveal">Living Earth and Living Protein are the first live nodes in an extensible network. The V4 roadmap maps the next research and development tracks without presenting them as launched observatories.</p>
 
         <div class="observatory-registry-head reveal">
           <div><span>Registry state</span><strong id="observatoryRegistrySummary">—</strong></div>
-          <p>Adding a future observatory requires one registry record; navigation, filters, provenance consumers and visual metadata are derived from that record.</p>
+          <p>Each module has one registry record. Scope, maturity, representation and route are explicit; a missing route remains visibly non-live.</p>
         </div>
 
         <div class="observatory-taxonomy reveal" aria-label="Platform taxonomy">
-          <div class="observatory-taxonomy-label"><span>Scientific families</span><small>Available architecture, not invented active projects</small></div>
+          <div class="observatory-taxonomy-label"><span>Scientific families</span><small>Live and planned records are visible; only routed observatories are enterable</small></div>
           <div class="observatory-family-grid" id="observatoryFamilyGrid"></div>
-          <div class="observatory-taxonomy-label scale-label"><span>Scale continuum</span><small>Quantum → cosmological</small></div>
+          <div class="observatory-taxonomy-label scale-label"><span>Scope taxonomy</span><small>Physical scale, conceptual space and public-network scope</small></div>
           <div class="observatory-scale-track" id="observatoryScaleTrack"></div>
         </div>
 
         <div class="observatory-filterbar reveal" aria-label="Filter observatory registry">
           <label><span>Family</span><select id="observatoryFamilyFilter"><option value="all">All families</option></select></label>
-          <label><span>Scale</span><select id="observatoryScaleFilter"><option value="all">All scales</option></select></label>
+          <label><span>Scope</span><select id="observatoryScaleFilter"><option value="all">All scopes</option></select></label>
           <label><span>Status</span><select id="observatoryStatusFilter"><option value="all">All states</option></select></label>
           <button type="button" id="observatoryFiltersReset">Reset</button>
         </div>
@@ -278,7 +278,7 @@
       <div class="story-inner">
         <span class="eyebrow reveal">Traceable Inputs</span>
         <h2 class="story-title reveal">Data Provenance <em>Topology</em></h2>
-        <p class="story-lede reveal">Follow each documented dependency from scientific provider, through normalization or physical computation, to the visual phenomenon it controls. Select any flow to inspect its runtime state and parameters.</p>
+        <p class="story-lede reveal">Follow each live dependency from scientific provider, through normalization or physical computation, to the visual phenomenon it controls. Future observatory records declare their scope in the registry but never impersonate a live feed before an adapter exists.</p>
         <div class="provenance-toolbar reveal" role="toolbar" aria-label="Filter provenance flows">
           <span>Show flows</span>
           <span id="provenanceFilterButtons" class="provenance-filter-buttons"></span>
@@ -299,8 +299,13 @@
           <aside class="source-inspector" id="sourceInspector" aria-label="Selected source inspector" aria-hidden="true" inert>
             <div class="source-inspector-head"><div><span>Source inspector</span><strong id="sourceInspectorTitle">Select a flow</strong></div><button type="button" id="sourceInspectorClose" aria-label="Close source inspector">×</button></div>
             <div class="source-inspector-state"><span id="sourceInspectorStatus" data-state="pending">—</span><time id="sourceInspectorUpdated">—</time></div>
+            <div class="source-inspector-classification" id="sourceInspectorClassification" aria-label="Source access class"></div>
             <dl class="source-inspector-grid">
               <div><dt>Logical endpoint</dt><dd><code id="sourceInspectorEndpoint">—</code></dd></div>
+              <div><dt>Authority</dt><dd id="sourceInspectorAuthority">—</dd></div>
+              <div><dt>Access / credential</dt><dd id="sourceInspectorAccess">—</dd></div>
+              <div><dt>License / use</dt><dd id="sourceInspectorLicense">—</dd></div>
+              <div><dt>Privacy class</dt><dd id="sourceInspectorPrivacy">—</dd></div>
               <div><dt>Data type</dt><dd id="sourceInspectorType">—</dd></div>
               <div><dt>Processing</dt><dd id="sourceInspectorProcess">—</dd></div>
               <div><dt>Runtime scope</dt><dd id="sourceInspectorScope">—</dd></div>
@@ -356,6 +361,15 @@ sunDot' = dot(surfaceNormal, sunDirection) + 0.0099   // ≈ +0.567° at the hor
             <div class="craft-formula"><code>// Subsurface scattering on ice/snow — light "wraps" past the terminator
 sss = clamp((sunDot + 0.3) / 1.3, 0, 1)   // Jensen 2001, simplified</code></div>
           </div>
+          <div class="craft-row reveal" tabindex="0" role="button" aria-expanded="false">
+            <div class="craft-row-head">
+              <span class="craft-num">05</span>
+              <div style="flex:1"><h4>Shared observatory contract</h4><p>Every current and future module starts with declared scope, source state, representation boundary, fallback behavior and public maturity. A visual only becomes live when its evidence path exists.</p></div>
+              <span class="craft-toggle">Show contract</span>
+            </div>
+            <div class="craft-formula"><code>module = { family, scale, status, sources, representations, route, fallback }
+live = route &amp;&amp; sourceAdapter &amp;&amp; declaredEvidenceBoundary</code></div>
+          </div>
         </div>
       </div>
     </section>
@@ -364,39 +378,44 @@ sss = clamp((sunDot + 0.3) / 1.3, 0, 1)   // Jensen 2001, simplified</code></div
       <div class="story-glow"></div>
       <div class="story-inner">
         <span class="eyebrow reveal">In Motion</span>
-        <h2 class="story-title reveal">Shipped &amp; <em>Next</em></h2>
-        <p class="story-lede reveal">Luminomorphism is under active development, guided by one question for every new feature: what real signal or documented phenomenon controls this?</p>
+        <h2 class="story-title reveal">Platform <em>Trajectory</em></h2>
+        <p class="story-lede reveal">V4 separates delivery maturity from scientific certainty. A module becomes live only when it has a public route, a real data or model path, and a declared representation boundary.</p>
         <div class="roadmap-track reveal">
           <div class="roadmap-track-fill"></div>
           <div class="roadmap-node done" title="V1–V2 shipped"></div>
           <div class="roadmap-node next" title="V3 in progress"></div>
           <div class="roadmap-node future" title="V4 — unscoped"></div>
         </div>
-        <div class="roadmap-cols">
+        <div class="roadmap-cols roadmap-legacy" aria-hidden="true">
           <div class="roadmap-col reveal">
-            <h4>Shipped — Astronomical Completeness &amp; Material Realism</h4>
+            <h4>Shipped — Platform, Earth &amp; Protein</h4>
             <ul>
-              <li>Moon — position, phase, distance, libration</li>
-              <li>Earthshine on the Moon's dark side</li>
-              <li>ISS tracking with orbital trail</li>
-              <li>Airglow, upper-atmosphere emission</li>
-              <li>Zodiacal Light along the ecliptic</li>
-              <li>Noctilucent Clouds, season &amp; twilight-correct</li>
-              <li>Ocean Fresnel reflections</li>
-              <li>PBR roughness/metalness from land-cover heuristics</li>
-              <li>Atmospheric refraction at the horizon</li>
-              <li>Ice &amp; snow subsurface scattering</li>
+              <li>Orbital Atlas gateway with provenance, telemetry and Runtime Control Center</li>
+              <li>Living Earth — EONET, USGS, GDACS and FIRMS signal layers</li>
+              <li>NOAA relief, NASA GIBS texture, physical atmosphere and solar clock</li>
+              <li>Moon geometry, phase, distance, libration and Earthshine</li>
+              <li>ISS propagation, orbital trail and editorial reel beat</li>
+              <li>Airglow, Zodiacal Light and noctilucent-cloud controls with declared procedural intensity</li>
+              <li>Living Protein v0.1 — AlphaFold structures, UniProt annotations and pLDDT trace</li>
+              <li>Curated molecular subjects: p53, haemoglobin, lysozyme and carbonic anhydrase II</li>
+              <li>Vertical Director, data rhythm and publication-oriented reel exports</li>
             </ul>
           </div>
           <div class="roadmap-col next reveal">
-            <h4>Next — Calibrated Real-World Data</h4>
+            <h4>Next — Calibration &amp; Observatory Depth</h4>
             <ul>
-              <li>Variable aerosols from Sentinel-5P</li>
-              <li>Calibrated VIIRS night lights</li>
-              <li>Historical playback mode</li>
+              <li>Sentinel-5P aerosols and calibrated VIIRS night-light inputs</li>
+              <li>Historical playback for time-specific Earth stories</li>
+              <li>Richer experimental context for Living Protein alongside prediction confidence</li>
+              <li>Cross-observatory editorial stories, not just isolated scenes</li>
+              <li>Public resilience polish for remote feeds, cache state and fallbacks</li>
             </ul>
           </div>
         </div>
+        <div class="roadmap-stage-legend reveal" aria-label="Roadmap stage legend"><span>Foundation</span><span>Live observatories</span><span>V4 portfolio</span></div>
+        <div class="roadmap-portfolio-summary reveal"><span>Module progress board</span><strong id="roadmapPortfolioSummary">Loading registry...</strong></div>
+        <p class="roadmap-disclaimer reveal">Progress measures shipped platform integration only, never an idea, research note, or scientific claim. Research and planned cards remain non-enterable until a real data path and evidence boundary are in place.</p>
+        <div class="roadmap-module-board reveal" id="roadmapModuleBoard" aria-live="polite"></div>
       </div>
     </section>
 
@@ -410,6 +429,6 @@ sss = clamp((sunDot + 0.3) / 1.3, 0, 1)   // Jensen 2001, simplified</code></div
       <a href="#hero" class="footer-top">Back to top ↑</a>
     </div>
   </footer>
-  <script type="module" src="./src/main.js?v=atlasContinuity6"></script>
+  <script type="module" src="./src/main.js?v=sourceInspectorV4"></script>
 </body>
 </html>

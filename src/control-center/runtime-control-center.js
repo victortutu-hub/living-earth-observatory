@@ -1,6 +1,6 @@
-import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
+import { SOURCE_DEFINITIONS } from '../config/source-registry.js?v=sourceInspectorV4';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
-import { atlasStatus } from '../core/status-store.js';
+import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
 import { runtimeControl } from '../core/runtime/runtime-control.js';
 import { classifyCacheRecord } from '../core/runtime/persistent-cache.js';
@@ -41,7 +41,7 @@ function formatTime(value) {
 function button(label, className = '') {
   const node = document.createElement('button');
   node.type = 'button';
-  node.className = className;
+  className.split(/\s+/).filter(Boolean).forEach((name) => node.classList.add(name));
   node.textContent = label;
   return node;
 }
@@ -308,7 +308,9 @@ export function initRuntimeControlCenter({ dataBroker, portalRenderer = null } =
       keyWrap.append(code, meta);
       const freshness = stateBadge(cacheState.freshness.toUpperCase(), cacheState.freshness === 'fresh' ? 'live' : cacheState.freshness === 'stale' ? 'stale' : 'offline');
       freshness.title = `Stored ${formatAge(cacheState.ageMs)} ago`;
-      const remove = button('Remove', 'subtle');
+      const remove = button('Remove', 'runtime-cache-remove');
+      remove.setAttribute('aria-label', `Remove cached resource ${record.key}`);
+      remove.title = 'Remove this cached resource';
       remove.addEventListener('click', async () => {
         await dataBroker.cache.remove(record.key);
         setMessage(`Removed cache entry ${record.key}.`, 'ready');

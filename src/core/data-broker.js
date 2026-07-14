@@ -1,4 +1,4 @@
-import { atlasStatus } from './status-store.js';
+import { atlasStatus } from './status-store.js?v=sourceInspectorV4';
 import { requestRuntime } from './runtime/request-runtime.js';
 import { persistentCache } from './runtime/persistent-cache.js';
 import { runtimeDisplayValue } from './runtime/runtime-states.js';

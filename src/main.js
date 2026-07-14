@@ -1,14 +1,14 @@
-import { PLATFORM_TAXONOMY } from './config/platform-taxonomy.js';
-import { OBSERVATORY_REGISTRY } from './config/observatory-registry.js';
-import { SOURCE_DEFINITIONS } from './config/source-registry.js';
+import { PLATFORM_TAXONOMY } from './config/platform-taxonomy.js?v=taxonomyV4';
+import { OBSERVATORY_REGISTRY } from './config/observatory-registry.js?v=taxonomyV4';
+import { SOURCE_DEFINITIONS } from './config/source-registry.js?v=sourceInspectorV4';
 import { platformRegistry } from './core/platform-registry.js';
-import { atlasStatus } from './core/status-store.js';
+import { atlasStatus } from './core/status-store.js?v=sourceInspectorV4';
 import { observatoryRuntime } from './core/observatory-runtime-store.js';
 import { dataBroker } from './core/data-broker.js';
 import { RUNTIME_STATE, RUNTIME_PHASE } from './core/runtime/runtime-states.js';
 import { runtimeControl } from './core/runtime/runtime-control.js';
 import { RUNTIME_RESOURCE_CATALOG } from './core/runtime/resource-catalog.js';
-import { initObservatoryAtlas } from './atlas/observatory-atlas.js';
+import { initObservatoryAtlas } from './atlas/observatory-atlas.js?v=taxonomyV4';
 import { initSourceInspector } from './atlas/source-inspector.js';
 import { initTelemetry } from './atlas/telemetry.js';
 import { initStoryRuntime } from './atlas/story-runtime.js';
@@ -16,7 +16,7 @@ import { initPortalRenderer } from './gateway/portal-renderer.js?v=atlasContinui
 import { resolveGatewaySlots } from './gateway/gateway-slots.js';
 import { listPortalAdapters } from './gateway/adapters/portal-adapter-registry.js';
 import { listPortalMaterials } from './gateway/materials/material-registry.js';
-import { initRuntimeControlCenter } from './control-center/runtime-control-center.js';
+import { initRuntimeControlCenter } from './control-center/runtime-control-center.js?v=runtimeControls3';
 
 function runSubsystem(name, initializer, disposables) {
   try {
