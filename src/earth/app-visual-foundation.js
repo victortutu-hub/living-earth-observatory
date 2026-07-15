@@ -92,6 +92,16 @@ export function createAppVisualFoundation({
         applyNightLook
     });
 
+    let disposed = false;
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        solarRuntime.stop();
+        moonSystem.stop();
+        issSystem.stop();
+        cloudSetup.disable?.();
+    }
+
     return {
         ...eventUtils,
         lonLatToVec3,
@@ -117,6 +127,7 @@ export function createAppVisualFoundation({
         applyNightLook,
         setApplyNightLookHandler(handler) {
             applyNightLookHandler = handler;
-        }
+        },
+        dispose
     };
 }

@@ -1,6 +1,6 @@
-import { createAppLifecycle } from './app-lifecycle.js?v=resizeObserver1';
-import { createAppStartup } from './app-startup.js?v=firms1';
-import { createDemoReelTimeline } from './reel-timeline.js?v=issOrbitalBeat1';
+import { createAppLifecycle } from './app-lifecycle.js?v=earthLifecycle1';
+import { createAppStartup } from './app-startup.js?v=earthLifecycle1';
+import { createDemoReelTimeline } from './reel-timeline.js?v=earthLifecycle1';
 import { createSocialPresetSystem } from './preset-system.js?v=issOrbitalBeat1';
 
 export function createEarthAppRuntime({
@@ -84,6 +84,11 @@ export function createEarthAppRuntime({
     updateCameraControls,
     updateCameraDrift
 }) {
+    let animationFrameId = null;
+    let running = false;
+    let disposed = false;
+    let controlsWired = false;
+
     applyReelMood(state.reelMood);
 
     const appLifecycle = createAppLifecycle({
@@ -397,6 +402,7 @@ export function createEarthAppRuntime({
     }
 
     function animate() {
+        if (!running || disposed) return;
         const t = clock.getElapsedTime();
         demoReel.update(t);
         updateFocus(t, () => demoReel.onFocusComplete());
@@ -413,7 +419,21 @@ export function createEarthAppRuntime({
         updateSignalPulseForCamera(camera, t);
         updateCameraDrift(t);
         composer.render();
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function startAnimation() {
+        if (running || disposed) return;
+        running = true;
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function stopAnimation() {
+        running = false;
+        if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
     }
 
     const appStartup = createAppStartup({
@@ -431,12 +451,16 @@ export function createEarthAppRuntime({
         applyMotionPreset,
         applyEarthLook,
         applyAtmosphereMode,
-        animate
+        startAnimation
     });
 
     function start() {
+        if (disposed) return;
         appLifecycle.start();
-        wireControls();
+        if (!controlsWired) {
+            wireControls();
+            controlsWired = true;
+        }
         applyUrlPresentationPreset();
         if (state.firmsWildfires) {
             liveDataLayers.setFirmsWildfiresEnabled?.(true);
@@ -447,9 +471,22 @@ export function createEarthAppRuntime({
         }
     }
 
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        stopAnimation();
+        demoReel.dispose?.();
+        appLifecycle.dispose();
+        controlPanel.dispose?.();
+    }
+
     return {
         start,
         animate,
+        startAnimation,
+        stopAnimation,
+        dispose,
+        isRunning: () => running && !disposed,
         startDemoReel,
         demoReel,
         appLifecycle

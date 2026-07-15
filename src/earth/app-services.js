@@ -5,15 +5,15 @@ import { createGdacsProvider } from './gdacs-provider.js?v=polyFix2';
 import { createReelOverlay } from './reel-overlay.js?v=safeCards1';
 import { editorialSelection } from './reel-timeline.js?v=issOrbitalBeat1';
 import { createExportSystem } from './export-system.js?v=ffmpegExport1';
-import { createControlPanel } from './control-panel.js?v=v3sss1';
+import { createControlPanel } from './control-panel.js?v=earthLifecycle1';
 import { createEonetAutoRefreshController } from './eonet-data.js?v=polyFix2';
 import { createEonetApp } from './eonet-app.js?v=polyFix2';
 import { createCameraMotionRuntime } from './camera-motion.js?v=moonMarkers1';
-import { createEarthAppRuntime } from './app-runtime.js?v=issOrbitalBeat1';
+import { createEarthAppRuntime } from './app-runtime.js?v=earthLifecycle1';
 import { createLiveDataLayers } from './live-data-layers.js?v=markerPicking1';
 import { lookDefaults } from './app-state.js?v=issOrbitalBeat1';
 import { createEventScene } from './event-scene.js?v=markerPicking1';
-import { createAppVisualFoundation } from './app-visual-foundation.js?v=issRobust1';
+import { createAppVisualFoundation } from './app-visual-foundation.js?v=earthLifecycle1';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js?v=moonMarkers1';
 import { localDirForSelenographic } from './moon-system.js?v=moonMarkers1';
@@ -461,6 +461,20 @@ export function createEarthAppServices({
         updateCameraDrift
     });
 
+    let disposed = false;
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        eonetAutoRefresh.dispose();
+        eonetApp.dispose?.();
+        appRuntime.dispose();
+        eventScene.dispose();
+        liveDataLayers.dispose();
+        gdacsProvider.dispose?.();
+        exportSystem.dispose?.();
+        visualFoundation.dispose();
+    }
+
     return {
         appRuntime,
         eventScene,
@@ -472,6 +486,7 @@ export function createEarthAppServices({
         issSystem,
         airglowSystem,
         zodiacalLightSystem,
-        noctilucentCloudSystem
+        noctilucentCloudSystem,
+        dispose
     };
 }

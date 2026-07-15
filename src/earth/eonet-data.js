@@ -12,6 +12,9 @@ export function createEonetDataSource({
     staleThresholdMs = 48 * 3600000,
     onSourceStateChange = () => {}
 }) {
+    const activeControllers = new Set();
+    let disposed = false;
+
     function readFilters() {
         return {
             days: document.getElementById('daysFilter')?.value || '20',
@@ -32,7 +35,9 @@ export function createEonetDataSource({
     }
 
     async function fetchNasaEvents(filters = readFilters()) {
+        if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
         const controller = new AbortController();
+        activeControllers.add(controller);
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const res = await fetch(buildUrl(filters), { signal: controller.signal });
@@ -51,6 +56,7 @@ export function createEonetDataSource({
                 }));
         } finally {
             clearTimeout(timeout);
+            activeControllers.delete(controller);
         }
     }
 
@@ -104,6 +110,7 @@ export function createEonetDataSource({
     }
 
     async function fetchEvents(filters = readFilters()) {
+        if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
         const sourceMode = filters.dataSource || 'eonet';
 
         if (sourceMode === 'gdacs') {
@@ -204,12 +211,22 @@ export function createEonetDataSource({
             : `NASA EONET load failed: ${err.message}`;
     }
 
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        for (const controller of activeControllers) controller.abort();
+        activeControllers.clear();
+        supplementalProviders.forEach(provider => provider.dispose?.());
+        fallbackProviders.forEach(provider => provider.dispose?.());
+    }
+
     return {
         readFilters,
         buildUrl,
         fetchEvents,
         filterEvents,
-        formatLoadError
+        formatLoadError,
+        dispose
     };
 }
 

@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles/main.css?v=taxonomyV4" />
+  <link rel="stylesheet" href="./styles/main.css?v=atlasEarthMount1" />
 </head>
 <body>
 
@@ -171,6 +171,13 @@
     <div class="loading-bar"><span></span></div>
   </div>
   <canvas id="stage" tabindex="0" role="link" aria-label="Enter the featured Luminomorphism observatory"></canvas>
+  <section class="atlas-observatory-stage" id="observatoryStage" aria-label="Mounted observatory" hidden>
+    <div class="atlas-observatory-mount" id="observatoryMount"></div>
+    <div class="atlas-observatory-mount-status" id="observatoryMountStatus" aria-live="polite"></div>
+    <button class="atlas-observatory-return" id="observatoryReturn" type="button" aria-label="Return to Orbital Atlas">
+      <span aria-hidden="true">&#8592;</span><strong>Orbital Atlas</strong>
+    </button>
+  </section>
 
   <div class="hud" aria-hidden="true">
     <div class="brand">
@@ -269,6 +276,12 @@
         </div>
 
         <div class="obs-grid observatory-atlas-grid" id="observatoryAtlasGrid" aria-live="polite"></div>
+        <aside class="capability-inspector reveal" id="capabilityInspector" aria-label="Selected observatory capabilities" aria-hidden="true" inert>
+          <div class="capability-inspector-head"><div><span>Observatory contract</span><strong id="capabilityInspectorTitle">Select an observatory</strong></div><button type="button" id="capabilityInspectorClose" aria-label="Close capability inspector">×</button></div>
+          <div class="capability-inspector-state"><span id="capabilityInspectorState" data-state="declared">—</span></div>
+          <p class="capability-inspector-summary" id="capabilityInspectorSummary">Select a module to inspect only the capabilities it explicitly declares.</p>
+          <div class="capability-inspector-list" id="capabilityInspectorList"></div>
+        </aside>
       </div>
     </section>
 
@@ -288,6 +301,7 @@
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="eonet" data-domains="gateway earth"><span class="flow-source"><small>NASA</small><strong>EONET</strong><em data-source-status="eonet" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Normalize</small><strong>geometry · category · time</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>event markers &amp; counts</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="gibs" data-domains="gateway earth"><span class="flow-source"><small>NASA</small><strong>GIBS WMS</strong><em data-source-status="gibs" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Rasterize</small><strong>equirectangular texture</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>Earth surface albedo</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="alpha" data-domains="gateway protein"><span class="flow-source"><small>EMBL-EBI</small><strong>AlphaFold DB</strong><em data-source-status="alpha" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Parse</small><strong>PDB Cα trace · pLDDT</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>protein geometry &amp; color</strong></span></button>
+            <button class="provenance-flow" type="button" aria-pressed="false" data-source="uniprot" data-domains="protein"><span class="flow-source"><small>UniProt Consortium</small><strong>UniProt</strong><em data-source-status="uniprot" data-state="pending">—</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Annotate</small><strong>function · features · residue coverage</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>protein context &amp; provenance</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="usgs" data-domains="earth"><span class="flow-source"><small>USGS</small><strong>Earthquakes</strong><em data-source-status="usgs" data-state="declared">Earth on demand</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Normalize</small><strong>magnitude · depth · position</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>seismic event markers</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="firms" data-domains="earth"><span class="flow-source"><small>NASA</small><strong>FIRMS</strong><em data-source-status="firms" data-state="declared">Earth on demand</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Normalize</small><strong>VIIRS / MODIS detections</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>wildfire hotspots</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="gdacs" data-domains="earth"><span class="flow-source"><small>EU JRC / UN</small><strong>GDACS</strong><em data-source-status="gdacs" data-state="declared">Fallback when needed</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Cross-check</small><strong>alert severity · geometry</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>disaster alert continuity</strong></span></button>
@@ -295,6 +309,13 @@
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="etopo" data-domains="earth"><span class="flow-source"><small>NOAA</small><strong>ETOPO</strong><em data-source-status="etopo" data-state="declared">Local scientific asset</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Derive</small><strong>relief · bathymetry · normals</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>surface displacement &amp; light</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="astronomy" data-domains="earth"><span class="flow-source"><small>Model</small><strong>Astronomy Engine</strong><em data-source-status="astronomy" data-state="declared">Computed locally</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Compute</small><strong>solar &amp; lunar ephemerides</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>terminator · phase · libration</strong></span></button>
             <button class="provenance-flow" type="button" aria-pressed="false" data-source="celestrak" data-domains="earth"><span class="flow-source"><small>CelesTrak</small><strong>TLE / SGP4</strong><em data-source-status="celestrak" data-state="declared">Earth on demand</em></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-process"><small>Propagate</small><strong>orbital state vector</strong></span><span class="flow-arrow" aria-hidden="true">→</span><span class="flow-output"><small>Controls</small><strong>ISS position &amp; trail</strong></span></button>
+            <section class="provenance-module-map" aria-labelledby="provenanceModuleMapTitle">
+              <div class="provenance-module-map-head">
+                <div><span>Observatory registry</span><strong id="provenanceModuleMapTitle">Declared module scopes</strong></div>
+                <p id="provenanceModuleSummary">Loading platform module declarations...</p>
+              </div>
+              <div class="provenance-module-grid" id="provenanceModuleGrid"></div>
+            </section>
           </div>
           <aside class="source-inspector" id="sourceInspector" aria-label="Selected source inspector" aria-hidden="true" inert>
             <div class="source-inspector-head"><div><span>Source inspector</span><strong id="sourceInspectorTitle">Select a flow</strong></div><button type="button" id="sourceInspectorClose" aria-label="Close source inspector">×</button></div>
@@ -429,6 +450,6 @@ live = route &amp;&amp; sourceAdapter &amp;&amp; declaredEvidenceBoundary</code>
       <a href="#hero" class="footer-top">Back to top ↑</a>
     </div>
   </footer>
-  <script type="module" src="./src/main.js?v=sourceInspectorV4"></script>
+  <script type="module" src="./src/main.js?v=atlasEarthMount3"></script>
 </body>
 </html>

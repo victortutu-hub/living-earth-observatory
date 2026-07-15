@@ -298,10 +298,22 @@ export function createDemoReelTimeline({
         }
     }
 
+    function dispose() {
+        demo.active = false;
+        demo.spinning = false;
+        demo.pendingPulseEvent = null;
+        demo.beats = [];
+        hideReelCaption();
+        stopIssTracking?.();
+        stopMoonTracking?.();
+        moonSystem?.setEarthshineBoost?.(1);
+    }
+
     return {
         start,
         update,
         onFocusComplete,
+        dispose,
         isActive: () => demo.active
     };
 }

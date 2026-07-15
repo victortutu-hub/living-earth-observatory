@@ -89,6 +89,8 @@ export function createLiveDataLayers({
     }
 
     function dispose() {
+        usgsEarthquakes.dispose?.();
+        firmsWildfires.dispose?.();
         auroraLayer.dispose();
     }
 

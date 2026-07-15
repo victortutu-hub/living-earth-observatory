@@ -6,6 +6,10 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
 export function createSceneRuntime({ THREE, mount = document.body } = {}) {
+    let disposed = false;
+    const disposedTextures = new Set();
+    const disposedMaterials = new Set();
+    const disposedGeometries = new Set();
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x02050d, 0.028);
 
@@ -41,6 +45,39 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
     composer.addPass(smaaPass);
     composer.addPass(new OutputPass());
 
+    function disposeMaterial(material) {
+        if (!material || disposedMaterials.has(material)) return;
+        disposedMaterials.add(material);
+        for (const value of Object.values(material)) {
+            if (value?.isTexture && !disposedTextures.has(value)) {
+                disposedTextures.add(value);
+                value.dispose?.();
+            }
+        }
+        material.dispose?.();
+    }
+
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        controls.dispose();
+        scene.traverse(object => {
+            if (object.geometry && !disposedGeometries.has(object.geometry)) {
+                disposedGeometries.add(object.geometry);
+                object.geometry.dispose?.();
+            }
+            if (Array.isArray(object.material)) object.material.forEach(disposeMaterial);
+            else disposeMaterial(object.material);
+        });
+        for (const pass of composer.passes || []) pass.dispose?.();
+        composer.renderTarget1?.dispose?.();
+        composer.renderTarget2?.dispose?.();
+        renderer.dispose();
+        renderer.forceContextLoss?.();
+        renderer.domElement.remove();
+        scene.clear();
+    }
+
     return {
         scene,
         camera,
@@ -49,6 +86,8 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
         earthGroup,
         composer,
         bloomPass,
-        smaaPass
+        smaaPass,
+        dispose,
+        isDisposed: () => disposed
     };
 }

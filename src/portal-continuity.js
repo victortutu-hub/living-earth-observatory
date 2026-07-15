@@ -68,6 +68,7 @@ export function prepareObservatoryEntry({ observatoryId, title }) {
   const record = readRecord(ENTRY_KEY);
   const routeFromAtlas = new URLSearchParams(window.location.search).get('portal') === 'atlas';
   const fromAtlas = record?.observatoryId === observatoryId || routeFromAtlas;
+  const embedded = new URLSearchParams(window.location.search).get('embedded') === 'atlas';
   if (!fromAtlas) return { fromAtlas: false };
   removeRecord(ENTRY_KEY);
 
@@ -78,9 +79,11 @@ export function prepareObservatoryEntry({ observatoryId, title }) {
   if (kicker) kicker.textContent = 'Orbital Atlas / Portal Link';
   if (mark) mark.textContent = title;
 
-  window.addEventListener('pagehide', () => {
-    writeRecord(RETURN_KEY, { expiresAt: Date.now() + RETURN_WINDOW_MS });
-  }, { once: true });
+  if (!embedded) {
+    window.addEventListener('pagehide', () => {
+      writeRecord(RETURN_KEY, { expiresAt: Date.now() + RETURN_WINDOW_MS });
+    }, { once: true });
+  }
 
-  return { fromAtlas: true };
+  return { fromAtlas: true, embedded };
 }

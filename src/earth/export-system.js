@@ -42,6 +42,11 @@ export function createExportSystem({
     positionReelCaptionForCamera,
     updateSignalPulseForCamera
 }) {
+    let disposed = false;
+    let captureFrameId = null;
+    let captureResolve = null;
+    let activeRecorder = null;
+
     function updateReelVideoButton(progress = null) {
         const btn = document.getElementById('exportReelVideoBtn');
         if (!btn) return;
@@ -162,6 +167,7 @@ export function createExportSystem({
     // (acelasi WebM, apoi convertit server-side) - fara sa duplicam logica
     // de randare/timing a reel-ului in doua locuri.
     async function captureReelToBlob(loading) {
+        if (disposed) throw new DOMException('Export system disposed', 'AbortError');
         const mimeType = getSupportedVideoMimeType();
         if (!mimeType) throw new Error('No supported video export format was found in this browser.');
 
@@ -178,6 +184,7 @@ export function createExportSystem({
                 mimeType,
                 videoBitsPerSecond: 12000000
             });
+            activeRecorder = recorder;
 
             recorder.ondataavailable = event => {
                 if (event.data && event.data.size > 0) chunks.push(event.data);
@@ -190,22 +197,34 @@ export function createExportSystem({
             recorder.start();
             const start = performance.now();
             await new Promise(resolve => {
+                captureResolve = resolve;
                 function renderFrame(now) {
+                    if (disposed) {
+                        resolve();
+                        return;
+                    }
                     const progress = Math.min(1, Math.max(0, (now - start) / durationMs));
                     loading.textContent = `Recording reel video... ${Math.round(progress * 100)}%`;
                     updateReelVideoButton(progress);
                     exportContext.syncCamera();
                     exportContext.exportComposer.render();
-                    if (now - start < durationMs) requestAnimationFrame(renderFrame);
+                    if (now - start < durationMs) captureFrameId = requestAnimationFrame(renderFrame);
                     else resolve();
                 }
-                requestAnimationFrame(renderFrame);
+                captureFrameId = requestAnimationFrame(renderFrame);
             });
-            recorder.stop();
+            captureResolve = null;
+            captureFrameId = null;
+            if (recorder.state !== 'inactive') recorder.stop();
             await stopped;
+
+            if (disposed) throw new DOMException('Export cancelled', 'AbortError');
 
             return { blob: new Blob(chunks, { type: mimeType }), mimeType };
         } finally {
+            captureResolve = null;
+            captureFrameId = null;
+            activeRecorder = null;
             stream?.getTracks().forEach(track => track.stop());
             exportContext?.dispose();
         }
@@ -255,7 +274,7 @@ export function createExportSystem({
                 const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
                 downloadBlob(blob, `living-earth-observatory-reel-${exportStamp()}.${extension}`, 1500);
             } catch (err) {
-                alert(err.message || 'Video export failed.');
+                if (err?.name !== 'AbortError') alert(err.message || 'Video export failed.');
             }
         });
     }
@@ -272,7 +291,7 @@ export function createExportSystem({
                 const captured = await captureReelToBlob(loading);
                 webmBlob = captured.blob;
             } catch (err) {
-                alert(err.message || 'Video export failed.');
+                if (err?.name !== 'AbortError') alert(err.message || 'Video export failed.');
                 return;
             }
 
@@ -298,12 +317,27 @@ export function createExportSystem({
         });
     }
 
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        if (captureFrameId !== null) cancelAnimationFrame(captureFrameId);
+        captureFrameId = null;
+        captureResolve?.();
+        captureResolve = null;
+        if (activeRecorder?.state && activeRecorder.state !== 'inactive') {
+            try { activeRecorder.stop(); } catch {}
+        }
+        state.reelRecording = false;
+        updateReelVideoButton();
+    }
+
     return {
         applyExportCameraFramingTo,
         exportStillPng,
         exportReelPng,
         exportReelVideo,
         exportReelVideoH264,
-        updateReelVideoButton
+        updateReelVideoButton,
+        dispose
     };
 }

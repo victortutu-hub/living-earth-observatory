@@ -21,6 +21,9 @@ export function createEonetWorkflow({
     stopMoonTracking,
     loadingId = 'loading'
 }) {
+    let disposed = false;
+    let loadGeneration = 0;
+
     function selectEvent(id) {
         stopIssTracking?.();
         stopMoonTracking?.();
@@ -81,17 +84,27 @@ export function createEonetWorkflow({
     }
 
     async function loadEvents({ silent = false } = {}) {
+        if (disposed) return;
+        const generation = ++loadGeneration;
         const loading = document.getElementById(loadingId);
         if (!silent && loading) loading.style.display = 'grid';
         try {
-            state.events = await eonetData.fetchEvents();
+            const events = await eonetData.fetchEvents();
+            if (disposed || generation !== loadGeneration) return;
+            state.events = events;
             populateCategoryFilter(state.events);
             applyFilter();
             if (!silent && loading) loading.style.display = 'none';
         } catch (err) {
+            if (disposed || generation !== loadGeneration || err?.name === 'AbortError') return;
             if (!silent && loading) loading.textContent = eonetData.formatLoadError(err);
             if (silent) throw err;
         }
+    }
+
+    function dispose() {
+        disposed = true;
+        loadGeneration += 1;
     }
 
     return {
@@ -99,6 +112,7 @@ export function createEonetWorkflow({
         selectCluster,
         deselectAll,
         applyFilter,
-        loadEvents
+        loadEvents,
+        dispose
     };
 }

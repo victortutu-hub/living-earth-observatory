@@ -5,7 +5,7 @@ import { createProgram, createFullscreenTriangle } from './gl/webgl-utils.js';
 import { createPostProcessor } from './post-processing.js';
 import { createQualityManager } from './quality-manager.js';
 import { createPortalAssets } from './portal-assets.js';
-import { createPortalInteraction } from './portal-interaction.js?v=atlasContinuity6';
+import { createPortalInteraction } from './portal-interaction.js?v=atlasEarthMount3';
 import { getPortalSlotGeometry, positionPortalLabels } from './portal-layout.js';
 import { resolveGatewaySlots } from './gateway-slots.js';
 import { validateGatewaySlots } from './gateway-validation.js';
@@ -47,7 +47,7 @@ function padPair(values, fallback = 0) {
   return [values[0] ?? fallback, values[1] ?? fallback];
 }
 
-export function initPortalRenderer() {
+export function initPortalRenderer({ onActivate } = {}) {
   const canvas = document.getElementById('stage');
   if (!(canvas instanceof HTMLCanvasElement)) {
     console.warn('[Luminomorphism] Gateway canvas is missing.');
@@ -96,6 +96,7 @@ export function initPortalRenderer() {
   let frameCount = 0;
   let frameHandle = 0;
   let disposed = false;
+  let suspended = false;
 
   const getGeometry = () => getPortalSlotGeometry(window.innerWidth, window.innerHeight, slots.length);
   const interaction = createPortalInteraction({
@@ -104,6 +105,7 @@ export function initPortalRenderer() {
     labels,
     getGeometry,
     onIntent: (slotId, reason) => assets.ensureSlot(slotId, reason),
+    onActivate,
   });
 
   function resize() {
@@ -176,6 +178,10 @@ export function initPortalRenderer() {
 
   function frame(now) {
     if (disposed) return;
+    if (suspended) {
+      frameHandle = requestAnimationFrame(frame);
+      return;
+    }
     if (!qualityManager.shouldRender()) {
       qualityManager.markPaused(now);
       frameHandle = requestAnimationFrame(frame);
@@ -231,6 +237,7 @@ export function initPortalRenderer() {
         resolutionMode,
         postProcessing: postProcessor.enabled,
         frameCount,
+        suspended,
         documentHidden: document.hidden,
         webgl: getWebGlDiagnostics(),
       },
@@ -275,5 +282,10 @@ export function initPortalRenderer() {
     reloadAll: assets.reloadAll,
     cancelAll: assets.cancelAll,
     getRuntimeSnapshot,
+    resetInteraction: interaction.reset,
+    setSuspended(value) {
+      suspended = Boolean(value);
+      if (!suspended) qualityManager.markPaused(performance.now());
+    },
   });
 }

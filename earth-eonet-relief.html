@@ -787,45 +787,20 @@
 <script type="module">
 import * as THREE from 'three';
 import * as earcutModule from 'earcut';
-import { createEarthAppBootstrap } from './src/earth/earth-app-bootstrap.js?v=earthBaseMap2';
-import { createSceneRuntime } from './src/earth/scene-runtime.js?v=smaa1';
-import { createInitialEarthState } from './src/earth/app-state.js?v=issOrbitalBeat1';
-import { createEarthAppServices } from './src/earth/app-services.js?v=issRobust1';
-import { prepareObservatoryEntry } from './src/portal-continuity.js?v=atlasContinuity6';
+import { platformRegistry } from './src/core/platform-registry.js?v=earthModuleHost1';
+import { createObservatoryModuleHost } from './src/core/observatory/module-host.js?v=earthModuleHost1';
+import { createLivingEarthModule } from './src/earth/living-earth-module.js?v=atlasEarthMount1';
 
 const earcutTriangulate = earcutModule.default || earcutModule.earcut;
-const portalEntry = prepareObservatoryEntry({
-    observatoryId: 'living-earth',
-    title: 'Living Earth Observatory'
+const moduleHost = createObservatoryModuleHost({
+    registry: platformRegistry,
+    adapters: [createLivingEarthModule({ THREE, earcut: earcutTriangulate })]
 });
-const state = createInitialEarthState();
-const sceneRuntime = createSceneRuntime({ THREE });
-
-const bootstrap = createEarthAppBootstrap({
-    THREE,
-    scene: sceneRuntime.scene,
-    camera: sceneRuntime.camera,
-    controls: sceneRuntime.controls,
-    renderer: sceneRuntime.renderer
+window.LUMINOMORPHISM_EARTH = Object.freeze({ moduleHost });
+moduleHost.start('living-earth').catch((error) => {
+    console.error('[Living Earth] Module host failed to start.', error);
 });
-
-const appServices = createEarthAppServices({
-    THREE,
-    earcut: earcutTriangulate,
-    state,
-    sceneRuntime,
-    bootstrap
-});
-const { appRuntime } = appServices;
-if (new URLSearchParams(location.search).has('debug')) {
-    window.__livingEarthDebug = { state, sceneRuntime, appServices };
-}
-appRuntime.start();
-requestAnimationFrame(() => {
-    window.setTimeout(() => {
-        document.body.classList.add('app-entered');
-    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 80 : portalEntry.fromAtlas ? 1180 : 520);
-});
+window.addEventListener('pagehide', () => moduleHost.destroy('living-earth', 'pagehide'), { once: true });
 </script>
 </body>
 </html>

@@ -88,6 +88,8 @@ export function createFirmsWildfireProvider({
     minFrp = 5,
     timeoutMs = 30000
 } = {}) {
+    const activeControllers = new Set();
+    let disposed = false;
     let enabled = false;
     let loading = false;
     let lastCount = 0;
@@ -96,6 +98,7 @@ export function createFirmsWildfireProvider({
     let lastProxyStatus = null;
 
     async function fetchEvents(filters = {}) {
+        if (disposed) return [];
         if (!enabled) return [];
         if (filters.category && filters.category !== 'all' && filters.category !== 'wildfires') return [];
 
@@ -108,6 +111,7 @@ export function createFirmsWildfireProvider({
         loading = true;
         lastError = null;
         const controller = new AbortController();
+        activeControllers.add(controller);
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const proxyBase = readProxyBase();
@@ -145,6 +149,7 @@ export function createFirmsWildfireProvider({
             return [];
         } finally {
             clearTimeout(timeout);
+            activeControllers.delete(controller);
             loading = false;
         }
     }
@@ -174,9 +179,19 @@ export function createFirmsWildfireProvider({
         };
     }
 
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        enabled = false;
+        loading = false;
+        for (const controller of activeControllers) controller.abort();
+        activeControllers.clear();
+    }
+
     return {
         fetchEvents,
         setEnabled,
-        getStatus
+        getStatus,
+        dispose
     };
 }

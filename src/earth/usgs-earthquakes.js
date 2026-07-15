@@ -25,6 +25,8 @@ export function createUsgsEarthquakeProvider({
     minMagnitude = 2.5,
     maxEvents = 240
 } = {}) {
+    const activeControllers = new Set();
+    let disposed = false;
     let enabled = false;
     let loading = false;
     let lastCount = 0;
@@ -75,17 +77,20 @@ export function createUsgsEarthquakeProvider({
     }
 
     async function fetchEvents(filters = {}) {
+        if (disposed) return [];
         if (!enabled) return [];
         if (filters.category && filters.category !== 'all' && filters.category !== 'earthquakes') return [];
 
         loading = true;
         lastError = null;
+        const controller = new AbortController();
+        activeControllers.add(controller);
         try {
             const dayWindow = Number(filters.days || 20);
             const feedWindow = dayWindow <= 1 ? 'day' : dayWindow <= 7 ? 'week' : 'month';
             const endpoint = `${endpointBase}/2.5_${feedWindow}.geojson`;
             const cutoff = Date.now() - Math.max(1, dayWindow) * 86400000;
-            const response = await fetch(`${endpoint}?cache=${Date.now()}`, { cache: 'no-store' });
+            const response = await fetch(`${endpoint}?cache=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
             if (!response.ok) throw new Error(`USGS ${response.status}`);
             const data = await response.json();
             const events = (Array.isArray(data.features) ? data.features : [])
@@ -106,6 +111,7 @@ export function createUsgsEarthquakeProvider({
             lastCount = 0;
             return [];
         } finally {
+            activeControllers.delete(controller);
             loading = false;
         }
     }
@@ -131,9 +137,19 @@ export function createUsgsEarthquakeProvider({
         };
     }
 
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        enabled = false;
+        loading = false;
+        for (const controller of activeControllers) controller.abort();
+        activeControllers.clear();
+    }
+
     return {
         fetchEvents,
         setEnabled,
-        getStatus
+        getStatus,
+        dispose
     };
 }

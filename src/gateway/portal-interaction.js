@@ -15,6 +15,7 @@ export function createPortalInteraction({
   labels,
   getGeometry,
   onIntent,
+  onActivate,
 }) {
   const interactiveSlotIds = new Set(
     slots.filter((slot) => Boolean(slot.observatory?.route)).map((slot) => slot.id),
@@ -84,7 +85,8 @@ export function createPortalInteraction({
       document.body.classList.add('is-exiting');
     });
     const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 260 : 1680;
-    window.setTimeout(() => {
+    window.setTimeout(async () => {
+      if (await onActivate?.(observatory, slot)) return;
       markPortalEntry(observatory.id);
       const destination = new URL(target, window.location.href);
       destination.searchParams.set('portal', 'atlas');
@@ -133,6 +135,14 @@ export function createPortalInteraction({
     if (interactiveSlotIds.has(slotId)) activate(slotId);
   }
 
+  function onClick(event) {
+    // Pointer activation is resolved geometrically in onPointerDown. A
+    // zero-detail click is the accessibility/assistive activation fallback.
+    if (event.detail !== 0 || state.active !== -1) return;
+    const defaultSlot = getDefaultGatewaySlot(slots);
+    if (defaultSlot) activate(defaultSlot.id);
+  }
+
   function onKeyDown(event) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
@@ -170,6 +180,7 @@ export function createPortalInteraction({
   canvas.addEventListener('pointermove', onPointerMove, { passive: true });
   canvas.addEventListener('pointerleave', onPointerLeave, { passive: true });
   canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('click', onClick);
   canvas.addEventListener('keydown', onKeyDown);
   canvas.addEventListener('focus', onFocus);
   window.addEventListener('pageshow', onPageShow);
@@ -200,10 +211,24 @@ export function createPortalInteraction({
       });
       return state;
     },
+    reset() {
+      state.active = -1;
+      state.transition = 0;
+      state.transitionStart = 0;
+      state.transitionMode = null;
+      state.introStart = null;
+      state.intro = 0;
+      state.hoverCurrent = slots.map(() => 0);
+      state.parallaxTarget[0] = state.parallaxTarget[1] = 0;
+      state.parallaxCurrent[0] = state.parallaxCurrent[1] = 0;
+      document.body.classList.remove('is-exiting');
+      setHover(null);
+    },
     dispose() {
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('keydown', onKeyDown);
       canvas.removeEventListener('focus', onFocus);
       window.removeEventListener('pageshow', onPageShow);

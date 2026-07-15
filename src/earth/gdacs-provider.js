@@ -81,12 +81,15 @@ export function createGdacsProvider({
     timeoutMs = 15000,
     maxEvents = 120
 } = {}) {
+    const activeControllers = new Set();
+    let disposed = false;
     let lastCount = 0;
     let lastUpdated = null;
     let lastError = null;
     let lastProxyStatus = null;
 
     async function fetchEvents(filters = {}) {
+        if (disposed) throw new DOMException('GDACS provider disposed', 'AbortError');
         if (isPublicProxyDisabledRuntime()) {
             lastError = createProxyRequiredError('GDACS');
             lastCount = 0;
@@ -95,6 +98,7 @@ export function createGdacsProvider({
 
         const proxyBase = readProxyBase();
         const controller = new AbortController();
+        activeControllers.add(controller);
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         lastError = null;
         try {
@@ -124,6 +128,7 @@ export function createGdacsProvider({
             throw error;
         } finally {
             clearTimeout(timeout);
+            activeControllers.delete(controller);
         }
     }
 
@@ -136,8 +141,16 @@ export function createGdacsProvider({
         return { state: 'on', message: `GDACS: ${lastCount} fallback alerts, updated ${time}${staleTag}` };
     }
 
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        for (const controller of activeControllers) controller.abort();
+        activeControllers.clear();
+    }
+
     return {
         fetchEvents,
-        getStatus
+        getStatus,
+        dispose
     };
 }

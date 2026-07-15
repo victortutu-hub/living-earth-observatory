@@ -1,5 +1,7 @@
 export function createControlPanel({ state }) {
     const byId = id => document.getElementById(id);
+    let keydownHandler = null;
+    let disposed = false;
 
     function formatClock(timestamp) {
         if (!timestamp) return '--:--';
@@ -227,6 +229,7 @@ export function createControlPanel({ state }) {
         updateCaptionSettings,
         updateDataRhythm
     }) {
+        disposed = false;
         byId('refreshBtn').addEventListener('click', loadEvents);
         byId('autoRefreshBtn')?.addEventListener('click', () => {
             toggleEonetAutoRefresh?.();
@@ -377,12 +380,32 @@ export function createControlPanel({ state }) {
         });
         byId('exportPngBtn').addEventListener('click', exportStillPng);
 
-        addEventListener('keydown', event => {
+        keydownHandler = event => {
             if (event.key.toLowerCase() === 'c' && !event.ctrlKey && !event.metaKey && !event.altKey) {
                 state.captureMode = !state.captureMode;
                 updateCaptureMode();
             }
-        });
+        };
+        addEventListener('keydown', keydownHandler);
+    }
+
+    function dispose() {
+        if (disposed) return;
+        disposed = true;
+        if (keydownHandler) {
+            removeEventListener('keydown', keydownHandler);
+            keydownHandler = null;
+        }
+
+        // These controls are owned by this runtime. Fresh clones release all
+        // listener closures before a later module instance wires them again.
+        const toolbar = byId('toolbar');
+        if (toolbar) {
+            const cleanChildren = Array.from(toolbar.children, child => child.cloneNode(true));
+            toolbar.replaceChildren(...cleanChildren);
+        }
+        const hudToggle = byId('hudToggle');
+        if (hudToggle) hudToggle.replaceWith(hudToggle.cloneNode(true));
     }
 
     return {
@@ -409,6 +432,7 @@ export function createControlPanel({ state }) {
         updateNoctilucentUi,
         setPanelsHidden,
         initResponsivePanels,
-        wire
+        wire,
+        dispose
     };
 }

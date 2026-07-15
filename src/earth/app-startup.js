@@ -13,7 +13,7 @@ export function createAppStartup({
     applyMotionPreset,
     applyEarthLook,
     applyAtmosphereMode,
-    animate
+    startAnimation
 }) {
     function start() {
         const loadPromise = loadEvents();
@@ -29,7 +29,7 @@ export function createAppStartup({
         applyMotionPreset(state.motionPreset);
         applyEarthLook(state.earthLook);
         applyAtmosphereMode(state.atmosphereMode);
-        animate();
+        startAnimation();
         return loadPromise;
     }
 

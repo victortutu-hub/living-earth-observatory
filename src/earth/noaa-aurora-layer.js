@@ -45,6 +45,8 @@ export function createNoaaAuroraLayer({
     bandHalfWidthDeg = 8,
     altitude = 2.185
 }) {
+    let activeController = null;
+    let disposed = false;
     const group = new THREE.Group();
     group.name = 'noaa-aurora-oval-layer';
     group.visible = false;
@@ -252,12 +254,16 @@ export function createNoaaAuroraLayer({
     }
 
     async function load() {
+        if (disposed) return;
         loading = true;
         lastError = null;
+        const controller = new AbortController();
+        activeController = controller;
         try {
-            const response = await fetch(`${endpoint}?cache=${Date.now()}`, { cache: 'no-store' });
+            const response = await fetch(`${endpoint}?cache=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
             if (!response.ok) throw new Error(`NOAA ${response.status}`);
             const data = await response.json();
+            if (disposed) return;
             lastCount = ingest(data);
             rebuild();
             lastUpdated = Date.now();
@@ -265,11 +271,13 @@ export function createNoaaAuroraLayer({
             lastError = error;
             clear();
         } finally {
+            if (activeController === controller) activeController = null;
             loading = false;
         }
     }
 
     async function setEnabled(value) {
+        if (disposed) return;
         enabled = Boolean(value);
         group.visible = enabled;
         if (enabled && !meshes.length && !loading) await load();
@@ -295,6 +303,10 @@ export function createNoaaAuroraLayer({
     }
 
     function dispose() {
+        if (disposed) return;
+        disposed = true;
+        activeController?.abort();
+        activeController = null;
         clear();
         material.dispose();
         earthGroup.remove(group);

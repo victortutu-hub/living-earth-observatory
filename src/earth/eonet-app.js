@@ -78,9 +78,15 @@ export function createEonetApp({
         stopMoonTracking
     });
 
+    function dispose() {
+        workflow.dispose?.();
+        eonetData.dispose?.();
+    }
+
     return {
         ...workflow,
         eventUi,
-        eonetData
+        eonetData,
+        dispose
     };
 }

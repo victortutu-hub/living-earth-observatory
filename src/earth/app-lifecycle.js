@@ -13,6 +13,8 @@ export function createAppLifecycle({
 }) {
     let realCloudTimer = null;
     let resizeObserver = null;
+    let started = false;
+    let disposed = false;
 
     function resize() {
         camera.aspect = innerWidth / innerHeight;
@@ -29,6 +31,9 @@ export function createAppLifecycle({
     }
 
     function start() {
+        if (started && !disposed) return;
+        started = true;
+        disposed = false;
         addEventListener('resize', resize);
         // Suplimentar fata de 'resize' pe window: unele schimbari de viewport
         // (side panel-uri de extensii Chrome, unele configuratii de DevTools)
@@ -45,6 +50,9 @@ export function createAppLifecycle({
     }
 
     function dispose() {
+        if (disposed) return;
+        disposed = true;
+        started = false;
         removeEventListener('resize', resize);
         resizeObserver?.disconnect();
         resizeObserver = null;
@@ -60,6 +68,7 @@ export function createAppLifecycle({
     return {
         start,
         dispose,
-        resize
+        resize,
+        isStarted: () => started && !disposed
     };
 }

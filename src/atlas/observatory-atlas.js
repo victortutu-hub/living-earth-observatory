@@ -1,5 +1,6 @@
 import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js?v=taxonomyV4';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js?v=taxonomyV4';
+import { SOURCE_DEFINITIONS } from '../config/source-registry.js?v=sourceInspectorV4';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
 
 let platformFilters = { family: 'all', scale: 'all', status: 'all' };
@@ -49,6 +50,7 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
         const empty = createElement('div','observatory-empty');
         empty.innerHTML = '<strong>No mapped observatory in this intersection.</strong><p>The taxonomy remains available for future registry entries; no placeholder observatory is presented as an active project.</p>';
         grid.replaceChildren(empty);
+        document.dispatchEvent(new CustomEvent('lumi:observatory-atlas-rendered'));
         return;
       }
       grid.replaceChildren(...items.map((item) => {
@@ -81,6 +83,11 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
           return chip;
         }));
         article.append(head,title,description,features,semantics);
+        const capabilityButton = createElement('button', 'obs-capability-trigger', 'Inspect capabilities');
+        capabilityButton.type = 'button';
+        capabilityButton.dataset.capabilityInspect = item.id;
+        capabilityButton.setAttribute('aria-haspopup', 'region');
+        article.append(capabilityButton);
         if (item.id === 'living-earth') {
           const spark = createElement('div','obs-spark');
           spark.id = 'obsSpark'; spark.hidden = true;
@@ -101,6 +108,7 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
         }
         return article;
       }));
+      document.dispatchEvent(new CustomEvent('lumi:observatory-atlas-rendered'));
     }
 
     function renderTaxonomy() {
@@ -198,6 +206,54 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
       }));
     }
 
+    function renderProvenanceModuleScopes() {
+      const host = document.getElementById('provenanceModuleGrid');
+      const summary = document.getElementById('provenanceModuleSummary');
+      if (!host) return;
+
+      const sourceBound = OBSERVATORY_REGISTRY.filter(item => item.sources.length > 0).length;
+      const routed = OBSERVATORY_REGISTRY.filter(item => Boolean(item.route)).length;
+      if (summary) {
+        summary.textContent = `${OBSERVATORY_REGISTRY.length} declared modules / ${sourceBound} source-bound / ${routed} public routes`;
+      }
+
+      host.replaceChildren(...OBSERVATORY_REGISTRY.map((item) => {
+        const card = createElement('article', 'provenance-module-card');
+        card.dataset.state = item.status;
+        card.style.setProperty('--module-accent-rgb', item.accent);
+
+        const head = createElement('div', 'provenance-module-card-head');
+        head.append(
+          createElement('span', 'provenance-module-state', statusById.get(item.status)?.label || item.status),
+          createElement('small', null, item.route ? 'Public route' : 'Registry scope')
+        );
+
+        const title = createElement('strong', 'provenance-module-title', item.title);
+        const coordinate = createElement(
+          'span',
+          'provenance-module-coordinate',
+          `${familyById.get(item.family)?.label || item.family} / ${getScopeLabel(item)}`
+        );
+        const binding = createElement('p', 'provenance-module-binding');
+
+        if (item.sources.length) {
+          const sourceTitles = item.sources.map(sourceId => SOURCE_DEFINITIONS[sourceId]?.title || sourceId);
+          binding.append(
+            createElement('b', null, `${sourceTitles.length} registered source${sourceTitles.length === 1 ? '' : 's'}`),
+            document.createTextNode(sourceTitles.join(' / '))
+          );
+        } else {
+          binding.append(
+            createElement('b', null, 'No runtime source yet'),
+            document.createTextNode('Scope declared without impersonating a live feed.')
+          );
+        }
+
+        card.append(head, title, coordinate, binding);
+        return card;
+      }));
+    }
+
     function renderRoadmapPortfolio() {
       const host = document.getElementById('roadmapModuleBoard');
       const summary = document.getElementById('roadmapPortfolioSummary');
@@ -242,6 +298,7 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
 export function initObservatoryAtlas() {
   renderTaxonomy();
   renderProvenanceFilters();
+  renderProvenanceModuleScopes();
   renderRoadmapPortfolio();
   observatoryRuntime.broadcastInitial();
 }
