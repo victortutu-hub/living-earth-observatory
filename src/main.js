@@ -18,7 +18,7 @@ import { resolveGatewaySlots } from './gateway/gateway-slots.js';
 import { listPortalAdapters } from './gateway/adapters/portal-adapter-registry.js';
 import { listPortalMaterials } from './gateway/materials/material-registry.js';
 import { initRuntimeControlCenter } from './control-center/runtime-control-center.js?v=runtimeControls3';
-import { initObservatoryModuleController } from './atlas/observatory-module-controller.js?v=atlasEarthMount2';
+import { initObservatoryModuleController } from './atlas/observatory-module-controller.js?v=atlasProteinMount3';
 
 function runSubsystem(name, initializer, disposables) {
   try {

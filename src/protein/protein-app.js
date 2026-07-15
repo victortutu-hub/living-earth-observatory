@@ -5,10 +5,42 @@ import { createProteinScene } from './protein-scene.js';
 import { prepareObservatoryEntry } from '../portal-continuity.js?v=atlasProtein1';
 
 const PROTEIN_MODELS = {
-  P04637: { accession: 'P04637', label: 'Cellular tumor antigen p53' },
-  P69905: { accession: 'P69905', label: 'Hemoglobin subunit alpha' },
-  P61626: { accession: 'P61626', label: 'Lysozyme C' },
-  P00918: { accession: 'P00918', label: 'Carbonic anhydrase II' },
+  P04637: {
+    accession: 'P04637',
+    label: 'Cellular tumor antigen p53',
+    storyTitle: 'Genome surveillance under stress',
+    storyRole: 'p53 coordinates cellular responses to DNA damage and other stress signals, including cell-cycle arrest and programmed cell death.',
+    storyFocus: 'Inspect the compact DNA-binding core first. Flexible terminal regions are expected to carry lower AlphaFold confidence.',
+    pdbUrl: 'https://www.rcsb.org/structure/2OCJ',
+    pdbLabel: 'Experimental PDB 2OCJ',
+  },
+  P69905: {
+    accession: 'P69905',
+    label: 'Hemoglobin subunit alpha',
+    storyTitle: 'Oxygen transport in a compact globin fold',
+    storyRole: 'Hemoglobin alpha is one half of the tetrameric oxygen carrier in red blood cells, coupling a heme group to reversible oxygen binding.',
+    storyFocus: 'Look for the dense alpha-helical globin architecture and the heme-binding pocket rather than interpreting confidence as a measure of oxygen affinity.',
+    pdbUrl: 'https://www.rcsb.org/structure/1A3N',
+    pdbLabel: 'Experimental PDB 1A3N',
+  },
+  P61626: {
+    accession: 'P61626',
+    label: 'Lysozyme C',
+    storyTitle: 'An innate immune enzyme at molecular scale',
+    storyRole: 'Lysozyme C helps defend against bacteria by breaking down peptidoglycan in bacterial cell walls.',
+    storyFocus: 'Use the compact enzyme fold to compare annotated catalytic residues with the model confidence around the active-site cleft.',
+    pdbUrl: 'https://www.rcsb.org/structure/1LZ1',
+    pdbLabel: 'Experimental PDB 1LZ1',
+  },
+  P00918: {
+    accession: 'P00918',
+    label: 'Carbonic anhydrase II',
+    storyTitle: 'Fast carbon dioxide chemistry',
+    storyRole: 'Carbonic anhydrase II catalyzes the reversible conversion between carbon dioxide and bicarbonate, helping regulate acid-base balance.',
+    storyFocus: 'Inspect the compact enzyme core and its zinc-centered active-site region through the available UniProt annotations.',
+    pdbUrl: 'https://www.rcsb.org/structure/2CBA',
+    pdbLabel: 'Experimental PDB 2CBA',
+  },
 };
 const fallback = [
   { chain: 'A', residue: 1, x: -16, y: -8, z: 0, plddt: 82 },
@@ -36,15 +68,32 @@ function setFeatureInspector(feature) {
   inspector.hidden = false;
 }
 
-export function startProteinApp() {
+function renderModelStory(model) {
+  text('proteinStoryTitle', model.storyTitle);
+  text('proteinStoryRole', model.storyRole);
+  text('proteinStoryFocus', model.storyFocus);
+  const uniprotLink = document.getElementById('proteinStoryUniProt');
+  const pdbLink = document.getElementById('proteinStoryPdb');
+  if (uniprotLink) uniprotLink.href = `https://www.uniprot.org/uniprotkb/${model.accession}/entry`;
+  if (pdbLink) {
+    pdbLink.href = model.pdbUrl;
+    pdbLink.textContent = model.pdbLabel;
+  }
+}
+
+export function startProteinApp({ signal } = {}) {
   const portalEntry = prepareObservatoryEntry({ observatoryId: 'living-protein', title: 'Living Protein Observatory' });
+  document.body.classList.toggle('is-atlas-embedded', Boolean(portalEntry.embedded));
   const scene = createProteinScene(document.getElementById('proteinStage'));
   let activeFeatureButton = null;
   let controller = null;
   let loadVersion = 0;
   let hasEntered = false;
+  let entryTimer = null;
+  let disposed = false;
   const modelSelect = document.getElementById('proteinModel');
   scene.renderAtoms([fallback]);
+  document.body.classList.remove('app-entered');
 
   function clearModelUi() {
     scene.clearFeatureFocus();
@@ -102,6 +151,7 @@ export function startProteinApp() {
     controller = new AbortController();
     clearModelUi();
     scene.renderAtoms([fallback]);
+    renderModelStory(model);
     text('proteinName', model.label);
     text('proteinAccession', `${model.accession} - loading AlphaFold prediction`);
     text('proteinStatus', `Loading AlphaFold model prediction for ${model.label}`);
@@ -150,12 +200,26 @@ export function startProteinApp() {
     } finally {
       if (version === loadVersion && !hasEntered) {
         hasEntered = true;
-        window.setTimeout(() => document.body.classList.add('app-entered'), portalEntry.fromAtlas ? 1050 : 380);
+        entryTimer = window.setTimeout(() => document.body.classList.add('app-entered'), portalEntry.fromAtlas ? 1050 : 380);
       }
     }
   }
 
-  modelSelect?.addEventListener('change', () => loadModel(modelSelect.value));
+  const onModelChange = () => loadModel(modelSelect.value);
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    controller?.abort();
+    if (entryTimer !== null) window.clearTimeout(entryTimer);
+    modelSelect?.removeEventListener('change', onModelChange);
+    window.removeEventListener('pagehide', dispose);
+    signal?.removeEventListener?.('abort', dispose);
+    scene.dispose();
+  };
+
+  modelSelect?.addEventListener('change', onModelChange);
   loadModel(modelSelect?.value || 'P04637');
-  window.addEventListener('pagehide', () => { controller?.abort(); scene.dispose(); }, { once: true });
+  window.addEventListener('pagehide', dispose, { once: true });
+  signal?.addEventListener?.('abort', dispose, { once: true });
+  return dispose;
 }

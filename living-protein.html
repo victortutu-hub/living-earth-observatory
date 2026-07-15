@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles/protein.css">
+  <link rel="stylesheet" href="./styles/protein.css?v=atlasProteinMount1">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
@@ -22,6 +22,16 @@
     <span class="protein-kicker">Model subject</span><h2 id="proteinName">Cellular tumor antigen p53</h2><p id="proteinAccession">P04637 - preparing model structure</p>
     <label class="protein-model-picker" for="proteinModel"><span>Protein model</span><select id="proteinModel"><option value="P04637">p53 - cellular tumor antigen</option><option value="P69905">Hemoglobin subunit alpha</option><option value="P61626">Lysozyme C</option><option value="P00918">Carbonic anhydrase II</option></select></label>
     <div class="protein-status" id="proteinStatus">Preparing documented fallback trace</div><p id="proteinProvenance"></p>
+    <section class="protein-model-story" aria-label="Protein model guide">
+      <span class="protein-kicker">Curated model guide</span>
+      <h3 id="proteinStoryTitle">Genome surveillance under stress</h3>
+      <p id="proteinStoryRole">p53 coordinates a cellular response to DNA damage and other stress signals.</p>
+      <p id="proteinStoryFocus">Inspect the compact DNA-binding core first; flexible terminal regions are expected to carry lower AlphaFold confidence.</p>
+      <div class="protein-story-links">
+        <a id="proteinStoryUniProt" href="https://www.uniprot.org/uniprotkb/P04637/entry" target="_blank" rel="noreferrer">UniProt record</a>
+        <a id="proteinStoryPdb" href="https://www.rcsb.org/structure/2OCJ" target="_blank" rel="noreferrer">Experimental PDB</a>
+      </div>
+    </section>
   </section>
   <aside class="protein-panel protein-data" aria-label="Protein provenance and confidence">
     <span class="protein-kicker">Provenance / confidence</span><h2>Model-derived structure</h2>
@@ -34,6 +44,20 @@
       <p id="featureInspectorConfidence"></p>
     </div>
   </aside>
-  <script type="module">import { startProteinApp } from './src/protein/protein-app.js?v=proteinV02'; startProteinApp();</script>
+  <script type="module">
+    import { platformRegistry } from './src/core/platform-registry.js?v=moduleHost3';
+    import { createObservatoryModuleHost } from './src/core/observatory/module-host.js?v=moduleHost3';
+    import { livingProteinModule } from './src/protein/living-protein-module.js?v=atlasProteinMount1';
+
+    const moduleHost = createObservatoryModuleHost({
+      registry: platformRegistry,
+      adapters: [livingProteinModule],
+    });
+    window.LUMINOMORPHISM_PROTEIN = Object.freeze({ moduleHost });
+    moduleHost.start('living-protein').catch((error) => {
+      console.error('[Living Protein] Module host failed to start.', error);
+    });
+    window.addEventListener('pagehide', () => moduleHost.destroy('living-protein', 'pagehide'), { once: true });
+  </script>
 </body>
 </html>

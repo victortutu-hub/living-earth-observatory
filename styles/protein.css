@@ -28,6 +28,13 @@ body { overflow: hidden; background: radial-gradient(circle at 50% 25%, #14112b 
 .protein-model-picker select { width: 100%; border: 1px solid var(--line); border-radius: 0; padding: 10px 32px 10px 11px; color: var(--text); background: rgba(8, 7, 17, 0.72); font: inherit; font-size: 12px; cursor: pointer; }
 .protein-model-picker select:focus-visible { outline: 1px solid var(--cyan); outline-offset: 2px; }
 .protein-status { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.5; color: #d8d5ff; }
+.protein-model-story { margin-top: 17px; padding-top: 15px; border-top: 1px solid var(--line); }
+.protein-model-story .protein-kicker { font-size: 8px; color: rgba(49, 215, 237, 0.74); }
+.protein-model-story h3 { margin: 7px 0 7px; font-size: 14px; font-weight: 500; line-height: 1.35; color: #f3f5ff; }
+.protein-model-story p + p { margin-top: 7px; color: #c6c8e5; }
+.protein-story-links { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.protein-story-links a { border: 1px solid rgba(49, 215, 237, 0.24); padding: 7px 8px; color: #a8ecf7; background: rgba(49, 215, 237, 0.035); font-size: 9px; letter-spacing: 0.08em; text-decoration: none; text-transform: uppercase; transition: border-color 180ms ease, background 180ms ease, color 180ms ease; }
+.protein-story-links a:hover, .protein-story-links a:focus-visible { border-color: var(--cyan); background: rgba(49, 215, 237, 0.11); color: #efffff; outline: none; }
 .protein-data { right: 28px; bottom: 28px; width: min(390px, calc(100vw - 56px)); padding: 20px; }
 .protein-data h2 { margin: 5px 0 16px; font-size: 15px; letter-spacing: 0.05em; font-weight: 500; }
 .metric { border-top: 1px solid var(--line); padding: 13px 0; }
@@ -58,5 +65,7 @@ body.app-entered #appFadeOverlay { opacity: 0; pointer-events: none; }
   .protein-brand p { font-size: 11px; max-width: none; }
   .protein-return { padding: 9px; font-size: 9px; }
   .protein-summary { top: auto; bottom: 16px; left: 16px; width: calc(100vw - 32px); padding: 15px; }
+  .protein-summary { max-height: min(61vh, 530px); overflow: auto; }
   .protein-data { display: none; }
 }
+.is-atlas-embedded .protein-return{display:none}
