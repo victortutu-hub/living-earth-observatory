@@ -1,7 +1,7 @@
 import { createEarthAppBootstrap } from './earth-app-bootstrap.js?v=earthBaseMap2';
 import { createSceneRuntime } from './scene-runtime.js?v=earthLifecycle1';
 import { createInitialEarthState } from './app-state.js?v=issOrbitalBeat1';
-import { createEarthAppServices } from './app-services.js?v=unifiedEarth2';
+import { createEarthAppServices } from './app-services.js?v=unifiedEarthLot2';
 import { prepareObservatoryEntry } from '../portal-continuity.js?v=atlasEarthMount1';
 
 export function createLivingEarthModule({ THREE, earcut }) {

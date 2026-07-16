@@ -37,6 +37,18 @@ function ovationTimestamp(data) {
     return candidates.find(value => value && Number.isFinite(Date.parse(value))) || null;
 }
 
+function tleEpochTimestamp(text) {
+    const line1 = String(text || '').split(/\r?\n/).find(line => line.trim().startsWith('1 '));
+    const epoch = line1?.trim().split(/\s+/)[3];
+    const match = /^(\d{2})(\d{3}(?:\.\d+)?)$/.exec(epoch || '');
+    if (!match) return null;
+    const shortYear = Number(match[1]);
+    const year = shortYear >= 57 ? 1900 + shortYear : 2000 + shortYear;
+    const dayOfYear = Number(match[2]);
+    if (!Number.isFinite(dayOfYear)) return null;
+    return new Date(Date.UTC(year, 0, 1) + (dayOfYear - 1) * DAY).toISOString();
+}
+
 function publish(sourceId, result) {
     dataBroker.publishRuntimeStatus(sourceId, result);
     return result;
@@ -118,5 +130,22 @@ export function fetchEarthOvation(url, {
         forceRefresh,
         sourceTimeSelector: ovationTimestamp,
         fetchOptions: { mode: 'cors' },
+    }));
+}
+
+export function fetchEarthCelesTrakTle(url, {
+    signal = null,
+    forceRefresh = false,
+} = {}) {
+    return run('celestrak', () => dataBroker.fetchTextResource('earth:celestrak:iss:25544', url, {
+        ttl: 3 * HOUR,
+        staleTtl: 3 * DAY,
+        timeout: 10_000,
+        retries: 2,
+        backoffBase: 650,
+        signal,
+        forceRefresh,
+        sourceTimeSelector: tleEpochTimestamp,
+        fetchOptions: { mode: 'cors', cache: 'no-store' },
     }));
 }

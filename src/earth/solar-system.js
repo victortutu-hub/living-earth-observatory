@@ -1,8 +1,11 @@
+import { loadAstronomyEngine } from './astronomy-runtime.js?v=unifiedEarthLot2';
+
 export function createSolarSystem({
     THREE,
     scene,
     sunLight,
     lonLatToVec3,
+    getDate = () => new Date(),
     diagnosticIds = {
         romania: 'solarRomania',
         utc: 'solarUtc',
@@ -10,7 +13,6 @@ export function createSolarSystem({
         lat: 'solarLat'
     }
 }) {
-    const ASTRONOMY_ENGINE_URL = 'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/+esm';
     const SOLAR_DISTANCE = 15;
     const solarState = {
         utcLabel: '--:--',
@@ -19,9 +21,6 @@ export function createSolarSystem({
         subsolarLat: 0,
         source: 'approx'
     };
-    let astronomyEngine = null;
-    let astronomyLoadPromise = null;
-    let astronomyLoadFailed = false;
     let astronomyObserver = null;
 
     const romaniaClockFormat = new Intl.DateTimeFormat('ro-RO', {
@@ -70,24 +69,6 @@ export function createSolarSystem({
         solarState.romaniaLabel = `${romaniaClockFormat.format(now)} RO`;
     }
 
-    async function loadAstronomyEngine() {
-        if (astronomyEngine || astronomyLoadFailed) return astronomyEngine;
-        if (!astronomyLoadPromise) {
-            astronomyLoadPromise = import(ASTRONOMY_ENGINE_URL)
-                .then(module => {
-                    astronomyEngine = module.default || module;
-                    astronomyObserver = new astronomyEngine.Observer(0, 0, 0);
-                    return astronomyEngine;
-                })
-                .catch(error => {
-                    astronomyLoadFailed = true;
-                    console.warn('[Solar] Astronomy Engine unavailable; using approximate solar position.', error);
-                    return null;
-                });
-        }
-        return astronomyLoadPromise;
-    }
-
     function calcApproxSunPosition(now = new Date()) {
         const utcH = now.getUTCHours() + now.getUTCMinutes() / 60
             + now.getUTCSeconds() / 3600 + now.getUTCMilliseconds() / 3600000;
@@ -117,9 +98,10 @@ export function createSolarSystem({
     }
 
     async function calcRealSunPosition() {
-        const now = new Date();
+        const now = getDate();
         const Astronomy = await loadAstronomyEngine();
         if (!Astronomy) return calcApproxSunPosition(now);
+        if (!astronomyObserver) astronomyObserver = new Astronomy.Observer(0, 0, 0);
         return calcAstronomyEngineSunPosition(now, Astronomy);
     }
 

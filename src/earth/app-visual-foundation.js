@@ -1,12 +1,13 @@
 import { createCloudSetup } from './cloud-setup.js?v=refraction1';
-import { createSolarRuntime } from './solar-runtime.js?v=solarEngine2';
+import { createSolarRuntime } from './solar-runtime.js?v=unifiedEarthLot2';
 import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-config.js?v=usgsIntegrated1';
 import { createGeoUtils } from './geo.js';
 import { createStarField } from './star-field.js?v=milkyWay1';
 import { createEventUtils } from './event-utils.js?v=polyFix2';
 import { createEarthLayers } from './earth-layers.js?v=refraction1';
-import { createMoonSystem } from './moon-system.js?v=moonMarkers1';
-import { createIssSystem } from './iss-system.js?v=issRobust1';
+import { createMoonSystem } from './moon-system.js?v=unifiedEarthLot2';
+import { createIssSystem } from './iss-system.js?v=unifiedEarthLot2';
+import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
 import { createAirglowSystem } from './airglow-system.js?v=airglow9';
 import { createZodiacalLightSystem } from './zodiacal-light-system.js?v=zodiacal10';
 import { createNoctilucentCloudSystem } from './noctilucent-cloud-system.js?v=noctilucent9';
@@ -39,16 +40,23 @@ export function createAppVisualFoundation({
     const { lonLatToVec3 } = createGeoUtils(THREE);
     const eventUtils = createEventUtils({ THREE, categoryColors, fallbackColor, futureDateToleranceMs });
 
-    const solarRuntime = createSolarRuntime({ THREE, scene, sunLight, lonLatToVec3 });
+    const timeState = createEarthTimeState();
+    const getDate = () => timeState.now();
+    const solarRuntime = createSolarRuntime({ THREE, scene, sunLight, lonLatToVec3, getDate });
     const coolFill = solarRuntime.coolFill;
     const updateCoolFillDirection = solarRuntime.updateCoolFillDirection;
     solarRuntime.start();
 
-    const moonSystem = createMoonSystem({ THREE, scene, sunLight, lonLatToVec3 });
+    const moonSystem = createMoonSystem({ THREE, scene, sunLight, lonLatToVec3, getDate });
     moonSystem.start();
 
-    const issSystem = createIssSystem({ THREE, scene, lonLatToVec3 });
+    const issSystem = createIssSystem({ THREE, scene, lonLatToVec3, getDate });
     issSystem.start();
+
+    const unsubscribeTimeState = timeState.subscribe(({ date }) => {
+        solarRuntime.updateRealSunPosition();
+        moonSystem.updateMoonPosition(date);
+    });
 
     const earthLayers = createEarthLayers({
         THREE,
@@ -96,6 +104,7 @@ export function createAppVisualFoundation({
     function dispose() {
         if (disposed) return;
         disposed = true;
+        unsubscribeTimeState();
         solarRuntime.stop();
         moonSystem.stop();
         issSystem.stop();
@@ -106,6 +115,7 @@ export function createAppVisualFoundation({
         ...eventUtils,
         lonLatToVec3,
         solarRuntime,
+        timeState,
         coolFill,
         updateCoolFillDirection,
         moonSystem,

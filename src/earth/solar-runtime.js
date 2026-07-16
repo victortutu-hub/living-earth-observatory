@@ -1,13 +1,14 @@
-import { createSolarSystem } from './solar-system.js?v=solarEngine2';
+import { createSolarSystem } from './solar-system.js?v=unifiedEarthLot2';
 
 export function createSolarRuntime({
     THREE,
     scene,
     sunLight,
     lonLatToVec3,
+    getDate = () => new Date(),
     refreshMs = 30000
 }) {
-    const solarSystem = createSolarSystem({ THREE, scene, sunLight, lonLatToVec3 });
+    const solarSystem = createSolarSystem({ THREE, scene, sunLight, lonLatToVec3, getDate });
     let intervalId = null;
 
     function start() {

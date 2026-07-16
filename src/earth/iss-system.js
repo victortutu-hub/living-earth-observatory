@@ -1,9 +1,10 @@
+import { fetchEarthCelesTrakTle } from './earth-data-runtime.js?v=unifiedEarthLot2';
+
 const SATELLITE_JS_URLS = [
     'https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/+esm',
     'https://esm.sh/satellite.js@6.0.2'
 ];
 const ISS_TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE';
-const ISS_TLE_CACHE_KEY = 'leo-iss-tle-v1';
 const NETWORK_TIMEOUT_MS = 8500;
 const ISS_BUNDLED_TLE = {
     line1: '1 25544U 98067A   26189.73419088  .00005258  00000+0  10370-3 0  9999',
@@ -68,31 +69,6 @@ function withTimeout(promise, ms, label) {
         timeoutId = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
     });
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
-}
-
-function readCachedTle() {
-    try {
-        const raw = window.localStorage?.getItem(ISS_TLE_CACHE_KEY);
-        if (!raw) return null;
-        const cached = JSON.parse(raw);
-        if (!cached?.line1 || !cached?.line2) return null;
-        return cached;
-    } catch (error) {
-        console.warn('[ISS] Could not read cached TLE.', error);
-        return null;
-    }
-}
-
-function writeCachedTle(tle) {
-    try {
-        window.localStorage?.setItem(ISS_TLE_CACHE_KEY, JSON.stringify({
-            ...tle,
-            source: tle.source || 'cached-celestrak',
-            cachedAt: new Date().toISOString()
-        }));
-    } catch (error) {
-        console.warn('[ISS] Could not cache TLE.', error);
-    }
 }
 
 function createIssPointTexture(THREE) {
@@ -184,6 +160,7 @@ export function createIssSystem({
     THREE,
     scene,
     lonLatToVec3,
+    getDate = () => new Date(),
     tleRefreshMs = 3 * 60 * 60 * 1000 // CelesTrak actualizeaza TLE-urile de cateva ori/zi; 3h e suficient de des
 }) {
     const ISS_POINT_SIZE = 0.045;
@@ -415,26 +392,15 @@ export function createIssSystem({
             return;
         }
         try {
-            const controller = new AbortController();
-            const response = await withTimeout(
-                fetch(ISS_TLE_URL, { cache: 'no-store', signal: controller.signal })
-                    .catch(error => {
-                        controller.abort();
-                        throw error;
-                    }),
-                NETWORK_TIMEOUT_MS,
-                'ISS TLE fetch'
-            );
-            if (!response.ok) throw new Error(`CelesTrak HTTP ${response.status}`);
-            const text = await response.text();
+            const result = await fetchEarthCelesTrakTle(ISS_TLE_URL);
+            const text = result.data;
             const { line1, line2 } = parseTleResponse(text);
             satrec = satellite.twoline2satrec(line1, line2);
-            state.source = 'celestrak';
-            writeCachedTle({ line1, line2, source: 'cached-celestrak' });
+            state.source = result.state === 'stale' ? 'cached-celestrak' : 'celestrak';
         } catch (error) {
             console.warn('[ISS] TLE fetch failed; keeping last known orbit or fallback if available.', error);
             if (!satrec) {
-                const fallbackTle = readCachedTle() || ISS_BUNDLED_TLE;
+                const fallbackTle = ISS_BUNDLED_TLE;
                 if (fallbackTle?.line1 && fallbackTle?.line2) {
                     satrec = satellite.twoline2satrec(fallbackTle.line1, fallbackTle.line2);
                     state.source = fallbackTle.source || 'cached-celestrak';
@@ -481,7 +447,7 @@ export function createIssSystem({
     // SGP4 propagate() e ieftin (zero retea), deci nu costa nimic sa o facem aici.
     function update(camera) {
         if (!state.enabled) return;
-        updatePosition(new Date());
+        updatePosition(getDate());
         if (!state.visible) {
             issLabel.visible = false;
             issLine.visible = false;
@@ -536,7 +502,7 @@ export function createIssSystem({
             return state;
         }
         await refreshTle();
-        updatePosition(new Date());
+        updatePosition(getDate());
         updateIssStatus(state);
         return state;
     }

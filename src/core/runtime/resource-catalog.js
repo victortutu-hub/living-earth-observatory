@@ -39,6 +39,14 @@ const catalog = Object.freeze([
     patterns: Object.freeze([{ type: 'exact', value: 'earth:noaa:ovation:latest' }]),
   }),
   Object.freeze({
+    sourceId: 'celestrak',
+    observatoryId: 'living-earth',
+    reloadable: true,
+    ttl: 3 * 60 * 60 * 1000,
+    staleTtl: 3 * DAY,
+    patterns: Object.freeze([{ type: 'prefix', value: 'earth:celestrak:' }]),
+  }),
+  Object.freeze({
     sourceId: 'alpha',
     observatoryId: 'living-protein',
     reloadable: true,

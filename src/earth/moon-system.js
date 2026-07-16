@@ -1,7 +1,4 @@
-const ASTRONOMY_ENGINE_URLS = [
-    'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/+esm',
-    'https://esm.sh/astronomy-engine@2.1.19'
-];
+import { loadAstronomyEngine } from './astronomy-runtime.js?v=unifiedEarthLot2';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -222,6 +219,7 @@ export function createMoonSystem({
     scene,
     sunLight,
     lonLatToVec3,
+    getDate = () => new Date(),
     refreshMs = 60000
 }) {
     const MOON_SCENE_DISTANCE = 13.5;
@@ -347,11 +345,8 @@ export function createMoonSystem({
     moonEarthshine.renderOrder = 4;
     scene.add(moonEarthshine);
 
-    let astronomyEngine = null;
-    let astronomyLoadPromise = null;
     let astronomyObserver = null;
     let intervalId = null;
-    let astronomyRetryAt = 0;
     let earthshineBoost = 1;
 
     function currentEarthshineOpacity() {
@@ -371,42 +366,18 @@ export function createMoonSystem({
         applyEarthshineOpacity();
     }
 
-    async function loadAstronomyEngine() {
-        if (astronomyEngine) return astronomyEngine;
-        if (Date.now() < astronomyRetryAt) return null;
-        if (!astronomyLoadPromise) {
-            astronomyLoadPromise = (async () => {
-                for (const url of ASTRONOMY_ENGINE_URLS) {
-                    try {
-                        const module = await import(url);
-                        astronomyEngine = module.default || module;
-                        astronomyObserver = new astronomyEngine.Observer(0, 0, 0);
-                        return astronomyEngine;
-                    } catch (error) {
-                        console.warn(`[Moon] Astronomy Engine import failed from ${url}.`, error);
-                    }
-                }
-                astronomyRetryAt = Date.now() + 30000;
-                state.source = 'retrying';
-                updateMoonStatus(state);
-                return null;
-            })().finally(() => {
-                astronomyLoadPromise = null;
-            });
-        }
-        return astronomyLoadPromise;
-    }
-
-    async function updateMoonPosition(now = new Date()) {
+    async function updateMoonPosition(now = getDate()) {
         const Astronomy = await loadAstronomyEngine();
         if (!Astronomy) {
             moon.visible = false;
             moonHalo.visible = false;
             moonEarthshine.visible = false;
             state.visible = false;
+            state.source = 'retrying';
             updateMoonStatus(state);
             return;
         }
+        if (!astronomyObserver) astronomyObserver = new Astronomy.Observer(0, 0, 0);
         const equatorial = Astronomy.Equator(Astronomy.Body.Moon, now, astronomyObserver, true, true);
         const sunEquatorial = Astronomy.Equator(Astronomy.Body.Sun, now, astronomyObserver, true, true);
         const siderealHours = Astronomy.SiderealTime(now);

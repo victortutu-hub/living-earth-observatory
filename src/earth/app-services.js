@@ -13,7 +13,7 @@ import { createEarthAppRuntime } from './app-runtime.js?v=earthLifecycle1';
 import { createLiveDataLayers } from './live-data-layers.js?v=unifiedEarth1';
 import { lookDefaults } from './app-state.js?v=issOrbitalBeat1';
 import { createEventScene } from './event-scene.js?v=markerPicking1';
-import { createAppVisualFoundation } from './app-visual-foundation.js?v=earthLifecycle1';
+import { createAppVisualFoundation } from './app-visual-foundation.js?v=unifiedEarthLot2';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js?v=moonMarkers1';
 import { localDirForSelenographic } from './moon-system.js?v=moonMarkers1';
@@ -57,6 +57,7 @@ export function createEarthAppServices({
         recentBadge,
         eventPolygonRings,
         solarRuntime,
+        timeState,
         moonSystem,
         issSystem,
         airglowSystem,
@@ -388,6 +389,7 @@ export function createEarthAppServices({
         clock,
         controlPanel,
         solarRuntime,
+        timeState,
         moonSystem,
         moonMarkers,
         issSystem,
@@ -481,6 +483,7 @@ export function createEarthAppServices({
         eonetApp,
         liveDataLayers,
         solarRuntime,
+        timeState,
         moonSystem,
         moonMarkers,
         issSystem,
