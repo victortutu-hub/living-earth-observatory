@@ -1,3 +1,5 @@
+import { fetchEarthUsgs } from './earth-data-runtime.js?v=unifiedEarth1';
+
 function formatClock(timestamp) {
     if (!timestamp) return '--:--';
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -90,9 +92,11 @@ export function createUsgsEarthquakeProvider({
             const feedWindow = dayWindow <= 1 ? 'day' : dayWindow <= 7 ? 'week' : 'month';
             const endpoint = `${endpointBase}/2.5_${feedWindow}.geojson`;
             const cutoff = Date.now() - Math.max(1, dayWindow) * 86400000;
-            const response = await fetch(`${endpoint}?cache=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
-            if (!response.ok) throw new Error(`USGS ${response.status}`);
-            const data = await response.json();
+            const result = await fetchEarthUsgs(endpoint, {
+                window: feedWindow,
+                signal: controller.signal
+            });
+            const data = result.data;
             const events = (Array.isArray(data.features) ? data.features : [])
                 .map(featureToEvent)
                 .filter(Boolean)
@@ -104,7 +108,7 @@ export function createUsgsEarthquakeProvider({
                 })
                 .slice(0, maxEvents);
             lastCount = events.length;
-            lastUpdated = Date.now();
+            lastUpdated = Date.parse(result.meta.sourceTime) || Date.now();
             return events;
         } catch (error) {
             lastError = error;

@@ -17,7 +17,26 @@ const catalog = Object.freeze([
     reloadable: true,
     ttl: 60 * 1000,
     staleTtl: DAY,
-    patterns: Object.freeze([{ type: 'exact', value: 'nasa-eonet-open-events-v3' }]),
+    patterns: Object.freeze([
+      { type: 'exact', value: 'nasa-eonet-open-events-v3' },
+      { type: 'prefix', value: 'earth:eonet:' },
+    ]),
+  }),
+  Object.freeze({
+    sourceId: 'usgs',
+    observatoryId: 'living-earth',
+    reloadable: true,
+    ttl: 2 * 60 * 1000,
+    staleTtl: DAY,
+    patterns: Object.freeze([{ type: 'prefix', value: 'earth:usgs:' }]),
+  }),
+  Object.freeze({
+    sourceId: 'ovation',
+    observatoryId: 'living-earth',
+    reloadable: true,
+    ttl: 5 * 60 * 1000,
+    staleTtl: 6 * 60 * 60 * 1000,
+    patterns: Object.freeze([{ type: 'exact', value: 'earth:noaa:ovation:latest' }]),
   }),
   Object.freeze({
     sourceId: 'alpha',

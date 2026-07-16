@@ -83,13 +83,13 @@ export function createEonetWorkflow({
         renderList(state.filtered);
     }
 
-    async function loadEvents({ silent = false } = {}) {
+    async function loadEvents({ silent = false, forceRefresh = false } = {}) {
         if (disposed) return;
         const generation = ++loadGeneration;
         const loading = document.getElementById(loadingId);
         if (!silent && loading) loading.style.display = 'grid';
         try {
-            const events = await eonetData.fetchEvents();
+            const events = await eonetData.fetchEvents(undefined, { forceRefresh });
             if (disposed || generation !== loadGeneration) return;
             state.events = events;
             populateCategoryFilter(state.events);

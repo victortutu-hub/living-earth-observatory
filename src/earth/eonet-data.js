@@ -1,5 +1,6 @@
 import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
 import { normalizeEventGeometry } from './event-utils.js?v=polyFix2';
+import { fetchEarthEonet } from './earth-data-runtime.js?v=unifiedEarth2';
 
 export function createEonetDataSource({
     apiUrl,
@@ -34,15 +35,19 @@ export function createEonetDataSource({
         return `${apiUrl}?${params.toString()}`;
     }
 
-    async function fetchNasaEvents(filters = readFilters()) {
+    async function fetchNasaEvents(filters = readFilters(), { forceRefresh = false } = {}) {
         if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
         const controller = new AbortController();
         activeControllers.add(controller);
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const res = await fetch(buildUrl(filters), { signal: controller.signal });
-            if (!res.ok) throw new Error(`NASA EONET returned ${res.status}`);
-            const data = await res.json();
+            const result = await fetchEarthEonet(buildUrl(filters), {
+                ...filters,
+                limit,
+                signal: controller.signal,
+                timeout: timeoutMs,
+                forceRefresh
+            });
+            const data = result.data;
             return (data.events || [])
                 .map(normalizeEventGeometry)
                 .filter(latestGeometry)
@@ -55,7 +60,6 @@ export function createEonetDataSource({
                     sourceConfidence: 'NASA near real-time event metadata'
                 }));
         } finally {
-            clearTimeout(timeout);
             activeControllers.delete(controller);
         }
     }
@@ -109,7 +113,7 @@ export function createEonetDataSource({
         return error.message || `${provider} network error`;
     }
 
-    async function fetchEvents(filters = readFilters()) {
+    async function fetchEvents(filters = readFilters(), { forceRefresh = false } = {}) {
         if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
         const sourceMode = filters.dataSource || 'eonet';
 
@@ -142,7 +146,7 @@ export function createEonetDataSource({
             return combined;
         }
 
-        const nasaResult = await Promise.allSettled([fetchNasaEvents(filters)]);
+        const nasaResult = await Promise.allSettled([fetchNasaEvents(filters, { forceRefresh })]);
         const nasaEvents = nasaResult[0].status === 'fulfilled' ? nasaResult[0].value : [];
         const nasaError = nasaResult[0].status === 'rejected' ? nasaResult[0].reason : null;
         const supplementalEvents = await fetchSupplementalEvents(filters);

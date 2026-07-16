@@ -1,4 +1,4 @@
-import { createEonetDataSource } from './eonet-data.js?v=polyFix2';
+import { createEonetDataSource } from './eonet-data.js?v=unifiedEarth2';
 import { createEonetUi } from './eonet-ui.js?v=markerPicking1';
 import { createEonetWorkflow } from './eonet-workflow.js?v=todayHighlights3';
 

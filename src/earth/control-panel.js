@@ -230,7 +230,7 @@ export function createControlPanel({ state }) {
         updateDataRhythm
     }) {
         disposed = false;
-        byId('refreshBtn').addEventListener('click', loadEvents);
+        byId('refreshBtn').addEventListener('click', () => loadEvents({ forceRefresh: true }));
         byId('autoRefreshBtn')?.addEventListener('click', () => {
             toggleEonetAutoRefresh?.();
         });

@@ -1,5 +1,5 @@
-import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js?v=markerPicking1';
-import { createNoaaAuroraLayer } from './noaa-aurora-layer.js';
+import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js?v=unifiedEarth1';
+import { createNoaaAuroraLayer } from './noaa-aurora-layer.js?v=unifiedEarth1';
 import { createFirmsWildfireProvider } from './firms-wildfires.js?v=firms4';
 
 export function createLiveDataLayers({

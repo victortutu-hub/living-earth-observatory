@@ -1,3 +1,5 @@
+import { fetchEarthOvation } from './earth-data-runtime.js?v=unifiedEarth1';
+
 function disposeObject3D(node) {
     node.geometry?.dispose?.();
     if (Array.isArray(node.material)) node.material.forEach(mat => mat.dispose?.());
@@ -260,13 +262,12 @@ export function createNoaaAuroraLayer({
         const controller = new AbortController();
         activeController = controller;
         try {
-            const response = await fetch(`${endpoint}?cache=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
-            if (!response.ok) throw new Error(`NOAA ${response.status}`);
-            const data = await response.json();
+            const result = await fetchEarthOvation(endpoint, { signal: controller.signal });
+            const data = result.data;
             if (disposed) return;
             lastCount = ingest(data);
             rebuild();
-            lastUpdated = Date.now();
+            lastUpdated = Date.parse(result.meta.sourceTime) || Date.now();
         } catch (error) {
             lastError = error;
             clear();
