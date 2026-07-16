@@ -28,7 +28,16 @@ const catalog = Object.freeze([
     patterns: Object.freeze([
       { type: 'exact', value: 'alphafold-p04637-metadata' },
       { type: 'prefix', value: 'alphafold-p04637-structure' },
+      { type: 'prefix', value: 'alphafold:' },
     ]),
+  }),
+  Object.freeze({
+    sourceId: 'uniprot',
+    observatoryId: 'living-protein',
+    reloadable: true,
+    ttl: 7 * DAY,
+    staleTtl: 30 * DAY,
+    patterns: Object.freeze([{ type: 'prefix', value: 'uniprot:' }]),
   }),
 ]);
 

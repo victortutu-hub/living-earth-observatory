@@ -15,11 +15,21 @@ function latestEonetTimestamp(json) {
   return latest;
 }
 
-function publishRuntimeStatus(key, result) {
+export function publishRuntimeStatus(key, result) {
   atlasStatus.setStatus(key, runtimeDisplayValue(result.state), result.state, {
     ...result.meta,
     updated: result.meta.updated,
     sourceTime: result.meta.sourceTime,
+  });
+}
+
+export function publishRuntimeError(key, error) {
+  if (error?.name === 'AbortError') return;
+  atlasStatus.setStatus(key, 'OFFLINE', 'offline', {
+    ...(error?.runtime || {}),
+    phase: 'error',
+    error: error?.message || String(error),
+    updated: new Date().toISOString(),
   });
 }
 
@@ -128,6 +138,8 @@ export const dataBroker = Object.freeze({
   fetchJsonResource,
   fetchTextResource,
   fetchBlobResource,
+  publishRuntimeStatus,
+  publishRuntimeError,
   fetchEonet,
   fetchEonetResult,
   cache: persistentCache,
