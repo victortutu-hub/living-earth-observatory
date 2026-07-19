@@ -1,5 +1,81 @@
 # Luminomorphism: Orbital Data Atlas
 
+## OpenAI Build Week 2026
+
+This repository contains a pre-existing scientific visualization project that was
+extended during the official OpenAI Build Week submission period. The baseline
+was `c0d2e1a38fa590147a1afc55ec83f94fe2444532` (`Living Protein Observatory
+v0.1`, July 13, 2026 at 07:50 UTC). The eligible Build Week contribution is the
+seven-commit range from July 14–16, ending at
+`c119adbe4b62fc216b7ecb1eecac73ac7476d066`.
+
+[Compare the documented baseline with the Build Week head](https://github.com/victortutu-hub/living-earth-observatory/compare/c0d2e1a38fa590147a1afc55ec83f94fe2444532...c119adbe4b62fc216b7ecb1eecac73ac7476d066).
+
+### Codex and GPT-5.6
+
+The Build Week extension was developed with **Codex using GPT-5.6 Sol** with
+**Medium reasoning effort**.
+
+```text
+Primary Codex session: 019efde7-c79c-7453-8172-65b6cc6cacbb
+Model: GPT-5.6 Sol
+Reasoning effort: Medium
+```
+
+Codex was used to:
+
+- analyze the pre-existing architecture and trace cross-module dependencies;
+- define the shared observatory module contract, context, and lifecycle host;
+- mount Living Earth and Living Protein through the same controlled runtime;
+- consolidate Earth and Protein data access;
+- add caching, retries, timeouts, request coalescing, source-time metadata, and
+  controlled stale fallback;
+- review lifecycle cleanup, imports, diagnostics, cache behavior, and replay
+  resilience.
+
+The project owner retained final responsibility for the product direction,
+scientific distinctions, architecture decisions, visual design, testing
+priorities, and acceptance of every implementation change. In particular, the
+application never presents fallback or procedural output as live measured data,
+and AlphaFold pLDDT remains explicitly labelled as model confidence rather than
+experimental certainty.
+
+### Build Week engineering contribution
+
+The seven eligible commits added:
+
+- a shared observatory contract and controlled module lifecycle;
+- capability, taxonomy, and source-provenance registries;
+- dynamic Atlas mounting for Living Earth and Living Protein;
+- unified scientific data runtimes for Earth and Protein;
+- persistent caching, retries, timeouts, coalescing, and stale fallback;
+- source-time and diagnostic metadata;
+- explicit classification of observed data, predictions, physical models,
+  interpretations, and fallback output.
+
+### Judge quick test
+
+Public demo:
+
+```text
+https://victortutu-hub.github.io/living-earth-observatory/
+```
+
+Recommended flow:
+
+1. Open the Orbital Data Atlas and inspect the observatory cards, capability
+   inspector, and provenance topology.
+2. Enter Living Earth and inspect the globe, event markers, source states, and
+   event details.
+3. Return to the Atlas and enter Living Protein.
+4. Switch between curated protein models and inspect pLDDT confidence and
+   UniProt annotations.
+
+No account, OpenAI API key, or credentials are required for the public demo.
+Optional proxy features such as NASA FIRMS, GDACS fallback, and local H.264
+conversion are not required for the main judging flow.
+
+
 Luminomorphism is a source-available generative science-art platform for
 traceable, data-grounded observatories. Each visible layer is classified as
 observed data, a documented physical model, a declared interpretation, or a
