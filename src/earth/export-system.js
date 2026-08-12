@@ -47,6 +47,15 @@ export function createExportSystem({
     let captureResolve = null;
     let activeRecorder = null;
 
+    // Dimensiunile reel-ului dupa formatul ales (state.reelAspect):
+    // 9:16 vertical (social) sau 16:9 orizontal (YouTube/desktop).
+    // Un singur loc de adevar, folosit si de PNG, si de video, si de H.264.
+    function getReelDimensions() {
+        return state.reelAspect === '16:9'
+            ? { width: 1920, height: 1080 }
+            : { width: 1080, height: 1920 };
+    }
+
     function updateReelVideoButton(progress = null) {
         const btn = document.getElementById('exportReelVideoBtn');
         if (!btn) return;
@@ -159,7 +168,8 @@ export function createExportSystem({
     }
 
     async function exportReelPng() {
-        await exportPngFrame(1080, 1920, 'living-earth-observatory-reel');
+        const { width, height } = getReelDimensions();
+        await exportPngFrame(width, height, 'living-earth-observatory-reel');
     }
 
     // Bucla de captura propriu-zisa (MediaRecorder + rAF pe exportComposer),
@@ -176,7 +186,8 @@ export function createExportSystem({
         let stream;
         let exportContext;
         try {
-            exportContext = createExportContext(1080, 1920);
+            const { width, height } = getReelDimensions();
+            exportContext = createExportContext(width, height);
             exportContext.exportComposer.render();
             stream = exportContext.exportRenderer.domElement.captureStream(fps);
             const chunks = [];

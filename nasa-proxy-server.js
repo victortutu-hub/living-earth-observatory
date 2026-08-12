@@ -409,8 +409,24 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (source === 'gvp') {
+        // Smithsonian GVP - Holocene volcanoes (GeoServer WFS). Nu trimite CORS,
+        // deci il servim noi. URL fix, fara parametri din client.
+        const upstreamUrl = 'https://webservices.volcano.si.edu/geoserver/GVP-VOTW/ows'
+            + '?service=WFS&version=2.0.0&request=GetFeature'
+            + '&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes'
+            + '&outputFormat=application/json';
+
+        await proxyWithCache(res, 'gvp', 'gvp-holocene-volcanoes', upstreamUrl, body => {
+            const decoded = JSON.parse(body);
+            if (!decoded || !decoded.features) return null;
+            return decoded;
+        });
+        return;
+    }
+
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms." }));
+    res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms|gvp." }));
 });
 
 server.listen(PORT, () => {

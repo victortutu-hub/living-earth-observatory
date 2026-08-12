@@ -1,6 +1,6 @@
 import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
 import { normalizeEventGeometry } from './event-utils.js?v=polyFix2';
-import { fetchEarthEonet } from './earth-data-runtime.js?v=unifiedEarth2';
+import { fetchEarthEonet } from './earth-data-runtime.js?v=cacheStatus1';
 
 export function createEonetDataSource({
     apiUrl,
@@ -15,6 +15,20 @@ export function createEonetDataSource({
 }) {
     const activeControllers = new Set();
     let disposed = false;
+
+    function transportLabel(meta) {
+        if (!meta) return '';
+        if (meta.cache === 'service-worker-cache') {
+            return meta.freshness === 'stale' ? 'cached / stale' : 'cached / fresh';
+        }
+        if (meta.cache === 'hit') return 'cached / fresh';
+        return 'live / fresh';
+    }
+
+    function withTransport(message, meta) {
+        const label = transportLabel(meta);
+        return label ? `${message} — ${label}` : message;
+    }
 
     function readFilters() {
         return {
@@ -48,7 +62,7 @@ export function createEonetDataSource({
                 forceRefresh
             });
             const data = result.data;
-            return (data.events || [])
+            const events = (data.events || [])
                 .map(normalizeEventGeometry)
                 .filter(latestGeometry)
                 .map(event => ({
@@ -59,6 +73,8 @@ export function createEonetDataSource({
                     sourceUpdatedAt: latestGeometry(event)?.date || event.geometry?.[0]?.date || '',
                     sourceConfidence: 'NASA near real-time event metadata'
                 }));
+            Object.defineProperty(events, 'transportMeta', { value: result.meta, enumerable: false });
+            return events;
         } finally {
             activeControllers.delete(controller);
         }
@@ -149,6 +165,7 @@ export function createEonetDataSource({
         const nasaResult = await Promise.allSettled([fetchNasaEvents(filters, { forceRefresh })]);
         const nasaEvents = nasaResult[0].status === 'fulfilled' ? nasaResult[0].value : [];
         const nasaError = nasaResult[0].status === 'rejected' ? nasaResult[0].reason : null;
+        const nasaTransport = nasaEvents.transportMeta || null;
         const supplementalEvents = await fetchSupplementalEvents(filters);
 
         if (sourceMode === 'smart') {
@@ -160,7 +177,7 @@ export function createEonetDataSource({
                     state: nasaError ? 'error' : 'on',
                     message: nasaError
                         ? `Data source: public demo - NASA EONET failed; GDACS fallback needs proxy (${nasaError.message})`
-                        : `Data source: public demo - NASA EONET live (${nasaEvents.length} events); GDACS fallback needs proxy`
+                        : withTransport(`Data source: public demo - NASA EONET (${nasaEvents.length} events); GDACS fallback needs proxy`, nasaTransport)
                 });
                 if (!events.length && nasaError) throw nasaError;
                 return events;
@@ -177,7 +194,7 @@ export function createEonetDataSource({
                     state: fallback.events.length ? 'on' : nasaError ? 'error' : 'stale',
                     message: fallback.events.length
                         ? `Data source: smart fallback - GDACS active (${fallback.events.length} alerts)`
-                        : `Data source: smart fallback - ${nasaEvents.length ? 'using stale NASA EONET, GDACS unavailable' : readableError(nasaError || fallback.error, 'GDACS')}`
+                        : withTransport(`Data source: smart fallback - ${nasaEvents.length ? 'using stale NASA EONET, GDACS unavailable' : readableError(nasaError || fallback.error, 'GDACS')}`, nasaTransport)
                 });
                 if (!combined.length && nasaError) throw nasaError;
                 return combined;
@@ -188,10 +205,10 @@ export function createEonetDataSource({
         onSourceStateChange({
             mode: sourceMode,
             activeProvider: 'NASA EONET',
-            state: nasaError ? 'error' : 'on',
+            state: nasaError ? 'error' : nasaTransport?.freshness === 'stale' ? 'stale' : 'on',
             message: nasaError
                 ? `Data source: NASA EONET failed - ${nasaError.message}`
-                : `Data source: NASA EONET default - ${nasaEvents.length} NASA events`
+                : withTransport(`Data source: NASA EONET default - ${nasaEvents.length} NASA events`, nasaTransport)
         });
         if (!events.length && nasaError) throw nasaError;
         return events;

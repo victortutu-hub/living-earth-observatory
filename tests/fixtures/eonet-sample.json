@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "id": "EONET_00001",
+      "title": "Wildfire - Sample Ridge",
+      "categories": [{ "id": "wildfires", "title": "Wildfires" }],
+      "sources": [{ "id": "InciWeb", "url": "https://inciweb.example/00001" }],
+      "geometry": [
+        {
+          "date": "2026-07-20T00:00:00Z",
+          "type": "Point",
+          "coordinates": [-120.5, 38.2]
+        }
+      ]
+    },
+    {
+      "id": "EONET_00002",
+      "title": "Severe Storm - Sample Basin",
+      "categories": [{ "id": "severeStorms", "title": "Severe Storms" }],
+      "sources": [{ "id": "GDACS", "url": "https://gdacs.example/00002" }],
+      "geometry": [
+        {
+          "date": "2026-07-21T12:00:00Z",
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [38.2, -120.5],
+              [38.2, -119.5],
+              [39.0, -119.5],
+              [39.0, -120.5],
+              [38.2, -120.5]
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

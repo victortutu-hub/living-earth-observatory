@@ -1,0 +1,531 @@
+# Living Earth Observatory — Masterplan Executabil
+**Versiune:** 1.0 · **Data:** 25 iulie 2026 · **Owner:** Tutu (solo)
+**Hardware țintă:** Windows 11, GTX 1650 4GB VRAM
+**Filozofie:** Luminomorphism — lumina ca material, nu decorațiune. Fiecare element vizual justificat de date reale sau fizică reală.
+
+---
+
+## 0. CONTRACTUL ACESTUI DOCUMENT
+
+Acest roadmap este construit ca **sistem de gate-uri**, nu ca listă de dorințe.
+
+**Regula de aur:**
+> Nu ai voie să scrii o linie de cod dintr-o fază până când gate-ul fazei anterioare nu este **verde și public**.
+
+**De ce:** Ai un tipar documentat — construiești infrastructură profundă înainte să publici. Klein Vitae: 17 faze, ~170 fișiere, plan care supra-specifica probleme deja rezolvate. AutoDev Brain: M1–M21 înainte de lansare. Living Earth are deja runtime host, observatory contract, replay diagnostic — dar suprafața planetei rulează pe două PNG-uri de 2160×1080.
+
+**Antidotul din acest document:**
+1. Fiecare fază are o **durată maximă**. Depășirea = tăiere de scope, nu extindere de deadline.
+2. Fiecare gate cere un **artefact public** (deploy live), nu un document intern.
+3. Există un **Backlog Înghețat** (§7). Orice idee nouă care apare merge acolo, nu în faza curentă.
+4. Există **Reguli de Tăiere** (§8) — criterii pre-scrise pentru ce sacrifici când rămâi fără timp.
+
+**Test de sănătate săptămânal (o singură întrebare):**
+> Ce am publicat săptămâna asta pe care un străin îl poate deschide într-un browser?
+
+Dacă răspunsul e „nimic, dar am refactorizat X" — două săptămâni la rând — oprește tot și fă deploy cu ce ai.
+
+---
+
+## 1. METRICI DE SUCCES (măsurabile, nu impresii)
+
+Toate se măsoară pe GTX 1650, 1080p, Chrome, fereastră maximizată.
+
+| Metrică | Baseline (de măsurat) | Țintă Faza 0 | Țintă Faza 1 | Instrument |
+|---|---|---|---|---|
+| VRAM total | ? | ≤ 2.8 GB | ≤ 3.2 GB | `chrome://gpu` + Task Manager |
+| VRAM doar texturi | ? | ≤ 900 MB | ≤ 1.2 GB | Spector.js texture inspector |
+| FPS median (glob rotativ, toate straturile) | 59.9 | ≥ 50 | ≥ 45 | sampler rAF, 10 s |
+| FPS p1 (worst 1%) | 49.0 | ≥ 30 | ≥ 30 | idem |
+| Time to first frame | ? | ≤ 3.5 s | ≤ 2.5 s | Lighthouse / Performance |
+| Time to interactive (glob rotibil) | ? | ≤ 6 s | ≤ 4 s | manual + Performance |
+| Draw calls / frame | ? | ≤ 120 | ≤ 80 | Spector.js |
+| Payload inițial (network) | ? | ≤ 8 MB | ≤ 5 MB | DevTools Network |
+| Rezoluție efectivă suprafață la zoom max | ~2160px echiv. | ≥ 8192px echiv. | ≥ 16384px echiv. | vizual + tile level |
+
+> **IMPORTANT:** Coloana „Baseline" se completează în Sprint 0.1. Fără baseline, nu ai cum să știi dacă o optimizare a ajutat. Nu sări peste asta.
+
+---
+
+## 2. FAZA 0 — SHIP (27 iulie – 9 august 2026, 2 săptămâni)
+
+**Obiectiv unic:** Suprafața planetei să arate la nivelul chassis-ului pe care deja l-ai construit. Apoi publici.
+
+**Ce NU se face în Faza 0:** niciun observator nou, niciun refactor de arhitectură, niciun WebGPU, niciun layer nou de date.
+
+### Sprint 0.1 — Baseline & profilare (27–28 iulie, 2 zile)
+
+**Livrabil:** un fișier `docs/perf-baseline-2026-07.md` cu numere reale.
+
+**Task-uri:**
+
+- [ ] Instalează Spector.js (extensie Chrome). Capturează un frame complet.
+- [ ] Completează toate rândurile „Baseline" din tabelul §1.
+- [ ] Inventar texturi: listează fiecare textură încărcată, dimensiune pixeli, format, VRAM ocupat.
+  ```
+  VRAM per textură = width × height × bytes_per_pixel × (1.333 dacă are mipmaps)
+  RGBA8 = 4 bytes/px  →  2160×1080 RGBA8 + mips ≈ 12.4 MB
+  ```
+- [ ] Identifică top 5 consumatori de VRAM.
+- [ ] Măsoară costul bloom-ului: rulează o dată cu `UnrealBloomPass` dezactivat, notează delta FPS.
+- [ ] Screenshot „înainte" la 3 niveluri de zoom (glob întreg / continent / regiune) pentru comparație vizuală ulterioară.
+
+**Definition of Done:** Ai numere, nu impresii. Știi exact unde se duc cei 4GB.
+
+**Criteriu de decizie:** Dacă bloom-ul costă >8 FPS → prioritate ridicată pentru Sprint 0.4. Dacă texturile ocupă <400MB → KTX2 rămâne util pentru load time, dar scade în prioritate față de tile streaming.
+
+---
+
+### Sprint 0.2 — Pipeline KTX2 / Basis Universal (29–31 iulie, 3 zile)
+
+**Livrabil:** toate texturile statice servite ca `.ktx2`, cu fallback la PNG/JPG.
+
+**De ce:** KTX2+Basis rămâne comprimat în VRAM (transcodează la BC7/BC5 pe desktop). Reducere tipică 4–8×. O textură 2048×2048 RGBA ocupă 16MB în memorie indiferent cât de mic era PNG-ul — compresia GPU e singurul lucru care schimbă asta.
+
+**Task-uri:**
+- [ ] Instalează KTX-Software (`toktx` CLI). Verifică: `toktx --version`
+- [x] Creează script `tools/encode-textures.mjs` care rulează batch:
+  ```bash
+  # Albedo / color (ETC1S + Zstd — raport bun compresie/calitate)
+  toktx --t2 --encode etc1s --clevel 4 --qlevel 192 \
+        --genmipmap --zcmp 18 \
+        out/etopo2022-relief.ktx2 src/etopo2022-bedrock-relief-2160x1080.png
+
+  # Normal maps (UASTC — păstrează precizia direcțională)
+  toktx --t2 --encode uastc --uastc_quality 3 \
+        --normal_mode --genmipmap --zcmp 18 \
+        out/etopo2022-normal.ktx2 src/etopo2022-normal.png
+  ```
+  > **Atenție la normal maps:** ETC1S distruge normalele (artefacte de bandă vizibile pe relief). Folosește UASTC + `--normal_mode`. Costă mai mult VRAM decât ETC1S dar tot mult mai puțin decât necomprimat.
+- [x] Integrează `KTX2Loader` în Three.js:
+  ```js
+  import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+
+  const ktx2Loader = new KTX2Loader()
+    .setTranscoderPath('/vendor/basis/')   // basis_transcoder.js + .wasm
+    .detectSupport(renderer);              // OBLIGATORIU, după crearea renderer-ului
+  ```
+- [x] Copiază `basis_transcoder.js` + `basis_transcoder.wasm` din `three/examples/jsm/libs/basis/` în `vendor/basis/`.
+- [x] Implementează fallback: dacă `.ktx2` eșuează la fetch sau transcode, încarcă PNG-ul original. Loghează un avertisment clar în consolă; integrarea în observatory contract rămâne de făcut.
+- [x] Re-măsoară VRAM. Compară cu baseline. Rezultat 2026-07-26, captură comparabilă: textura totală `755 MiB → 168.1 MiB` (`-77.7%`); pragul DoD de `>=60%` este depășit.
+
+**Definition of Done:**
+- VRAM texturi scăzut cu ≥60% față de baseline.
+- Zero regresie vizuală perceptibilă la screenshot-urile din 0.1 (compară side-by-side).
+- Fallback testat (redenumește un `.ktx2` și verifică că se încarcă PNG-ul).
+
+**Capcane cunoscute:**
+- `detectSupport()` trebuie apelat DUPĂ ce ai renderer-ul, altfel transcodează la format greșit.
+- Serverul trebuie să servească `.wasm` cu `Content-Type: application/wasm`. GitHub Pages o face corect; un dev server local poate să nu.
+- `.ktx2` trebuie servit cu CORS corect dacă e pe alt domeniu.
+
+---
+
+### Sprint 0.3 — Streaming de tile-uri GIBS (1–4 august, 4 zile) ⭐ CEL MAI MARE IMPACT
+
+**Livrabil:** suprafața globului alimentată din NASA GIBS WMTS, cu LOD pe zoom.
+
+**De ce:** Ăsta e saltul de la 2160×1080 static la rezoluție de nivel satelit, time-enabled, fără cheie API, CORS-friendly. Nu construiești virtual texturing — folosești un serviciu care servește deja tile-uri pre-rendered.
+
+**Task-uri:**
+- [x] **Hardcodează** identificatorii de layer (NU fetch-ui GetCapabilities la runtime — e ~5.6MB). `src/earth/gibs-tiles.js` include catalogul; fluxul existent **Daily clouds** rămâne pe compozitul WMS global `VIIRS_SNPP_CorrectedReflectance_TrueColor`.
+  ```js
+  const GIBS_LAYERS = {
+    trueColor: {
+      id: 'MODIS_Terra_CorrectedReflectance_TrueColor',
+      matrixSet: '250m', ext: 'jpg', maxZoom: 8, temporal: true,
+    },
+    blueMarble: {
+      id: 'BlueMarble_ShadedRelief_Bathymetry',
+      matrixSet: '500m', ext: 'jpeg', maxZoom: 8, temporal: false,
+    },
+    nightLights: {
+      id: 'VIIRS_SNPP_DayNightBand_At_Sensor_Radiance',
+      matrixSet: '500m', ext: 'png', maxZoom: 8, temporal: true,
+    },
+  };
+  ```
+- [x] Implementează URL builder RESTful: hostul public canonic este `gibs.earthdata.nasa.gov`; există fallback WMS per tile pentru rețele/browser-e care refuză WMTS.
+  ```js
+  // Rotire pe gibs-a/b/c pentru a ocoli limita de 6 conexiuni/domeniu a browserului
+  const HOSTS = ['gibs-a', 'gibs-b', 'gibs-c'];
+
+  function tileURL(layer, date, z, y, x) {
+    const host = HOSTS[(x + y) % HOSTS.length];
+    const time = layer.temporal ? date : 'default';
+    return `https://${host}.earthdata.nasa.gov/wmts/epsg4326/best/` +
+           `${layer.id}/default/${time}/${layer.matrixSet}/${z}/${y}/${x}.${layer.ext}`;
+  }
+  ```
+  > **Atenție la ordinea parametrilor:** GIBS folosește `{z}/{y}/{x}` (rând înainte de coloană), nu `{z}/{x}/{y}`. Inversarea e cauza clasică de „tile-uri în locul greșit". Ai avut deja un bug `[lat,lon]` vs `[lon,lat]` în v2.4.2 — aceeași clasă de eroare.
+- [x] Matematica grilei pe lat/lon EPSG:4326 (2:1) este izolată și verificată în `gibs-tiles.js`:
+  ```
+  numCols(z) = 2 × 2^z
+  numRows(z) = 1 × 2^z
+  tileLonSpan(z) = 360 / numCols(z)
+  tileLatSpan(z) = 180 / numRows(z)
+  ```
+- [ ] Selecție LOD după distanța camerei + unghiul de vedere. Regulă simplă de start: alege z astfel încât un tile să acopere ~256 pixeli pe ecran. *(tăiat conform regulii de mai jos — trece în Faza 1.)*
+- [ ] Frustum culling pe tile-uri: nu cere tile-uri de pe partea opusă a globului. (Test rapid: `dot(tileNormal, cameraDir) > -0.1`) *(tăiat — trece în Faza 1.)*
+- [ ] Coadă de încărcare cu prioritate (tile-uri centrale înainte de cele periferice) + limită de cereri simultane. Primitiva e implementată și verificată în `gibs-tiles.js` (`GibsTileQueue`, `LruTileCache`), dar rămâne neconectată la randare — nu era necesară pentru varianta cu nivel fix de mai jos.
+- [x] **Experiment respins:** mozaicul WMTS VIIRS la `z=1` a produs discontinuități/swatch-uri vizibile în masca de nori. `Daily clouds` a revenit la WMS global, coerent vizual; concluzia a ghidat direct decizia de mai jos — nu relua stitching client-side de tile-uri pe un produs cu swath-uri (imagerie zilnică).
+- [ ] Cross-fade între nivelurile LOD (evită pop-ul brusc). *(irelevant fără LOD dinamic — trece în Faza 1 odată cu el.)*
+- [ ] Cache LRU în memorie, plafonat (ex. 400 tile-uri) pentru a nu exploda VRAM. *(neutilizat încă — vezi nota de mai sus.)*
+- [x] **Regulă de tăiere aplicată (6 august):** în loc de quadtree/LOD dinamic, suprafața de zi (`earthMat.map`, fostă textură CDN low-res threejs.org 2048×1024) e alimentată acum dintr-un **singur raster WMS NASA GIBS Blue Marble Shaded Relief and Bathymetry**, la cea mai mare rezoluție care răspunde dintr-o scară de fallback (`8192×4096 → 4096×2048 → 2048×1024`). Confirmat live: **8192×4096** răspunde direct, fără a fi nevoie de treptele mai mici. Blue Marble e non-temporal (compozit unic, nu swath-uri zilnice), deci nu are problema de seams întâlnită mai sus la VIIRS — un singur `WMS GetMap` mare e suficient, fără `composeGibsEquirectangularMosaic`. Implementare: `src/earth/gibs-surface.js` (nou) + swap async în `src/earth/earth-layers.js` pe `earthMat.map`/`earthMatPBR.map`, cu watchdog de 16s și fallback onest pe textura veche dacă rețeaua/CORS eșuează, plus rând nou de status `#surfaceStatus` în panou (același tipar ca Black Marble).
+
+**Definition of Done:**
+- [x] Zoom la nivel de regiune arată detaliu satelit real, nu texeli întinși — satisfăcut prin nivelul fix Blue Marble 8192×4096, nu prin LOD dinamic.
+- [x] Nu depășești bugetul VRAM (§1) — +~168 MB net față de textura CDN veche (~179 MB decodat vs. ~11 MB), total texturi ≈ 335–350 MB, sub plafonul de 2.8 GB. De remăsurat cu Spector la următorul checkpoint pentru un număr exact, nu doar estimare.
+- [ ] Nicio cerere de tile pentru fața invizibilă a globului — N/A pe calea aleasă (un singur raster global, nu tile-uri individuale).
+- [x] Atribuire NASA/GIBS vizibilă în UI — rândul `Surface: NASA GIBS / Blue Marble Shaded Relief and Bathymetry active (...)`.
+
+**Regulă de tăiere:** ~~Dacă la ziua 3 quadtree-ul nu e funcțional, taie LOD-ul dinamic și livrează **un singur nivel fix** de tile-uri (z=4 sau z=5) în loc de PNG-ul static.~~ **Aplicată pe 6 august**, dar cu un raster WMS unic în loc de tile-uri fixe asamblate — echivalent ca rezultat (salt masiv față de 2160×1080), mai simplu de implementat și fără risc de seams. LOD-ul dinamic real rămâne tăiat spre Faza 1, dacă se dovedește necesar după Gate 0.
+
+---
+
+### Sprint 0.4 — Lumină: night lights, tone mapping, bloom (5–6 august, 2 zile)
+
+**Livrabil:** partea de noapte a globului devine cinematică; pipeline HDR corect.
+
+**Task-uri:**
+- [x] **Night lights VIIRS Black Marble** prin GIBS: compozitul anual observat 2016 este încărcat asincron prin WMS (2048×1024) peste fallbackul local. Dacă rețeaua/CORS eșuează, fallbackul rămâne activ; atribuirea NASA GIBS / VIIRS Black Marble este vizibilă în UI. Răspuns NASA verificat: `200 image/png`.
+- [x] Blend cu terminatorul solar pe care deja îl calculezi: Black Marble folosește `sunDotRefracted = dot(N, L) + 0.0099` și o mască emisivă de noapte; tranziția a fost verificată vizual la 2026-07-26 cu ghidul de terminator. UI-ul confirmă explicit `Black Marble: NASA GIBS / VIIRS 2016 active — fades at solar terminator`; dacă încărcarea eșuează sau întârzie, declară fallbackul local după watchdog, fără stare ambiguă.
+  ```glsl
+  // Ai deja refracția: sunDot' = dot(N, L) + 0.0099  (≈ +0.567° la orizont)
+  float night = smoothstep(0.10, -0.15, sunDotRefracted);
+  vec3 lights  = texture(uNightLights, vUv).rgb;
+  // Emisiv, nu difuz — luminile nu sunt iluminate de soare
+  color += lights * night * uNightIntensity;
+  ```
+  > Justificare Luminomorphism: luminile de noapte sunt **radianță măsurată**, nu decorațiune. Etichetează stratul ca `observed` în observatory contract.
+- [x] **ACES Filmic tone mapping:** configurat în `scene-runtime.js`, cu `OutputPass` în composer (fără dublare în shadere).
+  ```js
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  ```
+  Verifică că `OutputPass` din composer respectă tone mapping-ul (în Three.js modern, `OutputPass` îl aplică — nu îl dubla în shadere custom).
+- [x] **Bloom la jumătate de rezoluție:** `UnrealBloomPass` rulează la 50% din viewport și rămâne la 50% după resize.
+  ```js
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(w * 0.5, h * 0.5),  // ← half-res
+    strength, radius, threshold
+  );
+  ```
+  Câștig tipic de FPS semnificativ pe 1650, diferență vizuală neglijabilă (bloom-ul e blur oricum).
+- [x] Re-măsoară FPS la viewport near-1080p maximizat. `LIVING_EARTH_PERF.snapshot()` cu DevTools nedockat, canvas `1909×1076`, fereastră `10.0115 s` / `595` frame-uri: `59.4` FPS mediu, `59.9` FPS median, `49.0` FPS p1 / 1% low, `16.83 ms` frame mediu și `20.4 ms` p99. Sunt depășite țintele §1. Trace-ul steady-state anterior (`9.853 s`) rămâne util pentru profilul CPU: scripting `5.630 s`, paint `81 ms`, render `32 ms`, fără long-frame-uri evidente.
+
+**Definition of Done:** Tranziția zi/noapte arată cinematic. FPS ≥ ținta §1.
+
+---
+
+### Sprint 0.5 — Rezistență & PUBLICARE (7–9 august, 3 zile)
+
+**Livrabil:** deploy public + Service Worker.
+
+**Task-uri:**
+- [x] **Service Worker** pentru cache (`sw.js`), ulterior **dezactivat (7 august)** — vezi nota de mai jos:
+  - `cache-first` pentru GIBS, cu revalidare LRU la citire.
+  - `stale-while-revalidate` pentru NASA EONET și USGS.
+  - `network-first` cu fallback pentru shell-ul aplicației.
+  - Plafon de `200 MB` pentru GIBS, cu evicție LRU.
+  - Cache-uri versionate: `lea-shell-v1`, `lea-live-v1`, `lea-tiles-v1`.
+- [x] **Service Worker dezactivat pe producție (7 august).** Pe `luminomorphism.ro` (nu localhost, unde nu apărea), `cacheFirstGibs` rejuca cererea imaginii cu `fetch(request)`, păstrând headerul `Cache-Control: max-age=0` pe care Chrome îl atașează la reload. Asta promova GET-ul CORS simplu al imaginii într-o cerere cu preflight, respinsă de NASA GIBS WMS (`cache-control` nu e în `Access-Control-Allow-Headers`) → suprafața Blue Marble rămânea „loading" și, pe unele browsere, o stare stale a servit un build parțial rupt (glob negru, layout HUD stricat). Prima încercare de fix (fetch curat fără header + bump `lea-tiles-v2`) n-a fost suficient de sigură, așa că SW-ul a fost **scos complet**: `earth-eonet-relief.html` acum **dezregistrează** orice worker existent și șterge cache-urile `lea-*` la load, apoi reîncarcă o dată curat (self-heal pentru orice client cu worker vechi „lipit"). Reintroducerea unui SW rămâne posibilă în Faza 1, dar cu request curat pentru cross-origin de la început. Aplicația funcționează identic fără SW (offline-ul pică, dar suprafața are fallback bundled).
+- [x] Test offline real: reîncărcare în Chrome DevTools `Offline` confirmată la 2026-07-26. Globul, KTX2 și NASA GIBS Black Marble au răspuns `200` prin Service Worker; `favicon.ico` necache-uit a răspuns `503`, fără impact asupra aplicației. UI confirmat explicit: `Data source: NASA EONET default - 123 NASA events — cached / stale`. **⚠️ Caduc din 7 august:** odată cu dezactivarea Service Worker-ului (vezi mai jos), offline-ul nu mai funcționează pe producție. De reactivat împreună cu un SW corectat în Faza 1.
+- [x] Verifică atribuirile: NASA/GIBS (Daily Clouds și VIIRS Black Marble), NASA EONET, USGS, NOAA SWPC și NOAA/ETOPO sunt vizibile în panoul `Data Sources` și consecvente cu README.
+- [ ] Actualizează README cu screenshot-urile noi. Documentația tehnică este actualizată (KTX2, Black Marble, Service Worker, offline/cache și Spector); capturile publicabile rămân de selectat și adăugat în repository. **Amânat deliberat (12 august)** — nu blochează continuarea.
+- [ ] **Deploy pe GitHub Pages.** **Decizie (12 august): nu se face deocamdată.** `luminomorphism.ro` rămâne singurul deploy public; oglinda pe Pages e opțională și trece în backlog.
+- [x] Scrie postarea de LinkedIn (stilul tău obișnuit: ce e real fizic, ce e măsurat, ce e interpretativ). — **Publicată.**
+
+---
+
+### 🚪 GATE 0 — condiție obligatorie de trecere
+
+**NU treci la Faza 1 până toate acestea nu sunt adevărate:**
+
+- [x] Site-ul e **live public** și un străin îl poate deschide — luminomorphism.ro (cPanel), nu GitHub Pages cum prevedea inițial acest document; de decis dacă rămâne așa sau se adaugă și o oglindă pe Pages.
+- [x] VRAM ≤ 2.8 GB pe GTX 1650 — 168 MB texturi relief/normal (KTX2) + ~179 MB suprafață Blue Marble 8192×4096 nou adăugată; total estimat ≈ 335–350 MB, cu marjă mare. De confirmat cu Spector la următoarea sesiune de măsurare.
+- [x] FPS median ≥ 50 la 1080p cu toate straturile active — 59.9 median / 49.0 p1 (Sprint 0.4, 2026-07-26); de remăsurat după adăugarea suprafeței Blue Marble, deși e doar o textură în plus, nu geometrie nouă.
+- [x] Suprafața la zoom regional arată detaliu satelit, nu blur — rezolvat 6 august prin suprafață NASA GIBS Blue Marble 8192×4096 (vezi Sprint 0.3 mai sus), nu prin LOD dinamic.
+- [x] Postarea publică e făcută (LinkedIn sau echivalent).
+- [x] `docs/perf-baseline-2026-07.md` conține numere înainte/după.
+
+**Gate 0 — decizie (12 august):** singurele două puncte rămase roșii (README screenshots, oglindă GitHub Pages) sunt amânate deliberat, nu uitate. Cu asta, Gate 0 e considerat **suficient de verde pentru a trece la Faza 1** — toate criteriile de fond (performanță, VRAM, calitate vizuală, deploy public, postare, baseline) sunt bifate.
+
+**Dacă gate-ul e roșu:** nu adaugi funcționalități. Repari ce e roșu. Punct.
+
+---
+
+## 3. FAZA 1 — CONSOLIDARE (10 august – 6 septembrie, 4 săptămâni)
+
+**Obiectiv:** transformă proiectul din „demo impresionant" în „platformă pe care poți construi fără durere".
+
+**Precondiție:** Gate 0 verde.
+
+### Sprint 1.1 — Registry de layer plugins (5 zile)
+
+**Problema:** fiecare sursă e cablată manual în `live-data-layers.js`. Adăugarea uneia noi atinge mai multe fișiere.
+
+**Soluția — interfață unică:**
+```ts
+interface LayerPlugin {
+  id: string;
+  label: string;
+  provenance: 'observed' | 'physical' | 'interpretive' | 'fallback';
+  source: { url: string; cors: boolean; requiresProxy: boolean; apiKey?: string };
+  cadence: number;              // ms între refresh-uri
+  fetch(signal: AbortSignal): Promise<RawPayload>;
+  normalize(raw: RawPayload): NormalizedEvents | TextureSource;
+  render: 'markers' | 'points' | 'texture' | 'vector';
+  attribution: string;          // obligatoriu, non-null
+  license: string;
+}
+```
+- [x] Definește interfața + registry (`register(plugin)`).
+- [x] Leagă `provenance`, attribution și license de observatory contract-ul existent, fără duplicare.
+- [x] **Test:** Smithsonian GVP este adăugat printr-un singur fișier nou + o linie de înregistrare.
+- [x] **Decizie:** USGS, EONET, FIRMS, GDACS, NOAA SWPC și CelesTrak nu sunt migrate în registry; sunt provideri de evenimente și rămân în contractul unificat `feed-adapter` / `data-broker`.
+
+### Sprint 1.1 — ÎNCHIS: registry pentru layere, nu pentru provideri de evenimente (10 august)
+
+**Decizie de arhitectură:** registry-ul `LayerPlugin` este pentru layere vizuale independente, cu ciclu propriu de randare și atribuire (de exemplu GVP și Aurora). Providerii de evenimente — EONET, USGS, FIRMS, GDACS și CelesTrak — rămân intenționat în abstracția unificată `feed-adapter` / `data-broker`. Mutarea lor în registry ar dubla contractele de fetch, cache, status și normalizare și ar fi un regres.
+
+- [x] Interfață + registry implementate în `src/earth/layer-plugin-registry.js` (`register(plugin)`).
+- [x] `provenance`, attribution și license sunt declarate de plugin și afișate în UI.
+- [x] Contractul „un fișier + o înregistrare” este validat cu `src/earth/layers/gvp-volcanoes.js`; Aurora este al doilea exemplu de layer self-managed.
+- [x] Providerii de evenimente sunt excluși explicit din registry și rămân în `src/core/feed-adapter.js` / `src/core/data-broker.js`.
+
+### Sprint 1.2 — Teste automate (3 zile) — ÎNCHIS (12 august)
+
+**Prioritate #1: transformările de coordonate.** Bug-ul `[lat,lon]` vs `[lon,lat]` din v2.4.2 e o clasă de eroare care revine garantat.
+
+- [x] Vitest + fixtures GeoJSON reale (`tests/fixtures/{eonet-sample.json,usgs-sample.geojson,gvp-volcanoes.geojson}`). `tools/verify-earth-contracts.mjs` a fost retras — logica lui a fost migrată integral în suita Vitest, ca să nu existe două seturi de assert-uri paralele.
+- [x] Teste unitare: `lonLatToVec3` / `vec3ToLonLat` (`tests/geo.test.js`), round-trip la poli și antimeridian (±180°), plus respingerea vectorului zero.
+- [x] Teste tile math: `tileGridDimensions` / `tileLatLonBounds` la z=0 și z=2 (`tests/gibs-tiles.test.js`), plus contractul URL WMTS/WMS și `LruTileCache`/`GibsTileQueue`.
+- [x] Smoke test per adapter: fixture → `normalize()` → shape validat, pentru EONET (`tests/event-utils.test.js` — acoperă explicit swap-ul `[lat,lon]`→`[lon,lat]` pe inelele Polygon), USGS (`tests/usgs-earthquakes.test.js`, cu `featureToEvent` extras ca funcție pură testabilă din `src/earth/usgs-earthquakes.js`) și GVP (`tests/gvp-volcanoes.test.js`).
+- [x] CI pe GitHub Actions — `.github/workflows/ci.yml`, rulează `npm ci && npm test` la push/PR pe `main`.
+
+**Bonus găsit în timpul scrierii testelor:** `featureToEvent` (USGS) trata o magnitudine lipsă (`props.mag == null`) ca `Number(null) → 0`, adică un cutremur M0 valid în loc de a fi respins. Nu se manifesta în producție (default `minMagnitude = 2.5` îl filtra oricum), dar era o gaură reală de validare — reparată direct.
+
+**Notă de fundație (P1 din roadmap-ul de platformă v4):** acesta e primul `package.json` din repo. S-a adăugat doar `vitest` ca dev-dependency, fără build tool (Vite) — acela rămâne un pas separat, neasumat aici.
+
+### Sprint 1.3 — Performanță markere (4 zile)
+
+- [ ] `InstancedMesh` pentru markerele EONET, cu atribute per-instanță (culoare, scală).
+- [ ] GPU picking: render pass separat cu ID-uri codificate în culoare, citire cu `readRenderTargetPixels` la 1×1 px sub cursor. Mult mai robust decât raycasting pe mii de puncte.
+- [ ] Clustering la depărtare (evenimente apropiate → un marker agregat cu contor).
+- [ ] Re-măsoară draw calls. Țintă ≤ 80.
+
+### Sprint 1.4 — Timeline scrubbing global (5 zile) ⭐ diferențiator
+
+**De ce e valoros:** GIBS e time-enabled. Ai deja infrastructura de reel timeline. Combinația = poți trage de un slider și vezi norii, aerosolii, incendiile din orice zi din ultimii ~25 de ani.
+
+- [ ] Slider global de timp (UTC), cu preset-uri (azi / -7z / -30z / -1an).
+- [ ] Propagare a datei către toate plugin-urile temporale (parametrul `{Time}` din URL-ul GIBS).
+- [ ] Prefetch al zilelor adiacente pentru scrubbing fluid.
+- [ ] Indicator onest de disponibilitate: dacă o sursă n-are date pentru data cerută → etichetă `unavailable`, nu interpolare tăcută.
+- [ ] Debounce pe scrub (nu cere tile-uri pentru fiecare pixel de mișcare).
+
+### Sprint 1.5 — Suprafață sezonieră & ocean (5 zile)
+
+- [ ] Blue Marble seasonal albedo (12 luni) cu interpolare între luni după data reală din timeline.
+- [ ] Mască de zăpadă/gheață: GIBS `MODIS_Terra_Snow_Cover` sau `IMS_Snow_Ice` (zilnic).
+- [ ] Batimetrie: rampă hipsometrică pe adâncime + shading pe pantă din normal map.
+- [ ] Sun glint pe ocean (specular pe direcția solară, modulat de rugozitate). Ai deja Fresnel Schlick cu F₀≈0.02 — construiește peste el.
+
+### 🚪 GATE 1
+
+- [ ] Adăugarea unei surse noi = 1 fișier + 1 linie, verificat cu un exemplu real.
+- [ ] Suita de teste verde în CI.
+- [ ] Timeline scrubbing funcțional pe ≥3 straturi temporale.
+- [ ] Draw calls ≤ 80, FPS ≥ 45.
+- [ ] **Deploy public actualizat.**
+
+---
+
+## 4. FAZA 2 — LIVING (7 septembrie – 1 noiembrie, 8 săptămâni)
+
+**Obiectiv:** planeta devine dinamică — mișcare derivată din date, nu din animație decorativă.
+
+**Precondiție:** Gate 1 verde. Dacă Faza 1 a depășit termenul, Faza 2 se taie la jumătate.
+
+**Aici — și abia aici — WebGPU are justificare reală.** Nu ca scop în sine, ci pentru că simulările de câmp vectorial (vânt, curenți) sunt exact ce fac compute shaders bine.
+
+### Sprint 2.1 — Ramura WebGPU/TSL (7 zile)
+
+- [ ] Branch separat `webgpu-tsl`. **Nu strica `main`.**
+- [ ] Migrare de bază: `WebGLRenderer` → `WebGPURenderer` din `three/webgpu`. TSL compilează același graf de noduri către GLSL (WebGL2) și WGSL (WebGPU) dintr-o singură sursă.
+- [ ] **Fallback automat obligatoriu la WebGL2** — nu toți utilizatorii au WebGPU activ.
+- [ ] Portează shaderele custom (atmosferă, ocean, terminator) la TSL, pe rând. Nu toate deodată.
+- [ ] Benchmark comparativ WebGL2 vs WebGPU pe același scenariu. **Dacă diferența e <10%, oprește migrarea aici** și păstrează WebGPU doar pentru compute (2.2/2.3).
+
+### Sprint 2.2 — Particule de vânt (10 zile) ⭐ cel mai spectaculos
+
+Tehnica canonică (Cameron Beccario / earth.nullschool.net, baza pentru Windy, Ventusky, Wind-JS):
+
+- [ ] Sursă de date: Open-Meteo (CORS nativ, fără cheie, ~10k req/zi non-comercial) — câmpuri u/v la 10m sau la nivel de presiune.
+- [ ] Encodează câmpul vectorial într-o textură (u în R, v în G, normalizate cu min/max cunoscute).
+- [ ] Ping-pong pe texturi de poziții:
+  ```
+  pas 1: citește poziția_t → sample vânt la (lat,lon) → integrare Euler/RK2 → scrie poziția_t+1
+  pas 2: reset stochastic (particulele „mor" cu probabilitate mică → respawn aleatoriu)
+          — previne aglomerarea în zonele de convergență
+  pas 3: render ca linii/puncte cu trail (fade prin blend aditiv pe un buffer persistent)
+  ```
+- [ ] Pe WebGL2: FBO ping-pong sau transform feedback. Pe WebGPU: compute shader (mai curat).
+- [ ] Proiecție corectă pe sferă — vectorii u/v sunt în spațiu geografic local, trebuie transformați în tangent space pe sferă. **Atenție la poli** (singularitate).
+- [ ] Buget: începe cu 65k particule, urcă doar dacă FPS permite.
+
+### Sprint 2.3 — Curenți oceanici (7 zile)
+
+- [ ] Același pipeline de advecție, sursă Copernicus Marine (necesită cont gratuit + proxy, pentru că cheia e secretă).
+- [ ] Mască de uscat din land cover — particulele nu trebuie să traverseze continente.
+- [ ] Paletă distinctă de vânt (temperatura curentului, dacă ai SST).
+
+### Sprint 2.4 — Detaliu de suprafață la zoom mare (6 zile)
+
+- [ ] Parallax occlusion mapping pe relief, activat doar sub un prag de distanță.
+- [ ] Detail noise blending modulat de land cover (ESA WorldCover, 10m, 11 clase, CC BY 4.0) — sparge aspectul de texel întins când GIBS rămâne fără rezoluție.
+- [ ] **Etichetează noise-ul ca `interpretive` în observatory contract.** E singurul mod în care e compatibil cu filozofia ta — nu pretinzi că e observat.
+
+### 🚪 GATE 2
+
+- [ ] Particulele de vânt rulează la ≥45 FPS pe GTX 1650.
+- [ ] Fallback WebGL2 funcțional (testat cu WebGPU dezactivat din flags).
+- [ ] Zero regresie de VRAM (≤ 3.2 GB).
+- [ ] **Deploy public actualizat + reel video.**
+
+---
+
+## 5. FAZA 3 — CINEMATIC (opțional, doar dacă Gate 2 e verde și mai vrei)
+
+Aici e teritoriu de R&D pur. **Nimic din faza asta nu e necesar pentru un proiect excelent.** Tratează-o ca pe recompensă, nu ca pe obligație.
+
+| Item | Efort | Note |
+|---|---|---|
+| Cer Hosek-Wilkie | mediu | Superior lui Preetham pentru turbiditate variabilă. Există implementări GLSL de referință. |
+| Aerosoli Sentinel-5P modulând Mie | mediu | AER_AI via GIBS WMTS (fără cheie). Densitatea Mie devine dependentă de date reale — foarte aliniat cu filozofia. |
+| Nori volumetrici | mare | Raymarching scump pe 4GB. **Alternativă ieftină:** 2 straturi 2D la altitudini diferite cu parallax + self-shadowing fake. Fă alternativa întâi. |
+| Export determinist / perfect loop | mediu | Seed fix pentru orice noise + cameră pe buclă închisă + timestep fix (nu delta real). Ai deja muxer MP4 propriu de la Möbius — refolosește-l. |
+| Split-screen compare | mediu | Night lights 2012 vs 2024, forest loss. Împrumută UX de la Global Forest Watch / zoom.earth. |
+| BRDF vegetație cu hotspot | mediu | Backscatter modulat de WorldCover. |
+
+---
+
+## 6. SURSE DE DATE — ORDINE DE INTEGRARE
+
+Ordonate după raportul valoare/fricțiune. **Integrează de sus în jos.** Tot ce e „direct" nu-ți atinge proxy-ul deloc.
+
+| # | Sursă | Acces | Cheie | Fază |
+|---|---|---|---|---|
+| 1 | NASA GIBS (imagery, night, snow, aerosoli) | direct ✅ | nu | 0 |
+| 2 | USGS Earthquakes | direct ✅ | nu | ✔ ai |
+| 3 | NASA EONET | direct ✅ | nu | ✔ ai |
+| 4 | NOAA SWPC (aurora, space weather) | direct ✅ | nu | ✔ ai |
+| 5 | CelesTrak (TLE) | direct ✅ | nu | ✔ ai |
+| 6 | Smithsonian GVP (vulcani) | direct ✅ | nu | 1 |
+| 7 | Open-Meteo (vânt, forecast) | direct ✅ | nu | 2 |
+| 8 | GBIF (biodiversitate, tile-uri) | direct ✅ | nu | 1 |
+| 9 | IRIS/EarthScope (seismic) | direct ✅ | nu | 1 |
+| 10 | GEBCO batimetrie (WMS) | direct ✅ | nu | 1 |
+| 11 | ESA WorldCover (WMS Terrascope) | direct ✅ | nu | 2 |
+| 12 | Global Forest Watch (tiles) | direct ✅ | nu | 3 |
+| 13 | Natural Earth (vectori) | static ✅ | nu | oricând |
+| 14 | FIRMS (incendii) | proxy ⚠️ | da | ✔ ai |
+| 15 | GDACS | proxy ⚠️ | nu | ✔ ai |
+| 16 | OpenAQ (calitate aer) | proxy ⚠️ | da | 1 |
+| 17 | Copernicus Marine (curenți) | proxy ⚠️ | da | 2 |
+| 18 | AISStream.io (naval) | proxy ⚠️ | da | 3 |
+| 19 | OpenSky (aerian) | proxy ⚠️ | OAuth | 3 |
+| 20 | Copernicus CDS ERA5 | server-only ⚠️ | da | 3 |
+
+**Notă proxy — GDACS & FIRMS pe producție (reparat 7 august):** ambele surse cu `proxy ⚠️` treceau prin proxy-ul Node (`nasa-proxy-server.js`), dar în producție erau rupte din două cauze suprapuse. (1) Un deploy anterior de HTML scosese accidental `window.NASA_PROXY_BASE`, deci runtime-ul public (`isStaticPublicRuntime`) marca sursele „proxy-disabled" și golea lista — fără să încerce măcar proxy-ul. (2) Subdomeniul `proxy.luminomorphism.ro` întorcea 404 de la host: DocumentRoot-ul lui e `/home/luminomorphism/nasa-proxy` cu un `.htaccess` **gol**, iar configul Passenger real (cu `PassengerBaseURI "/nasaproxy"`) stă orfan în `public_html/nasaproxy/.htaccess`. Adică aplicația Node rulează și răspunde de fapt la **`https://luminomorphism.ro/nasaproxy/nasa-proxy?source=...`**, nu pe subdomeniu. Fix aplicat: `NASA_PROXY_BASE = 'https://luminomorphism.ro/nasaproxy'` (same-origin cu site-ul → zero CORS). Verificat live: GDACS `proxyStatus:"live"` ~99 alerte, FIRMS `proxyStatus:"live"` ~1112 focare (cheia `FIRMS_MAP_KEY` e setată corect server-side). Subdomeniul `proxy.luminomorphism.ro` rămâne rupt dar nefolosit; reparat opțional în Faza 1 mutând configul Passenger în docroot-ul lui.
+
+**Reguli de licențiere (non-negociabile, și oricum aliniate cu etica ta):**
+- NASA/GIBS: atribuire obligatorie.
+- Copernicus DEM: notice specific la distribuire (© DLR e.V. 2010–2014 și © Airbus Defence and Space GmbH 2014–2018).
+- Hansen/GFW: citare Hansen et al. 2013, *Science* 342:850–853.
+- ESA WorldCover: CC BY 4.0.
+- Open-Meteo: CC BY 4.0.
+- OpenStreetMap: ODbL + tile usage policy strict (nu abuza de tile.openstreetmap.org).
+
+---
+
+## 7. BACKLOG ÎNGHEȚAT ❄️
+
+**Orice idee nouă merge aici, nu în faza curentă.** Revizuiești lista doar la gate-uri.
+
+- Virtual texturing / sparse virtual textures propriu → **NU.** Complexitate notorie; determinarea tile-urilor vizibile pe sferă 3D e problema grea nerezolvată în multe încercări. Tile streaming XYZ îți dă ~90% din beneficiu.
+- Clipmaps sferice (Clasen & Hege) → doar dacă vrei teren displaced la scară de metri. Probabil out of scope.
+- Un al treilea observator / integrare cross-observatory → după Gate 2.
+- Migrare completă la WebGPU pe `main` → doar dacă benchmark-ul din 2.1 arată >10% câștig.
+- Refactor al entry point-ului HTML monolit → Faza 1 dacă devine dureros, altfel îngheață.
+- Terrain displacement real (vertex) → Faza 3+.
+- Editor de tur / storytelling avansat → după Gate 2.
+- Suport multi-limbă UI → după ce ai utilizatori.
+
+---
+
+## 8. REGULI DE TĂIERE (pre-scrise, ca să nu negociezi cu tine sub presiune)
+
+Când o fază depășește durata alocată, tai în ordinea asta:
+
+1. **Taie polish-ul vizual** înainte de funcționalitate (cross-fade LOD, easing camera).
+2. **Taie generalitatea** înainte de a tăia livrarea (hardcodează în loc să abstractizezi).
+3. **Taie LOD dinamic** → un nivel fix de tile-uri e tot un salt uriaș.
+4. **Taie sursele de date opționale** (GVP, GBIF, OpenAQ) — nu sunt critice.
+5. **NU tăia niciodată:** atribuirile, fallback-ul onest, etichetele de provenance. Alea sunt identitatea proiectului.
+
+---
+
+## 9. REGISTRU DE RISCURI
+
+| Risc | Probabilitate | Impact | Mitigare |
+|---|---|---|---|
+| Scope creep (tiparul documentat) | **mare** | **mare** | Gate-uri + Backlog Înghețat + testul săptămânal |
+| Bug de ordine coordonate (z/y/x, lat/lon) | mare | mediu | Teste unitare Sprint 1.2 — dar scrie-le devreme dacă apare în 0.3 |
+| VRAM depășit pe 1650 | mediu | mare | Monitorizare la fiecare sprint; plafon LRU pe cache tile-uri |
+| GIBS schimbă identificatori de layer | mic | mediu | Fallback la textura statică; verifică GetCapabilities trimestrial |
+| Rate limit / CORS se schimbă la o sursă | mediu | mic | Ai deja fallback resilience; extinde-l per plugin |
+| WebGPU nu aduce câștig real | mediu | mic | Benchmark-gate în 2.1 — oprești migrarea, nu continui din inerție |
+| Normal maps degradate de ETC1S | mare | mediu | UASTC + `--normal_mode` (specificat în 0.2) |
+| Burnout pe proiect solo | mediu | mare | Faza 3 e explicit opțională; publicarea la fiecare gate dă feedback |
+
+---
+
+## 10. RITUAL SĂPTĂMÂNAL (15 minute, vineri)
+
+1. Ce am publicat săptămâna asta pe care un străin îl poate deschide?
+2. Metricile din §1 — mai bune sau mai rele decât săptămâna trecută?
+3. Ce idee nouă am avut? → **scrie-o în Backlog Înghețat și continuă.**
+4. Sunt în grafic pentru gate-ul curent? Dacă nu → aplică Regulile de Tăiere (§8), nu extinde deadline-ul.
+
+---
+
+## 11. CALENDAR SINTETIC
+
+```
+IUL 27 ─── AUG 9    FAZA 0: SHIP                    ⭐ 2 săpt → GATE 0 (deploy public)
+AUG 10 ─── SEP 6    FAZA 1: CONSOLIDARE                4 săpt → GATE 1 (deploy public)
+SEP 7  ─── NOV 1    FAZA 2: LIVING                     8 săpt → GATE 2 (deploy + reel)
+NOV 2  ─── ?        FAZA 3: CINEMATIC             opțional, fără deadline
+```
+
+**Efort total până la un produs excelent și complet: ~14 săptămâni.**
+**Efort până la ceva public și semnificativ mai bun decât acum: 2 săptămâni.**
+
+---
+
+## 12. CE SĂ FACI ÎN URMĂTOARELE 48 DE ORE
+
+Nu tot documentul. Doar atât:
+
+1. Instalează Spector.js.
+2. Completează coloana „Baseline" din tabelul §1.
+3. Fă screenshot-urile „înainte" la 3 niveluri de zoom.
+4. Instalează KTX-Software și verifică `toktx --version`.
+
+Atât. Restul urmează.
+
+---
+
+*Document viu. Actualizează-l la fiecare gate cu ce ai învățat — dar nu îl extinde cu faze noi. Dacă acest document crește peste 17 secțiuni, ai reintrat în tiparul pe care încearcă să-l prevină.*

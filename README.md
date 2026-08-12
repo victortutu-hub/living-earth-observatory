@@ -83,7 +83,9 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Uses GDACS as an intelligent fallback or temporary primary data source.
 - Integrates USGS earthquakes into the shared `Earthquakes` category.
 - Adds NASA FIRMS wildfire hotspots through the local proxy.
-- Supports NASA GIBS daily cloud snapshots.
+- Supports NASA GIBS daily cloud snapshots and observed VIIRS Black Marble annual night lights (2016), with local fallbacks.
+- Uses KTX2/Basis for the ETOPO relief and normal maps by default; append `?noktx2` only to exercise the PNG fallback.
+- Keeps a versioned Service Worker cache for the app shell, GIBS imagery, and live EONET/USGS data.
 - Renders NOAA SWPC OVATION aurora as a restrained polar oval.
 - Synchronizes day/night lighting with the real solar position.
 - Provides `dot` and `physical` atmosphere modes.
@@ -109,7 +111,7 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - NASA EONET: near-real-time natural event metadata.
 - GDACS: EU JRC / UN OCHA global disaster alerts, used as fallback or GDACS-only mode.
 - NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional through the local proxy and `FIRMS_MAP_KEY`.
-- NASA GIBS: daily cloud snapshot, not minute-by-minute live clouds.
+- NASA GIBS: daily cloud snapshot (not minute-by-minute live clouds) and VIIRS Black Marble annual night lights (2016).
 - USGS: earthquake feed, normalized into local `earthquakes` events.
 - NOAA SWPC OVATION: aurora forecast, used to drive polar oval intensity.
 - NOAA/ETOPO-derived relief assets: local relief and normal-map textures.
@@ -129,6 +131,29 @@ assets/etopo2022-bedrock-relief-2160x1080.png
 assets/etopo2022-bedrock-normal-2160x1080.png
 ```
 
+## Offline And Cache Behaviour
+
+The observatory registers `sw.js` when served over HTTP(S). It does not alter
+`file://` previews.
+
+- GIBS imagery uses `cache-first` with a 200 MB LRU cache.
+- EONET and USGS use `stale-while-revalidate`.
+- The local application shell uses `network-first` with cache fallback.
+- The EONET source status is explicit: `live / fresh`, `cached / fresh`, or
+  `cached / stale`.
+
+The offline path was manually verified in Chrome DevTools: the shell, KTX2
+textures, and NASA GIBS Black Marble reload while Network is set to Offline.
+
+## Performance Snapshot
+
+At a `1909 x 868` canvas backing resolution on the validation browser, the
+KTX2 relief/normal upgrade reduced Spector's reported Texture2D allocation
+from 755 MiB to 168.1 MiB. The later half-resolution bloom and Black Marble
+capture reported 191.3 MiB total tracked allocation. A later near-1080p
+10-second requestAnimationFrame sample measured 59.9 median FPS and 49.0 FPS
+1% low. These are browser frame-cadence measurements, not hardware GPU timers.
+
 ## Main Modules
 
 ### Bootstrap And Runtime
@@ -139,11 +164,12 @@ assets/etopo2022-bedrock-normal-2160x1080.png
 - `src/earth/app-runtime.js` starts lifecycle hooks, UI wiring, the animation loop, and demo reel runtime.
 - `src/earth/app-state.js` defines the initial state and default preset.
 - `src/earth/scene-runtime.js` uses `EffectComposer` with `UnrealBloomPass`, `SMAAPass`, and `OutputPass`.
+- `sw.js` applies the versioned shell, GIBS, and live-data cache policies.
 
 ### Planet, Light, And Atmosphere
 
 - `src/earth/app-visual-foundation.js` composes the visual foundation: geo utilities, event utilities, solar runtime, Earth layers, stars, and clouds.
-- `src/earth/earth-layers.js` creates the Earth, night lights, and atmosphere meshes.
+- `src/earth/earth-layers.js` creates the Earth, NASA GIBS Black Marble night lights with fallback, and atmosphere meshes.
 - `src/earth/earth-material.js`, `earth-look.js`, and `earth-appearance.js` control materials and look presets.
 - `src/earth/atmosphere.js` contains the `dot` and `physical` atmosphere modes.
 - `src/earth/solar-runtime.js` and `solar-system.js` compute solar position and solar clock values.

@@ -62,6 +62,11 @@ export function createControlPanel({ state }) {
         if (select) select.value = state.reelMood;
     }
 
+    function updateReelAspectUi() {
+        const btn = byId('reelAspectBtn');
+        if (btn) btn.textContent = `Reel format: ${state.reelAspect}`;
+    }
+
     function updateMotionPresetUi() {
         const select = byId('motionPreset');
         if (select) select.value = state.motionPreset;
@@ -82,6 +87,11 @@ export function createControlPanel({ state }) {
     function updateDataRhythmUi() {
         const button = byId('dataRhythmBtn');
         if (button) button.textContent = `Data rhythm: ${state.dataRhythm ? 'on' : 'off'}`;
+    }
+
+    function updateTerminatorGuideUi() {
+        const button = byId('terminatorGuideBtn');
+        if (button) button.textContent = `Terminator guide: ${state.terminatorGuide ? 'on' : 'off'}`;
     }
 
     function updateEonetRefreshStatus({ enabled = false, running = false, lastRefresh = null, lastError = null, nextRefresh = null } = {}) {
@@ -111,6 +121,20 @@ export function createControlPanel({ state }) {
         status.textContent = message;
     }
 
+    function updateNightLightsStatus({ state: statusState = 'loading', message = 'Black Marble: loading NASA GIBS / VIIRS 2016' } = {}) {
+        const status = byId('nightLightsStatus');
+        if (!status) return;
+        status.dataset.state = statusState;
+        status.textContent = message;
+    }
+
+    function updateSurfaceStatus({ state: statusState = 'loading', message = 'Surface: loading NASA GIBS / Blue Marble Shaded Relief and Bathymetry' } = {}) {
+        const status = byId('surfaceStatus');
+        if (!status) return;
+        status.dataset.state = statusState;
+        status.textContent = message;
+    }
+
     function updateSeismicLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'USGS quakes: 24h layer off' } = {}) {
         const button = byId('seismicLayerBtn');
         const status = byId('liveLayerStatus');
@@ -124,15 +148,6 @@ export function createControlPanel({ state }) {
         const button = byId('firmsLayerBtn');
         const status = byId('firmsLayerStatus');
         if (button) button.textContent = `NASA FIRMS fires: ${enabled ? 'on' : 'off'}`;
-        if (!status) return;
-        status.dataset.state = loading ? 'refreshing' : statusState;
-        status.textContent = message;
-    }
-
-    function updateAuroraLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Aurora: NOAA OVATION off' } = {}) {
-        const button = byId('auroraLayerBtn');
-        const status = byId('auroraLayerStatus');
-        if (button) button.textContent = `Aurora: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
         status.dataset.state = loading ? 'refreshing' : statusState;
         status.textContent = message;
@@ -208,12 +223,12 @@ export function createControlPanel({ state }) {
         exportReelVideoH264,
         applyShowcaseReelPreset,
         startDemoReel,
+        startAutoCaptureH264,
         exportStillPng,
         toggleEonetAutoRefresh,
         updateDataSourceMode,
         toggleSeismicLayer,
         toggleFirmsLayer,
-        toggleAuroraLayer,
         toggleIssLayer,
         trackIss,
         toggleAirglowLayer,
@@ -227,7 +242,8 @@ export function createControlPanel({ state }) {
         applySocialPreset,
         setSocialPresetCustom,
         updateCaptionSettings,
-        updateDataRhythm
+        updateDataRhythm,
+        toggleTerminatorGuide
     }) {
         disposed = false;
         byId('refreshBtn').addEventListener('click', () => loadEvents({ forceRefresh: true }));
@@ -244,6 +260,7 @@ export function createControlPanel({ state }) {
         byId('nightBtn').addEventListener('click', () => {
             applyNightLook(!state.night);
         });
+        byId('terminatorGuideBtn')?.addEventListener('click', () => toggleTerminatorGuide?.());
         byId('realCloudBtn').addEventListener('click', async () => {
             if (state.realClouds) disableRealClouds();
             else await enableRealClouds();
@@ -253,9 +270,6 @@ export function createControlPanel({ state }) {
         });
         byId('firmsLayerBtn')?.addEventListener('click', async () => {
             await toggleFirmsLayer?.();
-        });
-        byId('auroraLayerBtn')?.addEventListener('click', async () => {
-            await toggleAuroraLayer?.();
         });
         byId('issLayerBtn')?.addEventListener('click', async () => {
             await toggleIssLayer?.();
@@ -365,6 +379,11 @@ export function createControlPanel({ state }) {
             state.snapDuration = Number(event.target.value);
             updateSpinUi();
         });
+        byId('reelAspectBtn')?.addEventListener('click', () => {
+            state.reelAspect = state.reelAspect === '16:9' ? '9:16' : '16:9';
+            updateReelAspectUi();
+        });
+        updateReelAspectUi();
         byId('exportReelBtn').addEventListener('click', exportReelPng);
         byId('exportReelVideoBtn').addEventListener('click', async () => {
             await exportReelVideo();
@@ -377,6 +396,9 @@ export function createControlPanel({ state }) {
         });
         byId('demoReelBtn').addEventListener('click', () => {
             startDemoReel();
+        });
+        byId('autoCaptureBtn')?.addEventListener('click', () => {
+            startAutoCaptureH264?.();
         });
         byId('exportPngBtn').addEventListener('click', exportStillPng);
 
@@ -420,11 +442,13 @@ export function createControlPanel({ state }) {
         updateSocialPresetUi,
         updateCaptionUi,
         updateDataRhythmUi,
+        updateTerminatorGuideUi,
         updateEonetRefreshStatus,
         updateDataSourceStatus,
+        updateNightLightsStatus,
+        updateSurfaceStatus,
         updateSeismicLayerStatus,
         updateFirmsLayerStatus,
-        updateAuroraLayerStatus,
         updateIssLayerUi,
         updateMoonTextureUi,
         updateZodiacalIntensityUi,

@@ -12,6 +12,7 @@ export function createFrameRuntime({
     atmosphereMat,
     earthMat,
     getEarthMatPBR,
+    updateTerminatorGuide,
     cloudFallbackTexture
 }) {
     const sunDir = new THREE.Vector3();
@@ -51,6 +52,7 @@ export function createFrameRuntime({
         atmosphereMat.uniforms.uCamPos?.value?.copy(camera.position);
         earthMat.userData.shader?.uniforms.uSunDirTw?.value?.copy(sunDir);
         getEarthMatPBR?.()?.userData.shader?.uniforms.uSunDirTw?.value?.copy(sunDir);
+        updateTerminatorGuide?.(sunDir);
     }
 
     function update(t) {

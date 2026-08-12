@@ -1,10 +1,10 @@
-import { createCloudSetup } from './cloud-setup.js?v=refraction1';
+import { createCloudSetup } from './cloud-setup.js?v=dailyCloudsPaused7';
 import { createSolarRuntime } from './solar-runtime.js?v=unifiedEarthLot2';
 import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-config.js?v=usgsIntegrated1';
 import { createGeoUtils } from './geo.js';
 import { createStarField } from './star-field.js?v=milkyWay1';
 import { createEventUtils } from './event-utils.js?v=polyFix2';
-import { createEarthLayers } from './earth-layers.js?v=refraction1';
+import { createEarthLayers } from './earth-layers.js?v=blackMarbleStatus3';
 import { createMoonSystem } from './moon-system.js?v=unifiedEarthLot2';
 import { createIssSystem } from './iss-system.js?v=unifiedEarthLot2';
 import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
@@ -60,6 +60,7 @@ export function createAppVisualFoundation({
 
     const earthLayers = createEarthLayers({
         THREE,
+        renderer,
         earthGroup,
         earthMap,
         earthSpecular,
@@ -69,7 +70,18 @@ export function createAppVisualFoundation({
         earthReliefSeaLevel,
         earthReliefScale
     });
-    const { earthMat, getEarthMatPBR, setMaterialMode, nightLights, atmosphereMat, applyAtmosphereMode: applyAtmosphereLayerMode } = earthLayers;
+    const {
+        earthMat,
+        getEarthMatPBR,
+        setMaterialMode,
+        nightLights,
+        setNightLightsStatusListener,
+        setSurfaceStatusListener,
+        updateTerminatorGuide,
+        setTerminatorGuideVisible,
+        atmosphereMat,
+        applyAtmosphereMode: applyAtmosphereLayerMode
+    } = earthLayers;
 
     const airglowSystem = createAirglowSystem({ THREE, earthGroup, sunLight });
     const zodiacalLightSystem = createZodiacalLightSystem({ THREE, scene, sunLight });
@@ -93,9 +105,11 @@ export function createAppVisualFoundation({
         stars,
         sunLight,
         nightLights,
+        setNightLightsStatusListener,
         atmosphereMat,
         earthMat,
         getEarthMatPBR,
+        updateTerminatorGuide,
         getTime,
         applyNightLook
     });
@@ -127,6 +141,9 @@ export function createAppVisualFoundation({
         getEarthMatPBR,
         setMaterialMode,
         nightLights,
+        setNightLightsStatusListener,
+        setSurfaceStatusListener,
+        setTerminatorGuideVisible,
         atmosphereMat,
         applyAtmosphereLayerMode,
         cloudMat: cloudSetup.cloudMat,

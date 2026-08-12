@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>if (!/^(localhost|127\.0\.0\.1|\[?::1\]?)$/.test(location.hostname)) { window.NASA_PROXY_BASE = 'https://luminomorphism.ro/nasaproxy'; }</script>
 <title>Living Earth Observatory - NASA EONET - Relief</title>
 <style>
     :root {
@@ -151,6 +152,8 @@
     }
     button:hover, select:hover { border-color: rgba(127, 214, 255, 0.55); }
     #cloudSourceStatus,
+    #nightLightsStatus,
+    #surfaceStatus,
     #liveLayerStatus,
     #firmsLayerStatus,
     #auroraLayerStatus,
@@ -174,6 +177,38 @@
         line-height: 1.25;
         overflow-wrap: anywhere;
     }
+    /* Faza 1 - registry de layere: bara si status auto-generate (clase, nu ID-uri). */
+    .layer-plugin-bar {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 6px;
+    }
+    .layer-plugin-status {
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        padding: 5px 9px;
+        border: 1px solid rgba(160, 205, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.026);
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+    .layer-plugin-status[data-state="on"] {
+        color: #d7f2ff;
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    .layer-plugin-status[data-state="pending"],
+    .layer-plugin-status[data-state="refreshing"] {
+        color: #ffd2a0;
+        border-color: rgba(255, 190, 120, 0.28);
+    }
+    .layer-plugin-status[data-state="error"] {
+        color: #ff9c9c;
+        border-color: rgba(255, 130, 130, 0.3);
+    }
     #eonetRefreshStatus[data-state="on"] {
         color: #d7f2ff;
         border-color: rgba(127, 214, 255, 0.24);
@@ -190,6 +225,18 @@
     #cloudSourceStatus[data-state="nasa"] {
         color: #d7f2ff;
         border-color: rgba(127, 214, 255, 0.24);
+    }
+    #nightLightsStatus[data-state="nasa"],
+    #surfaceStatus[data-state="nasa"] {
+        color: #d7f2ff;
+        border-color: rgba(127, 214, 255, 0.24);
+    }
+    #nightLightsStatus[data-state="loading"],
+    #nightLightsStatus[data-state="fallback"],
+    #surfaceStatus[data-state="loading"],
+    #surfaceStatus[data-state="fallback"] {
+        color: #ffd2a0;
+        border-color: rgba(255, 190, 120, 0.28);
     }
     #liveLayerStatus[data-state="on"],
     #firmsLayerStatus[data-state="on"],
@@ -214,6 +261,8 @@
         border-color: rgba(255, 190, 120, 0.28);
     }
     #cloudSourceStatus[data-state="error"],
+    #nightLightsStatus[data-state="error"],
+    #surfaceStatus[data-state="error"],
     #liveLayerStatus[data-state="error"],
     #firmsLayerStatus[data-state="error"],
     #auroraLayerStatus[data-state="error"],
@@ -637,15 +686,17 @@
         <div id="dataSourceStatus" data-state="on">Data source: NASA EONET default</div>
         <button id="autoRefreshBtn">Auto refresh: off</button>
         <div id="eonetRefreshStatus" data-state="off">EONET: manual refresh</div>
-        <button id="nightBtn">NASA night look</button>
-        <button id="realCloudBtn" title="Daily NASA GIBS cloud snapshot; not live minute-by-minute.">Daily clouds: off</button>
-        <div id="cloudSourceStatus" data-state="artistic">Clouds: artistic procedural layer</div>
+        <button id="nightBtn" title="NASA GIBS Black Marble observed annual night lights (2016), with local fallback.">NASA night look</button>
+        <button id="realCloudBtn" title="NASA GIBS daily VIIRS cloud display is paused while its global coverage is validated." disabled>Daily clouds: temporarily paused</button>
+        <div id="nightLightsStatus" data-state="loading">Black Marble: loading NASA GIBS / VIIRS 2016 — terminator linked</div>
+        <div id="surfaceStatus" data-state="loading">Surface: loading NASA GIBS / Blue Marble Shaded Relief and Bathymetry</div>
+        <button id="terminatorGuideBtn" title="Shows the physical day/night boundary. Diagnostic only; it does not change rendering.">Terminator guide: off</button>
+        <div id="cloudSourceStatus" data-state="paused">Clouds: NASA GIBS daily snapshot temporarily paused; stable procedural layer active</div>
         <button id="seismicLayerBtn" title="USGS earthquakes for the selected time window. Separate source, integrated into Earthquakes.">USGS quakes: off</button>
         <div id="liveLayerStatus" data-state="off">USGS quakes: off</div>
         <button id="firmsLayerBtn" title="NASA FIRMS MODIS/VIIRS near-real-time wildfire hotspots. Public demo keeps this off unless a local proxy or proxyBase is configured.">NASA FIRMS fires: off</button>
         <div id="firmsLayerStatus" data-state="off">NASA FIRMS: off</div>
-        <button id="auroraLayerBtn" title="NOAA SWPC OVATION aurora forecast layer.">Aurora: off</button>
-        <div id="auroraLayerStatus" data-state="off">Aurora: NOAA OVATION off</div>
+        <!-- Aurora migrata la registry-ul de layere (butonul se auto-genereaza in #layerPluginBar). -->
         <div id="moonStatus" data-state="pending">Moon: calculating Astronomy Engine position...</div>
         <button id="issLayerBtn" title="CelesTrak TLE + satellite.js SGP4 position for the International Space Station.">ISS: off</button>
         <button id="trackIssBtn" title="Move the camera to a cinematic live ISS tracking arc.">Track ISS</button>
@@ -728,11 +779,13 @@
         </select>
         <button id="poeticCaptionBtn" title="Optional artistic line generated from event category.">Poetic line: off</button>
         <button id="dataRhythmBtn" title="Let recency, magnitude, and cluster size guide camera rhythm and marker pulse.">Data rhythm: on</button>
+        <button id="reelAspectBtn" title="Exported reel format: 9:16 (vertical, social) or 16:9 (horizontal, YouTube/desktop). Applies to Reel PNG, Reel Video and Export H.264.">Reel format: 9:16</button>
         <button id="exportReelBtn">Reel PNG</button>
         <button id="exportReelVideoBtn">Reel Video</button>
         <button id="exportReelVideoH264Btn" title="Records the same reel, then converts it to H.264 MP4 via FFmpeg on the local proxy server (needs nasa-proxy-server.js running and FFmpeg installed).">Export H.264</button>
         <button id="showcaseReelBtn">Showcase reel</button>
         <button id="demoReelBtn">Demo reel</button>
+        <button id="autoCaptureBtn" title="Auto-records the guided tour (Earth - 2 events - ISS - Moon zoom - return) as a ~45s 16:9 clip and converts it to H.264 MP4 via the local proxy + FFmpeg. Falls back to WebM if the local proxy is not running.">Auto-capture (H.264 16:9)</button>
         <button id="exportPngBtn">Still PNG</button>
         <div class="toolbar-range toolbar-span">
             <label for="reelDuration">
@@ -762,9 +815,10 @@
             <li>NASA EONET: near real-time natural event metadata.</li>
             <li>GDACS: EU JRC / UN OCHA global disaster alerts. In the public demo it is explicit proxy-only fallback; locally it can be used as smart fallback or GDACS-only source.</li>
             <li>NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional supplemental fire layer requiring the local proxy and FIRMS_MAP_KEY.</li>
-            <li>NASA GIBS: daily cloud snapshot layer.</li>
+            <li>NASA GIBS: daily cloud snapshot layer and VIIRS Black Marble annual night lights (2016).</li>
             <li>NOAA SWPC OVATION: aurora oval forecast intensity.</li>
             <li>USGS: earthquake feed integrated into Earthquakes.</li>
+            <li>Smithsonian GVP: Global Volcanism Program Holocene volcano list (WFS GeoJSON), served through the local proxy as the site's CORS gateway; toggleable layer, colored by last-eruption recency.</li>
             <li>NOAA ETOPO1-derived relief: terrain and bathymetry reference.</li>
             <li>Astronomy Engine: apparent Sun position and Moon position/phase geometry.</li>
             <li>Astronomy Engine: real lunar libration (Astronomy.Libration) and real north-pole axis (Astronomy.RotationAxis) drive the Moon's actual visible-hemisphere orientation and disc roll.</li>
@@ -789,7 +843,7 @@ import * as THREE from 'three';
 import * as earcutModule from 'earcut';
 import { platformRegistry } from './src/core/platform-registry.js?v=earthModuleHost1';
 import { createObservatoryModuleHost } from './src/core/observatory/module-host.js?v=earthModuleHost1';
-import { createLivingEarthModule } from './src/earth/living-earth-module.js?v=unifiedEarthLot2';
+import { createLivingEarthModule } from './src/earth/living-earth-module.js?v=reelReturnFix1';
 
 const earcutTriangulate = earcutModule.default || earcutModule.earcut;
 const moduleHost = createObservatoryModuleHost({
@@ -801,6 +855,34 @@ moduleHost.start('living-earth').catch((error) => {
     console.error('[Living Earth] Module host failed to start.', error);
 });
 window.addEventListener('pagehide', () => moduleHost.destroy('living-earth', 'pagehide'), { once: true });
+
+// Service Worker temporarily disabled. It caused cross-origin cache/CORS
+// regressions for NASA GIBS imagery that were hard to reproduce and left some
+// browsers stuck on a stale, partially-broken build. To self-heal any client
+// that still has an old worker installed, actively unregister every worker and
+// purge the app's caches on load, then reload once so the page runs straight
+// from the network with no interception.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    addEventListener('load', async () => {
+        try {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            let hadWorker = false;
+            for (const registration of registrations) {
+                hadWorker = true;
+                await registration.unregister();
+            }
+            if (self.caches) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames
+                    .filter(name => name.startsWith('lea-'))
+                    .map(name => caches.delete(name)));
+            }
+            if (hadWorker) location.reload();
+        } catch (error) {
+            console.warn('[Living Earth] Service Worker teardown failed.', error);
+        }
+    });
+}
 </script>
 </body>
 </html>

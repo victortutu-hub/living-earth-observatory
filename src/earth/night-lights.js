@@ -18,10 +18,12 @@ varying vec2 vUv;
 varying vec3 vWorldNormal;
 void main() {
     vec3 city = texture2D(uMap, vUv).rgb;
-    float sunDot = dot(normalize(vWorldNormal), normalize(uSunDir));
-    float nightMask = 1.0 - smoothstep(-0.16, 0.08, sunDot);
+    // Match the refraction-adjusted terminator used by Earth, clouds and
+    // atmosphere. The +0.0099 term is about 0.567 degrees at the horizon.
+    float sunDotRefracted = dot(normalize(vWorldNormal), normalize(uSunDir)) + 0.0099;
+    float nightMask = 1.0 - smoothstep(-0.15, 0.10, sunDotRefracted);
     float cityMask = smoothstep(0.08, 0.72, max(max(city.r, city.g), city.b));
-    float twilightLift = 1.0 - smoothstep(0.04, 0.36, abs(sunDot));
+    float twilightLift = 1.0 - smoothstep(0.04, 0.36, abs(sunDotRefracted));
     float alpha = cityMask * (nightMask + twilightLift * uCityTwilight) * uOpacity;
     gl_FragColor = vec4(city * vec3(1.45, 1.22, 0.92) * uCityIntensity, alpha);
 }`;

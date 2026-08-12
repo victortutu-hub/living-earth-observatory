@@ -88,7 +88,7 @@ export function initObservatoryModuleController({ getPortalRenderer } = {}) {
   function resolveLinkedObservatory(link) {
     if (!link || link.target === '_blank' || link.hasAttribute('download')) return null;
     const destination = new URL(link.getAttribute('href'), window.location.href);
-    return platformRegistry.listObservatories().find((candidate) => {
+    return platformRegistry.observatories.find((candidate) => {
       if (!candidate.route) return false;
       const route = new URL(candidate.route, window.location.href);
       return destination.origin === route.origin && destination.pathname === route.pathname;

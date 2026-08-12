@@ -1,7 +1,8 @@
-import { createAppLifecycle } from './app-lifecycle.js?v=earthLifecycle1';
+import { createAppLifecycle } from './app-lifecycle.js?v=hdrBloom1';
 import { createAppStartup } from './app-startup.js?v=earthLifecycle1';
-import { createDemoReelTimeline } from './reel-timeline.js?v=earthLifecycle1';
+import { createDemoReelTimeline } from './reel-timeline.js?v=localCinemaCode4';
 import { createSocialPresetSystem } from './preset-system.js?v=issOrbitalBeat1';
+import { createFramePerformanceSampler } from './performance-sampler.js?v=perfSampler1';
 
 export function createEarthAppRuntime({
     state,
@@ -9,6 +10,7 @@ export function createEarthAppRuntime({
     renderer,
     composer,
     bloomPass,
+    bloomResolutionScale,
     smaaPass,
     controls,
     clock,
@@ -22,6 +24,7 @@ export function createEarthAppRuntime({
     noctilucentCloudSystem,
     eonetAutoRefresh,
     liveDataLayers,
+    layerRegistry,
     frameRuntime,
     currentReelMood,
     eventLonLat,
@@ -56,6 +59,7 @@ export function createEarthAppRuntime({
     updateSocialPresetUi,
     updateCaptionUi,
     updateDataRhythmUi,
+    updateTerminatorGuideUi,
     updateIssLayerUi,
     updateMoonTextureUi,
     updateZodiacalIntensityUi,
@@ -68,6 +72,8 @@ export function createEarthAppRuntime({
     updateReelCaption,
     updateReelDetailsCard,
     hideReelCaption,
+    showReelCodeSnippet,
+    hideReelCodeSnippet,
     positionReelCaptionForCamera,
     triggerSignalPulse,
     updateSignalPulseForCamera,
@@ -82,12 +88,14 @@ export function createEarthAppRuntime({
     updateFocus,
     updateMarkerAnimation,
     updateCameraControls,
-    updateCameraDrift
+    updateCameraDrift,
+    setTerminatorGuideVisible
 }) {
     let animationFrameId = null;
     let running = false;
     let disposed = false;
     let controlsWired = false;
+    const performanceSampler = createFramePerformanceSampler();
 
     applyReelMood(state.reelMood);
 
@@ -96,6 +104,7 @@ export function createEarthAppRuntime({
         renderer,
         composer,
         bloomPass,
+        bloomResolutionScale,
         smaaPass,
         solarRuntime,
         eonetAutoRefresh,
@@ -130,9 +139,12 @@ export function createEarthAppRuntime({
         updateReelCaption,
         updateReelDetailsCard,
         hideReelCaption,
+        showReelCodeSnippet,
+        hideReelCodeSnippet,
         selectEvent,
         deselectAll,
         exportReelVideo,
+        exportReelVideoH264,
         triggerSignalPulse,
         moonSystem,
         issSystem,
@@ -146,6 +158,34 @@ export function createEarthAppRuntime({
 
     async function startDemoReel() {
         await demoReel.start(state.filtered);
+    }
+
+    function isLocalCaptureEnvironment() {
+        const hostname = window.location.hostname;
+        return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+    }
+
+    function updateLocalAutoCaptureUi() {
+        if (!isLocalCaptureEnvironment()) return;
+        const button = document.getElementById('autoCaptureBtn');
+        if (!button) return;
+        button.textContent = 'Auto-capture (Local cinema • H.264 16:9)';
+        button.title = 'Local-only cinematic capture: slower guided pacing, Black Marble night look and H.264 conversion through the local proxy + FFmpeg. The public/cPanel behavior is unchanged.';
+    }
+
+    // Captura automata dedicata: in productie pastreaza turul actual. Doar
+    // localhost activeaza ritmul "Local cinema" si look-ul nocturn temporar;
+    // demoReel restaureaza starea precedenta dupa export.
+    async function startAutoCaptureH264() {
+        const localCinematic = isLocalCaptureEnvironment();
+        await demoReel.start(state.filtered, {
+            codec: 'h264',
+            aspect: '16:9',
+            durationSec: localCinematic ? 68 : 50,
+            includeIss: true,
+            eventCount: 2,
+            localCinematic
+        });
     }
 
     function applyShowcaseReelPreset() {
@@ -201,6 +241,12 @@ export function createEarthAppRuntime({
         state.dataRhythm = Boolean(enabled);
         if (!state.dataRhythm) dataRhythmCamera?.reset?.();
         updateDataRhythmUi?.();
+    }
+
+    function toggleTerminatorGuide() {
+        state.terminatorGuide = !state.terminatorGuide;
+        setTerminatorGuideVisible?.(state.terminatorGuide);
+        updateTerminatorGuideUi?.();
     }
 
     async function toggleIssLayer() {
@@ -302,12 +348,12 @@ export function createEarthAppRuntime({
             exportReelVideoH264,
             applyShowcaseReelPreset,
             startDemoReel,
+            startAutoCaptureH264,
             exportStillPng,
             toggleEonetAutoRefresh: () => eonetAutoRefresh.toggle(),
             updateDataSourceMode,
             toggleSeismicLayer: () => liveDataLayers.toggleUsgsQuakes(loadEvents),
             toggleFirmsLayer: () => liveDataLayers.toggleFirmsWildfires(loadEvents),
-            toggleAuroraLayer: liveDataLayers.toggleAuroraLayer,
             toggleIssLayer,
             trackIss,
             toggleAirglowLayer,
@@ -321,7 +367,8 @@ export function createEarthAppRuntime({
             applySocialPreset: socialPresetSystem.applySocialPreset,
             setSocialPresetCustom: socialPresetSystem.setCustom,
             updateCaptionSettings,
-            updateDataRhythm
+            updateDataRhythm,
+            toggleTerminatorGuide
         });
         controlPanel.initResponsivePanels();
         updateIssLayerUi?.({ enabled: state.issLayer });
@@ -333,6 +380,8 @@ export function createEarthAppRuntime({
         updateZodiacalIntensityUi?.();
         updateAirglowUi?.();
         updateNoctilucentUi?.();
+        setTerminatorGuideVisible?.(state.terminatorGuide);
+        updateTerminatorGuideUi?.();
         airglowSystem?.setPreset?.(state.airglowPreset);
         airglowSystem?.setIntensity?.(state.airglowIntensity);
         airglowSystem?.setEnabled?.(state.airglowLayer);
@@ -403,6 +452,7 @@ export function createEarthAppRuntime({
 
     function animate() {
         if (!running || disposed) return;
+        performanceSampler.record(performance.now());
         const t = clock.getElapsedTime();
         demoReel.update(t);
         updateFocus(t, () => demoReel.onFocusComplete());
@@ -414,10 +464,14 @@ export function createEarthAppRuntime({
         zodiacalLightSystem?.update?.(camera, t);
         noctilucentCloudSystem?.update?.(camera, t);
         liveDataLayers.update(t);
+        layerRegistry?.update?.(t);
         updateCameraControls();
         positionReelCaptionForCamera(camera);
         updateSignalPulseForCamera(camera, t);
         updateCameraDrift(t);
+        // Pastreaza preview-ul live in timpul exportului. Exportul foloseste
+        // un composer separat, insa utilizatorul trebuie sa poata urmari turul
+        // pe canvasul principal, nu sa vada un cadru static pana la final.
         composer.render();
         animationFrameId = requestAnimationFrame(animate);
     }
@@ -462,6 +516,7 @@ export function createEarthAppRuntime({
             controlsWired = true;
         }
         applyUrlPresentationPreset();
+        updateLocalAutoCaptureUi();
         if (state.firmsWildfires) {
             liveDataLayers.setFirmsWildfiresEnabled?.(true);
         }
@@ -488,7 +543,9 @@ export function createEarthAppRuntime({
         dispose,
         isRunning: () => running && !disposed,
         startDemoReel,
+        startAutoCaptureH264,
         demoReel,
-        appLifecycle
+        appLifecycle,
+        performanceSnapshot: performanceSampler.snapshot
     };
 }

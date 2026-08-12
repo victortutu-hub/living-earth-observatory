@@ -13,6 +13,52 @@ function normalizePlace(place) {
     return String(place || 'Unknown location').replace(/^earthquake\s*-\s*/i, '').trim();
 }
 
+// Exported for unit testing (fixture -> normalize -> shape validated), kept
+// as a pure function of a GeoJSON feature so it needs no live fetch or DOM.
+export function featureToEvent(feature, { minMagnitude = 2.5, endpointBase = '' } = {}) {
+    const coords = feature?.geometry?.coordinates;
+    const props = feature?.properties || {};
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    const [lon, lat, depthKm = 0] = coords.map(Number);
+    // Number(null) coerces to 0, which would otherwise pass as a real M0 quake.
+    const magnitude = props.mag == null ? NaN : Number(props.mag);
+    const time = Number(props.time);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat) || !Number.isFinite(magnitude) || !Number.isFinite(time)) return null;
+    if (magnitude < minMagnitude) return null;
+
+    const place = normalizePlace(props.place);
+    const date = new Date(time).toISOString();
+    return {
+        id: `usgs:${feature.id || `${time}:${lon}:${lat}`}`,
+        title: `M ${formatMagnitude(magnitude)} earthquake - ${place}`,
+        description: props.title || '',
+        categories: [{ id: 'earthquakes', title: 'Earthquakes' }],
+        sources: [{ id: 'USGS', url: props.url || endpointBase }],
+        geometry: [{
+            type: 'Point',
+            coordinates: [lon, lat],
+            date,
+            magnitudeValue: magnitude,
+            magnitudeUnit: 'Mw',
+            depthKm: Number.isFinite(depthKm) ? depthKm : null
+        }],
+        sourceProvider: 'USGS',
+        sourceMode: 'supplemental',
+        sourceUrl: props.url || endpointBase,
+        sourceUpdatedAt: date,
+        sourceConfidence: 'USGS earthquake feed',
+        usgs: {
+            code: props.code || feature.id || '',
+            place,
+            status: props.status || '',
+            alert: props.alert || '',
+            tsunami: props.tsunami || 0,
+            felt: props.felt || 0,
+            url: props.url || ''
+        }
+    };
+}
+
 function earthquakePriority(event) {
     const geom = event.geometry?.[0] || {};
     const magnitude = Number(geom.magnitudeValue) || 0;
@@ -35,49 +81,6 @@ export function createUsgsEarthquakeProvider({
     let lastUpdated = null;
     let lastError = null;
 
-    function featureToEvent(feature) {
-        const coords = feature?.geometry?.coordinates;
-        const props = feature?.properties || {};
-        if (!Array.isArray(coords) || coords.length < 2) return null;
-        const [lon, lat, depthKm = 0] = coords.map(Number);
-        const magnitude = Number(props.mag);
-        const time = Number(props.time);
-        if (!Number.isFinite(lon) || !Number.isFinite(lat) || !Number.isFinite(magnitude) || !Number.isFinite(time)) return null;
-        if (magnitude < minMagnitude) return null;
-
-        const place = normalizePlace(props.place);
-        const date = new Date(time).toISOString();
-        return {
-            id: `usgs:${feature.id || `${time}:${lon}:${lat}`}`,
-            title: `M ${formatMagnitude(magnitude)} earthquake - ${place}`,
-            description: props.title || '',
-            categories: [{ id: 'earthquakes', title: 'Earthquakes' }],
-            sources: [{ id: 'USGS', url: props.url || endpointBase }],
-            geometry: [{
-                type: 'Point',
-                coordinates: [lon, lat],
-                date,
-                magnitudeValue: magnitude,
-                magnitudeUnit: 'Mw',
-                depthKm: Number.isFinite(depthKm) ? depthKm : null
-            }],
-            sourceProvider: 'USGS',
-            sourceMode: 'supplemental',
-            sourceUrl: props.url || endpointBase,
-            sourceUpdatedAt: date,
-            sourceConfidence: 'USGS earthquake feed',
-            usgs: {
-                code: props.code || feature.id || '',
-                place,
-                status: props.status || '',
-                alert: props.alert || '',
-                tsunami: props.tsunami || 0,
-                felt: props.felt || 0,
-                url: props.url || ''
-            }
-        };
-    }
-
     async function fetchEvents(filters = {}) {
         if (disposed) return [];
         if (!enabled) return [];
@@ -98,7 +101,7 @@ export function createUsgsEarthquakeProvider({
             });
             const data = result.data;
             const events = (Array.isArray(data.features) ? data.features : [])
-                .map(featureToEvent)
+                .map(feature => featureToEvent(feature, { minMagnitude, endpointBase }))
                 .filter(Boolean)
                 .filter(event => new Date(event.geometry[0].date).getTime() >= cutoff)
                 .sort((a, b) => {

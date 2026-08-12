@@ -1,23 +1,18 @@
 import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js?v=unifiedEarth1';
-import { createNoaaAuroraLayer } from './noaa-aurora-layer.js?v=unifiedEarth1';
 import { createFirmsWildfireProvider } from './firms-wildfires.js?v=firms4';
 
+// Aurora a fost migrata la registry-ul de layere (layers/aurora.js, tip 'custom').
+// Aici raman doar sursele inca bespoke: USGS quakes si NASA FIRMS.
 export function createLiveDataLayers({
     THREE,
     state,
     earthGroup,
     lonLatToVec3,
     updateSeismicLayerStatus,
-    updateAuroraLayerStatus,
     updateFirmsLayerStatus
 }) {
     const usgsEarthquakes = createUsgsEarthquakeProvider();
     const firmsWildfires = createFirmsWildfireProvider();
-    const auroraLayer = createNoaaAuroraLayer({
-        THREE,
-        earthGroup,
-        lonLatToVec3
-    });
 
     function refreshUsgsStatus() {
         const status = usgsEarthquakes.getStatus();
@@ -65,33 +60,13 @@ export function createLiveDataLayers({
         refreshUsgsStatus();
     }
 
-    function refreshAuroraStatus() {
-        const status = auroraLayer.getStatus();
-        state.auroraLayer = status.enabled;
-        updateAuroraLayerStatus(status);
-    }
-
-    async function toggleAuroraLayer() {
-        const nextEnabled = !state.auroraLayer;
-        state.auroraLayer = nextEnabled;
-        updateAuroraLayerStatus({
-            enabled: nextEnabled,
-            loading: nextEnabled,
-            state: nextEnabled ? 'refreshing' : 'off',
-            message: nextEnabled ? 'Aurora: loading NOAA OVATION...' : 'Aurora: NOAA OVATION off'
-        });
-        await auroraLayer.setEnabled(nextEnabled);
-        refreshAuroraStatus();
-    }
-
-    function update(t) {
-        auroraLayer.update(t);
+    function update() {
+        // USGS/FIRMS nu au animatie per-frame; hook pastrat pentru simetrie.
     }
 
     function dispose() {
         usgsEarthquakes.dispose?.();
         firmsWildfires.dispose?.();
-        auroraLayer.dispose();
     }
 
     return {
@@ -99,10 +74,8 @@ export function createLiveDataLayers({
         toggleUsgsQuakes,
         toggleFirmsWildfires,
         setFirmsWildfiresEnabled,
-        toggleAuroraLayer,
         refreshUsgsStatus,
         refreshFirmsStatus,
-        refreshAuroraStatus,
         update,
         dispose
     };

@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "us7000abcd",
+      "properties": {
+        "mag": 5.6,
+        "place": "10km SW of Sample City",
+        "time": 1753027200000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000abcd",
+        "status": "reviewed",
+        "tsunami": 0,
+        "felt": 42,
+        "alert": "green",
+        "code": "7000abcd",
+        "title": "M 5.6 - 10km SW of Sample City"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.5, 37.7, 10.2]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "us7000abce",
+      "properties": {
+        "mag": 1.8,
+        "place": "earthquake - 5km N of Sample Town",
+        "time": 1753027300000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000abce",
+        "status": "automatic",
+        "tsunami": 0,
+        "felt": null,
+        "alert": null,
+        "code": "7000abce",
+        "title": "M 1.8 - 5km N of Sample Town"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-121.9, 38.1, 4.0]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "us7000abcf",
+      "properties": {
+        "mag": null,
+        "place": "malformed magnitude entry",
+        "time": 1753027400000,
+        "url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000abcf"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-121.0, 38.0]
+      }
+    }
+  ]
+}

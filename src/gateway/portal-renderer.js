@@ -87,8 +87,18 @@ export function initPortalRenderer({ onActivate } = {}) {
   const sceneUniforms = getSceneUniforms(gl, sceneProgram);
   const postProcessor = createPostProcessor(gl, fullscreenTriangle);
   const assets = createPortalAssets({ gl, dataBroker, atlasStatus, slots, canvas });
-  const resolutionMode = new URLSearchParams(window.location.search).get('resolution') || 'balanced';
+  // Pe mobil pornim direct in modul 'performance' (DPR mai mic), fara sa asteptam
+  // ca downgrade-ul adaptiv sa se declanseze dupa 18 frame-uri lente. Detectam
+  // mobilul cu aceeasi euristica folosita in resize().
+  const initialMobile = window.innerWidth < 760 || window.innerHeight > window.innerWidth * 1.18;
+  const resolutionMode = new URLSearchParams(window.location.search).get('resolution')
+    || (initialMobile ? 'performance' : 'balanced');
   const qualityManager = createQualityManager({ atlasStatus, resolutionMode });
+
+  // Plafon de framerate pe mobil (~30fps): injumatateste munca GPU pe un shader
+  // procedural greu, cu diferenta vizuala minima la o scena atat de lenta.
+  const MOBILE_FRAME_INTERVAL_MS = 33;
+  let lastRenderTs = 0;
 
   let width = 1;
   let height = 1;
@@ -187,6 +197,13 @@ export function initPortalRenderer({ onActivate } = {}) {
       frameHandle = requestAnimationFrame(frame);
       return;
     }
+
+    // Cap de framerate pe mobil: sarim randarea daca nu a trecut intervalul tinta.
+    if (mobile && now - lastRenderTs < MOBILE_FRAME_INTERVAL_MS) {
+      frameHandle = requestAnimationFrame(frame);
+      return;
+    }
+    lastRenderTs = now;
 
     qualityManager.sample(now);
     const state = interaction.update(now);

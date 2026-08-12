@@ -1,4 +1,6 @@
 proxy-cache/
+node_modules/
+_deploy_cpanel/
 .env
 .env.local
 .env.*.local

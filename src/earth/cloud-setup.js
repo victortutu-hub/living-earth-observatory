@@ -1,6 +1,6 @@
-import { createCloudSystem } from './cloud-system.js';
+import { createCloudSystem } from './cloud-system.js?v=dailyCloudsPaused7';
 import { createCloudFallbackTexture, makeCloudMat } from './cloud-shaders.js?v=refraction1';
-import { createFrameRuntime } from './frame-runtime.js?v=pbrRoughness1';
+import { createFrameRuntime } from './frame-runtime.js?v=terminatorGuide1';
 
 export function createCloudSetup({
     THREE,
@@ -15,6 +15,7 @@ export function createCloudSetup({
     atmosphereMat,
     earthMat,
     getEarthMatPBR,
+    updateTerminatorGuide,
     getTime,
     applyNightLook
 }) {
@@ -45,6 +46,7 @@ export function createCloudSetup({
         atmosphereMat,
         earthMat,
         getEarthMatPBR,
+        updateTerminatorGuide,
         cloudFallbackTexture: fallbackTexture
     });
 

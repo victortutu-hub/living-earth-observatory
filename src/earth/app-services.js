@@ -1,19 +1,22 @@
 import { createEarthAppearance } from './earth-appearance.js?v=v3sss1';
 import { heroDriftProfiles, motionPresets, reelMoodPresets } from './reel-presets.js';
 import { EONET_API, officialCategories, officialCategoryLabels } from './eonet-config.js?v=usgsIntegrated1';
-import { createGdacsProvider } from './gdacs-provider.js?v=polyFix2';
-import { createReelOverlay } from './reel-overlay.js?v=safeCards1';
-import { editorialSelection } from './reel-timeline.js?v=issOrbitalBeat1';
-import { createExportSystem } from './export-system.js?v=ffmpegExport1';
-import { createControlPanel } from './control-panel.js?v=earthLifecycle1';
-import { createEonetAutoRefreshController } from './eonet-data.js?v=unifiedEarth2';
-import { createEonetApp } from './eonet-app.js?v=unifiedEarth2';
-import { createCameraMotionRuntime } from './camera-motion.js?v=moonMarkers1';
-import { createEarthAppRuntime } from './app-runtime.js?v=earthLifecycle1';
-import { createLiveDataLayers } from './live-data-layers.js?v=unifiedEarth1';
-import { lookDefaults } from './app-state.js?v=issOrbitalBeat1';
-import { createEventScene } from './event-scene.js?v=markerPicking1';
-import { createAppVisualFoundation } from './app-visual-foundation.js?v=unifiedEarthLot2';
+import { createGdacsProvider } from './gdacs-provider.refactored.js';
+import { createReelOverlay } from './reel-overlay.js?v=localCinemaCode3';
+import { editorialSelection } from './reel-timeline.js?v=layerRegistry5';
+import { createExportSystem } from './export-system.js?v=layerRegistry5';
+import { createControlPanel } from './control-panel.js?v=layerRegistry5';
+import { createEonetAutoRefreshController } from './eonet-data.js?v=cacheStatus1';
+import { createEonetApp } from './eonet-app.js?v=cacheStatus1';
+import { createCameraMotionRuntime } from './camera-motion.js?v=localCinemaCode11';
+import { createEarthAppRuntime } from './app-runtime.js?v=localCinemaCode5';
+import { createLiveDataLayers } from './live-data-layers.js?v=layerRegistry5';
+import { createLayerRegistry } from './layer-plugin-registry.js?v=layerRegistry5';
+import { gvpVolcanoesPlugin } from './layers/gvp-volcanoes.js?v=layerRegistry5';
+import { auroraPlugin } from './layers/aurora.js?v=layerRegistry5';
+import { lookDefaults } from './app-state.js?v=layerRegistry5';
+import { createEventScene } from './event-scene.js?v=markerPicking2';
+import { createAppVisualFoundation } from './app-visual-foundation.js?v=dailyCloudsPaused7';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js?v=moonMarkers1';
 import { localDirForSelenographic } from './moon-system.js?v=moonMarkers1';
@@ -33,6 +36,7 @@ export function createEarthAppServices({
         earthGroup,
         composer,
         bloomPass,
+        bloomResolutionScale,
         smaaPass
     } = sceneRuntime;
     const clock = new THREE.Clock();
@@ -69,6 +73,7 @@ export function createEarthAppServices({
         getEarthMatPBR,
         setMaterialMode,
         nightLights,
+        setTerminatorGuideVisible,
         cloudMat,
         cloudOverlayMat,
         atmosphereMat,
@@ -103,6 +108,8 @@ export function createEarthAppServices({
         updateReelTransitionCard,
         updateReelTitleCard,
         hideReelCaption,
+        showReelCodeSnippet,
+        hideReelCodeSnippet,
         positionReelCaptionForCamera,
         triggerSignalPulse,
         updateSignalPulseForCamera
@@ -151,17 +158,21 @@ export function createEarthAppServices({
         updateSocialPresetUi,
         updateCaptionUi,
         updateDataRhythmUi,
+        updateTerminatorGuideUi,
         updateEonetRefreshStatus,
         updateDataSourceStatus,
+        updateNightLightsStatus,
+        updateSurfaceStatus,
         updateSeismicLayerStatus,
         updateFirmsLayerStatus,
-        updateAuroraLayerStatus,
         updateIssLayerUi,
         updateMoonTextureUi,
         updateZodiacalIntensityUi,
         updateAirglowUi,
         updateNoctilucentUi
     } = controlPanel;
+    visualFoundation.setNightLightsStatusListener?.(updateNightLightsStatus);
+    visualFoundation.setSurfaceStatusListener?.(updateSurfaceStatus);
 
     const liveDataLayers = createLiveDataLayers({
         THREE,
@@ -169,8 +180,7 @@ export function createEarthAppServices({
         earthGroup,
         lonLatToVec3,
         updateSeismicLayerStatus,
-        updateFirmsLayerStatus,
-        updateAuroraLayerStatus
+        updateFirmsLayerStatus
     });
     const gdacsProvider = createGdacsProvider({ timeoutMs: 30000 });
 
@@ -309,6 +319,25 @@ export function createEarthAppServices({
         eventUi
     } = eonetApp;
 
+    // Faza 1 - Sprint 1.1: registry de layere. O sursa noua = 1 fisier plugin +
+    // 1 linie register(). GVP (vulcani Smithsonian) e primul test al contractului.
+    // Selectia unui punct reutilizeaza exact renderDetails + focusOnLonLat, deci
+    // vulcanii se comporta identic cu markerele de evenimente (panou + track).
+    const layerRegistry = createLayerRegistry({
+        THREE,
+        earthGroup,
+        lonLatToVec3,
+        onSelectFeature: (item) => {
+            deselectAll();
+            eventUi.renderDetails(item.title || 'Layer feature', item.detail || []);
+            if (Number.isFinite(item.lon) && Number.isFinite(item.lat)) {
+                focusOnLonLat(item.lon, item.lat);
+            }
+        }
+    });
+    layerRegistry.register(gvpVolcanoesPlugin);
+    layerRegistry.register(auroraPlugin);
+
     function showIssDetails() {
         deselectAll();
         const s = issSystem?.issState;
@@ -365,6 +394,8 @@ export function createEarthAppServices({
     eventScene.attachInteraction({
         onSelectCluster: selectCluster,
         onSelectEvent: selectEvent,
+        getPointPickables: () => layerRegistry.getPointObjects(),
+        onSelectPointPickable: (object, index) => layerRegistry.selectPoint(object, index),
         extraObjects: [issSystem?.iss, issSystem?.issHalo, moonSystem?.moon, ...moonMarkers.markerMeshes].filter(Boolean),
         onSelectExtra: id => {
             if (id === 'iss') showIssDetails();
@@ -384,6 +415,7 @@ export function createEarthAppServices({
         renderer,
         composer,
         bloomPass,
+        bloomResolutionScale,
         smaaPass,
         controls,
         clock,
@@ -398,6 +430,7 @@ export function createEarthAppServices({
         noctilucentCloudSystem,
         eonetAutoRefresh,
         liveDataLayers,
+        layerRegistry,
         frameRuntime,
         currentReelMood,
         eventLonLat,
@@ -430,6 +463,7 @@ export function createEarthAppServices({
         updateSpinUi,
         updateCaptionUi,
         updateDataRhythmUi,
+        updateTerminatorGuideUi,
         updateIssLayerUi,
         updateMoonTextureUi,
         updateZodiacalIntensityUi,
@@ -444,6 +478,8 @@ export function createEarthAppServices({
         updateReelCaption,
         updateReelDetailsCard,
         hideReelCaption,
+        showReelCodeSnippet,
+        hideReelCodeSnippet,
         positionReelCaptionForCamera,
         triggerSignalPulse,
         updateSignalPulseForCamera,
@@ -460,7 +496,8 @@ export function createEarthAppServices({
         updateFocus,
         updateMarkerAnimation,
         updateCameraControls,
-        updateCameraDrift
+        updateCameraDrift,
+        setTerminatorGuideVisible
     });
 
     let disposed = false;
@@ -472,6 +509,7 @@ export function createEarthAppServices({
         appRuntime.dispose();
         eventScene.dispose();
         liveDataLayers.dispose();
+        layerRegistry.dispose?.();
         gdacsProvider.dispose?.();
         exportSystem.dispose?.();
         visualFoundation.dispose();

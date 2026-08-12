@@ -59,6 +59,7 @@ export const fragmentSource = `
     float a = 0.5;
     mat2 m = mat2(1.62, 1.12, -1.12, 1.62);
     for(int i=0;i<5;i++){
+      if(uMobile > 0.5 && i >= 3) break; // 3 octave pe mobil in loc de 5
       v += a * noise(p);
       p = m * p + 17.0;
       a *= 0.5;
@@ -351,6 +352,7 @@ export const fragmentSource = `
     col += color * rays * rayMask * 0.18 * energy * (1.0 - hover);
 
     for(int i=0;i<12;i++){
+      if(uMobile > 0.5 && i >= 5) break; // 5 particule orbitale pe mobil in loc de 12
       float fi = float(i);
       float rr = rad * (1.08 + 0.045 * sin(fi * 1.73 + signature.y));
       float aa = t * (signature.w + 0.025 * fi) + fi * TAU / 12.0 + signature.y * 0.6;

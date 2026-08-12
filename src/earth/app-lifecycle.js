@@ -3,6 +3,7 @@ export function createAppLifecycle({
     renderer,
     composer,
     bloomPass,
+    bloomResolutionScale = 0.5,
     smaaPass,
     solarRuntime,
     eonetAutoRefresh,
@@ -21,7 +22,7 @@ export function createAppLifecycle({
         camera.updateProjectionMatrix();
         renderer.setSize(innerWidth, innerHeight);
         composer.setSize(innerWidth, innerHeight);
-        bloomPass.setSize(innerWidth, innerHeight);
+        bloomPass.setSize(innerWidth * bloomResolutionScale, innerHeight * bloomResolutionScale);
         smaaPass?.setSize?.(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
         updateGuide916();
     }

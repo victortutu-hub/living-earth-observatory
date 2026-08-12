@@ -1,0 +1,11 @@
+{
+  "name": "living-earth-observatory",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
+  }
+}

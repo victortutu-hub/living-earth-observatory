@@ -19,7 +19,7 @@ export function createCameraMotionRuntime({
         fromTarget: new THREE.Vector3(),
         toTarget: new THREE.Vector3(),
         start: 0,
-        duration: 1.45
+        duration: 2.0 // glisare de focus mai lenta/cinematica (era 1.45)
     };
 
     const selectedCinematic = {
@@ -53,7 +53,10 @@ export function createCameraMotionRuntime({
         fromPos: new THREE.Vector3(),
         fromTarget: new THREE.Vector3(),
         start: 0,
-        duration: 1.6,
+        duration: 1.9, // zbor ISS mai lin (era 1.6)
+        cinematicOrbitAngle: 0,
+        cinematicOrbitDelay: 0.7,
+        cinematicOrbitDuration: 6.0,
         issStateRef: null
     };
     const _issUp = new THREE.Vector3(0, 0.18, 0);
@@ -101,10 +104,21 @@ export function createCameraMotionRuntime({
         }
     }
 
-    function startIssTracking(issStateRef) {
+    function startIssTracking(issStateRef, options = {}) {
         if (!issStateRef) return;
         useEarthOrbitBounds();
         clearSelectedCinematic();
+        // Optiunea este folosita exclusiv de reelul local. In rest, urmarirea
+        // ISS ramane identica: fara orbita cinematica suplimentara.
+        issCam.cinematicOrbitAngle = Number.isFinite(options.cinematicOrbitAngle)
+            ? options.cinematicOrbitAngle
+            : 0;
+        issCam.cinematicOrbitDelay = Number.isFinite(options.cinematicOrbitDelay)
+            ? options.cinematicOrbitDelay
+            : 0.7;
+        issCam.cinematicOrbitDuration = Number.isFinite(options.cinematicOrbitDuration)
+            ? options.cinematicOrbitDuration
+            : 6.0;
         issCam.issStateRef = issStateRef;
         issCam.fromPos.copy(camera.position);
         issCam.fromTarget.copy(controls.target);
@@ -138,6 +152,17 @@ export function createCameraMotionRuntime({
         _issDesiredPos.copy(_issSurface).multiplyScalar(issCam.distance)
             .addScaledVector(_issSide, 0.32)
             .add(_issUp);
+
+        // Fara aceasta miscare controlata, urmarirea ISS opreste autoRotate
+        // si, pe o fereastra de cateva secunde, Pamantul pare inghetat. Arcul
+        // e aplicat camerei in jurul centrului scenei; markerul ISS ramane
+        // tinta reala, iar planeta capata parallax vizibil.
+        if (issCam.cinematicOrbitAngle !== 0) {
+            const elapsed = Math.max(0, t - issCam.start - issCam.cinematicOrbitDelay);
+            const orbitK = Math.min(1, elapsed / Math.max(0.1, issCam.cinematicOrbitDuration));
+            const easedOrbit = orbitK * orbitK * (3 - 2 * orbitK);
+            _issDesiredPos.applyAxisAngle(_worldUpAxis, issCam.cinematicOrbitAngle * easedOrbit);
+        }
 
         if (issCam.transitioning) {
             const k = Math.min(1, (t - issCam.start) / issCam.duration);
@@ -177,7 +202,9 @@ export function createCameraMotionRuntime({
         fromPos: new THREE.Vector3(),
         fromTarget: new THREE.Vector3(),
         start: 0,
-        duration: 4.4, // zbor calm prin spatiu, fara senzatie de cut/teleport
+        duration: 6.6, // zbor lent, fluid spre Luna (era 4.4) - evita "aparitia brusca"
+        targetLeadMultiplier: 1.5,
+        holdStart: 0,
         moonObjectRef: null,
         sunDirRef: null
     };
@@ -186,14 +213,24 @@ export function createCameraMotionRuntime({
     const _moonRadialDir = new THREE.Vector3();
     const _moonFromDir = new THREE.Vector3();
     const _moonToDir = new THREE.Vector3();
+    const _moonOrbitDir = new THREE.Vector3();
+    const _worldUpAxis = new THREE.Vector3(0, 1, 0);
     const _moonQuatDelta = new THREE.Quaternion();
     const _moonQuatCurrent = new THREE.Quaternion();
 
-    function startMoonTracking(moonObject, sunDirWorld) {
+    function startMoonTracking(moonObject, sunDirWorld, options = {}) {
         if (!moonObject) return;
         useMoonOrbitBounds();
         clearSelectedCinematic();
         if (issCam.active) stopIssTracking();
+        // Reelul local poate cere o apropiere mai stransa si mai lenta. Orice
+        // interactiune normala cu Luna revine explicit la valorile sigure ale
+        // scenei, astfel presetul cinematic nu se propaga in aplicatie.
+        moonCam.distance = Number.isFinite(options.distance) ? options.distance : 0.82;
+        moonCam.duration = Number.isFinite(options.duration) ? options.duration : 6.6;
+        moonCam.targetLeadMultiplier = Number.isFinite(options.targetLeadMultiplier)
+            ? options.targetLeadMultiplier
+            : 1.5;
         moonCam.moonObjectRef = moonObject;
         moonCam.sunDirRef = sunDirWorld || null; // referinta live (moonState.sunWorldDir), nu clona
         moonCam.fromPos.copy(camera.position);
@@ -240,10 +277,29 @@ export function createCameraMotionRuntime({
             const toMag = _moonDesiredPos.length();
             camera.position.copy(_moonFromDir).applyQuaternion(_moonQuatCurrent)
                 .multiplyScalar(THREE.MathUtils.lerp(fromMag, toMag, eased));
-            controls.target.lerpVectors(moonCam.fromTarget, _moonTarget, eased);
-            if (k >= 1) moonCam.transitioning = false;
+            // In modul local tinta ramane sincronizata cu zborul: Pamantul nu
+            // paraseste cadrul inainte ca Luna sa devina vizibila. Interactiunea
+            // directa pastreaza lead-ul rapid pentru focusul obisnuit pe Luna.
+            const targetLead = Math.min(1, eased * moonCam.targetLeadMultiplier);
+            controls.target.lerpVectors(moonCam.fromTarget, _moonTarget, targetLead);
+            if (k >= 1) { moonCam.transitioning = false; moonCam.holdStart = t; }
         } else {
-            camera.position.lerp(_moonDesiredPos, 0.05);
+            // Faza de hold la Luna: zoom lent (dolly-in) + orbita ampla care aduce
+            // terminatorul si partea intunecata (luminata doar de earthshine) in
+            // cadru, inainte ca reelul sa faca retur la Pamant.
+            const hold = Math.max(0, t - moonCam.holdStart);
+            // Zoom + orbita pornesc cu VITEZA NENULA (blend 0.4*linear + 0.6*smoothstep),
+            // ca sa nu existe "inghetarea" de ~1s la trecerea zbor -> hold, cand ambele
+            // porneau din viteza zero exact cand apropierea se termina.
+            const zoomK = Math.min(1, hold / 4.2);
+            const zoomAmt = 0.4 * zoomK + 0.6 * (zoomK * zoomK * (3 - 2 * zoomK));
+            const dist = THREE.MathUtils.lerp(moonCam.distance, moonCam.distance * 0.62, zoomAmt);
+            // Sweep de ~110 grade dinspre emisfera luminata spre partea intunecata.
+            const orbitK = Math.min(1, hold / 6.8);
+            const orbitAmt = 0.4 * orbitK + 0.6 * (orbitK * orbitK * (3 - 2 * orbitK));
+            _moonOrbitDir.copy(_moonRadialDir).applyAxisAngle(_worldUpAxis, orbitAmt * 1.95);
+            _moonDesiredPos.copy(_moonTarget).addScaledVector(_moonOrbitDir, dist);
+            camera.position.lerp(_moonDesiredPos, 0.045);
             controls.target.lerp(_moonTarget, 0.08);
         }
         camera.lookAt(controls.target);
@@ -327,37 +383,45 @@ export function createCameraMotionRuntime({
         return true;
     }
 
-    // Zbor de intoarcere de la Luna spre un cadru normal de orbita Pamant -
-    // simetric cu startMoonTracking, dar mult mai simplu: NU are nevoie de
-    // arc/slerp, pentru ca directia ramane EXACT aceeasi (doar raza scade de
-    // la ~13.5-13.9 la o distanta normala de orbita) - o simpla "tragere
-    // inapoi" de-a lungul aceleiasi raze din centrul Pamantului, garantat
-    // sigura (raza scade monoton, nu poate trece niciodata prin Pamant).
-    // Fara asta, la oprirea urmaririi Lunii, heroDrift prelua camera brusc
-    // si clamp-ul lui de distanta (camDist > 9.0 -> setLength(9.0)) facea
-    // un "salt" instant intr-un singur cadru - exact flash-ul vizual sesizat.
+    // Zbor de intoarcere de la Luna spre un cadru normal de orbita Pamant.
+    // Pentru finalul de reel putem alege o vedere hero stabila, cu emisfera
+    // nordica in sus; directia este interpolata pe arc ca sa nu traverseze
+    // niciodata Pamantul si sa nu introduca un salt de camera.
     const returnCam = {
         active: false,
         transitioning: false,
         distance: 6.4, // aceeasi distanta ca pozitia initiala din earth-app-bootstrap.js
         fromPos: new THREE.Vector3(),
         fromTarget: new THREE.Vector3(),
+        toPos: new THREE.Vector3(),
         start: 0,
-        duration: 4.0 // revenire calma, dar incape in finalul reel-ului cand pulloutAt respecta presetul
+        duration: 4.6, // revenire calma/fluida de la Luna spre Pamant
+        holdFinalOrientation: false
     };
     const _returnTarget = new THREE.Vector3(0, 0, 0);
-    const _returnDesiredPos = new THREE.Vector3();
-    const _returnDir = new THREE.Vector3();
+    const _returnFromDir = new THREE.Vector3();
+    const _returnToDir = new THREE.Vector3();
+    const _returnQuatDelta = new THREE.Quaternion();
+    const _returnQuatCurrent = new THREE.Quaternion();
 
-    function startReturnFromMoon(distance = returnCam.distance) {
+    function startReturnFromMoon(distance = 6.4, options = {}) {
         if (issCam.active) stopIssTracking();
         if (moonCam.active) stopMoonTracking();
         if (moonMarkerCam.active) stopMoonMarkerFocus();
         useEarthOrbitBounds();
         clearSelectedCinematic();
         returnCam.distance = distance;
+        returnCam.duration = Number.isFinite(options.duration) ? options.duration : 4.6;
+        returnCam.holdFinalOrientation = Boolean(options.holdFinalOrientation);
         returnCam.fromPos.copy(camera.position);
         returnCam.fromTarget.copy(controls.target);
+        if (options.heroView) {
+            const lon = Number.isFinite(options.lon) ? options.lon : 25;
+            const lat = Number.isFinite(options.lat) ? options.lat : 45;
+            lonLatToVec3(lon, lat, returnCam.distance, returnCam.toPos);
+        } else {
+            returnCam.toPos.copy(returnCam.fromPos).normalize().multiplyScalar(returnCam.distance);
+        }
         returnCam.start = getTime();
         returnCam.transitioning = true;
         returnCam.active = true;
@@ -367,19 +431,25 @@ export function createCameraMotionRuntime({
     let _returnDebugFrames = 0;
     function updateReturnFromMoon(t) {
         if (!returnCam.active) return false;
-        _returnDir.copy(returnCam.fromPos).normalize();
-        _returnDesiredPos.copy(_returnDir).multiplyScalar(returnCam.distance);
-
         const k = Math.min(1, (t - returnCam.start) / returnCam.duration);
         const eased = k * k * (3 - 2 * k);
-        camera.position.lerpVectors(returnCam.fromPos, _returnDesiredPos, eased);
-        controls.target.lerpVectors(returnCam.fromTarget, _returnTarget, eased);
+        _returnFromDir.copy(returnCam.fromPos).normalize();
+        _returnToDir.copy(returnCam.toPos).normalize();
+        _returnQuatDelta.setFromUnitVectors(_returnFromDir, _returnToDir);
+        _returnQuatCurrent.identity().slerp(_returnQuatDelta, eased);
+        camera.position.copy(_returnFromDir).applyQuaternion(_returnQuatCurrent)
+            .multiplyScalar(THREE.MathUtils.lerp(returnCam.fromPos.length(), returnCam.toPos.length(), eased));
+        // Tinta "conduce" spre Pamant mai repede decat se muta camera: asa Terra
+        // reintra in cadru inca de cand Luna iese, eliminand golul negru de la retur.
+        // (simetric cu target-lead-ul de la apropierea de Luna)
+        const targetLead = Math.min(1, eased * 1.7);
+        controls.target.lerpVectors(returnCam.fromTarget, _returnTarget, targetLead);
         camera.lookAt(controls.target);
 
         if (k >= 1) {
             returnCam.transitioning = false;
             returnCam.active = false;
-            controls.autoRotate = true;
+            controls.autoRotate = !returnCam.holdFinalOrientation;
         }
         return true;
     }

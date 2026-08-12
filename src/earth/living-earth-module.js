@@ -1,7 +1,7 @@
-import { createEarthAppBootstrap } from './earth-app-bootstrap.js?v=earthBaseMap2';
-import { createSceneRuntime } from './scene-runtime.js?v=earthLifecycle1';
-import { createInitialEarthState } from './app-state.js?v=issOrbitalBeat1';
-import { createEarthAppServices } from './app-services.js?v=unifiedEarthLot2';
+import { createEarthAppBootstrap } from './earth-app-bootstrap.js?v=earthBaseMap4';
+import { createSceneRuntime } from './scene-runtime.js?v=capturePerf2';
+import { createInitialEarthState } from './app-state.js?v=layerRegistry5';
+import { createEarthAppServices } from './app-services.js?v=localCinemaCode11';
 import { prepareObservatoryEntry } from '../portal-continuity.js?v=atlasEarthMount1';
 
 export function createLivingEarthModule({ THREE, earcut }) {
@@ -34,6 +34,8 @@ export function createLivingEarthModule({ THREE, earcut }) {
         bootstrap,
       });
       const { appRuntime } = appServices;
+      const performanceApi = Object.freeze({ snapshot: appRuntime.performanceSnapshot });
+      window.LIVING_EARTH_PERF = performanceApi;
 
       if (new URLSearchParams(location.search).has('debug')) {
         window.__livingEarthDebug = { state, sceneRuntime, appServices, moduleContext: context };
@@ -55,6 +57,7 @@ export function createLivingEarthModule({ THREE, earcut }) {
         sceneRuntime.dispose?.();
         document.body.classList.remove('app-entered');
         if (window.__livingEarthDebug?.moduleContext === context) delete window.__livingEarthDebug;
+        if (window.LIVING_EARTH_PERF === performanceApi) delete window.LIVING_EARTH_PERF;
       };
     },
   });

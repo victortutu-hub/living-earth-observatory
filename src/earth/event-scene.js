@@ -1,5 +1,5 @@
 import { createMarkerSystem } from './marker-system.js?v=markerPicking1';
-import { createSceneInteraction } from './scene-interaction.js?v=markerPicking1';
+import { createSceneInteraction } from './scene-interaction.js?v=markerPicking2';
 
 export function createEventScene({
     THREE,
@@ -43,7 +43,7 @@ export function createEventScene({
 
     let sceneInteraction = null;
 
-    function attachInteraction({ onSelectCluster, onSelectEvent, extraObjects, onSelectExtra }) {
+    function attachInteraction({ onSelectCluster, onSelectEvent, extraObjects, onSelectExtra, getPointPickables, onSelectPointPickable }) {
         sceneInteraction?.detach();
         sceneInteraction = createSceneInteraction({
             THREE,
@@ -51,6 +51,8 @@ export function createEventScene({
             camera,
             markerGroup,
             extraObjects,
+            getPointPickables,
+            onSelectPointPickable,
             onSelectCluster,
             onSelectEvent,
             onSelectExtra

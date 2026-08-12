@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "Volcano_Name": "Etna",
+        "Volcano_Number": 211060,
+        "Country": "Italy",
+        "Region": "Mediterranean and Western Asia",
+        "Primary_Volcano_Type": "Stratovolcano",
+        "Last_Eruption_Year": 2024,
+        "Elevation": 3357,
+        "Evidence_Category": "Eruption Observed"
+      },
+      "geometry": { "type": "Point", "coordinates": [14.999, 37.748] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "Volcano_Name": "Mount Erebus",
+        "Volcano_Number": 390020,
+        "Country": "Antarctica",
+        "Primary_Volcano_Type": "Stratovolcano",
+        "Last_Eruption_Year": -200,
+        "Elevation": 3794
+      },
+      "geometry": { "type": "Point", "coordinates": [167.166, -77.53] }
+    }
+  ]
+}

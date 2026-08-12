@@ -5,6 +5,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 
+const BLOOM_RESOLUTION_SCALE = 0.5;
+
 export function createSceneRuntime({ THREE, mount = document.body } = {}) {
     let disposed = false;
     const disposedTextures = new Set();
@@ -16,7 +18,10 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
     const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
     camera.position.set(0, 1.8, 6.4);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    // Interactive rendering never reads pixels from this canvas: PNG/video
+    // export creates its own short-lived renderer with preserveDrawingBuffer.
+    // Keeping it off here lets the browser discard the previous backbuffer.
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false });
     renderer.setSize(innerWidth, innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -39,7 +44,14 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.34, 0.72, 0.3);
+    // Bloom is a blur, so half-resolution preserves the intended look while
+    // reducing its render-target cost on the GTX 1650 performance target.
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(innerWidth * BLOOM_RESOLUTION_SCALE, innerHeight * BLOOM_RESOLUTION_SCALE),
+        0.34,
+        0.72,
+        0.3
+    );
     composer.addPass(bloomPass);
     const smaaPass = new SMAAPass(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
     composer.addPass(smaaPass);
@@ -86,6 +98,7 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
         earthGroup,
         composer,
         bloomPass,
+        bloomResolutionScale: BLOOM_RESOLUTION_SCALE,
         smaaPass,
         dispose,
         isDisposed: () => disposed

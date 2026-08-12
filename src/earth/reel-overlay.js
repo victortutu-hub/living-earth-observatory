@@ -126,6 +126,73 @@ export function createReelOverlay({
     reelCaption.renderOrder = 999;
     scene.add(reelCaption);
 
+    // Runtime trace compact, desenat in CanvasTexture ca sa fie prezent si in
+    // exportul MediaRecorder. Este invocat numai de timeline-ul Local cinema.
+    const codeCardCanvas = document.createElement('canvas');
+    codeCardCanvas.width = 1024;
+    codeCardCanvas.height = 376;
+    const codeCardCtx = codeCardCanvas.getContext('2d');
+    const codeCardTexture = new THREE.CanvasTexture(codeCardCanvas);
+    codeCardTexture.colorSpace = THREE.SRGBColorSpace;
+    const codeCard = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: codeCardTexture,
+        transparent: true,
+        opacity: 0,
+        depthTest: false,
+        depthWrite: false
+    }));
+    codeCard.visible = false;
+    codeCard.renderOrder = 1000;
+    scene.add(codeCard);
+    const codeCardState = { active: false, start: 0, duration: 5.2, lines: [], accent: '#9fe7ff' };
+    const codeSnippets = Object.freeze({
+        bootstrap: Object.freeze({
+            lines: Object.freeze([
+                'const surface = await loadBlueMarbleSurfaceTexture({',
+                '  THREE, renderer, timeoutMs: 20_000',
+                '});',
+                'renderer.toneMappingExposure = 1.04;'
+            ]),
+            accent: '#ffd2a0'
+        }),
+        event: Object.freeze({
+            lines: Object.freeze([
+                'const raw = await requestRuntime.fetchResource({',
+                '  key: "eonet-events", ttl: 60_000',
+                '});',
+                'const events = shapeEvents(raw.data, { days: 20 });'
+            ]),
+            accent: '#ffad72'
+        }),
+        iss: Object.freeze({
+            lines: Object.freeze([
+                'const orbit = satellite.propagate(satrec, now);',
+                'const geodetic = satellite.eciToGeodetic(',
+                '  orbit.position, gmst',
+                '); camera.track(issState);'
+            ]),
+            accent: '#9fe7ff'
+        }),
+        moon: Object.freeze({
+            lines: Object.freeze([
+                'const terminator = solarTerminator(sunDirection);',
+                'nightLights.uniforms.uTerminator.value = terminator;',
+                'moonSystem.setEarthshineBoost(1.28);',
+                'atmosphere.syncSunDirection(sunDirection);'
+            ]),
+            accent: '#b4c8ff'
+        }),
+        outro: Object.freeze({
+            lines: Object.freeze([
+                'const stream = exportCanvas.captureStream(30);',
+                'const webm = await recordTimeline(stream);',
+                'const mp4 = await transcodeH264(webm, { crf: 18 });',
+                'downloadBlob(mp4, reelFilename);'
+            ]),
+            accent: '#ffd2a0'
+        })
+    });
+
     // Fade in/out pentru caption: fara asta, schimbarea intre evenimente era o
     // taiere instanta (opacity 0->1 direct), ceea ce dadea senzatia de "flash"
     // intre evenimente si nu lasa privitorului timp sa perceapa tranzitia.
@@ -136,6 +203,57 @@ export function createReelOverlay({
         captionFade.hiding = false;
         captionFade.start = getTime();
         reelCaption.visible = true;
+    }
+
+    function showReelCodeSnippet(name) {
+        const snippet = codeSnippets[name];
+        if (!snippet) return;
+        codeCardState.active = true;
+        codeCardState.start = getTime();
+        codeCardState.lines = snippet.lines;
+        codeCardState.accent = snippet.accent;
+        codeCard.visible = true;
+    }
+
+    function hideReelCodeSnippet() {
+        codeCardState.active = false;
+        codeCard.visible = false;
+        codeCard.material.opacity = 0;
+    }
+
+    function drawReelCodeSnippet(visibleCharacters) {
+        const ctx = codeCardCtx;
+        const { width: w, height: h } = codeCardCanvas;
+        ctx.clearRect(0, 0, w, h);
+        const panel = ctx.createLinearGradient(0, 0, w, h);
+        panel.addColorStop(0, 'rgba(4, 9, 19, 0.94)');
+        panel.addColorStop(1, 'rgba(9, 20, 34, 0.78)');
+        ctx.fillStyle = panel;
+        roundRect(ctx, 18, 18, w - 36, h - 36, 24);
+        ctx.fill();
+        ctx.strokeStyle = codeCardState.accent;
+        ctx.globalAlpha = 0.62;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.font = '600 22px ui-monospace, SFMono-Regular, Consolas, monospace';
+        ctx.fillStyle = codeCardState.accent;
+        ctx.fillText('// LIVING EARTH · LOCAL CINEMA · RUNTIME TRACE', 54, 62);
+        ctx.font = '500 25px ui-monospace, SFMono-Regular, Consolas, monospace';
+        ctx.fillStyle = '#e7f2ff';
+        let remaining = visibleCharacters;
+        let y = 116;
+        codeCardState.lines.forEach(line => {
+            const shown = line.slice(0, Math.max(0, remaining));
+            ctx.fillText(shown, 54, y);
+            remaining -= line.length + 1;
+            y += 48;
+        });
+        if (visibleCharacters < codeCardState.lines.join('\n').length) {
+            ctx.fillStyle = codeCardState.accent;
+            ctx.fillRect(54 + ctx.measureText(codeCardState.lines.join('\n').slice(0, visibleCharacters).split('\n').pop() || '').width, y - 66, 3, 28);
+        }
+        codeCardTexture.needsUpdate = true;
     }
 
     const reelLocatorGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
@@ -490,6 +608,7 @@ export function createReelOverlay({
     }
 
     function positionReelCaptionForCamera(activeCamera, options = {}) {
+        updateReelCodeForCamera(activeCamera);
         if (!reelCaption.visible) return;
         const t = getTime();
         let fadeOpacity = 1;
@@ -535,6 +654,32 @@ export function createReelOverlay({
         const captionHeight = visibleHeight * baseHeightRatio * titleHeightScale;
         reelCaption.scale.set(captionHeight * (reelCaptionCanvas.width / reelCaptionCanvas.height), captionHeight, 1);
         updateReelLocatorForCamera(activeCamera, _captionUp, _captionRight, captionHeight, verticalLayout, options, fadeOpacity);
+    }
+
+    function updateReelCodeForCamera(activeCamera) {
+        if (!codeCardState.active) return;
+        const elapsed = getTime() - codeCardState.start;
+        if (elapsed >= codeCardState.duration) {
+            hideReelCodeSnippet();
+            return;
+        }
+        const allText = codeCardState.lines.join('\n');
+        const typed = Math.min(allText.length, Math.floor(allText.length * Math.min(1, elapsed / 2.15)));
+        const fadeIn = THREE.MathUtils.smoothstep(elapsed, 0, 0.22);
+        const fadeOut = THREE.MathUtils.smoothstep(codeCardState.duration - elapsed, 0, 0.42);
+        codeCard.material.opacity = fadeIn * fadeOut;
+        drawReelCodeSnippet(typed);
+        activeCamera.getWorldDirection(_captionDir);
+        _captionRight.setFromMatrixColumn(activeCamera.matrixWorld, 0);
+        _captionUp.setFromMatrixColumn(activeCamera.matrixWorld, 1);
+        const distance = 3.04;
+        codeCard.position.copy(activeCamera.position)
+            .add(_captionDir.clone().multiplyScalar(distance))
+            .add(_captionRight.clone().multiplyScalar(-0.9))
+            .add(_captionUp.clone().multiplyScalar(0.62));
+        const visibleHeight = 2 * Math.tan(THREE.MathUtils.degToRad(activeCamera.fov) / 2) * distance;
+        const codeHeight = visibleHeight * 0.17;
+        codeCard.scale.set(codeHeight * (codeCardCanvas.width / codeCardCanvas.height), codeHeight, 1);
     }
 
     function updateReelLocatorForCamera(activeCamera, up, right, captionHeight, verticalLayout = null, options = {}, fadeOpacity = 1) {
@@ -617,6 +762,8 @@ export function createReelOverlay({
         updateReelTransitionCard,
         updateReelTitleCard,
         hideReelCaption,
+        showReelCodeSnippet,
+        hideReelCodeSnippet,
         positionReelCaptionForCamera,
         triggerSignalPulse,
         updateSignalPulseForCamera,

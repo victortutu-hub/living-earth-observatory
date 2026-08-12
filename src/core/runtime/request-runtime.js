@@ -178,6 +178,10 @@ export function createRequestRuntime({ cache = persistentCache, onDiagnostic = n
         try {
           control.assertNetworkAllowed(url);
           const response = await fetch(url, { ...networkOptions, headers, signal: linked.controller.signal });
+          const swCachedAt = Number(response.headers.get('x-lea-cached-at'));
+          const swCacheState = Number.isFinite(swCachedAt)
+            ? classifyCacheRecord({ storedAt: swCachedAt }, { ttl, staleTtl })
+            : null;
           if (response.status === 304 && cached) {
             const touched = await cache.touch(key);
             const latencyMs = Math.round((performance.now?.() ?? Date.now()) - started);
@@ -212,9 +216,12 @@ export function createRequestRuntime({ cache = persistentCache, onDiagnostic = n
             data,
             state: RUNTIME_STATE.LIVE,
             meta: createRuntimeMeta({
-              phase: 'ready', freshness: 'fresh', cache: cached ? 'refresh' : 'miss', cacheAgeMs: 0,
+              phase: 'ready',
+              freshness: swCacheState?.freshness || 'fresh',
+              cache: swCacheState ? 'service-worker-cache' : cached ? 'refresh' : 'miss',
+              cacheAgeMs: swCacheState?.ageMs || 0,
               latencyMs, attempts, updated: new Date(stored.storedAt).toISOString(), sourceTime,
-              networkState: 'online',
+              networkState: swCacheState ? 'cached' : 'online',
             }),
           };
           emitDiagnostic({ key, url, responseType, state: result.state, ...result.meta });

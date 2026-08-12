@@ -4,6 +4,8 @@ export function createSceneInteraction({
     camera,
     markerGroup,
     extraObjects = [],
+    getPointPickables = () => [],
+    onSelectPointPickable,
     onSelectCluster,
     onSelectEvent,
     onSelectExtra,
@@ -77,6 +79,22 @@ export function createSceneInteraction({
         if (picked?.eventId) {
             onSelectEvent?.(picked.eventId);
             return;
+        }
+        // Layere-plugin (ex. vulcani GVP): puncte selectabile per-index, cu prag
+        // ceva mai generos ca sa fie usor de atins. Cautate dupa markerele EONET
+        // ca sa nu le fure click-urile, dar inaintea obiectelor speciale.
+        const pointPickables = getPointPickables();
+        if (pointPickables.length) {
+            setPointerFromClient(event.clientX, event.clientY);
+            raycaster.setFromCamera(pointer, camera);
+            const prevThreshold = raycaster.params.Points.threshold;
+            raycaster.params.Points.threshold = 0.06;
+            const pointHit = raycaster.intersectObjects(pointPickables, false)[0];
+            raycaster.params.Points.threshold = prevThreshold;
+            if (pointHit?.object && Number.isInteger(pointHit.index)) {
+                onSelectPointPickable?.(pointHit.object, pointHit.index);
+                return;
+            }
         }
         // Obiecte aditionale (Luna, ISS etc.) - cautate doar daca marker-ele n-au dat hit,
         // ca sa nu schimbam deloc comportamentul existent pentru evenimente EONET.

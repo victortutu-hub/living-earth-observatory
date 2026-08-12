@@ -118,6 +118,7 @@ export function initStoryRuntime() {
     return dataSourcesMapSize;
   }
 
+  let lastMapDrawTs = 0;
   function drawDataSourcesMap(time = 0) {
     const canvas = document.getElementById('dataSourcesMap');
     const section = document.getElementById('data-sources');
@@ -125,6 +126,14 @@ export function initStoryRuntime() {
       dataSourcesMapFrame = 0;
       return;
     }
+    const mapMobile = window.innerWidth < 760 || window.innerHeight > window.innerWidth * 1.18;
+    // Pe mobil plafonam harta de surse la ~24fps: e un canvas decorativ, iar
+    // shadowBlur-ul per punct (mai jos) e foarte scump. Nu are rost la 60fps.
+    if (mapMobile && time - lastMapDrawTs < 40) {
+      dataSourcesMapFrame = dataSourcesMapVisible ? requestAnimationFrame(drawDataSourcesMap) : 0;
+      return;
+    }
+    lastMapDrawTs = time;
     const size = sizeDataSourcesMap(canvas, section);
     if (!size) return;
     const { w, h, dpr } = size;
@@ -161,18 +170,21 @@ export function initStoryRuntime() {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
 
-    for (let i = 0; i < points.length; i++) {
+    const maxPoints = mapMobile ? Math.min(points.length, 55) : points.length;
+    for (let i = 0; i < maxPoints; i++) {
       const p = points[i];
       const pulse = (Math.sin(t * 1.35 + i * 0.71) + 1) * 0.5;
       const alpha = 0.18 + pulse * 0.28;
       ctx.beginPath();
       ctx.fillStyle = `rgba(196,181,253,${alpha})`;
-      ctx.shadowBlur = 10 + pulse * 8;
+      // shadowBlur (glow) e printre cele mai scumpe operatii canvas 2D pe mobil,
+      // facut per punct la 60fps ineaca telefonul. Il taiem pe mobil.
+      ctx.shadowBlur = mapMobile ? 0 : 10 + pulse * 8;
       ctx.shadowColor = 'rgba(139,92,246,0.55)';
-      ctx.arc(p.x, p.y, 1.4 + pulse * 1.3, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, (mapMobile ? 1.8 : 1.4) + pulse * 1.3, 0, Math.PI * 2);
       ctx.fill();
 
-      if (i < 18) {
+      if (!mapMobile && i < 18) {
         const ring = 5 + ((t * 16 + i * 9) % 28);
         const ringAlpha = Math.max(0, 0.16 - ring / 190);
         ctx.beginPath();
