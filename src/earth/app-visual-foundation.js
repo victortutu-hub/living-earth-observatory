@@ -4,7 +4,7 @@ import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-co
 import { createGeoUtils } from './geo.js';
 import { createStarField } from './star-field.js?v=milkyWay1';
 import { createEventUtils } from './event-utils.js?v=polyFix2';
-import { createEarthLayers } from './earth-layers.js?v=blackMarbleStatus3';
+import { createEarthLayers } from './earth-layers.js?v=cacheFix1';
 import { createMoonSystem } from './moon-system.js?v=unifiedEarthLot2';
 import { createIssSystem } from './iss-system.js?v=unifiedEarthLot2';
 import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';

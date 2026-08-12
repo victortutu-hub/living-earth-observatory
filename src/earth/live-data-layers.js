@@ -1,4 +1,4 @@
-import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js?v=unifiedEarth1';
+import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js?v=cacheFix1';
 import { createFirmsWildfireProvider } from './firms-wildfires.js?v=firms4';
 
 // Aurora a fost migrata la registry-ul de layere (layers/aurora.js, tip 'custom').
