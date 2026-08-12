@@ -83,10 +83,14 @@ const BATHYMETRY_RAMP_BODY = `
         float depthTw = clamp(uSeaLevelTw - reliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
         // Tranzitie imblanzita la tarm, evita o linie dura de coasta.
         float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - reliefTw);
-        vec3 shelfColorTw = vec3(0.16, 0.50, 0.56);
-        vec3 abyssColorTw = vec3(0.012, 0.035, 0.09);
+        // Culori mai putin saturate: un indiciu subtil de adancime peste
+        // imaginea reala Blue Marble, nu o revopsire a oceanului.
+        vec3 shelfColorTw = vec3(0.10, 0.34, 0.42);
+        vec3 abyssColorTw = vec3(0.02, 0.05, 0.11);
         vec3 bathyRampTw = mix(shelfColorTw, abyssColorTw, pow(depthTw, 0.6));
-        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.5), underwaterTw);
+        // Amestec redus (0.28) - lasa textura NASA sa domine, batimetria doar
+        // moduleaza spre adancime.
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.28), underwaterTw);
     }`;
 
 // Inregistreaza valorile uniformelor SI le declara in sursa GLSL. Uniformele

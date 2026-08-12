@@ -98,7 +98,9 @@ const POINTS_VERTEX_SHADER = `
         vFacing = smoothstep(-0.05, 0.30, dot(worldNormal, viewDir));
 
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-        gl_PointSize = 2.4 * uPixelRatio * (300.0 / max(80.0, -mvPosition.z));
+        // Puncte MICI, dimensiune ~fixa (nu 300/z, care dadea ~18px). Cu 16k+
+        // particule, puncte mari + blending aditiv saturau tot ecranul la alb.
+        gl_PointSize = uPixelRatio * 1.6;
         gl_Position = projectionMatrix * mvPosition;
     }
 `;
@@ -111,17 +113,19 @@ const POINTS_FRAGMENT_SHADER = `
     void main() {
         vec2 p = gl_PointCoord - 0.5;
         float d = length(p) * 2.0;
-        float core = smoothstep(0.9, 0.0, d);
+        float core = smoothstep(1.0, 0.0, d);
         // fade in la nastere, fade out inainte de respawn - evita "pop"-ul.
         float lifeFade = smoothstep(0.0, 0.08, vAge) * smoothstep(1.0, 0.85, vAge);
         float alpha = core * lifeFade * vFacing * uOpacity;
         if (alpha < 0.02) discard;
-        vec3 color = mix(vec3(0.55, 0.82, 0.98), vec3(0.92, 0.97, 1.0), core);
+        // Culoare sub pragul de bloom (0.3 luminanta) ca sa nu declanseze
+        // UnrealBloomPass sa amplifice particulele pana la alb.
+        vec3 color = vec3(0.32, 0.52, 0.72);
         gl_FragColor = vec4(color, alpha);
     }
 `;
 
-export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 256 }) {
+export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 128 }) {
     let disposed = false;
     let enabled = false;
     let loading = false;
@@ -161,14 +165,17 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 25
                 uPositionTexture: { value: null },
                 uRadius: { value: 2.06 },
                 uPixelRatio: { value: Math.min(2, window.devicePixelRatio || 1) },
-                uOpacity: { value: 0.85 },
+                uOpacity: { value: 0.7 },
             },
             vertexShader: POINTS_VERTEX_SHADER,
             fragmentShader: POINTS_FRAGMENT_SHADER,
             transparent: true,
             depthWrite: false,
             depthTest: false,
-            blending: THREE.AdditiveBlending,
+            // NormalBlending (nu Additive): particulele care se suprapun nu se
+            // acumuleaza pana la alb. Cu 16k particule, Additive + bloom umplea
+            // tot ecranul cu alb.
+            blending: THREE.NormalBlending,
         });
 
         points = new THREE.Points(geometry, material);

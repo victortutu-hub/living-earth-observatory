@@ -1,4 +1,4 @@
-import { createMarkerSystem } from './marker-system.js?v=cacheFix1';
+import { createMarkerSystem } from './marker-system.js?v=blackMarkerFix1';
 import { createSceneInteraction } from './scene-interaction.js?v=markerPicking2';
 
 export function createEventScene({

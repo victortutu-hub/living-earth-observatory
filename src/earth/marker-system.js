@@ -264,16 +264,19 @@ export function createMarkerSystem({
         }
         const markerGeometry = new THREE.SphereGeometry(0.023, 18, 12);
         const glowGeometry = new THREE.SphereGeometry(0.048, 22, 14);
+        // NU vertexColors: true - InstancedMesh coloreaza per-instanta prin
+        // instanceColor (setColorAt), aplicat automat de Three.js via
+        // USE_INSTANCING_COLOR. Cu vertexColors: true s-ar activa si USE_COLOR,
+        // care inmulteste culoarea cu atributul per-vertex `color` - inexistent
+        // pe geometria sferei, deci default (0,0,0) => toate markerele negre.
         const markerMaterial = new THREE.MeshBasicMaterial({
             transparent: true,
             opacity: 0.84,
-            vertexColors: true,
             depthWrite: false
         });
         const glowMaterial = new THREE.MeshBasicMaterial({
             transparent: true,
             opacity: 0.2,
-            vertexColors: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });

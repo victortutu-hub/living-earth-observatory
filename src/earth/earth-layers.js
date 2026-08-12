@@ -1,5 +1,5 @@
 import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js?v=refraction1';
-import { createEarthMaterial, createEarthMaterialPBR } from './earth-material.js?v=bathyShaderFix1';
+import { createEarthMaterial, createEarthMaterialPBR } from './earth-material.js?v=bathyShaderFix2';
 import { createEarthRoughnessTexture } from './earth-roughness.js?v=pbrRoughness4';
 import { makeNightLightsMat } from './night-lights.js?v=blackMarbleTerminator1';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js?v=blackMarbleStatus2';
