@@ -15,6 +15,7 @@ import { createLiveDataLayers } from './live-data-layers.js?v=layerRegistry5';
 import { createLayerRegistry } from './layer-plugin-registry.js?v=layerRegistry5';
 import { gvpVolcanoesPlugin } from './layers/gvp-volcanoes.js?v=layerRegistry5';
 import { auroraPlugin } from './layers/aurora.js?v=layerRegistry5';
+import { snowIcePlugin } from './layers/snow-ice.js?v=snowIce1';
 import { lookDefaults } from './app-state.js?v=layerRegistry5';
 import { createEventScene } from './event-scene.js?v=markerPicking2';
 import { createAppVisualFoundation } from './app-visual-foundation.js?v=dailyCloudsPaused7';
@@ -340,6 +341,7 @@ export function createEarthAppServices({
     });
     layerRegistry.register(gvpVolcanoesPlugin);
     layerRegistry.register(auroraPlugin);
+    layerRegistry.register(snowIcePlugin);
 
     function showIssDetails() {
         deselectAll();
