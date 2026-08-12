@@ -328,20 +328,20 @@ interface LayerPlugin {
 - [ ] Prefetch al zilelor adiacente — irelevant fără straturi temporale active.
 - [ ] Indicator onest de disponibilitate per sursă — parțial acoperit: panoul declară explicit în UI că „Astronomy only for now — GIBS imagery layers do not respond to this yet", deci nu există interpolare tăcută sau pretenție falsă.
 
-### Sprint 1.5 — Suprafață sezonieră & ocean (5 zile)
+### Sprint 1.5 — Suprafață sezonieră & ocean (5 zile) — ÎNCHIS (12 august)
 
-- [ ] Blue Marble seasonal albedo (12 luni) cu interpolare între luni după data reală din timeline.
-- [ ] Mască de zăpadă/gheață: GIBS `MODIS_Terra_Snow_Cover` sau `IMS_Snow_Ice` (zilnic).
-- [ ] Batimetrie: rampă hipsometrică pe adâncime + shading pe pantă din normal map.
-- [ ] Sun glint pe ocean (specular pe direcția solară, modulat de rugozitate). Ai deja Fresnel Schlick cu F₀≈0.02 — construiește peste el.
+- [ ] Blue Marble seasonal albedo (12 luni) cu interpolare între luni după data reală din timeline. **Tăiat — cercetat direct în GetCapabilities-ul WMS GIBS: niciunul din cele 3 layere Blue Marble (`BlueMarble_NextGeneration`, `BlueMarble_ShadedRelief`, `BlueMarble_ShadedRelief_Bathymetry`) nu are `Dimension name="time"`, și nu există variante lunare separate.** Compozitele lunare NASA Blue Marble Next Generation există doar ca imagini statice pe Visible Earth, nu ca strat WMS/WMTS servit prin GIBS cu parametru `TIME`. Ar necesita un pipeline separat de descărcare/asset, în afara scopului acestui sprint.
+- [x] Mască de zăpadă/gheață: GIBS `MODIS_Terra_NDSI_Snow_Cover` (confirmat temporal, zilnic, 2000-02-24 → azi). Implementat ca layer `custom` în registry (`src/earth/gibs-snow-ice.js` + `src/earth/layers/snow-ice.js`), înregistrat cu contractul „1 fișier + 1 linie" deja validat la Sprint 1.1. Verificat direct cu `curl`: URL WMS răspunde `200`, PNG valid 2048×1024 RGBA, CORS OK; timeout-ul din browser-ul de test a fost flakiness de rețea a mediului sandbox (același gen de eșec ca la Black Marble/Blue Marble în acea sesiune), nu o eroare de cod.
+- [x] Batimetrie: rampă hipsometrică pe adâncime, direct din textura ETOPO deja încărcată (`earthRelief`, folosită și ca displacement/bump) — fără sursă nouă de date. Sub nivelul mării, culoarea oceanului trece de la turcoaz la țărm spre bleumarin aproape negru la adâncime. Aplicat pe ambele materiale (Phong + PBR), verificat live fără erori de shader pe niciuna din cele două căi.
+- [x] Sun glint pe ocean — **deja exista** (Fresnel Schlick F₀≈0.02 + boost la terminator, `earth-material.js`, calea Phong); verificat, nu a fost nevoie de cod nou. Shading pe pantă din normal map — deja acoperit structural: `earthReliefNormal` e deja `normalMap` activ pe ambele materiale, iluminarea răspunde deja la pantă.
 
-### 🚪 GATE 1
+### 🚪 GATE 1 — stare la 12 august (Faza 1 completă ca sprint-uri, gate-ul nu e încă verde)
 
-- [ ] Adăugarea unei surse noi = 1 fișier + 1 linie, verificat cu un exemplu real.
-- [ ] Suita de teste verde în CI.
-- [ ] Timeline scrubbing funcțional pe ≥3 straturi temporale.
-- [ ] Draw calls ≤ 80, FPS ≥ 45.
-- [ ] **Deploy public actualizat.**
+- [x] Adăugarea unei surse noi = 1 fișier + 1 linie, verificat cu un exemplu real — validat de două ori: GVP (Sprint 1.1) și Snow & ice (Sprint 1.5).
+- [~] Suita de teste verde în CI — 25/25 teste verzi local (`npm test`), workflow `.github/workflows/ci.yml` există, dar **nu a rulat încă pe GitHub Actions** — tot lucrul e pe branch local `dev/post-hackathon`, nepublicat (vezi nota despre `main` = snapshot hackathon). De verificat după push.
+- [ ] Timeline scrubbing funcțional pe ≥3 straturi temporale — **netrecut, onest.** Sprint 1.4 a livrat scrubbing doar pentru astronomie (Soare/Lună), tăiat deliberat față de straturile de date GIBS (nori opriți, night lights fix pe ani). Ar necesita reactivarea norilor zilnici + propagarea datei către minim 2 straturi temporale reale (acum există doar Snow & ice ca strat temporal nou, neconectat încă la slider).
+- [ ] Draw calls ≤ 80, FPS ≥ 45 — nemăsurat, necesită Spector.js/DevTools într-o sesiune de browser reală.
+- [ ] **Deploy public actualizat** — nefăcut; deploy-ul curent (`luminomorphism.ro`) rămâne pe starea dinainte de Faza 1.
 
 ---
 
