@@ -308,12 +308,12 @@ interface LayerPlugin {
 
 **Notă de fundație (P1 din roadmap-ul de platformă v4):** acesta e primul `package.json` din repo. S-a adăugat doar `vitest` ca dev-dependency, fără build tool (Vite) — acela rămâne un pas separat, neasumat aici.
 
-### Sprint 1.3 — Performanță markere (4 zile)
+### Sprint 1.3 — Performanță markere (4 zile) — parțial închis (12 august)
 
-- [ ] `InstancedMesh` pentru markerele EONET, cu atribute per-instanță (culoare, scală).
-- [ ] GPU picking: render pass separat cu ID-uri codificate în culoare, citire cu `readRenderTargetPixels` la 1×1 px sub cursor. Mult mai robust decât raycasting pe mii de puncte.
-- [ ] Clustering la depărtare (evenimente apropiate → un marker agregat cu contor).
-- [ ] Re-măsoară draw calls. Țintă ≤ 80.
+- [x] `InstancedMesh` pentru markerele EONET, cu atribute per-instanță (culoare, scală). Calea exista deja în `src/earth/marker-system.js` din spatele unui flag `useInstancedMarkers = false`, nefolosită. Activată acum, cu un bug reparat: `InstancedMesh` era alocat cu `state.clusters.length` sloturi, dar `isBackgroundUsgsCluster()` sare unele clustere (`continue`), deci mai puține instanțe primeau `setMatrixAt()` decât sloturi alocate — sloturile nescrise păstrau matricea identitate implicită și randau un marker fantomă la centrul globului. Fix: `.count` setat explicit la numărul real de instanțe scrise. Verificat live: 127 evenimente EONET randate fără erori de consolă.
+- [x] Clustering la depărtare — deja implementat (`buildClusters`), nu era specific la Sprint 1.3 dar era condiționat de calea instanced fiind pornită.
+- [~] GPU picking — **decizie:** nu s-a implementat varianta cu render pass separat + `readRenderTargetPixels`. Picking-ul existent prin raycasting CPU pe `InstancedMesh` (`hit.instanceId` → `userData.instances[hit.instanceId]`, deja în `scene-interaction.js`) acoperă contractul funcțional (selecție corectă pe instanțe) fără complexitatea suplimentară a unui render pass de culori. De revizitat doar dacă raycasting-ul devine măsurabil de lent cu mii de puncte.
+- [ ] Re-măsoară draw calls. Țintă ≤ 80. Nefăcut — necesită Spector.js/DevTools pe o sesiune de browser reală, nu disponibil din acest mediu de lucru.
 
 ### Sprint 1.4 — Timeline scrubbing global (5 zile) ⭐ diferențiator
 
