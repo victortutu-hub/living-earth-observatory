@@ -134,6 +134,28 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+    #timeScrubPanel {
+        display: grid;
+        gap: 7px;
+        padding: 12px 14px;
+    }
+    #timeScrubPanel .toolbar-range {
+        border: 1px solid rgba(160, 205, 255, 0.12);
+        background: rgba(255, 255, 255, 0.028);
+    }
+    #timeScrubPanel[data-mode="historical"] .toolbar-range {
+        border-color: rgba(255, 217, 163, 0.4);
+    }
+    #timeScrubLabel {
+        color: #f6f9ff;
+        font-size: 11px;
+        font-weight: 650;
+    }
+    .time-scrub-presets {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+    }
     #toolbar {
         padding: 10px;
         display: grid;
@@ -661,6 +683,21 @@
             <div class="solar-cell"><span>UTC</span><b id="solarUtc">--:--</b></div>
             <div class="solar-cell"><span>Subsolar lon</span><b id="solarLon">--</b></div>
             <div class="solar-cell"><span>Subsolar lat</span><b id="solarLat">--</b></div>
+        </div>
+    </section>
+    <section id="timeScrubPanel" class="panel" aria-label="Historical time" data-mode="live">
+        <div class="solar-title">Time</div>
+        <div class="toolbar-range" title="Scrub the Sun and Moon to a historical UTC date and time. Astronomy only for now — GIBS imagery layers do not respond to this yet.">
+            <label for="timeScrubSlider">
+                <span id="timeScrubLabel">Live</span>
+            </label>
+            <input id="timeScrubSlider" type="range" min="0" max="365" step="1" value="0">
+        </div>
+        <div class="time-scrub-presets">
+            <button type="button" id="timeScrubLive">Live</button>
+            <button type="button" id="timeScrubPreset7">-7d</button>
+            <button type="button" id="timeScrubPreset30">-30d</button>
+            <button type="button" id="timeScrubPreset365">-1y</button>
         </div>
     </section>
     <section id="toolbar" class="panel">

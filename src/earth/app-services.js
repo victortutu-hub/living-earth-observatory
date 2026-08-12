@@ -10,6 +10,7 @@ import { createEonetAutoRefreshController } from './eonet-data.js?v=cacheStatus1
 import { createEonetApp } from './eonet-app.js?v=cacheStatus1';
 import { createCameraMotionRuntime } from './camera-motion.js?v=localCinemaCode11';
 import { createEarthAppRuntime } from './app-runtime.js?v=localCinemaCode5';
+import { createTimeScrubPanel } from './time-scrub-panel.js?v=timeScrub1';
 import { createLiveDataLayers } from './live-data-layers.js?v=layerRegistry5';
 import { createLayerRegistry } from './layer-plugin-registry.js?v=layerRegistry5';
 import { gvpVolcanoesPlugin } from './layers/gvp-volcanoes.js?v=layerRegistry5';
@@ -144,6 +145,8 @@ export function createEarthAppServices({
         moon: moonSystem.moon,
         localDirForSelenographic
     });
+
+    const timeScrubPanel = createTimeScrubPanel({ timeState });
 
     const controlPanel = createControlPanel({ state });
     const {
@@ -512,6 +515,7 @@ export function createEarthAppServices({
         layerRegistry.dispose?.();
         gdacsProvider.dispose?.();
         exportSystem.dispose?.();
+        timeScrubPanel.dispose();
         visualFoundation.dispose();
     }
 
