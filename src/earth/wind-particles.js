@@ -18,7 +18,7 @@
 // consacrata (nullschool etc.), nu o masuratoare directa - 'interpretive'
 // pentru miscarea vizuala, 'observed' pentru campul vectorial subiacent.
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
-import { fetchWindFieldTexture } from './wind-field-provider.js?v=windParticles1';
+import { fetchWindFieldTexture } from './wind-field-provider.js?v=windCache1';
 
 const TRAIL_WIDTH = 2048;
 const TRAIL_HEIGHT = 1024;

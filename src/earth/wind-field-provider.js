@@ -9,6 +9,11 @@
 // (incotro se misca aerul) e opusul:
 //   u (est) = -speed * sin(directionRad)
 //   v (nord) = -speed * cos(directionRad)
+//
+// CACHE: Open-Meteo limiteaza cererile pe minut (HTTP 429). Campul de vant se
+// schimba lent (orar), deci pastram grila encodata in sessionStorage: reload-
+// urile si re-toggle-urile refolosesc cache-ul in loc sa loveasca API-ul. La
+// 429/eroare de retea, cadem pe cache chiar daca e mai vechi decat TTL-ul.
 
 const LAT_STEP = 10;
 const LON_STEP = 10;
@@ -16,6 +21,9 @@ const LAT_MIN = -80;
 const LAT_MAX = 80;
 const LON_MIN = -180;
 const LON_MAX = 170; // 180 ar duplica meridianul cu -180
+
+const CACHE_KEY = 'lea-wind-field-v1';
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minute: campul de vant se schimba orar
 
 function buildGrid() {
     const lats = [];
@@ -43,29 +51,12 @@ function windUrl(lats, lons) {
     return `https://api.open-meteo.com/v1/forecast?${params}`;
 }
 
-// R/G = u,v normalizati la [0,1] pe uMaxSpeed (decodati in shader: (c*2-1)*maxSpeed).
-// maxSpeed e un plafon de encodare, nu o limita fizica - viteze mai mari se
-// clampeaza vizual, nu se pierd date reale (Open-Meteo intoarce m/s brut).
-export async function fetchWindFieldTexture({ THREE, maxSpeedMs = 40, timeoutMs = 20_000 }) {
-    const { lats, lons } = buildGrid();
-    const url = windUrl(lats, lons);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    let payload;
-    try {
-        const response = await fetch(url, { signal: controller.signal, mode: 'cors' });
-        if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
-        payload = await response.json();
-    } finally {
-        clearTimeout(timeoutId);
-    }
-    if (!Array.isArray(payload) || payload.length !== lats.length * lons.length) {
-        throw new Error('Open-Meteo wind batch response shape unexpected.');
-    }
-
-    const width = lons.length;
-    const height = lats.length;
-    const data = new Uint8ClampedArray(width * height * 4);
+// Encodeaza payload-ul in R/G = u,v normalizati la [0,255] pe maxSpeedMs.
+// Returneaza un obiect JSON-serializabil (data e Array simplu), ca sa poata fi
+// pus direct in sessionStorage. maxSpeedMs e un plafon de encodare, nu o limita
+// fizica - viteze mai mari se clampeaza vizual, nu se pierd date reale.
+function encodeGrid(payload, width, height, maxSpeedMs) {
+    const data = new Array(width * height * 4);
     let index = 0;
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
@@ -89,8 +80,50 @@ export async function fetchWindFieldTexture({ THREE, maxSpeedMs = 40, timeoutMs 
             index++;
         }
     }
+    return { width, height, maxSpeedMs, gridPoints: width * height, data };
+}
 
-    const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
+function readCache() {
+    try {
+        const raw = sessionStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed?.data) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCache(grid) {
+    try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ...grid, t: Date.now() }));
+    } catch {
+        // sessionStorage plin / indisponibil (private mode) - cache-ul e optional.
+    }
+}
+
+async function fetchWindGrid(timeoutMs, maxSpeedMs) {
+    const { lats, lons } = buildGrid();
+    const url = windUrl(lats, lons);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let payload;
+    try {
+        const response = await fetch(url, { signal: controller.signal, mode: 'cors' });
+        if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
+        payload = await response.json();
+    } finally {
+        clearTimeout(timeoutId);
+    }
+    if (!Array.isArray(payload) || payload.length !== lats.length * lons.length) {
+        throw new Error('Open-Meteo wind batch response shape unexpected.');
+    }
+    return encodeGrid(payload, lons.length, lats.length, maxSpeedMs);
+}
+
+function buildTexture(THREE, grid, { cached }) {
+    const data = new Uint8ClampedArray(grid.data);
+    const texture = new THREE.DataTexture(data, grid.width, grid.height, THREE.RGBAFormat);
     // Longitude grid wraps at the antimeridian; latitude does not (poles clamp
     // to the nearest real row instead of wrapping to the opposite hemisphere).
     texture.wrapS = THREE.RepeatWrapping;
@@ -100,11 +133,33 @@ export async function fetchWindFieldTexture({ THREE, maxSpeedMs = 40, timeoutMs 
     texture.colorSpace = THREE.NoColorSpace;
     texture.needsUpdate = true;
     texture.userData = {
-        maxSpeedMs,
+        maxSpeedMs: grid.maxSpeedMs,
         latMin: LAT_MIN,
         latMax: LAT_MAX,
-        gridPoints: lats.length * lons.length,
+        gridPoints: grid.gridPoints,
+        cached,
         source: 'Open-Meteo current wind_speed_10m / wind_direction_10m, 10 degree global grid',
     };
     return texture;
+}
+
+export async function fetchWindFieldTexture({ THREE, maxSpeedMs = 40, timeoutMs = 20_000 }) {
+    const cached = readCache();
+    const isFresh = cached && cached.maxSpeedMs === maxSpeedMs && (Date.now() - cached.t) < CACHE_TTL_MS;
+    if (isFresh) {
+        return buildTexture(THREE, cached, { cached: true });
+    }
+
+    try {
+        const grid = await fetchWindGrid(timeoutMs, maxSpeedMs);
+        writeCache(grid);
+        return buildTexture(THREE, grid, { cached: false });
+    } catch (error) {
+        // 429 / retea: foloseste orice cache (chiar mai vechi decat TTL) daca
+        // exista, in loc sa esueze complet.
+        if (cached && cached.maxSpeedMs === maxSpeedMs) {
+            return buildTexture(THREE, cached, { cached: true });
+        }
+        throw error;
+    }
 }
