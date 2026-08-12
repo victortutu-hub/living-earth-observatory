@@ -355,15 +355,20 @@ interface LayerPlugin {
 
 **Aici — și abia aici — WebGPU are justificare reală.** Nu ca scop în sine, ci pentru că simulările de câmp vectorial (vânt, curenți) sunt exact ce fac compute shaders bine.
 
-### Sprint 2.1 — Ramura WebGPU/TSL (7 zile) — în lucru (12 august)
+### Sprint 2.1 — Ramura WebGPU/TSL (7 zile) — tăiat la scop, evaluare de cost înainte de cod (12 august)
 
 **Precondiție rezolvată întâi (12 august):** upgrade Three.js `r0.160.0 → r0.185.1`, ca pas izolat, separat de orice migrare de renderer — conform regulii proprii a roadmap-ului v4 („nu se combină upgrade-ul Three.js cu migrarea PBR/renderer"). r160 precede maturizarea reală TSL/WebGPURenderer; r185 e linia stabilă curentă. Risc verificat explicit înainte de upgrade (aplicația se bazează masiv pe injecție de shader via `onBeforeCompile`, care eșuează silențios dacă un anchor `#include <chunk>` își schimbă numele — fără eroare, doar efectul lipsește): toate cele 5 anchor-uri folosite în `src/` (`common`, `map_fragment`, `worldpos_vertex`, `normal_fragment_maps`, `specularmap_fragment`) confirmate neschimbate între r160 și r185; toate cele 7 căi de addon-uri confirmate valide; niciun API cunoscut ca eliminat (`sRGBEncoding`, `THREE.Math.*` etc.) nu era folosit. Verificat live pe `earth-eonet-relief.html` și `living-protein.html`: zero erori noi de consolă, doar un warning de deprecare (`THREE.Clock` → `THREE.Timer`, neblocant). Comutare PBR/Phong, time-scrub și layer registry retestate funcționale.
 
-- [ ] Branch separat `webgpu-tsl`. **Nu strica `main`.**
-- [ ] Migrare de bază: `WebGLRenderer` → `WebGPURenderer` din `three/webgpu`. TSL compilează același graf de noduri către GLSL (WebGL2) și WGSL (WebGPU) dintr-o singură sursă.
-- [ ] **Fallback automat obligatoriu la WebGL2** — nu toți utilizatorii au WebGPU activ.
-- [ ] Portează shaderele custom (atmosferă, ocean, terminator) la TSL, pe rând. Nu toate deodată.
-- [ ] Benchmark comparativ WebGL2 vs WebGPU pe același scenariu. **Dacă diferența e <10%, oprește migrarea aici** și păstrează WebGPU doar pentru compute (2.2/2.3).
+- [x] Branch separat `webgpu-tsl` — creat din `dev/post-hackathon`, gol (fără commit-uri), rezervat pentru când se reia acest fir.
+- [ ] Migrare de bază: `WebGLRenderer` → `WebGPURenderer` din `three/webgpu`. **Regulă de tăiere aplicată (12 august), înainte de a scrie cod, pe baza cercetării directe în sursa Three.js r185.1** — nu s-a construit efectiv migrarea. Constatări concrete:
+  - `WebGPURenderer` are fallback automat la WebGL2 (`forceWebGL`/auto-detect) — cerința de mai jos ar fi fost satisfăcută gratuit.
+  - Inițializarea devine **asincronă** (`await renderer.init()`), ceea ce ar cere refactorizarea fluxului de boot (`app-startup.js`/`app-lifecycle.js`) din sincron în asincron.
+  - **`EffectComposer`/`UnrealBloomPass`/`SMAAPass`/`OutputPass`** (pipeline-ul de post-procesare curent, `scene-runtime.js`) sunt specifice `WebGLRenderer`; `WebGPURenderer` folosește `THREE.PostProcessing` + noduri TSL, un sistem diferit.
+  - **`onBeforeCompile`** — mecanismul pe care se bazează *tot* look-ul custom (tenta zi/noapte, batimetria din Sprint 1.5, glint-ul oceanic, atmosfera, norii, night lights, portal shaders din `src/gateway/`) — **nu e suportat** de sistemul de materiale pe noduri al `WebGPURenderer`. Fiecare shader ar trebui rescris ca graf TSL.
+  - Concluzie: costul e mare (boot asincron + pipeline de post-procesare rescris + fiecare shader custom portat) și beneficiul nu e demonstrat încă. Sprint-urile 2.2/2.3 (particule) nu au nevoie de renderer-ul complet WebGPU — WebGL2 (FBO ping-pong/transform feedback) oferă același rezultat funcțional, exact varianta pe care regula de tăiere de mai jos o prevedea deja ca alternativă.
+- [ ] **Fallback automat obligatoriu la WebGL2** — irelevant, migrarea nu s-a făcut.
+- [ ] Portează shaderele custom (atmosferă, ocean, terminator) la TSL, pe rând. Nu toate deodată. — netăiat definitiv, doar amânat: reluat dacă/când apare un motiv concret (nu doar „WebGPU e nou").
+- [x] Benchmark comparativ WebGL2 vs WebGPU — **înlocuit cu o evaluare de cost înainte de implementare**, cu aceeași concluzie pe care benchmark-ul ar fi trebuit s-o testeze: se oprește migrarea aici, WebGPU rămâne doar o opțiune pentru compute, dacă va fi nevoie explicit în 2.2/2.3.
 
 ### Sprint 2.2 — Particule de vânt (10 zile) ⭐ cel mai spectaculos
 
