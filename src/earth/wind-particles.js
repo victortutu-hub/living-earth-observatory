@@ -2,16 +2,29 @@
 // Windy / Wind-JS): pozitiile particulelor traiesc intr-o textura, integrate
 // pe GPU printr-un ping-pong de FBO (GPUComputationRenderer, WebGL2 - Sprint
 // 2.1 a taiat migrarea completa la WebGPURenderer, deci ramanem pe calea
-// clasica FBO in loc de compute shader WGSL). Randate ca puncte care isi
-// citesc pozitia din textura de calcul in vertex shader.
+// clasica FBO in loc de compute shader WGSL).
+//
+// STREAMLINES (trail): particulele individuale, ca puncte, arata doar ca niste
+// punctulete fara sens - nu comunica directia/curgerea. Solutia canonica e o
+// dara care se estompeaza in urma fiecarei particule. Pe un GLOB CARE SE
+// ROTESTE, un buffer de trail in spatiu-ecran ar lasa smear la rotatie. De
+// aceea acumulam trail-urile intr-o textura ECHIRECTANGULARA (lon/lat) pe care
+// o mapam pe sfera: dara se "lipeste" de geografie si se roteste corect cu
+// globul. Fiecare cadru: fade(bufferul precedent) + capetele proaspete ale
+// particulelor, apoi ping-pong.
 //
 // Provenance: campul de vant e 'observed' (Open-Meteo, model meteorologic
-// real), dar reprezentarea ca particule/streamlines e o conventie de
-// vizualizare consacrata (nullschool etc.), nu o masuratoare directa a
-// particulelor individuale - etichetat 'interpretive' pentru miscarea vizuala
-// in sine, pastrand 'observed' pentru campul vectorial subiacent.
+// real), dar reprezentarea ca streamlines e o conventie de vizualizare
+// consacrata (nullschool etc.), nu o masuratoare directa - 'interpretive'
+// pentru miscarea vizuala, 'observed' pentru campul vectorial subiacent.
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
 import { fetchWindFieldTexture } from './wind-field-provider.js?v=windParticles1';
+
+const TRAIL_WIDTH = 2048;
+const TRAIL_HEIGHT = 1024;
+// Cat de repede se estompeaza dara. 1/(1-FADE) ~ lungimea in cadre: 0.965 ~ 28
+// cadre (~0.5s la 60fps). Mai mare = dare mai lungi, dar mai aglomerat.
+const TRAIL_FADE = 0.965;
 
 const POSITION_COMPUTE_SHADER = `
     uniform sampler2D uWindMap;
@@ -69,59 +82,55 @@ const POSITION_COMPUTE_SHADER = `
     }
 `;
 
-const POINTS_VERTEX_SHADER = `
+// Particulele desenate in spatiul ECHIRECTANGULAR (nu pe sfera): gl_Position
+// direct din lon/lat -> NDC, deci camera e irelevanta. Capetele se acumuleaza
+// aditiv in bufferul de trail.
+const TRAIL_POINT_VERTEX = `
     attribute vec2 aUv;
     uniform sampler2D uPositionTexture;
-    uniform float uRadius;
-    uniform float uPixelRatio;
+    uniform float uPointSize;
     varying float vAge;
-    varying float vFacing;
-
     void main() {
         vec4 posData = texture2D(uPositionTexture, aUv);
         float lon = posData.x * 360.0 - 180.0;
         float lat = posData.y * 180.0 - 90.0;
         vAge = posData.z;
-
-        // Trebuie sa ramana identic cu lonLatToVec3 din geo.js.
-        float phi = radians(90.0 - lat);
-        float theta = radians(lon + 180.0);
-        vec3 pos = vec3(
-            -uRadius * sin(phi) * cos(theta),
-             uRadius * cos(phi),
-             uRadius * sin(phi) * sin(theta)
-        );
-
-        vec3 worldPos = (modelMatrix * vec4(pos, 1.0)).xyz;
-        vec3 worldNormal = normalize(worldPos);
-        vec3 viewDir = normalize(cameraPosition - worldPos);
-        vFacing = smoothstep(-0.05, 0.30, dot(worldNormal, viewDir));
-
-        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-        // Puncte MICI, dimensiune ~fixa (nu 300/z, care dadea ~18px). Cu 16k+
-        // particule, puncte mari + blending aditiv saturau tot ecranul la alb.
-        gl_PointSize = uPixelRatio * 1.6;
-        gl_Position = projectionMatrix * mvPosition;
+        gl_Position = vec4(lon / 180.0, lat / 90.0, 0.0, 1.0);
+        gl_PointSize = uPointSize;
     }
 `;
 
-const POINTS_FRAGMENT_SHADER = `
-    uniform float uOpacity;
+const TRAIL_POINT_FRAGMENT = `
     varying float vAge;
-    varying float vFacing;
-
     void main() {
         vec2 p = gl_PointCoord - 0.5;
         float d = length(p) * 2.0;
         float core = smoothstep(1.0, 0.0, d);
         // fade in la nastere, fade out inainte de respawn - evita "pop"-ul.
-        float lifeFade = smoothstep(0.0, 0.08, vAge) * smoothstep(1.0, 0.85, vAge);
-        float alpha = core * lifeFade * vFacing * uOpacity;
-        if (alpha < 0.02) discard;
-        // Culoare sub pragul de bloom (0.3 luminanta) ca sa nu declanseze
-        // UnrealBloomPass sa amplifice particulele pana la alb.
-        vec3 color = vec3(0.32, 0.52, 0.72);
-        gl_FragColor = vec4(color, alpha);
+        float lifeFade = smoothstep(0.0, 0.06, vAge) * smoothstep(1.0, 0.8, vAge);
+        float a = core * lifeFade;
+        if (a < 0.02) discard;
+        // Additive in buffer: contributia e color*a. Culoare rece de vant.
+        gl_FragColor = vec4(vec3(0.45, 0.72, 0.95), a);
+    }
+`;
+
+// Quad fullscreen care copiaza bufferul precedent estompat (NoBlending -> il
+// suprascrie), baza peste care se adauga capetele proaspete.
+const TRAIL_FADE_VERTEX = `
+    varying vec2 vUv;
+    void main() {
+        vUv = position.xy * 0.5 + 0.5;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+    }
+`;
+
+const TRAIL_FADE_FRAGMENT = `
+    uniform sampler2D uPrev;
+    uniform float uFade;
+    varying vec2 vUv;
+    void main() {
+        gl_FragColor = texture2D(uPrev, vUv) * uFade;
     }
 `;
 
@@ -135,18 +144,45 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
 
     let gpuCompute = null;
     let positionVariable = null;
-    let points = null;
-    let material = null;
     let lastT = null;
+
+    // Trail: ping-pong de render targets echirectangulare.
+    let trailRead = null;
+    let trailWrite = null;
+    let fadeScene = null;
+    let pointScene = null;
+    let trailCamera = null;
+    let fadeMaterial = null;
+    let pointMaterial = null;
+    let displayMaterial = null;
+    let displayMesh = null;
 
     const group = new THREE.Group();
     group.name = 'wind-particles';
     group.visible = false;
     earthGroup.add(group);
 
-    function buildPoints() {
+    function makeTrailTarget() {
+        return new THREE.WebGLRenderTarget(TRAIL_WIDTH, TRAIL_HEIGHT, {
+            depthBuffer: false,
+            stencilBuffer: false,
+            type: THREE.UnsignedByteType,
+            format: THREE.RGBAFormat,
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            wrapS: THREE.RepeatWrapping,
+            wrapT: THREE.ClampToEdgeWrapping,
+        });
+    }
+
+    function buildTrailPipeline() {
+        trailRead = makeTrailTarget();
+        trailWrite = makeTrailTarget();
+        trailCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        // Grid UV pentru citirea texturii de pozitii (o intrare per particula).
         const count = gridSize * gridSize;
-        const positions = new Float32Array(count * 3); // neutilizat de shader, dar necesar pentru geometrie valida
+        const positions = new Float32Array(count * 3);
         const uvs = new Float32Array(count * 2);
         let i = 0;
         for (let row = 0; row < gridSize; row++) {
@@ -156,32 +192,58 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
                 i++;
             }
         }
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('aUv', new THREE.BufferAttribute(uvs, 2));
+        const pointGeometry = new THREE.BufferGeometry();
+        pointGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        pointGeometry.setAttribute('aUv', new THREE.BufferAttribute(uvs, 2));
 
-        material = new THREE.ShaderMaterial({
+        pointMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 uPositionTexture: { value: null },
-                uRadius: { value: 2.06 },
-                uPixelRatio: { value: Math.min(2, window.devicePixelRatio || 1) },
-                uOpacity: { value: 0.7 },
+                uPointSize: { value: 2.0 },
             },
-            vertexShader: POINTS_VERTEX_SHADER,
-            fragmentShader: POINTS_FRAGMENT_SHADER,
+            vertexShader: TRAIL_POINT_VERTEX,
+            fragmentShader: TRAIL_POINT_FRAGMENT,
             transparent: true,
-            depthWrite: false,
             depthTest: false,
-            // NormalBlending (nu Additive): particulele care se suprapun nu se
-            // acumuleaza pana la alb. Cu 16k particule, Additive + bloom umplea
-            // tot ecranul cu alb.
-            blending: THREE.NormalBlending,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
         });
+        const pointCloud = new THREE.Points(pointGeometry, pointMaterial);
+        pointCloud.frustumCulled = false;
+        pointScene = new THREE.Scene();
+        pointScene.add(pointCloud);
 
-        points = new THREE.Points(geometry, material);
-        points.frustumCulled = false;
-        points.renderOrder = 6;
-        group.add(points);
+        fadeMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uPrev: { value: null },
+                uFade: { value: TRAIL_FADE },
+            },
+            vertexShader: TRAIL_FADE_VERTEX,
+            fragmentShader: TRAIL_FADE_FRAGMENT,
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.NoBlending,
+        });
+        const fadeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMaterial);
+        fadeQuad.frustumCulled = false;
+        fadeScene = new THREE.Scene();
+        fadeScene.add(fadeQuad);
+
+        // Sfera de afisare: bufferul echirectangular mapat pe glob. La radius
+        // 2.05 (peste suprafata 2.0 si night lights 2.025). Additive, doar fata
+        // din fata (FrontSide + depthTest) - fata din spate e ocluzata de glob.
+        displayMaterial = new THREE.MeshBasicMaterial({
+            map: trailRead.texture,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: true,
+            side: THREE.FrontSide,
+            opacity: 0.9,
+        });
+        displayMesh = new THREE.Mesh(new THREE.SphereGeometry(2.05, 64, 48), displayMaterial);
+        displayMesh.renderOrder = 5;
+        group.add(displayMesh);
     }
 
     function setupCompute(windTexture) {
@@ -193,7 +255,7 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
             const rndLat = Math.random();
             data[i * 4] = rndLon;
             data[i * 4 + 1] = (Math.asin(rndLat * 2 - 1) / Math.PI + 0.5);
-            data[i * 4 + 2] = Math.random(); // age initial, esalonat, ca sa nu respawn-eze toate deodata
+            data[i * 4 + 2] = Math.random(); // age initial, esalonat
             data[i * 4 + 3] = 1;
         }
 
@@ -203,10 +265,8 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         positionVariable.material.uniforms.uMaxSpeed = { value: windTexture.userData.maxSpeedMs };
         positionVariable.material.uniforms.uDeltaTime = { value: 0 };
         // Factor de accelerare a timpului pentru vizualizare. Advectia reala pe
-        // glob e prea lenta ca s-o vezi: 10 m/s inseamna ~0.0001 grade/secunda
-        // (ore ca sa traverseze o regiune). La valoarea veche (22) particulele
-        // pareau o grila inghetata. ~8000 le face sa curga vizibil (~0.5-1
-        // grad/s pentru vanturi tipice), ca la earth.nullschool.net.
+        // glob e prea lenta ca s-o vezi: 10 m/s inseamna ~0.0001 grade/secunda.
+        // ~8000 le face sa curga vizibil (~0.5-1 grad/s pentru vanturi tipice).
         positionVariable.material.uniforms.uSpeedScale = { value: 8000 };
         positionVariable.material.uniforms.uTime = { value: 0 };
 
@@ -223,8 +283,7 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
             if (disposed) return;
             windMeta = windTexture.userData;
             setupCompute(windTexture);
-            buildPoints();
-            group.add(points);
+            buildTrailPipeline();
             ready = true;
             group.visible = enabled;
         } catch (error) {
@@ -241,18 +300,39 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         if (enabled && !ready && !loading) await load();
     }
 
-    // t: elapsed seconds since scene start (same absolute clock every other
-    // system in the render loop uses - app-runtime.js's animate() passes
-    // clock.getElapsedTime(), not a per-frame delta), delta computed here.
+    // t: secunde de la start-ul scenei (acelasi ceas absolut ca restul buclei;
+    // app-runtime.js paseaza clock.getElapsedTime()), delta calculat aici.
     function update(t) {
         if (!ready || !enabled || disposed) return;
         if (lastT === null) lastT = t;
         const dt = Math.min(0.25, Math.max(0, t - lastT));
         lastT = t;
+
         positionVariable.material.uniforms.uDeltaTime.value = dt;
         positionVariable.material.uniforms.uTime.value = t;
         gpuCompute.compute();
-        material.uniforms.uPositionTexture.value = gpuCompute.getCurrentRenderTarget(positionVariable).texture;
+
+        // Trail: write = fade(read) + capete particule. Salvam/refacem starea
+        // renderer-ului ca sa nu stricam randarea principala (composer).
+        const prevTarget = renderer.getRenderTarget();
+        const prevAutoClear = renderer.autoClear;
+        renderer.autoClear = false;
+
+        fadeMaterial.uniforms.uPrev.value = trailRead.texture;
+        pointMaterial.uniforms.uPositionTexture.value =
+            gpuCompute.getCurrentRenderTarget(positionVariable).texture;
+
+        renderer.setRenderTarget(trailWrite);
+        renderer.render(fadeScene, trailCamera);   // suprascrie cu precedentul estompat
+        renderer.render(pointScene, trailCamera);  // adauga capetele proaspete (additive)
+
+        renderer.setRenderTarget(prevTarget);
+        renderer.autoClear = prevAutoClear;
+
+        const swap = trailRead;
+        trailRead = trailWrite;
+        trailWrite = swap;
+        displayMaterial.map = trailRead.texture;
     }
 
     function getStatus() {
@@ -272,8 +352,14 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         if (disposed) return;
         disposed = true;
         gpuCompute?.dispose?.();
-        points?.geometry?.dispose();
-        material?.dispose();
+        trailRead?.dispose?.();
+        trailWrite?.dispose?.();
+        fadeScene?.traverse(node => { node.geometry?.dispose?.(); });
+        pointScene?.traverse(node => { node.geometry?.dispose?.(); });
+        fadeMaterial?.dispose?.();
+        pointMaterial?.dispose?.();
+        displayMesh?.geometry?.dispose?.();
+        displayMaterial?.dispose?.();
         earthGroup.remove(group);
     }
 
