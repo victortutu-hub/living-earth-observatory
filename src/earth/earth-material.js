@@ -64,6 +64,36 @@ function injectDayNightTint(shader, THREE) {
     );
 }
 
+// Sprint 1.5 - Batimetrie: rampa hipsometrica pe adancime, din aceeasi
+// textura ETOPO folosita deja ca displacement/bump (earthRelief), fara sursa
+// noua de date. Sub nivelul marii (relief < seaLevel) tenta oceanul spre
+// turcoaz la tarm si bleumarin foarte inchis la santuri adanci, in loc de un
+// albastru uniform din harta de baza - acelasi tip de semnal ca o harta
+// batimetrica reala (GEBCO etc.), derivat din elevatia deja incarcata.
+// Ancorat pe <normal_fragment_maps> (nu <map_fragment>, deja ocupat de
+// injectDayNightTint / glint-ul oceanic Phong) - ruleaza dupa ambele, pe
+// diffuseColor deja calculat.
+// Registers the uniforms and returns the GLSL block; callers splice this
+// into their own single <normal_fragment_maps> replace() call, because
+// Three.js chunk markers are plain string anchors consumed on first match -
+// a second independent .replace() targeting the same already-replaced
+// "<normal_fragment_maps>" tag would silently no-op.
+function bathymetryRampSnippet(shader, THREE, { earthRelief, earthReliefSeaLevel }) {
+    shader.uniforms.uReliefMapTw = { value: earthRelief };
+    shader.uniforms.uSeaLevelTw = { value: earthReliefSeaLevel };
+    return `
+        {
+            float reliefTw = texture2D(uReliefMapTw, vUv).r;
+            float depthTw = clamp(uSeaLevelTw - reliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
+            // Tranzitie imblanzita la tarm, evita o linie dura de coasta.
+            float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - reliefTw);
+            vec3 shelfColorTw = vec3(0.16, 0.50, 0.56);
+            vec3 abyssColorTw = vec3(0.012, 0.035, 0.09);
+            vec3 bathyRampTw = mix(shelfColorTw, abyssColorTw, pow(depthTw, 0.6));
+            diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.5), underwaterTw);
+        }`;
+}
+
 export function createEarthMaterial({
     THREE,
     earthMap,
@@ -175,6 +205,12 @@ export function createEarthMaterial({
             }`
         );
 
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <normal_fragment_maps>',
+            `#include <normal_fragment_maps>
+            ${bathymetryRampSnippet(shader, THREE, { earthRelief, earthReliefSeaLevel })}`
+        );
+
         material.userData.shader = shader;
     };
 
@@ -241,7 +277,8 @@ export function createEarthMaterialPBR({
             {
                 float oceanFlattenPBR = (1.0 - smoothstep(0.22, 0.42, roughnessFactor)) * 0.55;
                 normal = normalize(mix(normal, nonPerturbedNormal, oceanFlattenPBR));
-            }`
+            }
+            ${bathymetryRampSnippet(shader, THREE, { earthRelief, earthReliefSeaLevel })}`
         );
 
         material.userData.shader = shader;
