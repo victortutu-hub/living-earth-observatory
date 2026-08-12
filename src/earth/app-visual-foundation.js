@@ -11,7 +11,7 @@ import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
 import { createAirglowSystem } from './airglow-system.js?v=airglow9';
 import { createZodiacalLightSystem } from './zodiacal-light-system.js?v=zodiacal10';
 import { createNoctilucentCloudSystem } from './noctilucent-cloud-system.js?v=noctilucent9';
-import { createWindParticles } from './wind-particles.js?v=windParticles2';
+import { createWindParticles } from './wind-particles.js?v=windParticles3';
 
 export function createAppVisualFoundation({
     THREE,

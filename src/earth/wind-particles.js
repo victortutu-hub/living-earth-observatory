@@ -202,7 +202,12 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         positionVariable.material.uniforms.uWindMap = { value: windTexture };
         positionVariable.material.uniforms.uMaxSpeed = { value: windTexture.userData.maxSpeedMs };
         positionVariable.material.uniforms.uDeltaTime = { value: 0 };
-        positionVariable.material.uniforms.uSpeedScale = { value: 22 };
+        // Factor de accelerare a timpului pentru vizualizare. Advectia reala pe
+        // glob e prea lenta ca s-o vezi: 10 m/s inseamna ~0.0001 grade/secunda
+        // (ore ca sa traverseze o regiune). La valoarea veche (22) particulele
+        // pareau o grila inghetata. ~8000 le face sa curga vizibil (~0.5-1
+        // grad/s pentru vanturi tipice), ca la earth.nullschool.net.
+        positionVariable.material.uniforms.uSpeedScale = { value: 8000 };
         positionVariable.material.uniforms.uTime = { value: 0 };
 
         const error = gpuCompute.init();
