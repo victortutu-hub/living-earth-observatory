@@ -315,15 +315,18 @@ interface LayerPlugin {
 - [~] GPU picking — **decizie:** nu s-a implementat varianta cu render pass separat + `readRenderTargetPixels`. Picking-ul existent prin raycasting CPU pe `InstancedMesh` (`hit.instanceId` → `userData.instances[hit.instanceId]`, deja în `scene-interaction.js`) acoperă contractul funcțional (selecție corectă pe instanțe) fără complexitatea suplimentară a unui render pass de culori. De revizitat doar dacă raycasting-ul devine măsurabil de lent cu mii de puncte.
 - [ ] Re-măsoară draw calls. Țintă ≤ 80. Nefăcut — necesită Spector.js/DevTools pe o sesiune de browser reală, nu disponibil din acest mediu de lucru.
 
-### Sprint 1.4 — Timeline scrubbing global (5 zile) ⭐ diferențiator
+### Sprint 1.4 — Timeline scrubbing global (5 zile) ⭐ diferențiator — tăiat la scop (12 august)
 
 **De ce e valoros:** GIBS e time-enabled. Ai deja infrastructura de reel timeline. Combinația = poți trage de un slider și vezi norii, aerosolii, incendiile din orice zi din ultimii ~25 de ani.
 
-- [ ] Slider global de timp (UTC), cu preset-uri (azi / -7z / -30z / -1an).
-- [ ] Propagare a datei către toate plugin-urile temporale (parametrul `{Time}` din URL-ul GIBS).
-- [ ] Prefetch al zilelor adiacente pentru scrubbing fluid.
-- [ ] Indicator onest de disponibilitate: dacă o sursă n-are date pentru data cerută → etichetă `unavailable`, nu interpolare tăcută.
-- [ ] Debounce pe scrub (nu cere tile-uri pentru fiecare pixel de mișcare).
+**Regulă de tăiere aplicată:** la verificare, straturile GIBS temporale nu sunt de fapt disponibile de scrubat acum — `DAILY_CLOUDS_ENABLED = false` în `cloud-system.js` (norii zilnici sunt opriți din Sprint 0.3, în așteptarea validării), iar Black Marble e fixat la anii 2012/2016 (compozit anual, nu zilnic). Construirea propagării complete către GIBS ar fi scrubat o funcționalitate care nu există încă live. În schimb, s-a livrat sincer doar partea care e reală acum:
+
+- [x] Slider global de timp (UTC), cu preset-uri (Live / -7z / -30z / -1an). `src/earth/time-scrub-panel.js`, panou nou `#timeScrubPanel` în `earth-eonet-relief.html`.
+- [x] Debounce pe scrub (180ms) — eticheta se actualizează imediat la tragere, dar `timeState.setHistoricalTime()` (care recalculează astronomia) e debounced.
+- [x] Legat de infrastructura deja existentă `createEarthTimeState()` (`src/earth/earth-time-state.js`), care conducea deja poziția Soarelui/Lunii reactiv, dar nu avea UI. Verificat live: preset `-30d` a mutat latitudinea subsolară de la 15.0°N la 21.8°N, coerent cu poziția reală a Soarelui cu o lună mai devreme; `Live` a restaurat corect.
+- [ ] Propagare a datei către plugin-urile GIBS temporale — **netăcut, tăiat conform regulii de mai sus**: nu există încă un strat GIBS temporal activ de propagat către el. Revizitat quando `DAILY_CLOUDS_ENABLED` devine `true`.
+- [ ] Prefetch al zilelor adiacente — irelevant fără straturi temporale active.
+- [ ] Indicator onest de disponibilitate per sursă — parțial acoperit: panoul declară explicit în UI că „Astronomy only for now — GIBS imagery layers do not respond to this yet", deci nu există interpolare tăcută sau pretenție falsă.
 
 ### Sprint 1.5 — Suprafață sezonieră & ocean (5 zile)
 
