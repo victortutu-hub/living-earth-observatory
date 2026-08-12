@@ -153,6 +153,15 @@ export function createControlPanel({ state }) {
         status.textContent = message;
     }
 
+    function updateWindLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Wind: off' } = {}) {
+        const button = byId('windLayerBtn');
+        const status = byId('windLayerStatus');
+        if (button) button.textContent = `Wind particles: ${enabled ? 'on' : 'off'}`;
+        if (!status) return;
+        status.dataset.state = loading ? 'refreshing' : statusState;
+        status.textContent = message;
+    }
+
     function updateIssLayerUi({ enabled = state.issLayer, tracking = false } = {}) {
         const button = byId('issLayerBtn');
         const trackButton = byId('trackIssBtn');
@@ -229,6 +238,7 @@ export function createControlPanel({ state }) {
         updateDataSourceMode,
         toggleSeismicLayer,
         toggleFirmsLayer,
+        toggleWindLayer,
         toggleIssLayer,
         trackIss,
         toggleAirglowLayer,
@@ -270,6 +280,9 @@ export function createControlPanel({ state }) {
         });
         byId('firmsLayerBtn')?.addEventListener('click', async () => {
             await toggleFirmsLayer?.();
+        });
+        byId('windLayerBtn')?.addEventListener('click', async () => {
+            await toggleWindLayer?.();
         });
         byId('issLayerBtn')?.addEventListener('click', async () => {
             await toggleIssLayer?.();
@@ -449,6 +462,7 @@ export function createControlPanel({ state }) {
         updateSurfaceStatus,
         updateSeismicLayerStatus,
         updateFirmsLayerStatus,
+        updateWindLayerStatus,
         updateIssLayerUi,
         updateMoonTextureUi,
         updateZodiacalIntensityUi,

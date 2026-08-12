@@ -11,6 +11,7 @@ import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
 import { createAirglowSystem } from './airglow-system.js?v=airglow9';
 import { createZodiacalLightSystem } from './zodiacal-light-system.js?v=zodiacal10';
 import { createNoctilucentCloudSystem } from './noctilucent-cloud-system.js?v=noctilucent9';
+import { createWindParticles } from './wind-particles.js?v=windParticles1';
 
 export function createAppVisualFoundation({
     THREE,
@@ -86,6 +87,7 @@ export function createAppVisualFoundation({
     const airglowSystem = createAirglowSystem({ THREE, earthGroup, sunLight });
     const zodiacalLightSystem = createZodiacalLightSystem({ THREE, scene, sunLight });
     const noctilucentCloudSystem = createNoctilucentCloudSystem({ THREE, earthGroup, sunLight });
+    const windParticles = createWindParticles({ THREE, renderer, earthGroup });
 
     const stars = createStarField(THREE);
     scene.add(stars);
@@ -123,6 +125,7 @@ export function createAppVisualFoundation({
         moonSystem.stop();
         issSystem.stop();
         cloudSetup.disable?.();
+        windParticles.dispose();
     }
 
     return {
@@ -137,6 +140,7 @@ export function createAppVisualFoundation({
         airglowSystem,
         zodiacalLightSystem,
         noctilucentCloudSystem,
+        windParticles,
         earthMat,
         getEarthMatPBR,
         setMaterialMode,

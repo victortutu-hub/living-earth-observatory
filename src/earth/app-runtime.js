@@ -22,6 +22,7 @@ export function createEarthAppRuntime({
     airglowSystem,
     zodiacalLightSystem,
     noctilucentCloudSystem,
+    windParticles,
     eonetAutoRefresh,
     liveDataLayers,
     layerRegistry,
@@ -268,6 +269,13 @@ export function createEarthAppRuntime({
         updateIssLayerUi?.({ enabled: true, tracking: true });
     }
 
+    async function toggleWindLayer() {
+        const next = !state.windParticles;
+        state.windParticles = next;
+        await windParticles?.setEnabled?.(next);
+        controlPanel.updateWindLayerStatus?.(windParticles?.getStatus?.());
+    }
+
     function toggleAirglowLayer() {
         state.airglowLayer = !state.airglowLayer;
         airglowSystem?.setEnabled?.(state.airglowLayer);
@@ -354,6 +362,7 @@ export function createEarthAppRuntime({
             updateDataSourceMode,
             toggleSeismicLayer: () => liveDataLayers.toggleUsgsQuakes(loadEvents),
             toggleFirmsLayer: () => liveDataLayers.toggleFirmsWildfires(loadEvents),
+            toggleWindLayer,
             toggleIssLayer,
             trackIss,
             toggleAirglowLayer,
@@ -463,6 +472,7 @@ export function createEarthAppRuntime({
         airglowSystem?.update?.(camera, t);
         zodiacalLightSystem?.update?.(camera, t);
         noctilucentCloudSystem?.update?.(camera, t);
+        windParticles?.update?.(t);
         liveDataLayers.update(t);
         layerRegistry?.update?.(t);
         updateCameraControls();

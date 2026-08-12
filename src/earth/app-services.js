@@ -69,6 +69,7 @@ export function createEarthAppServices({
         airglowSystem,
         zodiacalLightSystem,
         noctilucentCloudSystem,
+        windParticles,
         coolFill,
         updateCoolFillDirection,
         earthMat,
@@ -433,6 +434,7 @@ export function createEarthAppServices({
         airglowSystem,
         zodiacalLightSystem,
         noctilucentCloudSystem,
+        windParticles,
         eonetAutoRefresh,
         liveDataLayers,
         layerRegistry,
@@ -534,6 +536,7 @@ export function createEarthAppServices({
         airglowSystem,
         zodiacalLightSystem,
         noctilucentCloudSystem,
+        windParticles,
         dispose
     };
 }

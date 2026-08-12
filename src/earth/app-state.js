@@ -29,6 +29,7 @@ export function createInitialEarthState() {
         firmsWildfires: false,
         auroraLayer: false,
         issLayer: false,
+        windParticles: false,
         airglowLayer: false,
         airglowPreset: 'scientific',
         airglowIntensity: 1.0,
