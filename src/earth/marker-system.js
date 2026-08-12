@@ -36,7 +36,7 @@ export function createMarkerSystem({
     const instancedScale = new THREE.Vector3();
     const instancedColor = new THREE.Color();
     const white = new THREE.Color(0xffffff);
-    const useInstancedMarkers = false;
+    const useInstancedMarkers = true;
     const useUsgsPointLayer = true;
 
     function buildClusters(events) {
@@ -392,6 +392,12 @@ export function createMarkerSystem({
                 }
             }
         }
+        // Some clusters are skipped above (isBackgroundUsgsCluster), so fewer
+        // instances are written than the mesh was allocated for. Without this,
+        // the unwritten slots keep their default identity matrix and render as
+        // a phantom marker at the globe's center (0,0,0).
+        markerInstances.count = markerInstances.userData.instances.length;
+        glowInstances.count = glowInstances.userData.instances.length;
         markerInstances.instanceMatrix.needsUpdate = true;
         glowInstances.instanceMatrix.needsUpdate = true;
         if (markerInstances.instanceColor) markerInstances.instanceColor.needsUpdate = true;
