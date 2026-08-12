@@ -370,22 +370,19 @@ interface LayerPlugin {
 - [ ] Portează shaderele custom (atmosferă, ocean, terminator) la TSL, pe rând. Nu toate deodată. — netăiat definitiv, doar amânat: reluat dacă/când apare un motiv concret (nu doar „WebGPU e nou").
 - [x] Benchmark comparativ WebGL2 vs WebGPU — **înlocuit cu o evaluare de cost înainte de implementare**, cu aceeași concluzie pe care benchmark-ul ar fi trebuit s-o testeze: se oprește migrarea aici, WebGPU rămâne doar o opțiune pentru compute, dacă va fi nevoie explicit în 2.2/2.3.
 
-### Sprint 2.2 — Particule de vânt (10 zile) ⭐ cel mai spectaculos
+### Sprint 2.2 — Particule de vânt (10 zile) ⭐ cel mai spectaculos — închis (12 august)
 
 Tehnica canonică (Cameron Beccario / earth.nullschool.net, baza pentru Windy, Ventusky, Wind-JS):
 
-- [ ] Sursă de date: Open-Meteo (CORS nativ, fără cheie, ~10k req/zi non-comercial) — câmpuri u/v la 10m sau la nivel de presiune.
-- [ ] Encodează câmpul vectorial într-o textură (u în R, v în G, normalizate cu min/max cunoscute).
-- [ ] Ping-pong pe texturi de poziții:
-  ```
-  pas 1: citește poziția_t → sample vânt la (lat,lon) → integrare Euler/RK2 → scrie poziția_t+1
-  pas 2: reset stochastic (particulele „mor" cu probabilitate mică → respawn aleatoriu)
-          — previne aglomerarea în zonele de convergență
-  pas 3: render ca linii/puncte cu trail (fade prin blend aditiv pe un buffer persistent)
-  ```
-- [ ] Pe WebGL2: FBO ping-pong sau transform feedback. Pe WebGPU: compute shader (mai curat).
-- [ ] Proiecție corectă pe sferă — vectorii u/v sunt în spațiu geografic local, trebuie transformați în tangent space pe sferă. **Atenție la poli** (singularitate).
-- [ ] Buget: începe cu 65k particule, urcă doar dacă FPS permite.
+- [x] Sursă de date: Open-Meteo (CORS nativ, fără cheie). **Verificat înainte de a scrie cod:** API-ul e per-locație, dar suportă batch prin liste separate prin virgulă de lat/lon în același request — testat direct cu `curl`, grilă globală de 612 puncte (10°), răspuns `200` sub o secundă. Se folosesc `wind_speed_10m`/`wind_direction_10m` (convenție meteorologică „dinspre"), convertite în componente u/v.
+- [x] Encodează câmpul vectorial într-o textură (u în R, v în G, normalizate la un plafon fix de 40 m/s). `src/earth/wind-field-provider.js`.
+- [x] Ping-pong pe texturi de poziții (lon/lat/age) — `GPUComputationRenderer` (`three/addons/misc`), 65536 particule (256×256). Respawn stocastic cu distribuție uniformă **pe sferă** (`asin`), nu uniformă în latitudine (care ar aglomera la poli).
+- [~] Render ca puncte cu fade pe vârstă — **fără trail persistent aditiv** (tăiat pentru scop; puncte redesenate integral la fiecare cadru, nu buffer de shading persistent). De revizitat ca polish, nu blochează funcționalitatea de bază.
+- [x] Pe WebGL2: FBO ping-pong (conform tăierii Sprint 2.1 — fără WebGPU compute).
+- [x] Proiecție corectă pe sferă, cu atenție explicită la poli: divizarea longitudinii prin `cos(lat)` e limitată (`max(...,4000.0)`) ca să nu explodeze aproape de ±90°; latitudinea e clampată la ±89°.
+- [x] Buget: 65k particule (256×256), exact ținta din roadmap.
+
+**Verificat live:** activare → fetch real (612 puncte confirmate în mesajul de status), simulare stabilă 12+ secunde fără nicio eroare de consolă, dezactivare curată. **Nemăsurat:** impact FPS/draw calls — sampler-ul de perf din acest mediu de lucru raportează zero cadre acumulate (probabil throttling pe rAF cât timp panoul nu e afișat activ); de verificat într-o sesiune reală de browser.
 
 ### Sprint 2.3 — Curenți oceanici (7 zile)
 
