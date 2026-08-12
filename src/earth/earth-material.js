@@ -73,25 +73,34 @@ function injectDayNightTint(shader, THREE) {
 // Ancorat pe <normal_fragment_maps> (nu <map_fragment>, deja ocupat de
 // injectDayNightTint / glint-ul oceanic Phong) - ruleaza dupa ambele, pe
 // diffuseColor deja calculat.
-// Registers the uniforms and returns the GLSL block; callers splice this
-// into their own single <normal_fragment_maps> replace() call, because
-// Three.js chunk markers are plain string anchors consumed on first match -
-// a second independent .replace() targeting the same already-replaced
-// "<normal_fragment_maps>" tag would silently no-op.
-function bathymetryRampSnippet(shader, THREE, { earthRelief, earthReliefSeaLevel }) {
+// GLSL-ul care sampleaza relieful si aplica rampa. `vMapUv` e varying-ul de UV
+// pe care Three.js il declara pentru textura `map` (Three modern: NU `vUv`,
+// care exista doar cu USE_UV). Ambele materiale au `map`, deci `vMapUv` e
+// garantat prezent aici.
+const BATHYMETRY_RAMP_BODY = `
+    {
+        float reliefTw = texture2D(uReliefMapTw, vMapUv).r;
+        float depthTw = clamp(uSeaLevelTw - reliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
+        // Tranzitie imblanzita la tarm, evita o linie dura de coasta.
+        float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - reliefTw);
+        vec3 shelfColorTw = vec3(0.16, 0.50, 0.56);
+        vec3 abyssColorTw = vec3(0.012, 0.035, 0.09);
+        vec3 bathyRampTw = mix(shelfColorTw, abyssColorTw, pow(depthTw, 0.6));
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.5), underwaterTw);
+    }`;
+
+// Inregistreaza valorile uniformelor SI le declara in sursa GLSL. Uniformele
+// GLSL sunt globale - nu pot fi declarate in interiorul blocului main() unde
+// se injecteaza corpul, deci le prepend la fragmentShader. IMPORTANT: aceasta
+// functie muteaza shader.fragmentShader, deci trebuie apelata ca instructiune
+// SEPARATA, inainte de replace-ul care insereaza BATHYMETRY_RAMP_BODY - daca
+// ar fi apelata in interiorul aceleiasi expresii `x = x.replace(a, f())`,
+// ordinea de evaluare JS (citeste x, apoi evalueaza argumentele) ar face ca
+// replace-ul sa ruleze pe stringul dinainte de prepend, pierzand declaratiile.
+function declareBathymetryUniforms(shader, { earthRelief, earthReliefSeaLevel }) {
     shader.uniforms.uReliefMapTw = { value: earthRelief };
     shader.uniforms.uSeaLevelTw = { value: earthReliefSeaLevel };
-    return `
-        {
-            float reliefTw = texture2D(uReliefMapTw, vUv).r;
-            float depthTw = clamp(uSeaLevelTw - reliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
-            // Tranzitie imblanzita la tarm, evita o linie dura de coasta.
-            float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - reliefTw);
-            vec3 shelfColorTw = vec3(0.16, 0.50, 0.56);
-            vec3 abyssColorTw = vec3(0.012, 0.035, 0.09);
-            vec3 bathyRampTw = mix(shelfColorTw, abyssColorTw, pow(depthTw, 0.6));
-            diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.5), underwaterTw);
-        }`;
+    shader.fragmentShader = `uniform sampler2D uReliefMapTw;\nuniform float uSeaLevelTw;\n${shader.fragmentShader}`;
 }
 
 export function createEarthMaterial({
@@ -205,10 +214,11 @@ export function createEarthMaterial({
             }`
         );
 
+        declareBathymetryUniforms(shader, { earthRelief, earthReliefSeaLevel });
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <normal_fragment_maps>',
             `#include <normal_fragment_maps>
-            ${bathymetryRampSnippet(shader, THREE, { earthRelief, earthReliefSeaLevel })}`
+            ${BATHYMETRY_RAMP_BODY}`
         );
 
         material.userData.shader = shader;
@@ -271,6 +281,7 @@ export function createEarthMaterialPBR({
         // <normal_fragment_begin> - amestecam spre ea acolo unde roughnessFactor
         // (deja calculat din earthRoughnessMap in <roughnessmap_fragment>)
         // arata ocean, pastrand reliful complet pe uscat.
+        declareBathymetryUniforms(shader, { earthRelief, earthReliefSeaLevel });
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <normal_fragment_maps>',
             `#include <normal_fragment_maps>
@@ -278,7 +289,7 @@ export function createEarthMaterialPBR({
                 float oceanFlattenPBR = (1.0 - smoothstep(0.22, 0.42, roughnessFactor)) * 0.55;
                 normal = normalize(mix(normal, nonPerturbedNormal, oceanFlattenPBR));
             }
-            ${bathymetryRampSnippet(shader, THREE, { earthRelief, earthReliefSeaLevel })}`
+            ${BATHYMETRY_RAMP_BODY}`
         );
 
         material.userData.shader = shader;
