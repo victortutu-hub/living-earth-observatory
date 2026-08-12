@@ -337,6 +337,8 @@ interface LayerPlugin {
 
 ### 🚪 GATE 1 — stare la 12 august (Faza 1 completă ca sprint-uri, gate-ul nu e încă verde)
 
+**Decizie (12 august):** Gate 1 rămâne acceptat parțial (deschis) — se trece la Faza 2 fără cele 4 puncte de mai jos bifate. Revizitat la o sesiune ulterioară, nu abandonat. Motivul: sprint-urile de conținut (1.1–1.5) sunt toate închise; ce rămâne (CI real pe push, măsurători de performanță, deploy) sunt verificări de infrastructură care nu blochează dezvoltarea următoarelor funcționalități din Faza 2.
+
 - [x] Adăugarea unei surse noi = 1 fișier + 1 linie, verificat cu un exemplu real — validat de două ori: GVP (Sprint 1.1) și Snow & ice (Sprint 1.5).
 - [~] Suita de teste verde în CI — 25/25 teste verzi local (`npm test`), workflow `.github/workflows/ci.yml` există, dar **nu a rulat încă pe GitHub Actions** — tot lucrul e pe branch local `dev/post-hackathon`, nepublicat (vezi nota despre `main` = snapshot hackathon). De verificat după push.
 - [ ] Timeline scrubbing funcțional pe ≥3 straturi temporale — **netrecut, onest.** Sprint 1.4 a livrat scrubbing doar pentru astronomie (Soare/Lună), tăiat deliberat față de straturile de date GIBS (nori opriți, night lights fix pe ani). Ar necesita reactivarea norilor zilnici + propagarea datei către minim 2 straturi temporale reale (acum există doar Snow & ice ca strat temporal nou, neconectat încă la slider).
@@ -353,7 +355,9 @@ interface LayerPlugin {
 
 **Aici — și abia aici — WebGPU are justificare reală.** Nu ca scop în sine, ci pentru că simulările de câmp vectorial (vânt, curenți) sunt exact ce fac compute shaders bine.
 
-### Sprint 2.1 — Ramura WebGPU/TSL (7 zile)
+### Sprint 2.1 — Ramura WebGPU/TSL (7 zile) — în lucru (12 august)
+
+**Precondiție rezolvată întâi (12 august):** upgrade Three.js `r0.160.0 → r0.185.1`, ca pas izolat, separat de orice migrare de renderer — conform regulii proprii a roadmap-ului v4 („nu se combină upgrade-ul Three.js cu migrarea PBR/renderer"). r160 precede maturizarea reală TSL/WebGPURenderer; r185 e linia stabilă curentă. Risc verificat explicit înainte de upgrade (aplicația se bazează masiv pe injecție de shader via `onBeforeCompile`, care eșuează silențios dacă un anchor `#include <chunk>` își schimbă numele — fără eroare, doar efectul lipsește): toate cele 5 anchor-uri folosite în `src/` (`common`, `map_fragment`, `worldpos_vertex`, `normal_fragment_maps`, `specularmap_fragment`) confirmate neschimbate între r160 și r185; toate cele 7 căi de addon-uri confirmate valide; niciun API cunoscut ca eliminat (`sRGBEncoding`, `THREE.Math.*` etc.) nu era folosit. Verificat live pe `earth-eonet-relief.html` și `living-protein.html`: zero erori noi de consolă, doar un warning de deprecare (`THREE.Clock` → `THREE.Timer`, neblocant). Comutare PBR/Phong, time-scrub și layer registry retestate funcționale.
 
 - [ ] Branch separat `webgpu-tsl`. **Nu strica `main`.**
 - [ ] Migrare de bază: `WebGLRenderer` → `WebGPURenderer` din `three/webgpu`. TSL compilează același graf de noduri către GLSL (WebGL2) și WGSL (WebGPU) dintr-o singură sursă.
