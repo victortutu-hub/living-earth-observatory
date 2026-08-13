@@ -18,7 +18,7 @@ import { auroraPlugin } from './layers/aurora.js?v=layerRegistry5';
 import { snowIcePlugin } from './layers/snow-ice.js?v=snowIce1';
 import { lookDefaults } from './app-state.js?v=cacheFix1';
 import { createEventScene } from './event-scene.js?v=cacheFix1';
-import { createAppVisualFoundation } from './app-visual-foundation.js?v=windCache2';
+import { createAppVisualFoundation } from './app-visual-foundation.js?v=windTune1';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js?v=moonMarkers1';
 import { localDirForSelenographic } from './moon-system.js?v=moonMarkers1';

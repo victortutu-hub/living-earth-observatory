@@ -22,9 +22,9 @@ import { fetchWindFieldTexture } from './wind-field-provider.js?v=windCache1';
 
 const TRAIL_WIDTH = 2048;
 const TRAIL_HEIGHT = 1024;
-// Cat de repede se estompeaza dara. 1/(1-FADE) ~ lungimea in cadre: 0.965 ~ 28
-// cadre (~0.5s la 60fps). Mai mare = dare mai lungi, dar mai aglomerat.
-const TRAIL_FADE = 0.965;
+// Cat de repede se estompeaza dara. 1/(1-FADE) ~ lungimea in cadre: 0.985 ~ 66
+// cadre (~1.1s la 60fps). Mai mare = dare mai lungi, dar mai aglomerat.
+const TRAIL_FADE = 0.985;
 
 const POSITION_COMPUTE_SHADER = `
     uniform sampler2D uWindMap;
@@ -108,10 +108,10 @@ const TRAIL_POINT_FRAGMENT = `
         float core = smoothstep(1.0, 0.0, d);
         // fade in la nastere, fade out inainte de respawn - evita "pop"-ul.
         float lifeFade = smoothstep(0.0, 0.06, vAge) * smoothstep(1.0, 0.8, vAge);
-        float a = core * lifeFade;
+        float a = core * lifeFade * 0.6;
         if (a < 0.02) discard;
         // Additive in buffer: contributia e color*a. Culoare rece de vant.
-        gl_FragColor = vec4(vec3(0.45, 0.72, 0.95), a);
+        gl_FragColor = vec4(vec3(0.62, 0.80, 1.0), a);
     }
 `;
 
@@ -230,16 +230,18 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         fadeScene.add(fadeQuad);
 
         // Sfera de afisare: bufferul echirectangular mapat pe glob. La radius
-        // 2.05 (peste suprafata 2.0 si night lights 2.025). Additive, doar fata
-        // din fata (FrontSide + depthTest) - fata din spate e ocluzata de glob.
+        // 2.05 (peste suprafata 2.0 si night lights 2.025). NormalBlending (nu
+        // Additive): aditiv peste ziua luminoasa a Pamantului + bloom spala
+        // dârele spre alb. Doar fata din fata (FrontSide + depthTest) - fata
+        // din spate e ocluzata de glob.
         displayMaterial = new THREE.MeshBasicMaterial({
             map: trailRead.texture,
             transparent: true,
-            blending: THREE.AdditiveBlending,
+            blending: THREE.NormalBlending,
             depthWrite: false,
             depthTest: true,
             side: THREE.FrontSide,
-            opacity: 0.9,
+            opacity: 0.85,
         });
         displayMesh = new THREE.Mesh(new THREE.SphereGeometry(2.05, 64, 48), displayMaterial);
         displayMesh.renderOrder = 5;
@@ -265,9 +267,11 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         positionVariable.material.uniforms.uMaxSpeed = { value: windTexture.userData.maxSpeedMs };
         positionVariable.material.uniforms.uDeltaTime = { value: 0 };
         // Factor de accelerare a timpului pentru vizualizare. Advectia reala pe
-        // glob e prea lenta ca s-o vezi: 10 m/s inseamna ~0.0001 grade/secunda.
-        // ~8000 le face sa curga vizibil (~0.5-1 grad/s pentru vanturi tipice).
-        positionVariable.material.uniforms.uSpeedScale = { value: 8000 };
+        // glob e prea lenta ca s-o vezi (10 m/s ~ 0.0001 grade/s). La 8000
+        // particula se misca ~0.065 px/cadru in bufferul de trail - depune pe
+        // acelasi pixel = punct static, nu dâra. ~50000 o face sa avanseze
+        // ~0.4 px/cadru => dâra continua vizibila.
+        positionVariable.material.uniforms.uSpeedScale = { value: 50000 };
         positionVariable.material.uniforms.uTime = { value: 0 };
 
         const error = gpuCompute.init();
