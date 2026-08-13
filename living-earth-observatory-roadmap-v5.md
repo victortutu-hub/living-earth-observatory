@@ -376,13 +376,16 @@ Tehnica canonică (Cameron Beccario / earth.nullschool.net, baza pentru Windy, V
 
 - [x] Sursă de date: Open-Meteo (CORS nativ, fără cheie). **Verificat înainte de a scrie cod:** API-ul e per-locație, dar suportă batch prin liste separate prin virgulă de lat/lon în același request — testat direct cu `curl`, grilă globală de 612 puncte (10°), răspuns `200` sub o secundă. Se folosesc `wind_speed_10m`/`wind_direction_10m` (convenție meteorologică „dinspre"), convertite în componente u/v.
 - [x] Encodează câmpul vectorial într-o textură (u în R, v în G, normalizate la un plafon fix de 40 m/s). `src/earth/wind-field-provider.js`.
-- [x] Ping-pong pe texturi de poziții (lon/lat/age) — `GPUComputationRenderer` (`three/addons/misc`), 65536 particule (256×256). Respawn stocastic cu distribuție uniformă **pe sferă** (`asin`), nu uniformă în latitudine (care ar aglomera la poli).
-- [~] Render ca puncte cu fade pe vârstă — **fără trail persistent aditiv** (tăiat pentru scop; puncte redesenate integral la fiecare cadru, nu buffer de shading persistent). De revizitat ca polish, nu blochează funcționalitatea de bază.
+- [x] Ping-pong pe texturi de poziții (lon/lat/age) — `GPUComputationRenderer` (`three/addons/misc`), 16384 particule (128×128, redus de la 256×256 după ce testarea vizuală a arătat că e suficient cu trail-uri). Respawn stocastic cu distribuție uniformă **pe sferă** (`asin`), nu uniformă în latitudine (care ar aglomera la poli).
+- [x] Render cu **trail persistent** (streamlines) — **făcut, nu tăiat.** Bufferul de trail e o textură **echirectangulară (lon/lat)** mapată pe sferă, nu spațiu-ecran: pe un glob rotativ, un buffer spațiu-ecran ar lăsa smear la rotație; cel echirectangular se lipește de geografie și se rotește cu globul. Fiecare cadru: fade(bufferul precedent) + capetele proaspete ale particulelor (aditiv), ping-pong. Afișat pe o sferă la radius 2.05 cu NormalBlending (aditiv peste ziua luminoasă + bloom spăla dârele spre alb).
 - [x] Pe WebGL2: FBO ping-pong (conform tăierii Sprint 2.1 — fără WebGPU compute).
 - [x] Proiecție corectă pe sferă, cu atenție explicită la poli: divizarea longitudinii prin `cos(lat)` e limitată (`max(...,4000.0)`) ca să nu explodeze aproape de ±90°; latitudinea e clampată la ±89°.
-- [x] Buget: 65k particule (256×256), exact ținta din roadmap.
+- [x] Buget: 16384 particule (128×128). Cu trail-uri, mai puține particule dau un rezultat vizual mai curat decât 65k puncte fără trail.
+- [x] **Rezistență la rate-limit:** Open-Meteo limitează cererile pe minut (HTTP 429). Câmpul de vânt e cache-uit în `sessionStorage` (TTL 15 min, ~2.4KB); reload-urile refolosesc cache-ul, iar la 429 se cade pe cache chiar expirat. `src/earth/wind-field-provider.js`.
 
-**Verificat live:** activare → fetch real (612 puncte confirmate în mesajul de status), simulare stabilă 12+ secunde fără nicio eroare de consolă, dezactivare curată. **Nemăsurat:** impact FPS/draw calls — sampler-ul de perf din acest mediu de lucru raportează zero cadre acumulate (probabil throttling pe rAF cât timp panoul nu e afișat activ); de verificat într-o sesiune reală de browser.
+**Verificat vizual live (confirmat de Tutu):** dârele curg corect, urmăresc curenții de aer (vârtejuri, linii de flux peste oceane și continente) — efectul streamline de tip nullschool. Parametrii de reglaj fin (`TRAIL_FADE`, `uSpeedScale`, `uPointSize`, opacitatea afișajului) sunt constante sus în `wind-particles.js`.
+
+**Lecție de proces (documentată):** verificările „fără erori de consolă" pe cod servit din cache au dat mai multe false-pozitive în această fază (Sprint 1.3/1.5/2.2). Cauza: serverul de dev de pe portul 8765 servea JS cu cache HTTP, iar sistemul de cache-busting `?v=` cere urcarea tag-ului prin **tot lanțul de import** până la HTML la fiecare editare. Rezolvat prin rularea serverului cu `-c-1` (no-cache). Pentru orice schimbare vizuală: bump `?v=` complet + confirmare vizuală de la Tutu, nu doar absența erorilor.
 
 ### Sprint 2.3 — Curenți oceanici (7 zile)
 
