@@ -84,13 +84,24 @@ function buildComputeShader(landAware) {
 const TRAIL_POINT_VERTEX = `
     attribute vec2 aUv;
     uniform sampler2D uPositionTexture;
+    uniform sampler2D uFieldMap;
     uniform float uPointSize;
+    uniform float uLandAware;
     varying float vAge;
+    varying float vLand;
     void main() {
         vec4 posData = texture2D(uPositionTexture, aUv);
         float lon = posData.x * 360.0 - 180.0;
         float lat = posData.y * 180.0 - 90.0;
         vAge = posData.z;
+        // Masca de uscat la RANDARE: particulele peste uscat nu se deseneaza
+        // deloc (nici tranzitoriu la respawn). B = 1 ocean, 0 uscat. Doar cand
+        // uLandAware (ocean); pentru vant ramane 1 peste tot.
+        vLand = 1.0;
+        if (uLandAware > 0.5) {
+            vec2 fuv = vec2((lon + 180.0) / 360.0, clamp((lat + 80.0) / 160.0, 0.0, 1.0));
+            vLand = texture2D(uFieldMap, fuv).b;
+        }
         gl_Position = vec4(lon / 180.0, lat / 90.0, 0.0, 1.0);
         gl_PointSize = uPointSize;
     }
@@ -100,7 +111,9 @@ const TRAIL_POINT_FRAGMENT = `
     uniform vec3 uHeadColor;
     uniform float uHeadAlpha;
     varying float vAge;
+    varying float vLand;
     void main() {
+        if (vLand < 0.5) discard; // particula peste uscat: nu o desena
         vec2 p = gl_PointCoord - 0.5;
         float d = length(p) * 2.0;
         float core = smoothstep(1.0, 0.0, d);
@@ -184,7 +197,7 @@ export function createFieldParticles({
         });
     }
 
-    function buildTrailPipeline() {
+    function buildTrailPipeline(fieldTexture) {
         trailRead = makeTrailTarget();
         trailWrite = makeTrailTarget();
         trailCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -207,6 +220,8 @@ export function createFieldParticles({
         pointMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 uPositionTexture: { value: null },
+                uFieldMap: { value: fieldTexture },
+                uLandAware: { value: landAware ? 1 : 0 },
                 uPointSize: { value: pointSize },
                 uHeadColor: { value: new THREE.Color(headColor[0], headColor[1], headColor[2]) },
                 uHeadAlpha: { value: headAlpha },
@@ -287,7 +302,7 @@ export function createFieldParticles({
             if (disposed) return;
             fieldMeta = fieldTexture.userData;
             setupCompute(fieldTexture);
-            buildTrailPipeline();
+            buildTrailPipeline(fieldTexture);
             ready = true;
             group.visible = enabled;
         } catch (error) {
