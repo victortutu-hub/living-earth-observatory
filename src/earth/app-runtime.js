@@ -23,6 +23,7 @@ export function createEarthAppRuntime({
     zodiacalLightSystem,
     noctilucentCloudSystem,
     windParticles,
+    oceanCurrents,
     eonetAutoRefresh,
     liveDataLayers,
     layerRegistry,
@@ -276,6 +277,13 @@ export function createEarthAppRuntime({
         controlPanel.updateWindLayerStatus?.(windParticles?.getStatus?.());
     }
 
+    async function toggleOceanLayer() {
+        const next = !state.oceanCurrents;
+        state.oceanCurrents = next;
+        await oceanCurrents?.setEnabled?.(next);
+        controlPanel.updateOceanLayerStatus?.(oceanCurrents?.getStatus?.());
+    }
+
     function toggleAirglowLayer() {
         state.airglowLayer = !state.airglowLayer;
         airglowSystem?.setEnabled?.(state.airglowLayer);
@@ -363,6 +371,7 @@ export function createEarthAppRuntime({
             toggleSeismicLayer: () => liveDataLayers.toggleUsgsQuakes(loadEvents),
             toggleFirmsLayer: () => liveDataLayers.toggleFirmsWildfires(loadEvents),
             toggleWindLayer,
+            toggleOceanLayer,
             toggleIssLayer,
             trackIss,
             toggleAirglowLayer,
@@ -473,6 +482,7 @@ export function createEarthAppRuntime({
         zodiacalLightSystem?.update?.(camera, t);
         noctilucentCloudSystem?.update?.(camera, t);
         windParticles?.update?.(t);
+        oceanCurrents?.update?.(t);
         liveDataLayers.update(t);
         layerRegistry?.update?.(t);
         updateCameraControls();

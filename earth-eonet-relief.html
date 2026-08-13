@@ -179,6 +179,7 @@
     #liveLayerStatus,
     #firmsLayerStatus,
     #windLayerStatus,
+    #oceanLayerStatus,
     #auroraLayerStatus,
     #moonStatus,
     #issStatus,
@@ -264,6 +265,7 @@
     #liveLayerStatus[data-state="on"],
     #firmsLayerStatus[data-state="on"],
     #windLayerStatus[data-state="on"],
+    #oceanLayerStatus[data-state="on"],
     #auroraLayerStatus[data-state="on"],
     #moonStatus[data-state="on"],
     #issStatus[data-state="on"],
@@ -276,6 +278,7 @@
     #liveLayerStatus[data-state="refreshing"],
     #firmsLayerStatus[data-state="refreshing"],
     #windLayerStatus[data-state="refreshing"],
+    #oceanLayerStatus[data-state="refreshing"],
     #auroraLayerStatus[data-state="refreshing"],
     #moonStatus[data-state="pending"],
     #issStatus[data-state="pending"],
@@ -291,6 +294,7 @@
     #liveLayerStatus[data-state="error"],
     #firmsLayerStatus[data-state="error"],
     #windLayerStatus[data-state="error"],
+    #oceanLayerStatus[data-state="error"],
     #auroraLayerStatus[data-state="error"],
     #moonStatus[data-state="error"],
     #issStatus[data-state="error"],
@@ -739,6 +743,8 @@
         <div id="firmsLayerStatus" data-state="off">NASA FIRMS: off</div>
         <button id="windLayerBtn" title="Wind streamline particles from Open-Meteo's current global wind field (observed), advected on the GPU. The particle representation itself is an interpretive visualization convention, not a direct measurement of individual air parcels.">Wind particles: off</button>
         <div id="windLayerStatus" data-state="off">Wind: off</div>
+        <button id="oceanLayerBtn" title="Ocean-current streamline particles from Open-Meteo Marine's current field (observed), advected on the GPU with a land mask so currents stay off continents. The particle representation is an interpretive visualization convention, not a direct measurement of individual water parcels.">Ocean currents: off</button>
+        <div id="oceanLayerStatus" data-state="off">Ocean currents: off</div>
         <!-- Aurora migrata la registry-ul de layere (butonul se auto-genereaza in #layerPluginBar). -->
         <div id="moonStatus" data-state="pending">Moon: calculating Astronomy Engine position...</div>
         <button id="issLayerBtn" title="CelesTrak TLE + satellite.js SGP4 position for the International Space Station.">ISS: off</button>

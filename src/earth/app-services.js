@@ -70,6 +70,7 @@ export function createEarthAppServices({
         zodiacalLightSystem,
         noctilucentCloudSystem,
         windParticles,
+        oceanCurrents,
         coolFill,
         updateCoolFillDirection,
         earthMat,
@@ -435,6 +436,7 @@ export function createEarthAppServices({
         zodiacalLightSystem,
         noctilucentCloudSystem,
         windParticles,
+        oceanCurrents,
         eonetAutoRefresh,
         liveDataLayers,
         layerRegistry,
@@ -537,6 +539,7 @@ export function createEarthAppServices({
         zodiacalLightSystem,
         noctilucentCloudSystem,
         windParticles,
+        oceanCurrents,
         dispose
     };
 }

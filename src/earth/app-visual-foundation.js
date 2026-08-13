@@ -11,7 +11,8 @@ import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
 import { createAirglowSystem } from './airglow-system.js?v=airglow9';
 import { createZodiacalLightSystem } from './zodiacal-light-system.js?v=zodiacal10';
 import { createNoctilucentCloudSystem } from './noctilucent-cloud-system.js?v=noctilucent9';
-import { createWindParticles } from './wind-particles.js?v=windTrails3';
+import { createWindParticles } from './wind-particles.js?v=windTrails4';
+import { createOceanCurrents } from './ocean-currents.js?v=oceanCurrents1';
 
 export function createAppVisualFoundation({
     THREE,
@@ -88,6 +89,7 @@ export function createAppVisualFoundation({
     const zodiacalLightSystem = createZodiacalLightSystem({ THREE, scene, sunLight });
     const noctilucentCloudSystem = createNoctilucentCloudSystem({ THREE, earthGroup, sunLight });
     const windParticles = createWindParticles({ THREE, renderer, earthGroup });
+    const oceanCurrents = createOceanCurrents({ THREE, renderer, earthGroup });
 
     const stars = createStarField(THREE);
     scene.add(stars);
@@ -126,6 +128,7 @@ export function createAppVisualFoundation({
         issSystem.stop();
         cloudSetup.disable?.();
         windParticles.dispose();
+        oceanCurrents.dispose();
     }
 
     return {
@@ -141,6 +144,7 @@ export function createAppVisualFoundation({
         zodiacalLightSystem,
         noctilucentCloudSystem,
         windParticles,
+        oceanCurrents,
         earthMat,
         getEarthMatPBR,
         setMaterialMode,
