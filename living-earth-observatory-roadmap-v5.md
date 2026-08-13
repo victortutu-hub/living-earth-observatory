@@ -387,11 +387,14 @@ Tehnica canonică (Cameron Beccario / earth.nullschool.net, baza pentru Windy, V
 
 **Lecție de proces (documentată):** verificările „fără erori de consolă" pe cod servit din cache au dat mai multe false-pozitive în această fază (Sprint 1.3/1.5/2.2). Cauza: serverul de dev de pe portul 8765 servea JS cu cache HTTP, iar sistemul de cache-busting `?v=` cere urcarea tag-ului prin **tot lanțul de import** până la HTML la fiecare editare. Rezolvat prin rularea serverului cu `-c-1` (no-cache). Pentru orice schimbare vizuală: bump `?v=` complet + confirmare vizuală de la Tutu, nu doar absența erorilor.
 
-### Sprint 2.3 — Curenți oceanici (7 zile)
+### Sprint 2.3 — Curenți oceanici (7 zile) — închis (13 august)
 
-- [ ] Același pipeline de advecție, sursă Copernicus Marine (necesită cont gratuit + proxy, pentru că cheia e secretă).
-- [ ] Mască de uscat din land cover — particulele nu trebuie să traverseze continente.
-- [ ] Paletă distinctă de vânt (temperatura curentului, dacă ai SST).
+- [x] Același pipeline de advecție — **refactorizat într-un motor generic** `src/earth/field-particles.js` (advecție GPU + trail-uri echirectangulare, parametrizat cu provider de date, paletă, speedScale, `landAware`). `wind-particles.js` și noul `ocean-currents.js` sunt acum wrappere subțiri peste el.
+- [x] **Sursă: Open-Meteo Marine, NU Copernicus.** Roadmap-ul prevedea Copernicus Marine (cont + cheie secretă + proxy) — blocaj real, nu pot crea cont. Open-Meteo Marine (`ocean_current_velocity`/`ocean_current_direction`) oferă același semnal keyless, CORS-friendly, batch-abil (verificat cu `curl`: `200`, iar peste uscat întoarce `null` — mască de uscat gratuită). **Copernicus + proxy-ul tăiate.** `src/earth/ocean-current-provider.js`, cu conversie km/h→m/s, cache sessionStorage + fallback 429.
+- [x] Mască de uscat — encodată în canalul B (curent `null` = uscat = 0); calea `landAware` din compute forțează respawn peste uscat, deci curenții nu traversează continentele. **Notă:** grila e 10° (612 puncte, ca la vânt), deci masca e blocată la coaste — de rafinat la 5° dacă e nevoie.
+- [x] Paletă distinctă — teal-verde (vs. albastru-rece la vânt), radius de afișare ușor mai mic ca ambele straturi să poată fi active simultan. (SST/temperatura curentului nefolosite — Open-Meteo Marine nu le dă în acest endpoint.)
+
+**Verificat live (port 8770, `-c-1`):** ambele straturi activate simultan, oceanul aduce date reale Marine (612 puncte, cache-uit), vântul funcționează după refactor, `gl.getError()==0`, zero erori de consolă. **De confirmat vizual de Tutu:** densitatea dârelor și claritatea măștii de uscat la grila grosieră de 10°.
 
 ### Sprint 2.4 — Detaliu de suprafață la zoom mare (6 zile)
 
