@@ -130,7 +130,21 @@ function buildTexture(THREE, grid, { cached }) {
     texture.magFilter = THREE.LinearFilter;
     texture.colorSpace = THREE.NoColorSpace;
     texture.needsUpdate = true;
+
+    // Masca de uscat separata, cu filtrare NEAREST: taierea la randare
+    // foloseste asta ca sa nu interpoleze intre celula-ocean si celula-uscat
+    // (interpolarea liniara lasa particule adanc in interiorul continentelor).
+    // Advectia foloseste in continuare textura liniara de mai sus (u/v neted).
+    const maskTexture = new THREE.DataTexture(new Uint8ClampedArray(grid.data), grid.width, grid.height, THREE.RGBAFormat);
+    maskTexture.wrapS = THREE.RepeatWrapping;
+    maskTexture.wrapT = THREE.ClampToEdgeWrapping;
+    maskTexture.minFilter = THREE.NearestFilter;
+    maskTexture.magFilter = THREE.NearestFilter;
+    maskTexture.colorSpace = THREE.NoColorSpace;
+    maskTexture.needsUpdate = true;
+
     texture.userData = {
+        maskTexture,
         maxSpeedMs: grid.maxSpeedMs,
         latMin: LAT_MIN,
         latMax: LAT_MAX,

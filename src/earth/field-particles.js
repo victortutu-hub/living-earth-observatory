@@ -220,7 +220,9 @@ export function createFieldParticles({
         pointMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 uPositionTexture: { value: null },
-                uFieldMap: { value: fieldTexture },
+                // Masca de uscat pentru taierea la randare: NEAREST daca
+                // providerul o ofera (fara bleed de interpolare), altfel campul.
+                uFieldMap: { value: fieldTexture.userData.maskTexture || fieldTexture },
                 uLandAware: { value: landAware ? 1 : 0 },
                 uPointSize: { value: pointSize },
                 uHeadColor: { value: new THREE.Color(headColor[0], headColor[1], headColor[2]) },
