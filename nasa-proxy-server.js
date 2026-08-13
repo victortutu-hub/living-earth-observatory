@@ -56,6 +56,10 @@ const PORT = process.env.PORT || 8787;
 const ALLOWED_ORIGINS = [
     'http://127.0.0.1:8765',
     'http://localhost:8765',
+    'http://127.0.0.1:8766',
+    'http://localhost:8766',
+    'http://127.0.0.1:8770',
+    'http://localhost:8770',
     'http://127.0.0.1:8080',
     'http://localhost:8080',
 ];
