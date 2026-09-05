@@ -55,16 +55,25 @@ export function createLivingEarthAtlasModule({ route = './earth-eonet-relief.htm
       frame.src = source.href;
       mount.replaceChildren(frame);
 
-      const childHost = await waitForEarthHost(frame, context.signal);
-      return async (reason = 'atlas-unmount') => {
-        try {
-          await childHost.destroy('living-earth', reason);
-        } catch (error) {
-          console.warn('[Luminomorphism] Living Earth child cleanup degraded.', error);
-        }
+      const removeFrame = () => {
         frame.src = 'about:blank';
         frame.remove();
       };
+      try {
+        const childHost = await waitForEarthHost(frame, context.signal);
+        return async (reason = 'atlas-unmount') => {
+          try {
+            await childHost.destroy('living-earth', reason);
+          } catch (error) {
+            console.warn('[Luminomorphism] Living Earth child cleanup degraded.', error);
+          } finally {
+            removeFrame();
+          }
+        };
+      } catch (error) {
+        removeFrame();
+        throw error;
+      }
     },
   });
 }

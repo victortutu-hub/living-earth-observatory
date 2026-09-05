@@ -55,16 +55,25 @@ export function createLivingProteinAtlasModule({ route = './living-protein.html'
       frame.src = source.href;
       mount.replaceChildren(frame);
 
-      const childHost = await waitForProteinHost(frame, context.signal);
-      return async (reason = 'atlas-unmount') => {
-        try {
-          await childHost.destroy('living-protein', reason);
-        } catch (error) {
-          console.warn('[Luminomorphism] Living Protein child cleanup degraded.', error);
-        }
+      const removeFrame = () => {
         frame.src = 'about:blank';
         frame.remove();
       };
+      try {
+        const childHost = await waitForProteinHost(frame, context.signal);
+        return async (reason = 'atlas-unmount') => {
+          try {
+            await childHost.destroy('living-protein', reason);
+          } catch (error) {
+            console.warn('[Luminomorphism] Living Protein child cleanup degraded.', error);
+          } finally {
+            removeFrame();
+          }
+        };
+      } catch (error) {
+        removeFrame();
+        throw error;
+      }
     },
   });
 }

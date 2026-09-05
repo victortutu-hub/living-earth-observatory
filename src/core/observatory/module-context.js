@@ -54,8 +54,10 @@ export function createObservatoryModuleContext({
   }
 
   let lifecycle = MODULE_LIFECYCLE.CREATED;
+  let lifecycleGeneration = 0;
   let startPromise = null;
   let stopPromise = null;
+  let destroyPromise = null;
   let abortController = new AbortController();
   const cleanups = [];
   const resources = Object.freeze((observatory.sources || []).map((sourceId) => Object.freeze({
@@ -87,15 +89,24 @@ export function createObservatoryModuleContext({
     };
   }
 
+  async function runCleanup(cleanup, reason) {
+    try {
+      await cleanup(reason);
+    } catch (error) {
+      console.warn(`[Luminomorphism] ${observatory.id} cleanup failed.`, error);
+    }
+  }
+
   async function runCleanups(reason) {
     const pending = cleanups.splice(0).reverse();
     for (const cleanup of pending) {
-      try {
-        await cleanup(reason);
-      } catch (error) {
-        console.warn(`[Luminomorphism] ${observatory.id} cleanup failed.`, error);
-      }
+      await runCleanup(cleanup, reason);
     }
+  }
+
+  function isCurrentStart(generation) {
+    return lifecycle !== MODULE_LIFECYCLE.DESTROYED
+      && lifecycleGeneration === generation;
   }
 
   const context = Object.freeze({
@@ -110,28 +121,39 @@ export function createObservatoryModuleContext({
     onDispose,
 
     async start(initializer) {
-      if (lifecycle === MODULE_LIFECYCLE.DESTROYED) return snapshot();
+      if (lifecycle === MODULE_LIFECYCLE.DESTROYED) {
+        throw new Error(`Cannot start destroyed observatory module: ${observatory.id}.`);
+      }
       if (lifecycle === MODULE_LIFECYCLE.RUNNING) return snapshot();
       if (startPromise) return startPromise;
 
       if (abortController.signal.aborted) abortController = new AbortController();
+      const startGeneration = lifecycleGeneration;
       lifecycle = MODULE_LIFECYCLE.STARTING;
       setRuntime(RUNTIME_STATE.FALLBACK, { phase: RUNTIME_PHASE.LOADING, reason: 'module-starting' });
-      startPromise = Promise.resolve()
-        .then(() => initializer?.(context))
-        .then((result) => {
+      const pendingStart = Promise.resolve()
+        .then(() => (isCurrentStart(startGeneration) ? initializer?.(context) : null))
+        .then(async (result) => {
           const cleanup = asCleanup(result);
+          if (!isCurrentStart(startGeneration)) {
+            if (cleanup) await runCleanup(cleanup, 'module-start-invalidated');
+            return snapshot();
+          }
           if (cleanup) onDispose(cleanup);
           lifecycle = MODULE_LIFECYCLE.RUNNING;
           setRuntime(RUNTIME_STATE.LIVE, { phase: RUNTIME_PHASE.READY, reason: 'module-ready' });
           return snapshot();
         })
         .catch((error) => {
+          if (!isCurrentStart(startGeneration)) return snapshot();
           lifecycle = MODULE_LIFECYCLE.ERROR;
           setRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.ERROR, reason: 'module-start-failed', error: error.message });
           throw error;
-        })
-        .finally(() => { startPromise = null; });
+        });
+      const sharedStartPromise = pendingStart.finally(() => {
+        if (startPromise === sharedStartPromise) startPromise = null;
+      });
+      startPromise = sharedStartPromise;
 
       return startPromise;
     },
@@ -140,10 +162,12 @@ export function createObservatoryModuleContext({
       if (lifecycle === MODULE_LIFECYCLE.DESTROYED || lifecycle === MODULE_LIFECYCLE.STOPPED) return snapshot();
       if (stopPromise) return stopPromise;
 
+      const stopGeneration = ++lifecycleGeneration;
       lifecycle = MODULE_LIFECYCLE.STOPPING;
       abortController.abort(reason);
       stopPromise = runCleanups(reason)
         .then(() => {
+          if (lifecycle === MODULE_LIFECYCLE.DESTROYED || lifecycleGeneration !== stopGeneration) return snapshot();
           lifecycle = MODULE_LIFECYCLE.STOPPED;
           setRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.CANCELLED, reason });
           return snapshot();
@@ -154,10 +178,16 @@ export function createObservatoryModuleContext({
     },
 
     async destroy(reason = 'module-destroyed') {
-      if (lifecycle === MODULE_LIFECYCLE.DESTROYED) return snapshot();
-      await context.stop(reason);
+      if (lifecycle === MODULE_LIFECYCLE.DESTROYED) return destroyPromise || snapshot();
+      lifecycleGeneration += 1;
+      abortController.abort(reason);
       lifecycle = MODULE_LIFECYCLE.DESTROYED;
-      return snapshot();
+      setRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.CANCELLED, reason });
+      const pendingStop = stopPromise;
+      destroyPromise = Promise.resolve(pendingStop)
+        .then(() => runCleanups(reason))
+        .then(() => snapshot());
+      return destroyPromise;
     },
 
     fetchJsonResource(key, url, options = {}) {
