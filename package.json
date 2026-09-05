@@ -2,7 +2,10 @@
   "name": "living-earth-observatory",
   "private": true,
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:syntax": "node tools/check-syntax.mjs",
+    "validate:registry": "node tools/validate-registry.mjs",
+    "verify:f0": "npm run check:syntax && npm test && npm run validate:registry"
   },
   "devDependencies": {
     "vitest": "^4.1.10"

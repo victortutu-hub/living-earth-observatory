@@ -21,7 +21,8 @@ releases/
 
 # Documentation sources kept out of code commits by default.
 # README.md is intentionally not ignored.
-docs/
+docs/*
+!docs/architecture-baseline.md
 *.pdf
 *.docx
 LEO-documentation-*.md
