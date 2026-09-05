@@ -49,7 +49,8 @@ loadLocalEnv(path.join(__dirname, '.env'));
 // Se citeste din variabila de mediu sau din .env local, ignorat de git.
 const FIRMS_MAP_KEY = process.env.FIRMS_MAP_KEY || '';
 
-const PORT = process.env.PORT || 8787;
+const PORT = Number.parseInt(process.env.PORT || '8787', 10) || 8787;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Originile din care acceptam cereri (browserul trimite header-ul Origin).
 // Adauga aici orice port local pe care chiar il folosesti pentru dev server.
@@ -78,8 +79,9 @@ if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 // Reel-urile exportate sunt portret 1080x1920 la 30fps, 30-40s - cateva zeci
 // de MB in WebM. 300MB e o plasa de siguranta larga, nu o limita normala.
-const MAX_UPLOAD_BYTES = 300 * 1024 * 1024;
-const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
+const MAX_UPLOAD_BYTES = positiveIntegerEnv('H264_MAX_INPUT_BYTES', 300 * 1024 * 1024);
+const H264_MAX_CONCURRENT = positiveIntegerEnv('H264_MAX_CONCURRENT', 1);
+const FFMPEG_TIMEOUT_MS = positiveIntegerEnv('H264_TIMEOUT_MS', 5 * 60 * 1000);
 
 // ---------------------------------------------------------------------
 // 2) HELPERE
@@ -108,6 +110,11 @@ function loadLocalEnv(filePath) {
     } catch (err) {
         console.warn('[proxy] .env load failed:', err.message);
     }
+}
+
+function positiveIntegerEnv(name, fallback) {
+    const value = Number.parseInt(process.env[name] || '', 10);
+    return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
 function cachePath(source, cacheKey) {
@@ -226,29 +233,79 @@ async function proxyWithCache(res, source, cacheKey, upstreamUrl, normalize) {
     }));
 }
 
+class PayloadTooLargeError extends Error {
+    constructor() {
+        super('payload too large');
+        this.code = 'PAYLOAD_TOO_LARGE';
+    }
+}
+
+class ConversionCancelledError extends Error {
+    constructor() {
+        super('conversion cancelled');
+        this.code = 'CONVERSION_CANCELLED';
+    }
+}
+
 /** Citeste corpul cererii ca Buffer brut, cu o limita de dimensiune. */
 function readRawBody(req, maxBytes) {
+    const declaredLength = Number.parseInt(req.headers['content-length'] || '', 10);
+    if (Number.isSafeInteger(declaredLength) && declaredLength > maxBytes) {
+        return Promise.reject(new PayloadTooLargeError());
+    }
+
     return new Promise((resolve, reject) => {
         const chunks = [];
         let total = 0;
-        req.on('data', chunk => {
+        let settled = false;
+        const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            callback(value);
+        };
+        const onData = chunk => {
             total += chunk.length;
             if (total > maxBytes) {
-                reject(new Error('payload too large'));
-                req.destroy();
+                req.removeListener('data', onData);
+                req.resume(); // Drain without retaining more input in application memory.
+                finish(reject, new PayloadTooLargeError());
                 return;
             }
             chunks.push(chunk);
-        });
-        req.on('end', () => resolve(Buffer.concat(chunks)));
-        req.on('error', reject);
+        };
+        req.on('data', onData);
+        req.once('end', () => finish(resolve, Buffer.concat(chunks)));
+        req.once('error', error => finish(reject, error));
+        req.once('aborted', () => finish(reject, new ConversionCancelledError()));
+    });
+}
+
+function removeTempFile(filePath) {
+    return fs.promises.unlink(filePath).catch(error => {
+        if (error.code !== 'ENOENT') console.warn('[proxy] temp cleanup failed:', error.message);
     });
 }
 
 /** Ruleaza FFmpeg pe fisierul WebM de la webmPath, produce mp4Path. */
-function runFfmpegToH264(webmPath, mp4Path) {
+function runFfmpegToH264(webmPath, mp4Path, {
+    signal,
+    timeoutMs = FFMPEG_TIMEOUT_MS,
+    spawnProcess = spawn,
+} = {}) {
     return new Promise((resolve, reject) => {
-        const ffmpeg = spawn('ffmpeg', [
+        let stderr = '';
+        let settled = false;
+        let cancelled = false;
+        let timedOut = false;
+        const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', onAbort);
+            callback(value);
+        };
+        const ffmpeg = spawnProcess('ffmpeg', [
+            '-nostdin',
             '-y',
             '-i', webmPath,
             '-c:v', 'libx264',
@@ -258,66 +315,116 @@ function runFfmpegToH264(webmPath, mp4Path) {
             '-movflags', '+faststart',
             mp4Path
         ]);
-
-        let stderr = '';
-        ffmpeg.stderr.on('data', chunk => { stderr += chunk; });
-
+        const stopProcess = () => {
+            if (!ffmpeg.killed) ffmpeg.kill('SIGKILL');
+        };
+        const onAbort = () => {
+            cancelled = true;
+            stopProcess();
+        };
         const timer = setTimeout(() => {
-            ffmpeg.kill('SIGKILL');
-            reject(new Error('ffmpeg timeout'));
-        }, FFMPEG_TIMEOUT_MS);
+            timedOut = true;
+            stopProcess();
+        }, timeoutMs);
 
-        ffmpeg.on('error', err => {
-            clearTimeout(timer);
-            // ENOENT = ffmpeg nu e instalat / nu e in PATH.
-            reject(err.code === 'ENOENT' ? new Error('ffmpeg not found on PATH') : err);
+        if (signal?.aborted) onAbort();
+        else signal?.addEventListener('abort', onAbort, { once: true });
+        ffmpeg.stderr?.on('data', chunk => { stderr += chunk; });
+        ffmpeg.once('error', err => {
+            finish(reject, err.code === 'ENOENT' ? new Error('ffmpeg not found on PATH') : err);
         });
-
-        ffmpeg.on('close', code => {
-            clearTimeout(timer);
-            if (code === 0) resolve();
-            else reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-800)}`));
+        ffmpeg.once('close', code => {
+            if (timedOut) return finish(reject, new Error('ffmpeg timeout'));
+            if (cancelled) return finish(reject, new ConversionCancelledError());
+            if (code === 0) return finish(resolve);
+            return finish(reject, new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-800)}`));
         });
     });
 }
 
-async function handleConvertToH264(req, res) {
+function streamFileToResponse(filePath, res) {
+    return new Promise((resolve, reject) => {
+        const output = fs.createReadStream(filePath);
+        let settled = false;
+        const finish = (callback, value) => {
+            if (settled) return;
+            settled = true;
+            output.destroy();
+            callback(value);
+        };
+        output.once('error', error => finish(reject, error));
+        res.once('error', error => finish(reject, error));
+        output.once('close', () => finish(resolve));
+        res.once('close', () => {
+            if (!res.writableEnded) finish(reject, new ConversionCancelledError());
+        });
+        output.pipe(res);
+    });
+}
+
+async function handleConvertToH264(req, res, {
+    maxUploadBytes = MAX_UPLOAD_BYTES,
+    timeoutMs = FFMPEG_TIMEOUT_MS,
+    runFfmpeg = runFfmpegToH264,
+    tempDirectory = os.tmpdir(),
+    acquireConversion = () => true,
+    releaseConversion = () => {},
+    onConversionSettled = () => {},
+} = {}) {
     if (req.method !== 'POST') {
         res.writeHead(405, { 'Content-Type': 'application/json', 'Allow': 'POST, OPTIONS' });
         res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'Use POST with the WebM body.' }));
         return;
     }
 
+    if (!acquireConversion()) {
+        res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '1' });
+        res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'H.264 converter is busy. Try again shortly.' }));
+        return;
+    }
+
     const stamp = `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-    const webmPath = path.join(os.tmpdir(), `leo-reel-${stamp}.webm`);
-    const mp4Path = path.join(os.tmpdir(), `leo-reel-${stamp}.mp4`);
+    const webmPath = path.join(tempDirectory, `leo-reel-${stamp}.webm`);
+    const mp4Path = path.join(tempDirectory, `leo-reel-${stamp}.mp4`);
+    const abortController = new AbortController();
+    const cancelForDisconnect = () => {
+        if (!res.writableEnded) abortController.abort();
+    };
+    req.once('aborted', cancelForDisconnect);
+    res.once('close', cancelForDisconnect);
 
     try {
-        const webmData = await readRawBody(req, MAX_UPLOAD_BYTES);
+        const webmData = await readRawBody(req, maxUploadBytes);
         if (!webmData.length) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'Empty request body.' }));
             return;
         }
-        fs.writeFileSync(webmPath, webmData);
+        await fs.promises.writeFile(webmPath, webmData);
 
-        await runFfmpegToH264(webmPath, mp4Path);
+        await runFfmpeg(webmPath, mp4Path, { signal: abortController.signal, timeoutMs });
+        if (abortController.signal.aborted) throw new ConversionCancelledError();
 
-        const mp4Data = fs.readFileSync(mp4Path);
+        const mp4Stat = await fs.promises.stat(mp4Path);
         res.writeHead(200, {
             'Content-Type': 'video/mp4',
-            'Content-Length': mp4Data.length
+            'Content-Length': mp4Stat.size
         });
-        res.end(mp4Data);
+        await streamFileToResponse(mp4Path, res);
     } catch (err) {
         const message = err.message || 'unknown conversion failure';
         console.warn('[proxy] /convert-h264 failed:', message);
-        const status = message === 'payload too large' ? 413 : 500;
-        res.writeHead(status, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ proxyStatus: 'error', proxyError: message }));
+        if (!res.headersSent && !res.destroyed) {
+            const status = err.code === 'PAYLOAD_TOO_LARGE' ? 413 : 500;
+            res.writeHead(status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ proxyStatus: 'error', proxyError: message }));
+        }
     } finally {
-        fs.unlink(webmPath, () => {});
-        fs.unlink(mp4Path, () => {});
+        req.removeListener('aborted', cancelForDisconnect);
+        res.removeListener('close', cancelForDisconnect);
+        releaseConversion();
+        await Promise.all([removeTempFile(webmPath), removeTempFile(mp4Path)]);
+        onConversionSettled();
     }
 }
 
@@ -325,14 +432,42 @@ async function handleConvertToH264(req, res) {
 // 3) SERVER
 // ---------------------------------------------------------------------
 
-const server = http.createServer(async (req, res) => {
+function createProxyServer({
+    maxUploadBytes = MAX_UPLOAD_BYTES,
+    maxConcurrent = H264_MAX_CONCURRENT,
+    timeoutMs = FFMPEG_TIMEOUT_MS,
+    runFfmpeg,
+    tempDirectory,
+    onConversionSettled,
+} = {}) {
+    let activeConversions = 0;
+    const acquireConversion = () => {
+        if (activeConversions >= maxConcurrent) return false;
+        activeConversions += 1;
+        return true;
+    };
+    const releaseConversion = () => {
+        activeConversions = Math.max(0, activeConversions - 1);
+    };
+
+    return http.createServer(async (req, res) => {
     const origin = req.headers.origin || '';
-    if (ALLOWED_ORIGINS.includes(origin)) {
+    const originAllowed = ALLOWED_ORIGINS.includes(origin);
+    if (originAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Vary', 'Origin');
+
+    const url = new URL(req.url, `http://${req.headers.host}`);
+
+    // Origin checks limit browser access on this loopback service; they are not authentication.
+    if (url.pathname === '/convert-h264' && origin && !originAllowed) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'Origin is not allowed for local H.264 conversion.' }));
+        return;
+    }
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -340,10 +475,16 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    const url = new URL(req.url, `http://${req.headers.host}`);
-
     if (url.pathname === '/convert-h264') {
-        await handleConvertToH264(req, res);
+        await handleConvertToH264(req, res, {
+            maxUploadBytes,
+            timeoutMs,
+            runFfmpeg,
+            tempDirectory,
+            acquireConversion,
+            releaseConversion,
+            onConversionSettled,
+        });
         return;
     }
 
@@ -431,11 +572,20 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms|gvp." }));
-});
+    });
+}
 
-server.listen(PORT, () => {
-    console.log(`[proxy] listening on http://127.0.0.1:${PORT}/nasa-proxy?source=eonet|gdacs|firms`);
+if (require.main === module) {
+    const server = createProxyServer();
+    server.listen(PORT, HOST, () => {
+    console.log(`[proxy] listening on http://${HOST}:${PORT}/nasa-proxy?source=eonet|gdacs|firms (H.264 local-only)`);
     if (!FIRMS_MAP_KEY) {
         console.warn('[proxy] FIRMS_MAP_KEY not set yet - firms source will return an error until configured.');
     }
-});
+    });
+}
+
+module.exports = {
+    createProxyServer,
+    runFfmpegToH264,
+};
