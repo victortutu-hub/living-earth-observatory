@@ -1,4 +1,5 @@
 import { buildEventPolygonOverlays } from './polygon-overlays.js';
+import { markerHorizonWeight } from './marker-horizon.js?v=markerHorizon1';
 
 function disposeObject3D(node) {
     node.geometry?.dispose?.();
@@ -527,7 +528,7 @@ export function createMarkerSystem({
         }
     }
 
-    function updateInstancedLayer(layer, t, markerPulseAmp, hasSelection) {
+    function updateInstancedLayer(layer, t, markerPulseAmp, hasSelection, camera) {
         const isGlowLayer = layer.userData.kind === 'instancedGlowLayer';
         const instances = layer.userData.instances || [];
         instances.forEach((data, i) => {
@@ -540,19 +541,25 @@ export function createMarkerSystem({
             const scaleFactor = downplay ? 0.88 : (selected ? selectedFactor : 1);
             const radiusScale = isGlowLayer ? data.glowRadiusScale : data.markerRadiusScale;
             const position = isGlowLayer ? data.glowPosition : data.position;
-            instancedScale.setScalar((data.baseScale || 1) * radiusScale * pulse * scaleFactor);
+            const horizonWeight = markerHorizonWeight({
+                markerDirection: position.clone().normalize(),
+                cameraDirection: camera.position.clone().normalize(),
+                cameraDistance: camera.position.length(),
+                markerRadius: position.length()
+            });
+            instancedScale.setScalar((data.baseScale || 1) * radiusScale * pulse * scaleFactor * horizonWeight);
             instancedMatrix.compose(position, instancedQuaternion, instancedScale);
             layer.setMatrixAt(i, instancedMatrix);
 
             const dim = downplay ? 0.32 : selected ? 1.16 : 1;
-            instancedColor.copy(data.color).multiplyScalar(dim).lerp(white, selected ? 0.18 : isGlowLayer ? 0.12 : 0);
+            instancedColor.copy(data.color).multiplyScalar(dim * horizonWeight).lerp(white, (selected ? 0.18 : isGlowLayer ? 0.12 : 0) * horizonWeight);
             layer.setColorAt(i, instancedColor);
         });
         layer.instanceMatrix.needsUpdate = true;
         if (layer.instanceColor) layer.instanceColor.needsUpdate = true;
     }
 
-    function updateMarkerAnimation(t, markerPulseAmp = 1) {
+    function updateMarkerAnimation(t, markerPulseAmp = 1, camera) {
         const hasSelection = Boolean(state.selectedId);
         markerGroup.children.forEach((marker, i) => {
             if (marker.userData.kind === 'usgsPointLayer') {
@@ -563,7 +570,7 @@ export function createMarkerSystem({
                 marker.userData.kind === 'instancedMarkerLayer' ||
                 marker.userData.kind === 'instancedGlowLayer'
             )) {
-                updateInstancedLayer(marker, t, markerPulseAmp, hasSelection);
+                updateInstancedLayer(marker, t, markerPulseAmp, hasSelection, camera);
                 return;
             }
             const selected = marker.userData.eventId === state.selectedId || marker.userData.clusterId === `cluster:${state.selectedId}`;

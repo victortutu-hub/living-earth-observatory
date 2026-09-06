@@ -41,7 +41,9 @@ function createPointsRenderer({ THREE, earthGroup, lonLatToVec3 }) {
     const material = new THREE.ShaderMaterial({
         uniforms,
         transparent: true,
-        depthTest: false,
+        // Plugins still use their smooth facing fade, but must respect the
+        // opaque Earth depth buffer for far-side features.
+        depthTest: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         vertexShader: `

@@ -474,7 +474,7 @@ export function createEarthAppRuntime({
         const t = clock.getElapsedTime();
         demoReel.update(t);
         updateFocus(t, () => demoReel.onFocusComplete());
-        updateMarkerAnimation(t, currentReelMood().markerPulseAmp * (state.dataRhythmPulseAmp || 1));
+        updateMarkerAnimation(t, currentReelMood().markerPulseAmp * (state.dataRhythmPulseAmp || 1), camera);
         frameRuntime.update(t);
         moonSystem?.update?.(camera, t);
         issSystem?.update?.(camera);

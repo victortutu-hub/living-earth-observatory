@@ -36,7 +36,10 @@ export function createLiveSeismicLayer({
     const material = new THREE.ShaderMaterial({
         uniforms,
         transparent: true,
-        depthTest: false,
+        // The shader already fades against the camera-facing hemisphere; depth
+        // testing additionally prevents a raised point sprite leaking across
+        // the solid Earth silhouette.
+        depthTest: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         vertexShader: `
