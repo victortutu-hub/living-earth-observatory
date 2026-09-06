@@ -13,7 +13,9 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
     const disposedMaterials = new Set();
     const disposedGeometries = new Set();
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x02050d, 0.028);
+    // Spatiul este deliberat negru. Fara asta, ceata si canvasul transparent
+    // lasa accentele decorative CSS sa dea impresia unui "cer" luminat.
+    scene.fog = new THREE.FogExp2(0x000000, 0.028);
 
     const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
     camera.position.set(0, 1.8, 6.4);
@@ -21,13 +23,13 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
     // Interactive rendering never reads pixels from this canvas: PNG/video
     // export creates its own short-lived renderer with preserveDrawingBuffer.
     // Keeping it off here lets the browser discard the previous backbuffer.
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
     renderer.setSize(innerWidth, innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.04;
-    renderer.setClearColor(0x02050d, 0);
+    renderer.setClearColor(0x000000, 1);
     mount.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = 'none';
 
@@ -46,11 +48,17 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
     composer.addPass(new RenderPass(scene, camera));
     // Bloom is a blur, so half-resolution preserves the intended look while
     // reducing its render-target cost on the GTX 1650 performance target.
+    // Reglaj "realist": in spatiul real, in jurul unei Luni/al unui Pamant expus
+    // corect, fundalul e practic negru. Pragul mai ridicat face ca doar
+    // highlight-urile chiar stralucitoare sa infloreasca (nu si zonele medii),
+    // raza mai mica tine glow-ul strans langa corp in loc sa-l intinda in tot
+    // cadrul, iar intensitatea usor scazuta evita spalarea negrului. Rim-ul de
+    // apus al atmosferei (fizic real) ramane, dar se subtiaza natural.
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(innerWidth * BLOOM_RESOLUTION_SCALE, innerHeight * BLOOM_RESOLUTION_SCALE),
-        0.34,
-        0.72,
-        0.3
+        0.24, // strength (era 0.34)
+        0.40, // radius   (era 0.72) - glow mai strans, nu intins in spatiu
+        0.55  // threshold (era 0.30) - doar corpurile foarte luminoase inforesc
     );
     composer.addPass(bloomPass);
     const smaaPass = new SMAAPass(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());

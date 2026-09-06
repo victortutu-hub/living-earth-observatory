@@ -1,4 +1,4 @@
-import { applyEarthLookUniforms, earthLookPresets } from './earth-look.js?v=pbrRoughness1';
+import { applyEarthLookUniforms, earthLookPresets } from './earth-look.js?v=atmoHalo1';
 
 export function createEarthAppearance({
     state,
@@ -31,7 +31,9 @@ export function createEarthAppearance({
         cloudMat.uniforms.uOpacity.value = state.realClouds ? 0 : (state.night ? 0.4 : 0.5);
         cloudOverlayMat.uniforms.uOpacity.value = state.realClouds ? (state.night ? 0.34 : 0.42) : 0;
         scene.fog.density = state.night ? 0.028 : 0.018;
-        renderer.setClearColor(state.night ? 0x02050d : 0x07101c, 0);
+        // Nu expunem CSS-ul de sub canvas; "day/night" afecteaza Pamantul,
+        // nu transforma vidul spatial intr-un fundal colorat.
+        renderer.setClearColor(0x000000, 1);
     }
 
     function applyEarthLook(name) {

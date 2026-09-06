@@ -59,9 +59,9 @@ export function createInitialEarthState() {
 }
 
 export const lookDefaults = {
-    toneExposure: 1.04,
-    bloomStrength: 0.34,
-    bloomRadius: 0.72,
-    bloomThreshold: 0.3,
+    toneExposure: 1.0,
+    bloomStrength: 0.24,
+    bloomRadius: 0.40,
+    bloomThreshold: 0.55,
     focusDuration: 1.45
 };

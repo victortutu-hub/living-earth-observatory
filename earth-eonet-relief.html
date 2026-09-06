@@ -17,11 +17,10 @@
     body {
         margin: 0;
         overflow: hidden;
-        background:
-            radial-gradient(circle at 30% 20%, rgba(186, 125, 72, 0.16), transparent 34%),
-            radial-gradient(circle at 70% 70%, rgba(48, 120, 146, 0.12), transparent 40%),
-            radial-gradient(circle at 50% 100%, rgba(18, 42, 76, 0.18), transparent 44%),
-            #02050d;
+        /* Rendererul Three.js are clear color opac; fundalul paginii ramane
+           neutru pentru intervalele de incarcare si intro. Gradientele
+           cinematice sunt limitate la #appFadeOverlay, nu la spatiul live. */
+        background: #02050d;
         color: var(--text);
         font-family: "Segoe UI", system-ui, sans-serif;
     }
@@ -892,7 +891,7 @@ import * as THREE from 'three';
 import * as earcutModule from 'earcut';
 import { platformRegistry } from './src/core/platform-registry.js?v=earthModuleHost1';
 import { createObservatoryModuleHost } from './src/core/observatory/module-host.js?v=earthModuleHost1';
-import { createLivingEarthModule } from './src/earth/living-earth-module.js?v=windTune1';
+import { createLivingEarthModule } from './src/earth/living-earth-module.js?v=realistBloom2';
 
 const earcutTriangulate = earcutModule.default || earcutModule.earcut;
 const moduleHost = createObservatoryModuleHost({

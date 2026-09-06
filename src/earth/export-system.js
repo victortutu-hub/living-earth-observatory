@@ -97,7 +97,7 @@ export function createExportSystem({
         exportRenderer.outputColorSpace = renderer.outputColorSpace;
         exportRenderer.toneMapping = renderer.toneMapping;
         exportRenderer.toneMappingExposure = renderer.toneMappingExposure;
-        exportRenderer.setClearColor(state.night ? 0x02050d : 0x07101c, 0);
+        exportRenderer.setClearColor(0x000000, 1);
 
         const exportComposer = new EffectComposer(exportRenderer);
         exportComposer.addPass(new RenderPass(scene, exportCamera));

@@ -1,7 +1,7 @@
 import { createEarthAppBootstrap } from './earth-app-bootstrap.js?v=earthBaseMap4';
-import { createSceneRuntime } from './scene-runtime.js?v=capturePerf2';
-import { createInitialEarthState } from './app-state.js?v=cacheFix1';
-import { createEarthAppServices } from './app-services.js?v=windTune1';
+import { createSceneRuntime } from './scene-runtime.js?v=realistBloom2';
+import { createInitialEarthState } from './app-state.js?v=atmoHalo1';
+import { createEarthAppServices } from './app-services.js?v=atmoHalo1';
 import { prepareObservatoryEntry } from '../portal-continuity.js?v=atlasEarthMount1';
 
 export function createLivingEarthModule({ THREE, earcut }) {
