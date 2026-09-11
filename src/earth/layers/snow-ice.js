@@ -4,6 +4,7 @@
 // 'points'. Provenance 'observed': mascheaza direct un produs satelitar
 // zilnic, fara interpretare procedurala intre mijloc.
 import { loadSnowIceMaskTexture } from '../gibs-snow-ice.js?v=snowIce1';
+import { formatTemporalBadge } from '../temporal-provenance.js';
 
 function formatClock(timestamp) {
     if (!timestamp) return '--:--';
@@ -14,6 +15,7 @@ export const snowIcePlugin = {
     id: 'snowIce',
     label: 'Snow & ice',
     provenance: 'observed',
+    temporal: { temporalType: 'observed', sceneTimeCompatibility: 'latest-only', cacheState: 'unknown' },
     attribution: 'NASA GIBS / MODIS Terra NDSI Snow Cover',
     license: 'NASA public domain; attribution retained.',
     source: { url: 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi', requiresProxy: false, apiKey: null },
@@ -82,8 +84,8 @@ export const snowIcePlugin = {
                 loading,
                 state: 'on',
                 message: date
-                    ? `Snow & ice: NASA GIBS / MODIS Terra NDSI, ${date}, updated ${formatClock(lastLoadedAt)}`
-                    : `Snow & ice: on, updated ${formatClock(lastLoadedAt)}`
+                    ? `Snow & ice: NASA GIBS / MODIS Terra NDSI · ${formatTemporalBadge(material?.map?.userData?.temporal, { sourceLabel: 'Daily' })}`
+                    : `Snow & ice: on · observed source time unavailable`
             };
         }
 

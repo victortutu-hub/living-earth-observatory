@@ -248,7 +248,7 @@ export function createEarthLayers({
         if (blackMarbleSettled) return;
         publishNightLightsStatus({
             state: 'fallback',
-            message: 'Black Marble: local fallback active — NASA GIBS still loading; terminator linked'
+                message: 'Black Marble: annual observed product (2016); local fallback active — NASA GIBS still loading; terminator linked'
         });
     }, 16_000);
 
@@ -274,7 +274,7 @@ export function createEarthLayers({
             if (previous && previous !== texture) previous.dispose?.();
             publishNightLightsStatus({
                 state: 'nasa',
-                message: 'Black Marble: NASA GIBS / VIIRS 2016 active — fades at solar terminator'
+                message: 'Black Marble: annual observed product · 2016 — fades at solar terminator'
             });
         })
         .catch(error => {
@@ -328,7 +328,7 @@ export function createEarthLayers({
             if (previous && previous !== texture) previous.dispose?.();
             publishSurfaceStatus({
                 state: 'nasa',
-                message: `Surface: NASA GIBS / Blue Marble Shaded Relief and Bathymetry active (${texture.userData.surfaceResolution})`
+                message: `Surface: NASA GIBS / Blue Marble static reference active (${texture.userData.surfaceResolution})`
             });
             return activeSurfaceMap;
         })

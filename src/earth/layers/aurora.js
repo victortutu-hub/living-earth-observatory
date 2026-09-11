@@ -16,6 +16,7 @@ export const auroraPlugin = {
     id: 'aurora',
     label: 'Aurora',
     provenance: 'interpretive',
+    temporal: { temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only', cacheState: 'unknown' },
     attribution: 'NOAA SWPC - OVATION aurora model',
     license: 'NOAA public domain; attribution retained.',
     source: { url: 'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json', requiresProxy: false, apiKey: null },

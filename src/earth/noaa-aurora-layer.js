@@ -1,14 +1,10 @@
 import { fetchEarthOvation } from './earth-data-runtime.js?v=unifiedEarth1';
+import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 function disposeObject3D(node) {
     node.geometry?.dispose?.();
     if (Array.isArray(node.material)) node.material.forEach(mat => mat.dispose?.());
     else node.material?.dispose?.();
-}
-
-function formatClock(timestamp) {
-    if (!timestamp) return '--:--';
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function parseCoordinates(data) {
@@ -115,6 +111,8 @@ export function createNoaaAuroraLayer({
     let lastCount = 0;
     let lastActiveCount = 0;
     let lastUpdated = null;
+    let lastLoadedAt = null;
+    let cacheState = 'unknown';
     let lastError = null;
     let northSamples = new Map();
     let southSamples = new Map();
@@ -267,7 +265,9 @@ export function createNoaaAuroraLayer({
             if (disposed) return;
             lastCount = ingest(data);
             rebuild();
-            lastUpdated = Date.parse(result.meta.sourceTime) || Date.now();
+            lastUpdated = result.meta.sourceTime || null;
+            lastLoadedAt = result.meta.updated || new Date().toISOString();
+            cacheState = result.state === 'stale' ? 'stale' : 'fresh';
         } catch (error) {
             lastError = error;
             clear();
@@ -298,8 +298,8 @@ export function createNoaaAuroraLayer({
             loading,
             state: 'on',
             message: lastActiveCount > 0
-                ? `Aurora: oval from ${lastActiveCount}/${lastCount} active NOAA cells, updated ${formatClock(lastUpdated)}`
-                : `Aurora: quiet oval from ${lastCount} NOAA polar cells, updated ${formatClock(lastUpdated)}`
+                ? `Aurora: oval from ${lastActiveCount}/${lastCount} active NOAA cells · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.aurora, sourceTime: lastUpdated, loadedAt: lastLoadedAt, cacheState }))}`
+                : `Aurora: quiet oval from ${lastCount} NOAA polar cells · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.aurora, sourceTime: lastUpdated, loadedAt: lastLoadedAt, cacheState }))}`
         };
     }
 

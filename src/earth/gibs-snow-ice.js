@@ -4,6 +4,7 @@
 // non-temporal composites. Same single-global-WMS-raster shape as those.
 const SNOW_ICE_LAYER = 'MODIS_Terra_NDSI_Snow_Cover';
 const DAY_MS = 86_400_000;
+import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
 
 export function snowIceWmsUrl(date, width = 2048, height = 1024) {
     const params = new URLSearchParams({
@@ -62,6 +63,7 @@ export async function loadSnowIceMaskTexture({ THREE, width = 2048, height = 102
             texture.anisotropy = 4;
             texture.needsUpdate = true;
             texture.userData.snowIceDate = date;
+            texture.userData.temporal = createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.snowIce, sourceTime: `${date}T00:00:00Z`, loadedAt: new Date(), cacheState: 'unknown' });
             return texture;
         } catch (error) {
             errors.push(`${date}: ${error.message}`);

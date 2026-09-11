@@ -7,6 +7,7 @@
 // swath boundary to gate against, so composeGibsEquirectangularMosaic (built
 // for the harder tiled-streaming case) is not needed here.
 const BLUE_MARBLE_LAYER = 'BlueMarble_ShadedRelief_Bathymetry';
+import { EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
 
 // Largest-to-smallest fallback ladder. GIBS WMS enforces a server-side
 // maximum image size and any request can time out on a slow link; rather
@@ -68,6 +69,7 @@ export async function loadBlueMarbleSurfaceTexture({ THREE, renderer, timeoutMs 
             texture.needsUpdate = true;
             texture.userData.surfaceResolution = `${width}x${height}`;
             texture.userData.surfaceSource = 'NASA GIBS / Blue Marble Shaded Relief and Bathymetry';
+            texture.userData.temporal = EARTH_TEMPORAL_LAYERS.blueMarble;
             return texture;
         } catch (error) {
             errors.push(`${width}x${height}: ${error.message}`);

@@ -32,6 +32,7 @@ export const gvpVolcanoesPlugin = {
     id: 'gvp',
     label: 'GVP volcanoes',
     provenance: 'observed',
+    temporal: { temporalType: 'historical-catalog', sceneTimeCompatibility: 'static', cacheState: 'unknown' },
     attribution: 'Smithsonian Institution - Global Volcanism Program (GVP)',
     license: 'Smithsonian GVP terms; attribution retained.',
     source: { url: 'proxy:gvp', requiresProxy: true, apiKey: null },

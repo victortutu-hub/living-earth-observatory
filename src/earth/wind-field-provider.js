@@ -24,6 +24,7 @@ const LON_MAX = 170; // 180 ar duplica meridianul cu -180
 
 const CACHE_KEY = 'lea-wind-field-v1';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minute: campul de vant se schimba orar
+import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
 
 function buildGrid() {
     const lats = [];
@@ -121,7 +122,7 @@ async function fetchWindGrid(timeoutMs, maxSpeedMs) {
     return encodeGrid(payload, lons.length, lats.length, maxSpeedMs);
 }
 
-function buildTexture(THREE, grid, { cached }) {
+function buildTexture(THREE, grid, { cached, cacheState }) {
     const data = new Uint8ClampedArray(grid.data);
     const texture = new THREE.DataTexture(data, grid.width, grid.height, THREE.RGBAFormat);
     // Longitude grid wraps at the antimeridian; latitude does not (poles clamp
@@ -138,6 +139,7 @@ function buildTexture(THREE, grid, { cached }) {
         latMax: LAT_MAX,
         gridPoints: grid.gridPoints,
         cached,
+        temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.wind, loadedAt: grid.t || new Date(), cacheState }),
         source: 'Open-Meteo current wind_speed_10m / wind_direction_10m, 10 degree global grid',
     };
     return texture;
@@ -147,18 +149,18 @@ export async function fetchWindFieldTexture({ THREE, maxSpeedMs = 40, timeoutMs 
     const cached = readCache();
     const isFresh = cached && cached.maxSpeedMs === maxSpeedMs && (Date.now() - cached.t) < CACHE_TTL_MS;
     if (isFresh) {
-        return buildTexture(THREE, cached, { cached: true });
+        return buildTexture(THREE, cached, { cached: true, cacheState: 'fresh' });
     }
 
     try {
         const grid = await fetchWindGrid(timeoutMs, maxSpeedMs);
         writeCache(grid);
-        return buildTexture(THREE, grid, { cached: false });
+        return buildTexture(THREE, grid, { cached: false, cacheState: 'fresh' });
     } catch (error) {
         // 429 / retea: foloseste orice cache (chiar mai vechi decat TTL) daca
         // exista, in loc sa esueze complet.
         if (cached && cached.maxSpeedMs === maxSpeedMs) {
-            return buildTexture(THREE, cached, { cached: true });
+            return buildTexture(THREE, cached, { cached: true, cacheState: 'stale' });
         }
         throw error;
     }

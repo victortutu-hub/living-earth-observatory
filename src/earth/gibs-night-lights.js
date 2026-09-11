@@ -1,6 +1,7 @@
 // NASA GIBS Black Marble is an observed annual nighttime-light composite.
 // Keep the WMS request global and seam-free; the local texture remains the
 // startup/failure fallback.
+import { EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
 export function blackMarbleWmsUrl(year = 2016) {
     if (year !== 2012 && year !== 2016) throw new RangeError('NASA GIBS Black Marble is available here for 2012 or 2016.');
     const params = new URLSearchParams({
@@ -41,5 +42,10 @@ export async function loadBlackMarbleTexture({ THREE, renderer, year = 2016, tim
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     texture.needsUpdate = true;
+    texture.userData.temporal = createBlackMarbleTemporal(year);
     return texture;
+}
+
+function createBlackMarbleTemporal(year) {
+    return Object.freeze({ ...EARTH_TEMPORAL_LAYERS.blackMarble, sourceTime: `${year}-01-01T00:00:00.000Z` });
 }

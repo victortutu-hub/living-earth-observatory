@@ -27,6 +27,7 @@ const LON_MAX = 170;
 
 const CACHE_KEY = 'lea-ocean-current-v1';
 const CACHE_TTL_MS = 30 * 60 * 1000; // curentii se schimba lent; 30 min e ok
+import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
 
 function buildGrid() {
     const lats = [];
@@ -121,7 +122,7 @@ async function fetchOceanGrid(timeoutMs, maxSpeedMs) {
     return encodeGrid(payload, lons.length, lats.length, maxSpeedMs);
 }
 
-function buildTexture(THREE, grid, { cached }) {
+function buildTexture(THREE, grid, { cached, cacheState }) {
     const data = new Uint8ClampedArray(grid.data);
     const texture = new THREE.DataTexture(data, grid.width, grid.height, THREE.RGBAFormat);
     texture.wrapS = THREE.RepeatWrapping;
@@ -150,6 +151,7 @@ function buildTexture(THREE, grid, { cached }) {
         latMax: LAT_MAX,
         gridPoints: grid.gridPoints,
         cached,
+        temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.oceanCurrents, loadedAt: grid.t || new Date(), cacheState }),
         source: 'Open-Meteo Marine ocean_current_velocity / ocean_current_direction, 10 degree global grid',
     };
     return texture;
@@ -159,15 +161,15 @@ export async function fetchOceanCurrentTexture({ THREE, maxSpeedMs = 3, timeoutM
     const cached = readCache();
     const isFresh = cached && cached.maxSpeedMs === maxSpeedMs && (Date.now() - cached.t) < CACHE_TTL_MS;
     if (isFresh) {
-        return buildTexture(THREE, cached, { cached: true });
+        return buildTexture(THREE, cached, { cached: true, cacheState: 'fresh' });
     }
     try {
         const grid = await fetchOceanGrid(timeoutMs, maxSpeedMs);
         writeCache(grid);
-        return buildTexture(THREE, grid, { cached: false });
+        return buildTexture(THREE, grid, { cached: false, cacheState: 'fresh' });
     } catch (error) {
         if (cached && cached.maxSpeedMs === maxSpeedMs) {
-            return buildTexture(THREE, cached, { cached: true });
+            return buildTexture(THREE, cached, { cached: true, cacheState: 'stale' });
         }
         throw error;
     }

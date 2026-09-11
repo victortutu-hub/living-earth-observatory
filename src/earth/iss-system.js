@@ -1,4 +1,5 @@
 import { fetchEarthCelesTrakTle } from './earth-data-runtime.js?v=unifiedEarthLot2';
+import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 const SATELLITE_JS_URLS = [
     'https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/+esm',
@@ -57,8 +58,9 @@ function updateIssStatus(state) {
         status.textContent = 'ISS: acquiring TLE / SGP4 fix...';
         return;
     }
-    status.textContent = `ISS: ${formatIssAltitude(state.altitudeKm)} · ${formatIssSpeed(state.velocityEci)}`;
-    status.title = `International Space Station — NORAD 25544, SGP4 propagated from CelesTrak TLE, source: ${state.source}`;
+    const temporal = createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.iss, sourceTime: state.tleEpoch, loadedAt: state.loadedAt, cacheState: state.cacheState });
+    status.textContent = `ISS: ${formatIssAltitude(state.altitudeKm)} · ${formatIssSpeed(state.velocityEci)} · ${formatTemporalBadge(temporal, { sourceLabel: 'TLE epoch' })}`;
+    status.title = `International Space Station — NORAD 25544, SGP4 propagated from CelesTrak TLE, source: ${state.source}. Historical accuracy depends on TLE epoch.`;
 }
 
 // Punct luminos simplu — ISS nu are disc rezolvabil la aceasta scara,
@@ -171,6 +173,9 @@ export function createIssSystem({
         loading: false,
         visible: false,
         source: 'pending',
+        tleEpoch: null,
+        loadedAt: null,
+        cacheState: 'unknown',
         latitude: 0,
         longitude: 0,
         altitudeKm: ISS_FALLBACK_ALTITUDE_KM,
@@ -397,6 +402,9 @@ export function createIssSystem({
             const { line1, line2 } = parseTleResponse(text);
             satrec = satellite.twoline2satrec(line1, line2);
             state.source = result.state === 'stale' ? 'cached-celestrak' : 'celestrak';
+            state.tleEpoch = result.meta.sourceTime || null;
+            state.loadedAt = result.meta.updated || new Date().toISOString();
+            state.cacheState = result.state === 'stale' ? 'stale' : 'fresh';
         } catch (error) {
             console.warn('[ISS] TLE fetch failed; keeping last known orbit or fallback if available.', error);
             if (!satrec) {

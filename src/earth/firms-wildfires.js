@@ -1,9 +1,5 @@
 import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
-
-function formatClock(timestamp) {
-    if (!timestamp) return '--:--';
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
+import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 function readProxyBase() {
     const params = new URLSearchParams(window.location.search);
@@ -94,6 +90,7 @@ export function createFirmsWildfireProvider({
     let loading = false;
     let lastCount = 0;
     let lastUpdated = null;
+    let lastSourceTime = null;
     let lastError = null;
     let lastProxyStatus = null;
 
@@ -140,6 +137,10 @@ export function createFirmsWildfireProvider({
                 .slice(0, maxEvents);
             lastCount = events.length;
             lastUpdated = Date.now();
+            lastSourceTime = events.reduce((latest, event) => {
+                const time = event.geometry?.[0]?.date;
+                return !latest || Date.parse(time) > Date.parse(latest) ? time : latest;
+            }, null);
             return events;
         } catch (error) {
             lastError = error?.name === 'AbortError'
@@ -170,12 +171,12 @@ export function createFirmsWildfireProvider({
         if (loading) return { enabled, loading, state: 'refreshing', message: 'NASA FIRMS: loading wildfire hotspots...' };
         if (!enabled) return { enabled, loading, state: 'off', message: 'NASA FIRMS: off' };
         if (lastError) return { enabled, loading, state: 'error', message: `NASA FIRMS: ${lastError.message || 'network error'}` };
-        const staleTag = lastProxyStatus === 'stale-cache' ? ' (cached, live fetch failed)' : '';
+        const cacheState = lastProxyStatus === 'stale-cache' ? 'stale' : 'fresh';
         return {
             enabled,
             loading,
             state: 'on',
-            message: `NASA FIRMS: ${lastCount} wildfire hotspots, updated ${formatClock(lastUpdated)}${staleTag}`
+            message: `NASA FIRMS: ${lastCount} wildfire hotspots · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.firms, sourceTime: lastSourceTime, loadedAt: lastUpdated, cacheState }))}`
         };
     }
 

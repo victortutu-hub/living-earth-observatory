@@ -1,9 +1,5 @@
 import { fetchEarthUsgs } from './earth-data-runtime.js?v=unifiedEarth1';
-
-function formatClock(timestamp) {
-    if (!timestamp) return '--:--';
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
+import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 function formatMagnitude(magnitude) {
     return Number.isFinite(magnitude) ? magnitude.toFixed(1) : 'unknown magnitude';
@@ -79,6 +75,8 @@ export function createUsgsEarthquakeProvider({
     let loading = false;
     let lastCount = 0;
     let lastUpdated = null;
+    let lastLoadedAt = null;
+    let cacheState = 'unknown';
     let lastError = null;
 
     async function fetchEvents(filters = {}) {
@@ -111,7 +109,9 @@ export function createUsgsEarthquakeProvider({
                 })
                 .slice(0, maxEvents);
             lastCount = events.length;
-            lastUpdated = Date.parse(result.meta.sourceTime) || Date.now();
+            lastUpdated = result.meta.sourceTime || null;
+            lastLoadedAt = result.meta.updated || new Date().toISOString();
+            cacheState = result.state === 'stale' ? 'stale' : 'fresh';
             return events;
         } catch (error) {
             lastError = error;
@@ -140,7 +140,7 @@ export function createUsgsEarthquakeProvider({
             enabled,
             loading,
             state: 'on',
-            message: `USGS quakes: ${lastCount} added to Earthquakes, updated ${formatClock(lastUpdated)}`
+            message: `USGS quakes: ${lastCount} added to Earthquakes · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.usgs, sourceTime: lastUpdated, loadedAt: lastLoadedAt, cacheState }))}`
         };
     }
 

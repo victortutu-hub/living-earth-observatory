@@ -15,6 +15,7 @@
 // o conventie de vizualizare - 'interpretive' pentru miscare, 'observed' pentru
 // campul subiacent.
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
+import { formatTemporalBadge } from './temporal-provenance.js';
 
 const TRAIL_WIDTH = 2048;
 const TRAIL_HEIGHT = 1024;
@@ -361,7 +362,7 @@ export function createFieldParticles({
             enabled,
             loading,
             state: 'on',
-            message: `${label}: ${sourceLabel} (${fieldMeta.gridPoints} grid points)${fieldMeta.cached ? ' — cached' : ''}, ${gridSize * gridSize} particles`,
+            message: `${label}: ${sourceLabel} (${fieldMeta.gridPoints} grid points) · ${formatTemporalBadge(fieldMeta.temporal)}, ${gridSize * gridSize} particles`,
         };
     }
 

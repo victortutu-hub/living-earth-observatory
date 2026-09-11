@@ -138,6 +138,16 @@ function createPointsRenderer({ THREE, earthGroup, lonLatToVec3 }) {
     };
 }
 
+function temporalSuffix(plugin) {
+    const temporal = plugin?.temporal;
+    if (!temporal) return '';
+    if (temporal.temporalType === 'procedural') return ' · Procedural';
+    if (temporal.temporalType === 'historical-catalog') return ' · Historical catalog';
+    if (temporal.temporalType === 'static-reference') return ' · Static reference';
+    if (temporal.sceneTimeCompatibility === 'latest-only') return ' · Latest available data';
+    return temporal.sceneTimeCompatibility === 'yes' ? ' · Scene-time model' : '';
+}
+
 const RENDERERS = {
     points: createPointsRenderer
 };
@@ -178,7 +188,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
                 entry.enabled = true;
                 entry.btn.textContent = `${plugin.label}: on`;
                 const st = entry.layer.getStatus?.() || {};
-                setStatus(entry, st.state || 'on', st.message || `${plugin.label}: on`);
+                setStatus(entry, st.state || 'on', `${st.message || `${plugin.label}: on`}${temporalSuffix(plugin)}`);
             } catch (error) {
                 entry.enabled = false;
                 entry.btn.textContent = `${plugin.label}: off`;
@@ -204,7 +214,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             if (obj) obj.userData.pluginId = plugin.id; // pentru rezolvarea la picking
             entry.enabled = true;
             entry.btn.textContent = `${plugin.label}: on`;
-            setStatus(entry, 'on', `${plugin.label}: ${items.length} (${plugin.attribution})`);
+            setStatus(entry, 'on', `${plugin.label}: ${items.length} (${plugin.attribution})${temporalSuffix(plugin)}`);
         } catch (error) {
             if (error?.name === 'AbortError') return;
             entry.enabled = false;

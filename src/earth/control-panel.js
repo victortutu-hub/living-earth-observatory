@@ -118,7 +118,7 @@ export function createControlPanel({ state }) {
         const status = byId('dataSourceStatus');
         if (!status) return;
         status.dataset.state = statusState;
-        status.textContent = message;
+        status.textContent = message.includes('latest available data') ? message : `${message} · latest available data`;
     }
 
     function updateNightLightsStatus({ state: statusState = 'loading', message = 'Black Marble: loading NASA GIBS / VIIRS 2016' } = {}) {

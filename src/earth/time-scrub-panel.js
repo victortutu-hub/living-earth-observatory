@@ -36,8 +36,19 @@ export function createTimeScrubPanel({
     let debounceHandle = null;
     let disposed = false;
 
+    const liveLabel = 'Live astronomy · latest available data';
+    const historicalNotice = 'Scene time affects astronomy. Data layers retain independent timestamps.';
+    let notice = panel?.querySelector?.('[data-temporal-notice]');
+    if (panel && !notice) {
+        notice = document.createElement('div');
+        notice.dataset.temporalNotice = 'true';
+        notice.setAttribute('role', 'note');
+        notice.style.cssText = 'display:none;margin-top:7px;font-size:11px;line-height:1.35;color:#b8d4e6;';
+        panel.appendChild(notice);
+    }
+
     function formatDaysAgo(daysAgo) {
-        return daysAgo <= 0 ? 'Live' : `${dateFormat.format(new Date(Date.now() - daysAgo * DAY_MS))} UTC (historical)`;
+        return daysAgo <= 0 ? liveLabel : `${dateFormat.format(new Date(Date.now() - daysAgo * DAY_MS))} UTC (historical)`;
     }
 
     function applyDaysAgo(daysAgo) {
@@ -48,8 +59,13 @@ export function createTimeScrubPanel({
     function renderFromSnapshot(snapshot) {
         label.textContent = snapshot.historical
             ? `${dateFormat.format(snapshot.date)} UTC (historical)`
-            : 'Live';
+            : liveLabel;
         if (panel) panel.dataset.mode = snapshot.historical ? 'historical' : 'live';
+        if (notice) {
+            notice.hidden = !snapshot.historical;
+            notice.style.display = snapshot.historical ? 'block' : 'none';
+            notice.textContent = snapshot.historical ? historicalNotice : '';
+        }
     }
 
     function onSliderInput(event) {
