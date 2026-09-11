@@ -10,6 +10,7 @@ export function createAppLifecycle({
     state,
     updateGuide916,
     enableRealClouds,
+    surfaceVisualLock,
     realCloudRefreshMs = 30 * 60 * 1000
 }) {
     let realCloudTimer = null;
@@ -18,12 +19,16 @@ export function createAppLifecycle({
     let disposed = false;
 
     function resize() {
-        camera.aspect = innerWidth / innerHeight;
+        const lockedViewport = surfaceVisualLock?.active ? surfaceVisualLock.viewport : null;
+        const width = lockedViewport?.width || innerWidth;
+        const height = lockedViewport?.height || innerHeight;
+        if (lockedViewport) renderer.setPixelRatio(lockedViewport.dpr);
+        camera.aspect = width / height;
         camera.updateProjectionMatrix();
-        renderer.setSize(innerWidth, innerHeight);
-        composer.setSize(innerWidth, innerHeight);
-        bloomPass.setSize(innerWidth * bloomResolutionScale, innerHeight * bloomResolutionScale);
-        smaaPass?.setSize?.(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
+        renderer.setSize(width, height);
+        composer.setSize(width, height);
+        bloomPass.setSize(width * bloomResolutionScale, height * bloomResolutionScale);
+        smaaPass?.setSize?.(width * renderer.getPixelRatio(), height * renderer.getPixelRatio());
         updateGuide916();
     }
 
@@ -35,6 +40,7 @@ export function createAppLifecycle({
         if (started && !disposed) return;
         started = true;
         disposed = false;
+        resize();
         addEventListener('resize', resize);
         // Suplimentar fata de 'resize' pe window: unele schimbari de viewport
         // (side panel-uri de extensii Chrome, unele configuratii de DevTools)

@@ -4,7 +4,7 @@ import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-co
 import { createGeoUtils } from './geo.js';
 import { createStarField } from './star-field.js?v=milkyWay1';
 import { createEventUtils } from './event-utils.js?v=polyFix2';
-import { createEarthLayers } from './earth-layers.js?v=atmoHalo1';
+import { createEarthLayers } from './earth-layers.js?v=surfaceVisualFreezeV3d';
 import { createMoonSystem } from './moon-system.js?v=unifiedEarthLot2';
 import { createIssSystem } from './iss-system.js?v=unifiedEarthLot2';
 import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
@@ -76,6 +76,9 @@ export function createAppVisualFoundation({
         earthMat,
         getEarthMatPBR,
         setMaterialMode,
+        setSurfaceMaterialResponseEnabled,
+        getSurfaceMaterialDebugSnapshot,
+        surfaceReady,
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
@@ -148,6 +151,9 @@ export function createAppVisualFoundation({
         earthMat,
         getEarthMatPBR,
         setMaterialMode,
+        setSurfaceMaterialResponseEnabled,
+        getSurfaceMaterialDebugSnapshot,
+        surfaceReady,
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,

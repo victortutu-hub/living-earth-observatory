@@ -9,7 +9,7 @@ import { createControlPanel } from './control-panel.js?v=cacheFix1';
 import { createEonetAutoRefreshController } from './eonet-data.js?v=cacheStatus1';
 import { createEonetApp } from './eonet-app.js?v=cacheStatus1';
 import { createCameraMotionRuntime } from './camera-motion.js?v=localCinemaCode11';
-import { createEarthAppRuntime } from './app-runtime.js?v=markerHorizon1';
+import { createEarthAppRuntime } from './app-runtime.js?v=surfaceVisualLock2';
 import { createTimeScrubPanel } from './time-scrub-panel.js?v=timeScrub1';
 import { createLiveDataLayers } from './live-data-layers.js?v=cacheFix1';
 import { createLayerRegistry } from './layer-plugin-registry.js?v=markerHorizon1';
@@ -18,10 +18,11 @@ import { auroraPlugin } from './layers/aurora.js?v=layerRegistry5';
 import { snowIcePlugin } from './layers/snow-ice.js?v=snowIce1';
 import { lookDefaults } from './app-state.js?v=atmoHalo1';
 import { createEventScene } from './event-scene.js?v=markerHorizon1';
-import { createAppVisualFoundation } from './app-visual-foundation.js?v=atmoHalo1';
+import { createAppVisualFoundation } from './app-visual-foundation.js?v=surfaceVisualFreezeV3d';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js?v=moonMarkers1';
 import { localDirForSelenographic } from './moon-system.js?v=moonMarkers1';
+import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js?v=surfaceVisualFreezeV3b';
 
 export function createEarthAppServices({
     THREE,
@@ -76,6 +77,9 @@ export function createEarthAppServices({
         earthMat,
         getEarthMatPBR,
         setMaterialMode,
+        setSurfaceMaterialResponseEnabled,
+        getSurfaceMaterialDebugSnapshot,
+        surfaceReady,
         nightLights,
         setTerminatorGuideVisible,
         cloudMat,
@@ -140,7 +144,9 @@ export function createEarthAppServices({
         addMarkers,
         clearSelectionTrail,
         buildSelectionTrail,
-        updateMarkerAnimation
+        updateMarkerAnimation,
+        markerGroup,
+        trailGroup
     } = eventScene;
 
     const moonMarkers = createMoonMarkers({
@@ -281,6 +287,54 @@ export function createEarthAppServices({
         applyReelMood,
         applyBrandPreset
     } = earthAppearance;
+
+    // Development-only query lock for repeatable 2.4B material comparison.
+    // It owns no rendering system; it only freezes the existing scene state.
+    const surfaceVisualLock = createSurfaceVisualLock({
+        THREE,
+        camera,
+        controls,
+        earthGroup,
+        markerGroup,
+        trailGroup,
+        cloudMat,
+        cloudOverlayMat,
+        timeState,
+        solarRuntime,
+        moonSystem,
+        issSystem,
+        applyMaterialMode
+    });
+
+    if (surfaceVisualLock.active && surfaceVisualMaterialDebugFromSearch(window.location.search)) {
+        // No control is exposed until the ordinary surface pipeline has settled.
+        // The later OFF/ON clicks only alter one uniform on this same map object.
+        surfaceReady.then(() => {
+        const overlay = document.createElement('div');
+        overlay.id = 'surfaceMaterialDebugControls';
+        overlay.style.cssText = 'position:fixed;right:18px;top:18px;z-index:1000;display:flex;gap:6px;padding:8px;background:rgba(3,10,20,.86);border:1px solid #4fa8d8;border-radius:6px';
+        const status = document.createElement('output');
+        status.id = 'surfaceMaterialDebugState';
+        status.style.cssText = 'align-self:center;color:#d6f3ff;font:12px monospace';
+        const update = (enabled) => {
+            setSurfaceMaterialResponseEnabled(enabled);
+            const snapshot = getSurfaceMaterialDebugSnapshot();
+            status.textContent = `${enabled ? 'ON' : 'OFF'} | ${snapshot.material} | map=${snapshot.mapId} | ${snapshot.width}x${snapshot.height}`;
+            status.title = `material=${snapshot.materialId}; source=${snapshot.source}`;
+        };
+        for (const [label, enabled] of [['OFF', false], ['ON', true]]) {
+            const button = document.createElement('button');
+            button.id = `surfaceMaterialDebug${label}`;
+            button.type = 'button';
+            button.textContent = label;
+            button.addEventListener('click', () => update(enabled));
+            overlay.append(button);
+        }
+        update(false);
+        overlay.append(status);
+        document.body.append(overlay);
+        });
+    }
 
     const dataRhythmCamera = createDataRhythmCamera({
         state,
@@ -506,6 +560,7 @@ export function createEarthAppServices({
         updateMarkerAnimation,
         updateCameraControls,
         updateCameraDrift,
+        surfaceVisualLock,
         setTerminatorGuideVisible
     });
 

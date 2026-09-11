@@ -1,4 +1,4 @@
-import { createAppLifecycle } from './app-lifecycle.js?v=hdrBloom1';
+import { createAppLifecycle } from './app-lifecycle.js?v=surfaceVisualLock2';
 import { createAppStartup } from './app-startup.js?v=earthLifecycle1';
 import { createDemoReelTimeline } from './reel-timeline.js?v=localCinemaCode4';
 import { createSocialPresetSystem } from './preset-system.js?v=issOrbitalBeat1';
@@ -91,6 +91,7 @@ export function createEarthAppRuntime({
     updateMarkerAnimation,
     updateCameraControls,
     updateCameraDrift,
+    surfaceVisualLock,
     setTerminatorGuideVisible
 }) {
     let animationFrameId = null;
@@ -112,7 +113,8 @@ export function createEarthAppRuntime({
         eonetAutoRefresh,
         state,
         updateGuide916,
-        enableRealClouds
+        enableRealClouds,
+        surfaceVisualLock
     });
 
     const demoReel = createDemoReelTimeline({
@@ -489,6 +491,7 @@ export function createEarthAppRuntime({
         positionReelCaptionForCamera(camera);
         updateSignalPulseForCamera(camera, t);
         updateCameraDrift(t);
+        surfaceVisualLock?.enforce?.();
         // Pastreaza preview-ul live in timpul exportului. Exportul foloseste
         // un composer separat, insa utilizatorul trebuie sa poata urmari turul
         // pe canvasul principal, nu sa vada un cadru static pana la final.
@@ -541,6 +544,7 @@ export function createEarthAppRuntime({
             liveDataLayers.setFirmsWildfiresEnabled?.(true);
         }
         const loadPromise = appStartup.start();
+        surfaceVisualLock?.apply?.();
         if (state.firmsWildfires) {
             loadPromise?.finally?.(() => liveDataLayers.refreshFirmsStatus?.());
         }

@@ -1,7 +1,8 @@
-﻿import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js?v=atmoHalo1';
+import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js?v=atmoHalo1';
 import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js?v=surfaceMaterialLod4c';
-import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js?v=surfaceMaterialLod4';
 import { createEarthRoughnessTexture } from './earth-roughness.js?v=pbrRoughness4';
+import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js?v=surfaceMaterialLod4';
+import { surfaceVisualCaseFromSearch } from './surface-visual-lock.js?v=surfaceVisualLock2';
 import { makeNightLightsMat } from './night-lights.js?v=blackMarbleTerminator1';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js?v=blackMarbleStatus2';
 import { loadBlueMarbleSurfaceTexture } from './gibs-surface.js?v=blueMarbleSurface1';
@@ -20,6 +21,7 @@ export function createEarthLayers({
     earthReliefScale
 }) {
     const activeReliefRef = { current: earthRelief };
+    const surfaceVisualCase = surfaceVisualCaseFromSearch(window.location.search);
     const surfaceMaterial = createSurfaceMaterialLodConfig({
         earthRadius: 2,
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
@@ -163,6 +165,30 @@ export function createEarthLayers({
         }
     }
 
+    // Debug-only same-session A/B hook. It changes only the meso material
+    // response uniform; maps, material objects and scene state stay untouched.
+    function setSurfaceMaterialResponseEnabled(enabled) {
+        const value = enabled ? 1 : 0;
+        for (const material of [earthMat, earthMatPBR]) {
+            const uniform = material?.userData?.shader?.uniforms?.uSurfaceMaterialMesoEnabledTw;
+            if (uniform) uniform.value = value;
+        }
+        return value === 1;
+    }
+
+    function getSurfaceMaterialDebugSnapshot() {
+        const map = earth.material?.map;
+        const image = map?.image;
+        return {
+            material: earth.material?.type || 'unknown',
+            materialId: earth.material?.uuid || 'unknown',
+            mapId: map?.uuid || 'unknown',
+            width: image?.naturalWidth || image?.videoWidth || image?.width || 'unknown',
+            height: image?.naturalHeight || image?.videoHeight || image?.height || 'unknown',
+            source: image?.currentSrc || image?.src || map?.userData?.surfaceSource || 'runtime texture'
+        };
+    }
+
     const nightLights = new THREE.Mesh(
         new THREE.SphereGeometry(2.025, 160, 96),
         makeNightLightsMat({ THREE, texture: earthLights })
@@ -226,8 +252,21 @@ export function createEarthLayers({
         });
     }, 16_000);
 
-    loadBlackMarbleTexture({ THREE, renderer })
+    // Night cases must not change beneath a capture when GIBS finishes loading.
+    const nightLightsUpgrade = surfaceVisualCase
+        ? Promise.resolve(null)
+        : loadBlackMarbleTexture({ THREE, renderer });
+    nightLightsUpgrade
         .then(texture => {
+            if (!texture) {
+                blackMarbleSettled = true;
+                clearTimeout(blackMarbleWatchdog);
+                publishNightLightsStatus({
+                    state: 'locked-fallback',
+                    message: 'Black Marble: stable bundled fallback locked for deterministic material comparison'
+                });
+                return;
+            }
             blackMarbleSettled = true;
             clearTimeout(blackMarbleWatchdog);
             const previous = nightLights.material.uniforms.uMap.value;
@@ -262,8 +301,20 @@ export function createEarthLayers({
         });
     }, 16_000);
 
-    loadBlueMarbleSurfaceTexture({ THREE, renderer })
+    // A visual lock never selects an albedo source. It keeps the normal GIBS
+    // lifecycle intact; same-session OFF/ON begins only after this settles.
+    const surfaceUpgrade = loadBlueMarbleSurfaceTexture({ THREE, renderer });
+    const surfaceReady = surfaceUpgrade
         .then(texture => {
+            if (!texture) {
+                surfaceSettled = true;
+                clearTimeout(surfaceWatchdog);
+                publishSurfaceStatus({
+                    state: 'locked-fallback',
+                    message: 'Surface: stable bundled fallback locked for deterministic material comparison'
+                });
+                return activeSurfaceMap;
+            }
             surfaceSettled = true;
             clearTimeout(surfaceWatchdog);
             const previous = activeSurfaceMap;
@@ -279,6 +330,7 @@ export function createEarthLayers({
                 state: 'nasa',
                 message: `Surface: NASA GIBS / Blue Marble Shaded Relief and Bathymetry active (${texture.userData.surfaceResolution})`
             });
+            return activeSurfaceMap;
         })
         .catch(error => {
             surfaceSettled = true;
@@ -288,7 +340,9 @@ export function createEarthLayers({
                 state: 'fallback',
                 message: 'Surface: bundled fallback texture active — NASA GIBS Blue Marble unavailable'
             });
+            return activeSurfaceMap;
         });
+
 
     const atmosphereMat = makeAtmosphereMat(THREE);
     const atmosphere = new THREE.Mesh(
@@ -306,6 +360,9 @@ export function createEarthLayers({
         earthMat,
         getEarthMatPBR: () => earthMatPBR,
         setMaterialMode,
+        setSurfaceMaterialResponseEnabled,
+        getSurfaceMaterialDebugSnapshot,
+        surfaceReady,
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
