@@ -1,3 +1,5 @@
+import { createSurfaceMaterialLodConfig } from './surface-material-lod.js?v=surfaceMaterialLod4';
+
 // Injectie de zi/noapte comuna intre MeshPhongMaterial (V1) si
 // MeshStandardMaterial (V3.2 PBR) - <common>/<map_fragment> exista identic in
 // ambele template-uri de shader Three.js, deci logica de tint zi/noapte se
@@ -60,7 +62,16 @@ function injectDayNightTint(shader, THREE) {
         vec3 duskTintTw = vec3(1.14, 0.76, 0.48);
         diffuseColor.rgb *= mix(mix(vec3(1.0), nightTintTw, uEarthNightTw), vec3(1.0), dayMaskTw);
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * duskTintTw, twilightTw * uEarthTwilightTw);
-        diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);`
+        diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);
+
+        // A single observed-derived ETOPO sample is shared by bathymetry and
+        // 2.4B land gating below. It is intentionally not a new detail map.
+        float surfaceReliefTw = texture2D(uReliefMapTw, vMapUv).r;
+        float surfaceLandWeightTw = smoothstep(
+            uSurfaceMaterialCoastStartTw,
+            uSurfaceMaterialCoastEndTw,
+            surfaceReliefTw
+        );`
     );
 }
 
@@ -78,11 +89,9 @@ function injectDayNightTint(shader, THREE) {
 // care exista doar cu USE_UV). Ambele materiale au `map`, deci `vMapUv` e
 // garantat prezent aici.
 const BATHYMETRY_RAMP_BODY = `
-    {
-        float reliefTw = texture2D(uReliefMapTw, vMapUv).r;
-        float depthTw = clamp(uSeaLevelTw - reliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
+        float depthTw = clamp(uSeaLevelTw - surfaceReliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
         // Tranzitie imblanzita la tarm, evita o linie dura de coasta.
-        float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - reliefTw);
+        float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - surfaceReliefTw);
         // Culori mai putin saturate: un indiciu subtil de adancime peste
         // imaginea reala Blue Marble, nu o revopsire a oceanului.
         vec3 shelfColorTw = vec3(0.10, 0.34, 0.42);
@@ -90,8 +99,7 @@ const BATHYMETRY_RAMP_BODY = `
         vec3 bathyRampTw = mix(shelfColorTw, abyssColorTw, pow(depthTw, 0.6));
         // Amestec redus (0.28) - lasa textura NASA sa domine, batimetria doar
         // moduleaza spre adancime.
-        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.28), underwaterTw);
-    }`;
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, 0.28), underwaterTw);`;
 
 // Inregistreaza valorile uniformelor SI le declara in sursa GLSL. Uniformele
 // GLSL sunt globale - nu pot fi declarate in interiorul blocului main() unde
@@ -101,10 +109,98 @@ const BATHYMETRY_RAMP_BODY = `
 // ar fi apelata in interiorul aceleiasi expresii `x = x.replace(a, f())`,
 // ordinea de evaluare JS (citeste x, apoi evalueaza argumentele) ar face ca
 // replace-ul sa ruleze pe stringul dinainte de prepend, pierzand declaratiile.
-function declareBathymetryUniforms(shader, { earthRelief, earthReliefSeaLevel }) {
-    shader.uniforms.uReliefMapTw = { value: earthRelief };
+function declareBathymetryUniforms(shader, { reliefTextureRef, earthReliefSeaLevel }) {
+    shader.uniforms.uReliefMapTw = { value: reliefTextureRef.current };
     shader.uniforms.uSeaLevelTw = { value: earthReliefSeaLevel };
     shader.fragmentShader = `uniform sampler2D uReliefMapTw;\nuniform float uSeaLevelTw;\n${shader.fragmentShader}`;
+}
+
+// KTX2 upgrades replace material slots after shaders have been compiled. Keep
+// injected samplers aligned with that same active texture reference rather
+// than leaving bathymetry or land gating attached to the initial placeholder.
+export function syncActiveReliefTexture(materials, reliefTextureRef, texture) {
+    if (!reliefTextureRef || !texture) return;
+    reliefTextureRef.current = texture;
+    for (const material of materials) {
+        const uniform = material?.userData?.shader?.uniforms?.uReliefMapTw;
+        if (uniform) uniform.value = texture;
+    }
+}
+
+function injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReliefSeaLevel }) {
+    shader.uniforms.uSurfaceMaterialCameraDistanceTw = { value: Infinity };
+    shader.uniforms.uSurfaceMaterialMesoFullDistanceTw = { value: surfaceMaterial.mesoFullDistance };
+    shader.uniforms.uSurfaceMaterialMesoFadeDistanceTw = { value: surfaceMaterial.mesoFadeOutDistance };
+    shader.uniforms.uSurfaceMaterialMesoEnabledTw = { value: surfaceMaterial.mode === 'off' ? 0 : 1 };
+    shader.uniforms.uSurfaceMaterialCoastStartTw = { value: earthReliefSeaLevel + surfaceMaterial.coastStartReliefOffset };
+    shader.uniforms.uSurfaceMaterialCoastEndTw = { value: earthReliefSeaLevel + surfaceMaterial.coastEndReliefOffset };
+    shader.uniforms.uSurfaceMaterialMesoFrequencyTw = { value: surfaceMaterial.mesoFrequency };
+    shader.uniforms.uSurfaceMaterialPbrRoughnessAmplitudeTw = { value: surfaceMaterial.pbrRoughnessAmplitude };
+    shader.uniforms.uSurfaceMaterialPbrRoughnessMinTw = { value: surfaceMaterial.pbrRoughnessMin };
+    shader.uniforms.uSurfaceMaterialPbrRoughnessMaxTw = { value: surfaceMaterial.pbrRoughnessMax };
+    shader.uniforms.uSurfaceMaterialPhongSpecularAmplitudeTw = { value: surfaceMaterial.phongSpecularAmplitude };
+
+    shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>
+        varying vec3 vSurfaceMaterialDirectionTw;`
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        vSurfaceMaterialDirectionTw = normalize(position);`
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `#include <common>
+        uniform float uSurfaceMaterialCameraDistanceTw;
+        uniform float uSurfaceMaterialMesoFullDistanceTw;
+        uniform float uSurfaceMaterialMesoFadeDistanceTw;
+        uniform float uSurfaceMaterialMesoEnabledTw;
+        uniform float uSurfaceMaterialCoastStartTw;
+        uniform float uSurfaceMaterialCoastEndTw;
+        uniform float uSurfaceMaterialMesoFrequencyTw;
+        uniform float uSurfaceMaterialPbrRoughnessAmplitudeTw;
+        uniform float uSurfaceMaterialPbrRoughnessMinTw;
+        uniform float uSurfaceMaterialPbrRoughnessMaxTw;
+        uniform float uSurfaceMaterialPhongSpecularAmplitudeTw;
+        varying vec3 vSurfaceMaterialDirectionTw;
+
+        float surfaceMaterialMesoWeightTw() {
+            return uSurfaceMaterialMesoEnabledTw * (1.0 - smoothstep(
+                uSurfaceMaterialMesoFullDistanceTw,
+                uSurfaceMaterialMesoFadeDistanceTw,
+                uSurfaceMaterialCameraDistanceTw
+            ));
+        }
+        float surfaceMaterialSignalTw(vec3 direction, float frequency) {
+            float a = sin(dot(direction, vec3(1.17, 0.61, 0.83)) * frequency + 0.37);
+            float b = sin(dot(direction, vec3(-0.49, 1.31, 0.72)) * frequency - 0.91);
+            return clamp(0.5 + a * 0.30 + b * 0.20, 0.0, 1.0);
+        }`
+    );
+}
+
+function surfaceMaterialPbrRoughnessBody() {
+    return `
+        vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
+        float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
+        roughnessFactor = clamp(
+            roughnessFactor + surfaceMesoTw * uSurfaceMaterialPbrRoughnessAmplitudeTw * surfaceLandWeightTw * surfaceMaterialMesoWeightTw(),
+            uSurfaceMaterialPbrRoughnessMinTw,
+            uSurfaceMaterialPbrRoughnessMaxTw
+        );`;
+}
+
+function surfaceMaterialPhongSpecularBody() {
+    return `
+            // Same deterministic meso response and LOD as PBR. The existing
+            // specular map provides the water suppression before ocean glints.
+            vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
+            float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
+            float surfaceLandFromSpecularTw = 1.0 - smoothstep(0.05, 0.55, specularStrength);
+            specularStrength *= 1.0 - surfaceMesoTw * uSurfaceMaterialPhongSpecularAmplitudeTw *
+                surfaceLandFromSpecularTw * surfaceMaterialMesoWeightTw();`;
 }
 
 export function createEarthMaterial({
@@ -114,7 +210,9 @@ export function createEarthMaterial({
     earthRelief,
     earthReliefNormal,
     earthReliefSeaLevel = 0.42,
-    earthReliefScale = 0.18
+    earthReliefScale = 0.18,
+    reliefTextureRef = { current: earthRelief },
+    surfaceMaterial = createSurfaceMaterialLodConfig()
 }) {
     const material = new THREE.MeshPhongMaterial({
         map: earthMap,
@@ -131,7 +229,9 @@ export function createEarthMaterial({
     });
 
     material.userData.reliefSource = 'NOAA NCEI ETOPO 2022 60 arc-second Bedrock elevation, sampled with horizStride=10';
+    material.userData.surfaceMaterial = surfaceMaterial;
     material.onBeforeCompile = shader => {
+        injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReliefSeaLevel });
         shader.uniforms.uSunDirTw = { value: new THREE.Vector3(1, 0, 0) };
         shader.uniforms.uEarthNightTw = { value: 1.0 };
         shader.uniforms.uEarthTwilightTw = { value: 0.22 };
@@ -182,13 +282,23 @@ export function createEarthMaterial({
             vec3 duskTintTw = vec3(1.14, 0.76, 0.48);
             diffuseColor.rgb *= mix(mix(vec3(1.0), nightTintTw, uEarthNightTw), vec3(1.0), dayMaskTw);
             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * duskTintTw, twilightTw * uEarthTwilightTw);
-            diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);`
+            diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);
+
+            // Shares the active observed-derived ETOPO sample with
+            // bathymetry and 2.4B material land gating below.
+            float surfaceReliefTw = texture2D(uReliefMapTw, vMapUv).r;
+            float surfaceLandWeightTw = smoothstep(
+                uSurfaceMaterialCoastStartTw,
+                uSurfaceMaterialCoastEndTw,
+                surfaceReliefTw
+            );`
         );
 
         // Ocean roughness at the terminator: boosts specular ocean glints near sunrise/sunset.
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <specularmap_fragment>',
             `#include <specularmap_fragment>
+            ${surfaceMaterialPhongSpecularBody()}
             {
                 float sDot = dot(normalize(vWorldNormalTw), normalize(uSunDirTw));
                 float terminatorBoost = exp(-pow(sDot * 3.8, 2.0));
@@ -218,7 +328,7 @@ export function createEarthMaterial({
             }`
         );
 
-        declareBathymetryUniforms(shader, { earthRelief, earthReliefSeaLevel });
+        declareBathymetryUniforms(shader, { reliefTextureRef, earthReliefSeaLevel });
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <normal_fragment_maps>',
             `#include <normal_fragment_maps>
@@ -243,7 +353,9 @@ export function createEarthMaterialPBR({
     earthRelief,
     earthReliefNormal,
     earthReliefSeaLevel = 0.42,
-    earthReliefScale = 0.18
+    earthReliefScale = 0.18,
+    reliefTextureRef = { current: earthRelief },
+    surfaceMaterial = createSurfaceMaterialLodConfig()
 }) {
     const material = new THREE.MeshStandardMaterial({
         map: earthMap,
@@ -270,7 +382,9 @@ export function createEarthMaterialPBR({
     material.userData.reliefSource = 'NOAA NCEI ETOPO 2022 60 arc-second Bedrock elevation, sampled with horizStride=10';
     material.userData.roughnessSource = earthRoughnessMap.userData?.source
         || 'Procedural roughness/metalness approximation (see earth-roughness.js)';
+    material.userData.surfaceMaterial = surfaceMaterial;
     material.onBeforeCompile = shader => {
+        injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReliefSeaLevel });
         injectDayNightTint(shader, THREE);
 
         // Reducem (nu eliminam complet) normal map-ul pe pixelii de ocean.
@@ -285,7 +399,7 @@ export function createEarthMaterialPBR({
         // <normal_fragment_begin> - amestecam spre ea acolo unde roughnessFactor
         // (deja calculat din earthRoughnessMap in <roughnessmap_fragment>)
         // arata ocean, pastrand reliful complet pe uscat.
-        declareBathymetryUniforms(shader, { earthRelief, earthReliefSeaLevel });
+        declareBathymetryUniforms(shader, { reliefTextureRef, earthReliefSeaLevel });
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <normal_fragment_maps>',
             `#include <normal_fragment_maps>
@@ -293,7 +407,8 @@ export function createEarthMaterialPBR({
                 float oceanFlattenPBR = (1.0 - smoothstep(0.22, 0.42, roughnessFactor)) * 0.55;
                 normal = normalize(mix(normal, nonPerturbedNormal, oceanFlattenPBR));
             }
-            ${BATHYMETRY_RAMP_BODY}`
+            ${BATHYMETRY_RAMP_BODY}
+            ${surfaceMaterialPbrRoughnessBody()}`
         );
 
         material.userData.shader = shader;

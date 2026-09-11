@@ -1,5 +1,6 @@
-import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js?v=atmoHalo1';
-import { createEarthMaterial, createEarthMaterialPBR } from './earth-material.js?v=bathyShaderFix2';
+﻿import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js?v=atmoHalo1';
+import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js?v=surfaceMaterialLod4c';
+import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js?v=surfaceMaterialLod4';
 import { createEarthRoughnessTexture } from './earth-roughness.js?v=pbrRoughness4';
 import { makeNightLightsMat } from './night-lights.js?v=blackMarbleTerminator1';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js?v=blackMarbleStatus2';
@@ -18,6 +19,12 @@ export function createEarthLayers({
     earthReliefSeaLevel,
     earthReliefScale
 }) {
+    const activeReliefRef = { current: earthRelief };
+    const surfaceMaterial = createSurfaceMaterialLodConfig({
+        earthRadius: 2,
+        mode: surfaceMaterialDebugModeFromSearch(window.location.search),
+        diagnosticGain: surfaceMaterialDiagnosticGainFromSearch(window.location.search)
+    });
     const nightLightsStatus = {
         state: 'loading',
         message: 'Black Marble: loading NASA GIBS / VIIRS 2016 — terminator linked'
@@ -57,10 +64,23 @@ export function createEarthLayers({
         earthRelief,
         earthReliefNormal,
         earthReliefSeaLevel,
-        earthReliefScale
+        earthReliefScale,
+        reliefTextureRef: activeReliefRef,
+        surfaceMaterial
     });
 
     const earth = new THREE.Mesh(new THREE.SphereGeometry(2, 512, 256), earthMat);
+    const earthWorldPosition = new THREE.Vector3();
+    const cameraWorldPosition = new THREE.Vector3();
+    earth.onBeforeRender = (_renderer, _scene, camera) => {
+        earth.getWorldPosition(earthWorldPosition);
+        camera.getWorldPosition(cameraWorldPosition);
+        const cameraDistance = cameraWorldPosition.distanceTo(earthWorldPosition);
+        for (const material of [earthMat, earthMatPBR]) {
+            const uniform = material?.userData?.shader?.uniforms?.uSurfaceMaterialCameraDistanceTw;
+            if (uniform) uniform.value = cameraDistance;
+        }
+    };
     earthGroup.add(earth);
 
     // KTX2 pilot: relief + normal are the two heavy local textures. This tracks
@@ -90,7 +110,9 @@ export function createEarthLayers({
                     earthRelief: activeRelief,
                     earthReliefNormal: activeReliefNormal,
                     earthReliefSeaLevel,
-                    earthReliefScale
+                    earthReliefScale,
+                    reliefTextureRef: activeReliefRef,
+                    surfaceMaterial
                 });
                 return earthMatPBR;
             })
@@ -123,7 +145,10 @@ export function createEarthLayers({
             },
         ],
         onUpgrade: (key, texture) => {
-            if (key === 'relief') activeRelief = texture;
+            if (key === 'relief') {
+                activeRelief = texture;
+                syncActiveReliefTexture([earthMat, earthMatPBR], activeReliefRef, texture);
+            }
             else if (key === 'normal') activeReliefNormal = texture;
         },
     });
