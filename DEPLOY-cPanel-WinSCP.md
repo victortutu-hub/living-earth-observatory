@@ -251,6 +251,18 @@ Deploy-ul `7bb6c15` a dat `503` tocmai pentru că transforma calea în `8787` ș
 asculta pe TCP, unde LiteSpeed nu găsea aplicația. `npm run smoke:proxy-node18`
 acoperă acum și acest caz (socket Unix pe Linux, named pipe pe Windows).
 
+**Startup file-ul e încărcat prin `require()`, nu rulat cu `node fișier`.**
+LiteSpeed (`lsnode.js`) și Passenger fac `require()` pe
+`nasa-proxy-server.js`, deci proxy-ul pornește serverul necondiționat la
+încărcare. Deploy-ul `1f23100` a dat tot `503` pentru că pornea doar când
+`require.main === module`, ceea ce în producție e fals. Smoke-ul include
+acum exact acest caz: loader cu `require()`, `PORT` socket, fără `HOST`.
+
+> ⚠️ **`NASA_PROXY_NO_LISTEN` nu se setează niciodată pe server.** Variabila
+> există doar pentru testele care importă proxy-ul ca bibliotecă (o setează
+> `vitest.config.mjs`); cu ea setată, proxy-ul nu ascultă și site-ul primește
+> `503`.
+
 > Node 18 e fără suport din aprilie 2025. Dacă selectorul din **Setup Node.js
 > App** oferă Node **20** sau **22**, alege-l și dă **Restart**. Cât timp
 > serverul rămâne pe 18, rulează înainte de fiecare deploy

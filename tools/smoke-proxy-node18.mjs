@@ -1,8 +1,9 @@
 // Manual pre-deploy smoke test (not part of verify:f0): starts
 // nasa-proxy-server.js on Node 18, the production runtime, checks the local and
 // the Passenger-prefixed routes without contacting any upstream, then stops it.
-// Two cases: TCP (local dev) and PORT as a socket path, the way LiteSpeed /
-// Passenger in cPanel starts the app (named pipe on Windows).
+// Cases: TCP (local dev), PORT as a socket path (named pipe on Windows), and
+// the real production path: a minimal loader that require()s the startup file
+// the way LiteSpeed (lsnode.js) / Passenger do, with PORT as a socket, no HOST.
 // Prints only HTTP statuses and proxy errors, never bodies, env or keys.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -77,12 +78,17 @@ const routeChecks = [
   ['GET  /altceva/nasa-proxy?source=none', 'GET', '/altceva/nasa-proxy?source=none', 404, /^Unknown route/],
 ];
 
-async function runCase(executable, { label, portValue, host, connection, checks, beforeChecks = () => [] }) {
+const DIRECT_RUN = ['nasa-proxy-server.js'];
+// Minimal stand-in for lsnode.js / Passenger: the startup file is require()d.
+const REQUIRE_LOADER = ['-e', 'require(process.argv[1])', path.join(root, 'nasa-proxy-server.js')];
+
+async function runCase(executable, { label, args = DIRECT_RUN, portValue, host, connection, checks, beforeChecks = () => [] }) {
   const env = { ...process.env, PORT: String(portValue), H264_ENABLED: '' };
   delete env.PROXY_BASE_PATH; // exercise the production default (/nasaproxy)
+  delete env.NASA_PROXY_NO_LISTEN; // never set in production
   if (host) env.HOST = host;
   else delete env.HOST;
-  const child = spawn(executable, ['nasa-proxy-server.js'], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(executable, args, { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
   const output = [];
   child.stdout.on('data', (chunk) => output.push(String(chunk)));
   child.stderr.on('data', (chunk) => output.push(String(chunk)));
@@ -125,7 +131,10 @@ console.log(`runtime: Node ${version}`);
 
 const tcpPort = await freePort();
 const socket = socketTarget();
+const loaderSocket = socketTarget().replace('leo-proxy-smoke-', 'leo-proxy-smoke-require-');
 removeStaleSocket(socket);
+removeStaleSocket(loaderSocket);
+const prefixedChecks = routeChecks.filter(([, , requestPath]) => requestPath.startsWith('/nasaproxy/'));
 
 const results = [];
 results.push(await runCase(executable, {
@@ -141,11 +150,22 @@ try {
     portValue: socket,
     host: null,
     connection: { socketPath: socket },
-    checks: routeChecks.filter(([, , requestPath]) => requestPath.startsWith('/nasaproxy/')),
+    checks: prefixedChecks,
     beforeChecks: () => [[socketExists(socket), `socket exists: ${socket}`]],
   }));
+  results.push(await runCase(executable, {
+    label: `production: require() loader, PORT as socket path (${isWindows ? 'named pipe' : 'Unix socket'}), no HOST`,
+    args: REQUIRE_LOADER,
+    portValue: loaderSocket,
+    host: null,
+    connection: { socketPath: loaderSocket },
+    checks: prefixedChecks,
+    beforeChecks: () => [[socketExists(loaderSocket), `socket exists: ${loaderSocket}`]],
+  }));
 } finally {
-  removeStaleSocket(socket); // a killed process leaves the Unix socket file behind
+  // a killed process leaves the Unix socket file behind
+  removeStaleSocket(socket);
+  removeStaleSocket(loaderSocket);
 }
 
 const checks = results.reduce((total, result) => total + result.checks, 0);

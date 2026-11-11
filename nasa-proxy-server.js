@@ -755,7 +755,12 @@ function createProxyServer({
     });
 }
 
-if (require.main === module) {
+// Pornire implicita, NU conditionata de require.main: LiteSpeed (lsnode.js) si
+// Passenger incarca startup file-ul prin require(), deci require.main !== module
+// in productie si serverul n-ar mai asculta (503). Doar testele care importa
+// modulul opresc pornirea, explicit, cu NASA_PROXY_NO_LISTEN=1 (vitest.config).
+// Pe server NASA_PROXY_NO_LISTEN nu se seteaza niciodata.
+if (process.env.NASA_PROXY_NO_LISTEN !== '1') {
     const server = createProxyServer();
     listenProxyServer(server, PORT, HOST, address => {
     console.log(`[proxy] listening on ${address} - /nasa-proxy?source=eonet|gdacs|firms|gvp (base path ${PROXY_BASE_PATH || 'none'}, H.264 ${H264_ENABLED ? 'enabled' : 'disabled'})`);
