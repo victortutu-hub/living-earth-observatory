@@ -63,7 +63,10 @@ loadLocalEnv(path.join(__dirname, '.env'));
 // Se citeste din variabila de mediu sau din .env local, ignorat de git.
 const FIRMS_MAP_KEY = process.env.FIRMS_MAP_KEY || '';
 
-const PORT = Number.parseInt(process.env.PORT || '8787', 10) || 8787;
+// Local PORT e un numar (TCP pe HOST). Sub LiteSpeed/Passenger in cPanel,
+// PORT e calea unui socket Unix: trebuie ascultat exact acel sir, altfel
+// serverul web nu gaseste aplicatia (503).
+const PORT = parsePort(process.env.PORT);
 const HOST = process.env.HOST || '127.0.0.1';
 
 // Originile din care acceptam cereri (browserul trimite header-ul Origin).
@@ -142,6 +145,27 @@ function loadLocalEnv(filePath) {
     } catch (err) {
         console.warn('[proxy] .env load failed:', err.message);
     }
+}
+
+/** PORT numeric -> number (TCP); orice alt sir (socket Unix / named pipe) -> string. */
+function parsePort(raw) {
+    const value = String(raw || '').trim() || '8787';
+    return /^\d+$/.test(value) ? Number(value) : value;
+}
+
+/**
+ * Asculta pe TCP (port numeric + HOST) sau direct pe socket (cale, fara HOST).
+ * Intoarce descrierea adresei, folosita si in mesajul de pornire.
+ */
+function listenProxyServer(server, port, host, onListen = () => {}) {
+    if (typeof port === 'number') {
+        const address = `http://${host}:${port}`;
+        server.listen(port, host, () => onListen(address));
+        return address;
+    }
+    const address = `socket ${port}`;
+    server.listen(port, () => onListen(address));
+    return address;
 }
 
 function positiveIntegerEnv(name, fallback) {
@@ -733,8 +757,8 @@ function createProxyServer({
 
 if (require.main === module) {
     const server = createProxyServer();
-    server.listen(PORT, HOST, () => {
-    console.log(`[proxy] listening on http://${HOST}:${PORT}/nasa-proxy?source=eonet|gdacs|firms|gvp (base path ${PROXY_BASE_PATH || 'none'}, H.264 ${H264_ENABLED ? 'enabled' : 'disabled'})`);
+    listenProxyServer(server, PORT, HOST, address => {
+    console.log(`[proxy] listening on ${address} - /nasa-proxy?source=eonet|gdacs|firms|gvp (base path ${PROXY_BASE_PATH || 'none'}, H.264 ${H264_ENABLED ? 'enabled' : 'disabled'})`);
     if (!FIRMS_MAP_KEY) {
         console.warn('[proxy] FIRMS_MAP_KEY not set yet - firms source will return an error until configured.');
     }
@@ -748,4 +772,6 @@ module.exports = {
     parseAllowedOrigins,
     resolveH264Enabled,
     normalizeBasePath,
+    parsePort,
+    listenProxyServer,
 };

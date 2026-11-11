@@ -244,6 +244,13 @@ acest prefix (`PROXY_BASE_PATH`, implicit `/nasaproxy`) și compară apoi rutele
 exact; local merge în continuare `/nasa-proxy`. **Nu** trebuie setat nimic
 în cPanel pentru asta.
 
+**`PORT` e un socket, nu un număr.** Sub LiteSpeed/Passenger, aplicația
+primește în `PORT` calea unui socket Unix. Proxy-ul ascultă exact pe acea cale
+(fără `HOST`); doar o valoare formată numai din cifre e tratată ca port TCP.
+Deploy-ul `7bb6c15` a dat `503` tocmai pentru că transforma calea în `8787` și
+asculta pe TCP, unde LiteSpeed nu găsea aplicația. `npm run smoke:proxy-node18`
+acoperă acum și acest caz (socket Unix pe Linux, named pipe pe Windows).
+
 > Node 18 e fără suport din aprilie 2025. Dacă selectorul din **Setup Node.js
 > App** oferă Node **20** sau **22**, alege-l și dă **Restart**. Cât timp
 > serverul rămâne pe 18, rulează înainte de fiecare deploy
