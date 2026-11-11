@@ -23,7 +23,7 @@ function deferred() {
 async function startServer(options = {}) {
   const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'leo-h264-test-'));
   tempDirectories.push(tempDirectory);
-  const server = createProxyServer({ tempDirectory, ...options });
+  const server = createProxyServer({ tempDirectory, h264Enabled: true, ...options });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);
@@ -45,7 +45,8 @@ function request(port, {
       port,
       path: requestPath,
       method,
-      headers,
+      // The browser export always sends Origin; POST without it is rejected.
+      headers: { Origin: 'http://127.0.0.1:8765', ...headers },
     }, (response) => {
       const responseChunks = [];
       response.on('data', (chunk) => responseChunks.push(chunk));

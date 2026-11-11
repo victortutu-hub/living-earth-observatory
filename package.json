@@ -6,6 +6,8 @@
     "check:syntax": "node tools/check-syntax.mjs",
     "check:imports": "node tools/check-import-urls.mjs",
     "validate:registry": "node tools/validate-registry.mjs",
+    "check:proxy-node18": "npx -y node@18 --check nasa-proxy-server.js",
+    "smoke:proxy-node18": "node tools/smoke-proxy-node18.mjs",
     "verify:f0": "npm run check:syntax && npm run check:imports && npm test && npm run validate:registry"
   },
   "devDependencies": {

@@ -28,6 +28,20 @@
  * fara multipart) si intoarce un MP4 H.264 (crf 18, preset slow) convertit
  * local prin FFmpeg (trebuie sa fie instalat si accesibil in PATH). Folosit
  * de butonul "Export H.264" din reel - vezi export-system.js.
+ * Dezactivat implicit peste tot: activ doar cu H264_ENABLED=1 (doar local,
+ * in .env); altfel raspunde 404.
+ *
+ * Rutele se accepta si sub prefixul PROXY_BASE_PATH (implicit /nasaproxy,
+ * cum il paseaza Passenger in cPanel): /nasaproxy/nasa-proxy == /nasa-proxy.
+ *
+ * Variabile de mediu: FIRMS_MAP_KEY, PORT, HOST, ALLOWED_ORIGINS_EXTRA
+ * (origini http(s) separate prin virgula, ex. originile de productie),
+ * PROXY_BASE_PATH, H264_ENABLED, H264_MAX_INPUT_BYTES, H264_MAX_CONCURRENT,
+ * H264_TIMEOUT_MS, PROXY_MAX_UPSTREAM_BYTES (limita raspunsului upstream,
+ * implicit 64 MB).
+ *
+ * Productia ruleaza Node 18: nu folosi aici API-uri mai noi
+ * (verificare: npm run check:proxy-node18 si npm run smoke:proxy-node18).
  */
 
 const http = require('http');
@@ -54,7 +68,7 @@ const HOST = process.env.HOST || '127.0.0.1';
 
 // Originile din care acceptam cereri (browserul trimite header-ul Origin).
 // Adauga aici orice port local pe care chiar il folosesti pentru dev server.
-const ALLOWED_ORIGINS = [
+const DEFAULT_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8765',
     'http://localhost:8765',
     'http://127.0.0.1:8766',
@@ -65,15 +79,33 @@ const ALLOWED_ORIGINS = [
     'http://localhost:8080',
 ];
 
-// Cat timp pastram raspunsul in cache local (secunde), per sursa.
+// Originile de productie NU sunt hardcodate: vin din ALLOWED_ORIGINS_EXTRA
+// (setata in cPanel), lista separata prin virgula.
+const EXTRA_ORIGINS = parseAllowedOrigins(process.env.ALLOWED_ORIGINS_EXTRA);
+for (const entry of EXTRA_ORIGINS.invalid) {
+    console.warn(`[proxy] ALLOWED_ORIGINS_EXTRA: ignoring invalid origin "${entry}" (expected http(s)://host[:port], no path)`);
+}
+const ALLOWED_ORIGINS = [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...EXTRA_ORIGINS.valid])];
+
+// /convert-h264 e un serviciu local: dezactivat implicit, inclusiv pe server.
+const H264_ENABLED = resolveH264Enabled(process.env.H264_ENABLED);
+
+// Prefixul sub care Passenger monteaza aplicatia in cPanel (PassengerBaseURI).
+const PROXY_BASE_PATH = normalizeBasePath(process.env.PROXY_BASE_PATH ?? '/nasaproxy');
+
+// Cat timp pastram raspunsul in cache local (secunde), per sursa. In acest
+// interval raspunsul se serveste din cache ('cache-fresh'), fara upstream.
 const CACHE_TTL = {
     eonet: 600,   // 10 minute - acelasi interval ca auto-refresh-ul existent
     gdacs: 600,   // 10 minute
     firms: 1800,  // 30 minute - date de foc se schimba mai rar, si MAP_KEY are rate-limit
+    gvp: 86400,   // 24 ore - catalogul vulcanilor holoceni se schimba rar
 };
 
 const CACHE_DIR = path.join(__dirname, 'proxy-cache');
 const UPSTREAM_TIMEOUT_MS = 12000;
+// FIRMS "world" poate avea ~40 MB; 64 MB e plasa de siguranta, nu o tinta.
+const MAX_UPSTREAM_BYTES = positiveIntegerEnv('PROXY_MAX_UPSTREAM_BYTES', 64 * 1024 * 1024);
 
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
@@ -117,9 +149,49 @@ function positiveIntegerEnv(name, fallback) {
     return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
-function cachePath(source, cacheKey) {
+/** Valideaza o lista de origini separata prin virgula: http(s), fara path. */
+function parseAllowedOrigins(raw) {
+    const valid = [];
+    const invalid = [];
+    for (const entry of String(raw || '').split(',').map(item => item.trim()).filter(Boolean)) {
+        let parsed = null;
+        try {
+            parsed = new URL(entry);
+        } catch {
+            parsed = null;
+        }
+        const isOrigin = parsed !== null
+            && (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+            && parsed.origin === entry;
+        (isOrigin ? valid : invalid).push(entry);
+    }
+    return { valid, invalid };
+}
+
+/** H.264 e activ doar cu H264_ENABLED exact '1'. */
+function resolveH264Enabled(enabledFlag) {
+    return enabledFlag === '1';
+}
+
+/** '/nasaproxy', 'nasaproxy/' -> '/nasaproxy'; '' sau '/' -> '' (fara prefix). */
+function normalizeBasePath(raw) {
+    const trimmed = String(raw || '').trim().replace(/\/+$/, '');
+    if (!trimmed) return '';
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Scoate o singura data prefixul exact `${basePath}/`; restul cailor raman
+ * neschimbate si se compara exact (deci /altceva/nasa-proxy nu e acceptata).
+ */
+function stripBasePath(pathname, basePath) {
+    if (basePath && pathname.startsWith(`${basePath}/`)) return pathname.slice(basePath.length);
+    return pathname;
+}
+
+function cachePath(source, cacheKey, directory = CACHE_DIR) {
     const safeKey = `${source}_${cacheKey}`.replace(/[^a-zA-Z0-9_]/g, '_');
-    return path.join(CACHE_DIR, `${safeKey}.json`);
+    return path.join(directory, `${safeKey}.json`);
 }
 
 function readCache(filePath) {
@@ -139,30 +211,66 @@ function writeCache(filePath, payload) {
     }
 }
 
-/** Fetch simplu peste https, cu timeout, returneaza { ok, body, statusCode, error }. */
-function fetchUpstream(url) {
+/**
+ * Fetch peste https, cu timeout si limita de dimensiune; returneaza
+ * { ok, body, statusCode, error }. Peste limita, cererea e distrusa si
+ * rezultatul e o eroare explicita, care cade pe cache-ul stale.
+ */
+function fetchUpstream(url, {
+    get = https.get,
+    maxBytes = MAX_UPSTREAM_BYTES,
+    timeoutMs = UPSTREAM_TIMEOUT_MS,
+} = {}) {
     return new Promise(resolve => {
-        const req = https.get(
+        let settled = false;
+        const finish = result => {
+            if (settled) return;
+            settled = true;
+            resolve(result);
+        };
+        const fail = error => finish({ ok: false, body: null, statusCode: 0, error });
+        const tooLarge = () => `upstream response exceeds ${maxBytes} bytes`;
+        const req = get(
             url,
             { headers: { 'User-Agent': 'LuminomorphismLab-EarthObservatory/1.0 (local dev)' } },
             res => {
-                let data = '';
-                res.on('data', chunk => (data += chunk));
+                const declaredLength = Number.parseInt(res.headers['content-length'] || '', 10);
+                if (Number.isSafeInteger(declaredLength) && declaredLength > maxBytes) {
+                    fail(tooLarge());
+                    req.destroy();
+                    return;
+                }
+                // Buffer-e, nu string: limita e in bytes, iar caracterele UTF-8
+                // impartite intre chunk-uri nu se mai corup la concatenare.
+                const chunks = [];
+                let total = 0;
+                res.on('data', chunk => {
+                    if (settled) return;
+                    total += chunk.length;
+                    if (total > maxBytes) {
+                        fail(tooLarge());
+                        req.destroy();
+                        return;
+                    }
+                    chunks.push(chunk);
+                });
                 res.on('end', () => {
                     const ok = res.statusCode >= 200 && res.statusCode < 300;
-                    resolve({
+                    finish({
                         ok,
-                        body: data,
+                        body: Buffer.concat(chunks).toString('utf8'),
                         statusCode: res.statusCode,
                         error: ok ? null : `HTTP ${res.statusCode}`,
                     });
                 });
+                res.on('aborted', () => fail('upstream connection aborted'));
+                res.on('error', err => fail(err.message));
             }
         );
-        req.on('error', err => resolve({ ok: false, body: null, statusCode: 0, error: err.message }));
-        req.setTimeout(UPSTREAM_TIMEOUT_MS, () => {
+        req.on('error', err => fail(err.message));
+        req.setTimeout(timeoutMs, () => {
+            fail('upstream timeout');
             req.destroy();
-            resolve({ ok: false, body: null, statusCode: 0, error: 'upstream timeout' });
         });
     });
 }
@@ -185,13 +293,29 @@ function csvToJsonArray(csvText) {
 }
 
 /**
- * Orchestreaza fetch + cache pentru o sursa: incearca live, la esec
+ * Orchestreaza fetch + cache pentru o sursa: un cache mai nou decat TTL-ul
+ * sursei se serveste direct ('cache-fresh'); altfel incearca live, la esec
  * serveste ultimul cache bun (marcat clar ca atare), la esec total
  * fara niciun cache anterior, intoarce eroare JSON explicita.
  */
-async function proxyWithCache(res, source, cacheKey, upstreamUrl, normalize) {
-    const filePath = cachePath(source, cacheKey);
-    const result = await fetchUpstream(upstreamUrl);
+async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, normalize) {
+    const filePath = cachePath(source, cacheKey, upstream.cacheDirectory);
+    const cached = readCache(filePath);
+
+    // Marcaj onest: 'cache-fresh' pastreaza proxyFetchedAt-ul original, nu pretinde 'live'.
+    const ttlMs = (upstream.cacheTtl[source] || 0) * 1000;
+    const ageMs = upstream.now() - Date.parse(cached?.proxyFetchedAt || '');
+    if (cached && ttlMs > 0 && Number.isFinite(ageMs) && ageMs >= 0 && ageMs < ttlMs) {
+        const { proxyError: _staleError, ...fresh } = cached;
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ...fresh, proxyStatus: 'cache-fresh' }));
+        return;
+    }
+
+    const result = await upstream.fetchUpstream(upstreamUrl, {
+        get: upstream.upstreamGet,
+        maxBytes: upstream.maxUpstreamBytes,
+    });
 
     if (result.ok) {
         let normalized = null;
@@ -204,7 +328,7 @@ async function proxyWithCache(res, source, cacheKey, upstreamUrl, normalize) {
             const payload = {
                 proxySource: source,
                 proxyStatus: 'live',
-                proxyFetchedAt: new Date().toISOString(),
+                proxyFetchedAt: new Date(upstream.now()).toISOString(),
                 data: normalized,
             };
             writeCache(filePath, payload);
@@ -215,7 +339,6 @@ async function proxyWithCache(res, source, cacheKey, upstreamUrl, normalize) {
     }
 
     // Upstream a esuat sau normalizarea a esuat - incercam cache-ul.
-    const cached = readCache(filePath);
     if (cached) {
         cached.proxyStatus = 'stale-cache';
         cached.proxyError = result.error || 'normalize failed';
@@ -439,7 +562,24 @@ function createProxyServer({
     runFfmpeg,
     tempDirectory,
     onConversionSettled,
+    allowedOrigins = ALLOWED_ORIGINS,
+    h264Enabled = H264_ENABLED,
+    basePath = PROXY_BASE_PATH,
+    cacheDirectory = CACHE_DIR,
+    cacheTtl = CACHE_TTL,
+    now = Date.now,
+    fetchUpstream: fetchUpstreamImpl = fetchUpstream,
+    upstreamGet = https.get,
+    maxUpstreamBytes = MAX_UPSTREAM_BYTES,
 } = {}) {
+    const upstream = {
+        cacheDirectory,
+        cacheTtl,
+        now,
+        fetchUpstream: fetchUpstreamImpl,
+        upstreamGet,
+        maxUpstreamBytes,
+    };
     let activeConversions = 0;
     const acquireConversion = () => {
         if (activeConversions >= maxConcurrent) return false;
@@ -452,7 +592,7 @@ function createProxyServer({
 
     return http.createServer(async (req, res) => {
     const origin = req.headers.origin || '';
-    const originAllowed = ALLOWED_ORIGINS.includes(origin);
+    const originAllowed = allowedOrigins.includes(origin);
     if (originAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     }
@@ -461,11 +601,27 @@ function createProxyServer({
     res.setHeader('Vary', 'Origin');
 
     const url = new URL(req.url, `http://${req.headers.host}`);
+    const route = stripBasePath(url.pathname, basePath);
+
+    // Dezactivat: 404 inainte de orice citire a body-ului; Connection: close
+    // inchide socket-ul in loc sa mai primeasca restul uploadului.
+    if (route === '/convert-h264' && !h264Enabled) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Connection': 'close' });
+        res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'H.264 conversion is not enabled on this server.' }));
+        return;
+    }
 
     // Origin checks limit browser access on this loopback service; they are not authentication.
-    if (url.pathname === '/convert-h264' && origin && !originAllowed) {
+    if (route === '/convert-h264' && origin && !originAllowed) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'Origin is not allowed for local H.264 conversion.' }));
+        return;
+    }
+
+    // Exportul din browser trimite mereu Origin; un POST fara Origin nu vine de la el.
+    if (route === '/convert-h264' && req.method === 'POST' && !origin) {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'Connection': 'close' });
+        res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'Origin header is required for H.264 conversion.' }));
         return;
     }
 
@@ -475,7 +631,7 @@ function createProxyServer({
         return;
     }
 
-    if (url.pathname === '/convert-h264') {
+    if (route === '/convert-h264') {
         await handleConvertToH264(req, res, {
             maxUploadBytes,
             timeoutMs,
@@ -488,7 +644,7 @@ function createProxyServer({
         return;
     }
 
-    if (url.pathname !== '/nasa-proxy') {
+    if (route !== '/nasa-proxy') {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ proxyStatus: 'error', proxyError: 'Unknown route. Use /nasa-proxy?source=... or POST /convert-h264' }));
         return;
@@ -506,7 +662,7 @@ function createProxyServer({
         if (category && category !== 'all') params.set('category', category);
         const upstreamUrl = `https://eonet.gsfc.nasa.gov/api/v3/events?${params.toString()}`;
 
-        await proxyWithCache(res, 'eonet', require('crypto').createHash('md5').update(upstreamUrl).digest('hex'), upstreamUrl, body => {
+        await proxyWithCache(upstream, res,'eonet', require('crypto').createHash('md5').update(upstreamUrl).digest('hex'), upstreamUrl, body => {
             const decoded = JSON.parse(body);
             if (!decoded || !decoded.events) return null;
             return decoded;
@@ -524,7 +680,7 @@ function createProxyServer({
         const query = params.toString() ? `?${params.toString()}` : '';
         const upstreamUrl = `https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH${query}`;
 
-        await proxyWithCache(res, 'gdacs', require('crypto').createHash('md5').update(upstreamUrl).digest('hex'), upstreamUrl, body => {
+        await proxyWithCache(upstream, res,'gdacs', require('crypto').createHash('md5').update(upstreamUrl).digest('hex'), upstreamUrl, body => {
             const decoded = JSON.parse(body);
             if (!decoded) return null;
             return decoded;
@@ -546,7 +702,7 @@ function createProxyServer({
         const upstreamUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/${sensor}/${area}/${dayRange}`;
         const cacheKey = require('crypto').createHash('md5').update(`${sensor}_${area}_${dayRange}`).digest('hex');
 
-        await proxyWithCache(res, 'firms', cacheKey, upstreamUrl, body => {
+        await proxyWithCache(upstream, res,'firms', cacheKey, upstreamUrl, body => {
             const rows = csvToJsonArray(body);
             if (rows.length === 0 && body.trim() !== '') return null; // posibil raspuns de eroare FIRMS ca text simplu
             return { fires: rows, count: rows.length };
@@ -562,7 +718,7 @@ function createProxyServer({
             + '&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes'
             + '&outputFormat=application/json';
 
-        await proxyWithCache(res, 'gvp', 'gvp-holocene-volcanoes', upstreamUrl, body => {
+        await proxyWithCache(upstream, res,'gvp', 'gvp-holocene-volcanoes', upstreamUrl, body => {
             const decoded = JSON.parse(body);
             if (!decoded || !decoded.features) return null;
             return decoded;
@@ -578,7 +734,7 @@ function createProxyServer({
 if (require.main === module) {
     const server = createProxyServer();
     server.listen(PORT, HOST, () => {
-    console.log(`[proxy] listening on http://${HOST}:${PORT}/nasa-proxy?source=eonet|gdacs|firms (H.264 local-only)`);
+    console.log(`[proxy] listening on http://${HOST}:${PORT}/nasa-proxy?source=eonet|gdacs|firms|gvp (base path ${PROXY_BASE_PATH || 'none'}, H.264 ${H264_ENABLED ? 'enabled' : 'disabled'})`);
     if (!FIRMS_MAP_KEY) {
         console.warn('[proxy] FIRMS_MAP_KEY not set yet - firms source will return an error until configured.');
     }
@@ -588,4 +744,8 @@ if (require.main === module) {
 module.exports = {
     createProxyServer,
     runFfmpegToH264,
+    fetchUpstream,
+    parseAllowedOrigins,
+    resolveH264Enabled,
+    normalizeBasePath,
 };

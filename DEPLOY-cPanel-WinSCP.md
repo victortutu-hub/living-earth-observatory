@@ -127,6 +127,10 @@ mic `304 Not Modified` (verificare prin ETag / Last-Modified).
    Dacă există reguli de acest tip pentru JS sau HTML, scoate-le (sau notează-le)
    — altfel pot da `max-age` în paralel cu regula nouă. Verificarea de la pasul 2
    îți arată dacă au rămas efecte.
+
+   > Verificat pe server: în `public_html/.htaccess`, `mod_expires` acoperă doar
+   > `ktx2`, `wasm`, `jpeg` și `png` — nu intră în conflict cu regula pentru
+   > `.js` / `.html`.
 4. Adaugă la final blocul:
 
    ```apache
@@ -211,3 +215,83 @@ faci tu cu un click.
 > Notă: eu, din mediul meu, nu pot urca direct prin FTP la serverul tău
 > (rețea restricționată), de-aceea uploadul pleacă de pe calculatorul tău.
 > Dar acum e trivial.
+
+---
+
+## 8. Proxy-ul NASA (cPanel → Setup Node.js App)
+
+**Sursa unică este `nasa-proxy-server.js` din rădăcina repo-ului.**
+Folderul `_deploy_cpanel/` NU mai e sursa: conține o variantă veche (fără
+limită de concurență pentru H.264, fără verificarea Origin, fără cache TTL),
+ignorată de git. Nu mai copia nimic de acolo pe server.
+
+Masca de la pasul 4 exclude `nasa-proxy-server.js`, deci **Synchronize nu
+urcă proxy-ul**. Fișierul se înlocuiește manual, cu pașii de mai jos.
+
+### Configurația de pe server (verificată)
+
+| Câmp | Valoare |
+|---|---|
+| Application URL | `luminomorphism.ro/nasaproxy` |
+| Application root | `/home/luminomorphism/nasa-proxy` |
+| Application startup file | `nasa-proxy-server.js` |
+| Node.js version | `18.20.8` |
+| Config Passenger | `public_html/nasaproxy/.htaccess` — **DO NOT REMOVE** |
+
+Passenger montează aplicația sub prefixul `/nasaproxy` (`PassengerBaseURI`),
+deci proxy-ul primește căi ca `/nasaproxy/nasa-proxy`. Proxy-ul scoate exact
+acest prefix (`PROXY_BASE_PATH`, implicit `/nasaproxy`) și compară apoi rutele
+exact; local merge în continuare `/nasa-proxy`. **Nu** trebuie setat nimic
+în cPanel pentru asta.
+
+> Node 18 e fără suport din aprilie 2025. Dacă selectorul din **Setup Node.js
+> App** oferă Node **20** sau **22**, alege-l și dă **Restart**. Cât timp
+> serverul rămâne pe 18, rulează înainte de fiecare deploy
+> `npm run check:proxy-node18` și `npm run smoke:proxy-node18`.
+
+### Variabile de mediu (Setup Node.js App → aplicația → Environment variables)
+
+Acum pe server există doar `FIRMS_MAP_KEY`.
+
+| Variabilă | Ce faci | Valoare |
+|---|---|---|
+| `FIRMS_MAP_KEY` | există deja — nu o schimba | cheia ta FIRMS (doar în cPanel, niciodată într-un fișier urcat) |
+| `ALLOWED_ORIGINS_EXTRA` | **de adăugat** | `https://luminomorphism.ro,https://www.luminomorphism.ro` |
+
+- Valoarea pentru `ALLOWED_ORIGINS_EXTRA` se scrie exact așa: `https://`, fără
+  `/` la final, separate prin virgulă. O intrare greșită e ignorată, cu
+  avertisment în log.
+- **Nu seta `H264_ENABLED`.** H.264 e dezactivat implicit; se activează doar
+  local, în `.env`.
+- **`HOST` nu are rol** pe server (Passenger alege adresa); nu o seta.
+- `PROXY_BASE_PATH` și `PROXY_MAX_UPSTREAM_BYTES` nu se setează; valorile
+  implicite (`/nasaproxy`, 64 MB) sunt cele corecte.
+
+Dacă pe server există și un fișier `.env` lângă proxy, variabilele din cPanel
+au prioritate (proxy-ul completează din `.env` doar ce lipsește).
+
+### Pași de înlocuire a fișierului de pe server
+
+1. Local, înainte: `npm run verify:f0`, `npm run check:proxy-node18`,
+   `npm run smoke:proxy-node18` — toate cu exit 0.
+2. cPanel → **Setup Node.js App** → aplicația `luminomorphism.ro/nasaproxy` →
+   adaugă `ALLOWED_ORIGINS_EXTRA` → **Save**.
+3. **File Manager** → `/home/luminomorphism/nasa-proxy` → redenumește
+   `nasa-proxy-server.js` în `nasa-proxy-server.js.bak-AAAALLZZ` (backup).
+4. Urcă `nasa-proxy-server.js` din repo în `/home/luminomorphism/nasa-proxy`
+   (File Manager → Upload, sau drag & drop manual în WinSCP — **nu**
+   Synchronize, care lucrează pe `public_html`).
+5. Șterge de pe server `nasa-proxy-server.js.b64`, rămas de la metoda veche de
+   upload (aplicația nu îl folosește).
+6. **Setup Node.js App** → **Restart**.
+7. Verifică (nu afișa și nu copia cheia FIRMS):
+   - `GET https://luminomorphism.ro/nasaproxy/nasa-proxy?source=gvp` → `200`,
+     `proxyStatus` `live`; reîncărcat imediat → `cache-fresh`. (Dacă varianta
+     veche a cerut GVP în ultimele 24 h, chiar primul răspuns poate fi deja
+     `cache-fresh` — e normal.)
+   - `POST https://luminomorphism.ro/nasaproxy/convert-h264` → `404`
+     (de ex. `curl -i -X POST https://luminomorphism.ro/nasaproxy/convert-h264`).
+   - În site: straturile GDACS, FIRMS și GVP se încarcă; în DevTools →
+     Console nu apar erori pentru `nasaproxy`.
+8. Dacă ceva nu merge: șterge fișierul nou, redenumește backup-ul înapoi în
+   `nasa-proxy-server.js`, **Restart**.
