@@ -23,6 +23,107 @@ apoi apeși mereu același buton **Synchronize**.
 
 ---
 
+## 0b. Obligatoriu înainte de ORICE deploy de site
+
+> **De ce există secțiunea asta.** Pe 11 noiembrie 2026, deploy-ul LOT 1 a urcat
+> doar fișierele din `git diff f211a3f..HEAD`, presupunând că serverul e la
+> `f211a3f`. Nu era: 9 fișiere nu fuseseră urcate niciodată, iar vreo 18 erau
+> versiuni mai vechi. Noul `app-runtime.js` importa `time-scrub-panel.js` și
+> `surface-visual-lock.js`, care pe server dădeau `404`. Pagina Earth a rămas
+> blocată la ecranul de încărcare până la rollback, câteva minute.
+
+Regulile de mai jos sunt obligatorii, indiferent dacă urci prin arhivă și
+cPanel sau prin WinSCP Synchronize.
+
+### Regula 1 — se urcă tot site-ul din HEAD, niciodată un diff
+
+- **Niciodată** o listă de fișiere de tipul `git diff <commit>..HEAD`. Nu știi
+  sigur ce e pe server, iar un diff nu urcă fișierele care lipsesc acolo de la
+  deploy-uri vechi.
+- Arhiva se face din commit, nu din working tree:
+
+  ```bash
+  git archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
+    src styles index.html earth-eonet-relief.html living-protein.html sw.js
+  ```
+
+  Plus un manifest `<sha256>  <cale>`, calculat din conținutul arhivei.
+- `assets/` și `vendor/` (fișiere mari) nu intră în arhivă. Le compari separat
+  cu serverul (`git ls-tree -r -l HEAD -- assets vendor` față de lista de pe
+  server) și le urci doar dacă diferă.
+- **Dacă folosești WinSCP Synchronize**, acesta urcă *working tree*-ul, nu
+  HEAD. E sigur doar dacă working tree-ul e identic cu HEAD pe căile site-ului:
+
+  ```bash
+  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html sw.js
+  ```
+
+  Comanda trebuie să nu afișeze nimic. Altfel faci commit sau stash înainte, ori
+  folosești arhiva. În Synchronize, la **Comparison criteria**, alege
+  **Checksum** dacă e disponibil (pe SFTP); altfel **Modification time +
+  File size**.
+
+### Regula 2 — graful de importuri trebuie să fie complet
+
+Înainte de orice upload, verifici că fiecare import relativ (`import … from
+'./…'`, `import('./…')`, `<script src>`) din fișierele urcate duce la un
+fișier care există fie în arhivă, fie deja pe server. Un singur `404` pe un
+modul oprește tot graful de module, iar pagina rămâne neagră.
+
+Specificatorii simpli (`three`, `three/addons/…`, `earcut`) se rezolvă prin
+import map-ul din HTML (CDN) și nu intră în verificare.
+
+### Regula 3 — întâi staging pe server, apoi producția
+
+1. **Backup în afara site-ului:** în cPanel → File Manager, copiază `src/`,
+   `styles/`, cele 3 HTML-uri și `sw.js` în
+   `/home/luminomorphism/deploy-backups/<lot>-<AAAALLZZ>/`. Nu pune backup-ul
+   în `public_html`.
+2. Creează `public_html/_staging-<lot>/` și copiază în el `assets/` și
+   `vendor/` (paginile le referă relativ).
+3. Urcă arhiva în `_staging-<lot>/` și dezarhiveaz-o acolo.
+4. Deschide `https://luminomorphism.ro/_staging-<lot>/earth-eonet-relief.html`,
+   apoi `/_staging-<lot>/index.html` și `/_staging-<lot>/living-protein.html`.
+   Pentru fiecare pagină, în DevTools verifici:
+   - niciun `404` în Network;
+   - niciun modul încărcat de două ori (același fișier cu `?v=` diferite);
+   - canvasul randează, iar datele se încarcă.
+5. **Doar dacă trec toate trei:** dezarhivezi aceeași arhivă peste
+   `public_html`.
+
+### Regula 4 — data fișierelor după dezarhivare
+
+Serverul trimite doar `Last-Modified`, **fără `ETag`**. `unzip` păstrează data
+din arhivă, adică data commit-ului. Dacă un browser are în cache o versiune cu
+`Last-Modified` mai nou decât commit-ul (de exemplu după un rollback), serverul
+îi răspunde `304` și browserul rămâne pe versiunea veche, deși fișierul de pe
+server e nou.
+
+De aceea, după ce ai dezarhivat în producție, **copiezi fișierele din
+`_staging-<lot>/` peste `public_html`** cu File Manager → Copy. Copierea pe
+server le dă data curentă. Apoi verifici într-un browser care a mai deschis
+site-ul (fără `Ctrl+Shift+R`) că pagina e cea nouă.
+
+### Regula 5 — verificare după deploy și curățenie
+
+- Fiecare fișier din manifest, cerut de pe site cu `cache: 'no-store'`, are
+  hash-ul din manifest.
+- Earth, Atlas și Protein se încarcă de la adresele de producție, cu aceleași
+  criterii ca la staging.
+- Proxy: `GET /nasaproxy/nasa-proxy?source=gdacs|gvp|firms` răspunde `200`.
+- Ștergi `_staging-<lot>/` și toate arhivele `.zip` din `public_html`, fiindcă
+  sunt publice.
+
+### Rollback
+
+Copiezi fișierele din `deploy-backups/<lot>-<AAAALLZZ>/` înapoi peste
+`public_html`, director cu director, și verifici că dimensiunile coincid cu
+backup-ul. Copierea le dă data curentă, deci browserele primesc imediat
+versiunea restaurată. Fișierele noi pe care codul vechi nu le importă pot
+rămâne; nu strică nimic.
+
+---
+
 ## 1. Instalează WinSCP (o dată)
 
 Descarcă de pe `https://winscp.net` → instalează (Next → Next → Finish).
@@ -156,7 +257,9 @@ mic `304 Not Modified` (verificare prin ETag / Last-Modified).
 reîncarcă → click pe `main.js` → **Response Headers**. Trebuie să vezi:
 
 - `Cache-Control: no-cache` (fără `max-age=...`);
-- `ETag` sau `Last-Modified`.
+- `Last-Modified`. Verificat pe 11 noiembrie 2026: serverul **nu** trimite
+  `ETag`, deci revalidarea se face doar după dată. Vezi capcana de la
+  secțiunea 0b, regula 4.
 
 Sau din terminal: `curl -I https://luminomorphism.ro/src/main.js`
 
@@ -172,6 +275,9 @@ Continuă cu fluxul de la secțiunea 5 (**Synchronize**).
 
 De fiecare dată când vrei să publici ce ai modificat:
 
+0. **Parcurge secțiunea 0b.** Synchronize e permis doar dacă `git status
+   --porcelain` pe căile site-ului nu afișează nimic și ai verificat graful de
+   importuri.
 1. Deschide WinSCP → dublu-click pe sesiunea `Luminomorphism`.
 2. Apasă **Synchronize** (setările de la pasul 4 rămân memorate).
 3. Confirmă previzualizarea → gata. Urcă doar fișierele schimbate.
@@ -235,7 +341,8 @@ urcă proxy-ul**. Fișierul se înlocuiește manual, cu pașii de mai jos.
 | Application URL | `luminomorphism.ro/nasaproxy` |
 | Application root | `/home/luminomorphism/nasa-proxy` |
 | Application startup file | `nasa-proxy-server.js` |
-| Node.js version | `18.20.8` |
+| Node.js version | `22.23.4` (de pe 11 noiembrie 2026; înainte `18.20.8`) |
+| Binar Node (Passenger) | `/home/luminomorphism/nodevenv/nasa-proxy/22/bin/node` |
 | Config Passenger | `public_html/nasaproxy/.htaccess` — **DO NOT REMOVE** |
 
 Passenger montează aplicația sub prefixul `/nasaproxy` (`PassengerBaseURI`),
@@ -263,10 +370,16 @@ acum exact acest caz: loader cu `require()`, `PORT` socket, fără `HOST`.
 > `vitest.config.mjs`); cu ea setată, proxy-ul nu ascultă și site-ul primește
 > `503`.
 
-> Node 18 e fără suport din aprilie 2025. Dacă selectorul din **Setup Node.js
-> App** oferă Node **20** sau **22**, alege-l și dă **Restart**. Cât timp
-> serverul rămâne pe 18, rulează înainte de fiecare deploy
-> `npm run check:proxy-node18` și `npm run smoke:proxy-node18`.
+> **Serverul rulează Node 22.23.4** din 11 noiembrie 2026. Comutarea s-a făcut
+> din **Setup Node.js App** → versiune → **Save** → **Restart**. Proxy-ul nu
+> are dependențe npm (`package.json` are `dependencies: {}`), deci nu e nevoie
+> de **Run NPM Install**. Verificat după restart: GDACS, GVP și FIRMS au
+> răspuns `200`, `POST /convert-h264` a dat `404`, iar `stderr.log` nu are
+> erori noi.
+>
+> Rollback: aceeași procedură, cu versiunea `18.20.8`. Smoke-urile
+> `check:proxy-node18` și `smoke:proxy-node18` rămân utile: garantează că
+> fișierul merge și pe 18, ca rollback-ul să fie sigur.
 
 ### Variabile de mediu (Setup Node.js App → aplicația → Environment variables)
 

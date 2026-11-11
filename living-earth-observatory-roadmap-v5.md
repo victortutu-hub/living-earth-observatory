@@ -452,6 +452,10 @@ Ordonate după raportul valoare/fricțiune. **Integrează de sus în jos.** Tot 
 | 18 | AISStream.io (naval) | proxy ⚠️ | da | 3 |
 | 19 | OpenSky (aerian) | proxy ⚠️ | OAuth | 3 |
 | 20 | Copernicus CDS ERA5 | server-only ⚠️ | da | 3 |
+| 21 | AWS Terrain Tiles (Terrarium, DEM ~30 m) | direct ✅ | nu | Himalaya ❄️ |
+| 22 | Sentinel-2 L2A prin Earth Search STAC (COG) | direct, CORS de verificat | nu | Himalaya ❄️ |
+| 23 | Open-Meteo pe niveluri de presiune (500/400/300 hPa) | direct ✅ | nu | Himalaya ❄️ |
+| 24 | Garmin MapShare (feed KML, doar listă albă) | proxy ⚠️ | nu | Himalaya ❄️ |
 
 **Notă proxy — GDACS & FIRMS pe producție (reparat 7 august):** ambele surse cu `proxy ⚠️` treceau prin proxy-ul Node (`nasa-proxy-server.js`), dar în producție erau rupte din două cauze suprapuse. (1) Un deploy anterior de HTML scosese accidental `window.NASA_PROXY_BASE`, deci runtime-ul public (`isStaticPublicRuntime`) marca sursele „proxy-disabled" și golea lista — fără să încerce măcar proxy-ul. (2) Subdomeniul `proxy.luminomorphism.ro` întorcea 404 de la host: DocumentRoot-ul lui e `/home/luminomorphism/nasa-proxy` cu un `.htaccess` **gol**, iar configul Passenger real (cu `PassengerBaseURI "/nasaproxy"`) stă orfan în `public_html/nasaproxy/.htaccess`. Adică aplicația Node rulează și răspunde de fapt la **`https://luminomorphism.ro/nasaproxy/nasa-proxy?source=...`**, nu pe subdomeniu. Fix aplicat: `NASA_PROXY_BASE = 'https://luminomorphism.ro/nasaproxy'` (same-origin cu site-ul → zero CORS). Verificat live: GDACS `proxyStatus:"live"` ~99 alerte, FIRMS `proxyStatus:"live"` ~1112 focare (cheia `FIRMS_MAP_KEY` e setată corect server-side). Subdomeniul `proxy.luminomorphism.ro` rămâne rupt dar nefolosit; reparat opțional în Faza 1 mutând configul Passenger în docroot-ul lui.
 
@@ -471,7 +475,13 @@ Ordonate după raportul valoare/fricțiune. **Integrează de sus în jos.** Tot 
 
 - Virtual texturing / sparse virtual textures propriu → **NU.** Complexitate notorie; determinarea tile-urilor vizibile pe sferă 3D e problema grea nerezolvată în multe încercări. Tile streaming XYZ îți dă ~90% din beneficiu.
 - Clipmaps sferice (Clasen & Hege) → doar dacă vrei teren displaced la scară de metri. Probabil out of scope.
-- Un al treilea observator / integrare cross-observatory → după Gate 2.
+- Un al treilea observator / integrare cross-observatory → după Gate 2. **Candidatul concret este Living Himalaya (detaliat mai jos).**
+- **Living Himalaya Observatory V0** (adăugat 11 noiembrie 2026) → **înghețat până după Gate 2**, conform regulii de mai sus.
+  - Ce este: observator regional separat (nu strat pe glob), teren 3D Khumbu la ~30 m, expediții din feed-uri Garmin MapShare publicate de echipe. Click pe marker → zbor la ~1,2 km deasupra punctului → cea mai recentă imagine Sentinel-2 clară, cu data ei; vânt de model la altitudinea GPS.
+  - Specificație completă: [Living Himalaya Observatory — Specificație V0](https://claude.ai/artifact/YYrJd5hwNx5Ge25hi6xSyu) (surse, arhitectură, interacțiune, etică, 4 sprint-uri ~19 zile, Gate H0).
+  - Precondiții de dezghețare: Gate 2 verde; LOT 2 (proxy unificat) și LOT 3 (clasele de proveniență `model` și `reported`) închise; cele 5 verificări din spec (CORS Earth Search/COG, termeni Garmin, licențe, calitate SRTM vs Copernicus GLO-30, un feed MapShare real cu acord).
+  - Pe glob, Living Earth primește doar un marker „expediție activă” care deschide observatorul; terenul detaliat nu intră în Living Earth.
+  - Regulă de etică non-negociabilă: doar expediții din listă albă, fără nume de persoane, fără extrapolarea poziției, banner „nu este serviciu de salvare”.
 - Migrare completă la WebGPU pe `main` → doar dacă benchmark-ul din 2.1 arată >10% câștig.
 - Refactor al entry point-ului HTML monolit → Faza 1 dacă devine dureros, altfel îngheață.
 - Terrain displacement real (vertex) → Faza 3+.
@@ -504,6 +514,7 @@ Când o fază depășește durata alocată, tai în ordinea asta:
 | WebGPU nu aduce câștig real | mediu | mic | Benchmark-gate în 2.1 — oprești migrarea, nu continui din inerție |
 | Normal maps degradate de ETC1S | mare | mediu | UASTC + `--normal_mode` (specificat în 0.2) |
 | Burnout pe proiect solo | mediu | mare | Faza 3 e explicit opțională; publicarea la fiecare gate dă feedback |
+| Living Himalaya pornit înainte de Gate 2 (scope creep) | mare | mare | Stă în Backlog Înghețat cu spec scrisă; primul pas la dezghețare sunt cele 5 verificări, nu codul |
 
 ---
 
@@ -524,6 +535,8 @@ AUG 10 ─── SEP 6    FAZA 1: CONSOLIDARE                4 săpt → GATE 1 
 SEP 7  ─── NOV 1    FAZA 2: LIVING                     8 săpt → GATE 2 (deploy + reel)
 NOV 2  ─── ?        FAZA 3: CINEMATIC             opțional, fără deadline
 ```
+
+**Actualizare 11 noiembrie 2026:** Gate 1 și Gate 2 sunt încă deschise. Între timp rulează trei loturi de consolidare, în afara planului inițial: LOT 1 (o singură instanță per modul + `verify:f0` verde) — închis, commit `ca764ac`; LOT 2 (proxy unificat, TTL, H.264 sigur în producție) — în lucru; LOT 3 (taxonomie de proveniență `model`/`reported`, etichete oneste) — urmează. Living Himalaya V0 (~19 zile) vine după Gate 2 și după aceste loturi (vezi §7).
 
 **Efort total până la un produs excelent și complet: ~14 săptămâni.**
 **Efort până la ceva public și semnificativ mai bun decât acum: 2 săptămâni.**
