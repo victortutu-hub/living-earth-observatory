@@ -1,4 +1,4 @@
-import { createSurfaceMaterialLodConfig } from './surface-material-lod.js?v=surfaceMaterialLod4';
+import { createSurfaceMaterialLodConfig } from './surface-material-lod.js';
 
 // Injectie de zi/noapte comuna intre MeshPhongMaterial (V1) si
 // MeshStandardMaterial (V3.2 PBR) - <common>/<map_fragment> exista identic in

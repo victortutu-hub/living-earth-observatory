@@ -1,11 +1,11 @@
-import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
+import { atlasStatus } from '../core/status-store.js';
 import { dataBroker } from '../core/data-broker.js';
 import { vertexSource, fragmentSource } from './shaders/portal-shaders.js';
 import { createProgram, createFullscreenTriangle } from './gl/webgl-utils.js';
 import { createPostProcessor } from './post-processing.js';
 import { createQualityManager } from './quality-manager.js';
 import { createPortalAssets } from './portal-assets.js';
-import { createPortalInteraction } from './portal-interaction.js?v=atlasEarthMount3';
+import { createPortalInteraction } from './portal-interaction.js';
 import { getPortalSlotGeometry, positionPortalLabels } from './portal-layout.js';
 import { resolveGatewaySlots } from './gateway-slots.js';
 import { validateGatewaySlots } from './gateway-validation.js';

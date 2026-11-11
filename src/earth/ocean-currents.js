@@ -5,8 +5,8 @@
 //  - viteza reala e mult mai mica (~1 m/s vs ~10 m/s la vant), deci speedScale
 //    e mai mare ca sa ramana vizibila curgerea;
 //  - paleta distincta (teal-verde), ca sa nu se confunde cu vantul.
-import { createFieldParticles } from './field-particles.js?v=fieldEngine1';
-import { fetchOceanCurrentTexture } from './ocean-current-provider.js?v=oceanCurrents1';
+import { createFieldParticles } from './field-particles.js';
+import { fetchOceanCurrentTexture } from './ocean-current-provider.js';
 
 export function createOceanCurrents({ THREE, renderer, earthGroup, gridSize = 128 }) {
     return createFieldParticles({

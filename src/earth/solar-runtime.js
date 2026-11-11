@@ -1,4 +1,4 @@
-import { createSolarSystem } from './solar-system.js?v=unifiedEarthLot2';
+import { createSolarSystem } from './solar-system.js';
 
 export function createSolarRuntime({
     THREE,

@@ -1,4 +1,4 @@
-import { applyEarthLookUniforms, earthLookPresets } from './earth-look.js?v=atmoHalo1';
+import { applyEarthLookUniforms, earthLookPresets } from './earth-look.js';
 
 export function createEarthAppearance({
     state,

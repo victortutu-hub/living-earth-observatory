@@ -2,8 +2,8 @@
 // createFieldParticles (field-particles.js), care contine toata logica de
 // advectie GPU + trail-uri echirectangulare. Aici doar sursa (Open-Meteo
 // wind_speed_10m / wind_direction_10m) si parametrii vizuali de vant.
-import { createFieldParticles } from './field-particles.js?v=fieldEngine1';
-import { fetchWindFieldTexture } from './wind-field-provider.js?v=windCache1';
+import { createFieldParticles } from './field-particles.js';
+import { fetchWindFieldTexture } from './wind-field-provider.js';
 
 export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 128 }) {
     return createFieldParticles({

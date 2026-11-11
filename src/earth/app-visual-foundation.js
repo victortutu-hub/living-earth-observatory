@@ -1,18 +1,18 @@
-import { createCloudSetup } from './cloud-setup.js?v=dailyCloudsPaused7';
-import { createSolarRuntime } from './solar-runtime.js?v=unifiedEarthLot2';
-import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-config.js?v=usgsIntegrated1';
+import { createCloudSetup } from './cloud-setup.js';
+import { createSolarRuntime } from './solar-runtime.js';
+import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-config.js';
 import { createGeoUtils } from './geo.js';
-import { createStarField } from './star-field.js?v=milkyWay1';
-import { createEventUtils } from './event-utils.js?v=polyFix2';
-import { createEarthLayers } from './earth-layers.js?v=surfaceVisualFreezeV3d';
-import { createMoonSystem } from './moon-system.js?v=unifiedEarthLot2';
-import { createIssSystem } from './iss-system.js?v=unifiedEarthLot2';
-import { createEarthTimeState } from './earth-time-state.js?v=unifiedEarthLot2';
-import { createAirglowSystem } from './airglow-system.js?v=airglow9';
-import { createZodiacalLightSystem } from './zodiacal-light-system.js?v=zodiacal10';
-import { createNoctilucentCloudSystem } from './noctilucent-cloud-system.js?v=noctilucent9';
-import { createWindParticles } from './wind-particles.js?v=windTrails4';
-import { createOceanCurrents } from './ocean-currents.js?v=oceanCurrents1';
+import { createStarField } from './star-field.js';
+import { createEventUtils } from './event-utils.js';
+import { createEarthLayers } from './earth-layers.js';
+import { createMoonSystem } from './moon-system.js';
+import { createIssSystem } from './iss-system.js';
+import { createEarthTimeState } from './earth-time-state.js';
+import { createAirglowSystem } from './airglow-system.js';
+import { createZodiacalLightSystem } from './zodiacal-light-system.js';
+import { createNoctilucentCloudSystem } from './noctilucent-cloud-system.js';
+import { createWindParticles } from './wind-particles.js';
+import { createOceanCurrents } from './ocean-currents.js';
 
 export function createAppVisualFoundation({
     THREE,

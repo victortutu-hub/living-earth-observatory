@@ -1,4 +1,4 @@
-import { fetchEarthOvation } from './earth-data-runtime.js?v=unifiedEarth1';
+import { fetchEarthOvation } from './earth-data-runtime.js';
 import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 function disposeObject3D(node) {

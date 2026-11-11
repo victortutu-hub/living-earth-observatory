@@ -1,5 +1,5 @@
 import { getDefaultGatewaySlot } from './gateway-slots.js';
-import { consumeAtlasReturn, markPortalEntry } from '../portal-continuity.js?v=atlasContinuity6';
+import { consumeAtlasReturn, markPortalEntry } from '../portal-continuity.js';
 
 const INTRO_DURATION_MS = 2400;
 

@@ -1,5 +1,5 @@
-import { createMarkerSystem } from './marker-system.js?v=markerHorizon1';
-import { createSceneInteraction } from './scene-interaction.js?v=markerPicking2';
+import { createMarkerSystem } from './marker-system.js';
+import { createSceneInteraction } from './scene-interaction.js';
 
 export function createEventScene({
     THREE,

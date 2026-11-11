@@ -166,10 +166,11 @@ describe('POST /convert-h264 boundary', () => {
       },
     });
     const first = request(port, { headers: { 'Content-Length': '1' } });
+    const firstOutcome = first.result.then(() => null, (error) => error);
     await started.promise;
     first.clientRequest.destroy();
     await cancelled.promise;
-    await expect(first.result).rejects.toBeDefined();
+    expect(await firstOutcome).toBeInstanceOf(Error);
 
     const second = request(port, { headers: { 'Content-Length': '1' } });
     expect((await second.result).status).toBe(200);

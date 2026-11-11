@@ -104,6 +104,66 @@ uită-te o secundă peste listă, apoi **OK** ca să confirme.
 
 ---
 
+## 4b. Revalidarea fișierelor `.js` / `.html` (o dată, ÎNAINTE de upload)
+
+De ce: modulele din `src/` se importă acum fără `?v=...`, ca fiecare modul să
+existe o singură dată în browser. Fără tag, browserul ar putea servi un modul
+vechi din cache după un deploy. Regula de mai jos îi cere să întrebe serverul
+la fiecare încărcare dacă fișierul s-a schimbat; dacă nu, primește un răspuns
+mic `304 Not Modified` (verificare prin ETag / Last-Modified).
+
+**Ordinea e obligatorie: întâi `.htaccess` pe server, abia apoi fișierele.**
+
+### Pasul 1 — `.htaccess` pe server, din cPanel File Manager
+
+1. cPanel → **File Manager** → `public_html`.
+2. **Settings** (dreapta sus) → bifează **Show Hidden Files (dotfiles)** → Save.
+3. Click dreapta pe `.htaccess` → **Edit**. Înainte să adaugi ceva, caută
+   reguli de cache existente:
+   - `ExpiresActive`, `ExpiresByType`, `ExpiresDefault` (modulul `mod_expires`);
+   - orice `Header set Cache-Control` sau `max-age` care prind
+     `application/javascript`, `text/javascript`, `text/html` ori `.js` / `.html`.
+
+   Dacă există reguli de acest tip pentru JS sau HTML, scoate-le (sau notează-le)
+   — altfel pot da `max-age` în paralel cu regula nouă. Verificarea de la pasul 2
+   îți arată dacă au rămas efecte.
+4. Adaugă la final blocul:
+
+   ```apache
+   <IfModule mod_headers.c>
+     <FilesMatch "\.(js|mjs|html)$">
+       Header set Cache-Control "no-cache"
+     </FilesMatch>
+   </IfModule>
+   ```
+
+5. **Save Changes**.
+
+> ⚠️ Editează `.htaccess` **doar pe server**. Nu crea un `.htaccess` în folderul
+> local: la Synchronize ar suprascrie fișierul de pe server, care conține și
+> alte reguli.
+>
+> Dacă după salvare site-ul dă `500 Internal Server Error`, scoate blocul și
+> salvează din nou — e o greșeală de sintaxă în `.htaccess`.
+
+### Pasul 2 — verifică antetul
+
+În browser, pe `https://luminomorphism.ro/`: DevTools (`F12`) → **Network** →
+reîncarcă → click pe `main.js` → **Response Headers**. Trebuie să vezi:
+
+- `Cache-Control: no-cache` (fără `max-age=...`);
+- `ETag` sau `Last-Modified`.
+
+Sau din terminal: `curl -I https://luminomorphism.ro/src/main.js`
+
+La a doua reîncărcare, fișierele neschimbate apar cu status `304`.
+
+### Pasul 3 — abia acum urci fișierele
+
+Continuă cu fluxul de la secțiunea 5 (**Synchronize**).
+
+---
+
 ## 5. Fluxul de zi cu zi (asta faci mereu)
 
 De fiecare dată când vrei să publici ce ai modificat:

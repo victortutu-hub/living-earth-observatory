@@ -1,12 +1,12 @@
-import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js?v=atmoHalo1';
-import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js?v=surfaceMaterialLod4c';
-import { createEarthRoughnessTexture } from './earth-roughness.js?v=pbrRoughness4';
-import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js?v=surfaceMaterialLod4';
-import { surfaceVisualCaseFromSearch } from './surface-visual-lock.js?v=surfaceVisualLock2';
-import { makeNightLightsMat } from './night-lights.js?v=blackMarbleTerminator1';
-import { loadBlackMarbleTexture } from './gibs-night-lights.js?v=blackMarbleStatus2';
-import { loadBlueMarbleSurfaceTexture } from './gibs-surface.js?v=blueMarbleSurface1';
-import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js?v=ktx2pilot6';
+import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js';
+import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js';
+import { createEarthRoughnessTexture } from './earth-roughness.js';
+import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
+import { surfaceVisualCaseFromSearch } from './surface-visual-lock.js';
+import { makeNightLightsMat } from './night-lights.js';
+import { loadBlackMarbleTexture } from './gibs-night-lights.js';
+import { loadBlueMarbleSurfaceTexture } from './gibs-surface.js';
+import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
 
 export function createEarthLayers({
     THREE,

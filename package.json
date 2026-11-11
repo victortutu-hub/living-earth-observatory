@@ -4,8 +4,9 @@
   "scripts": {
     "test": "vitest run",
     "check:syntax": "node tools/check-syntax.mjs",
+    "check:imports": "node tools/check-import-urls.mjs",
     "validate:registry": "node tools/validate-registry.mjs",
-    "verify:f0": "npm run check:syntax && npm test && npm run validate:registry"
+    "verify:f0": "npm run check:syntax && npm run check:imports && npm test && npm run validate:registry"
   },
   "devDependencies": {
     "vitest": "^4.1.10"

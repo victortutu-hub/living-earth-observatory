@@ -1,4 +1,4 @@
-import { SOURCE_DEFINITIONS, INITIAL_SOURCE_STATUS } from '../config/source-registry.js?v=sourceInspectorV4';
+import { SOURCE_DEFINITIONS, INITIAL_SOURCE_STATUS } from '../config/source-registry.js';
 import { createRuntimeMeta } from './runtime/runtime-states.js';
 
 const statusIds = Object.freeze({

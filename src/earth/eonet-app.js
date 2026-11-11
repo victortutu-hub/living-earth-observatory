@@ -1,6 +1,6 @@
-import { createEonetDataSource } from './eonet-data.js?v=cacheStatus1';
-import { createEonetUi } from './eonet-ui.js?v=markerPicking1';
-import { createEonetWorkflow } from './eonet-workflow.js?v=todayHighlights3';
+import { createEonetDataSource } from './eonet-data.js';
+import { createEonetUi } from './eonet-ui.js';
+import { createEonetWorkflow } from './eonet-workflow.js';
 
 export function createEonetApp({
     apiUrl,

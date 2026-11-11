@@ -1,4 +1,4 @@
-import { loadEarthTextures } from './earth-textures.js?v=earthBaseMap4';
+import { loadEarthTextures } from './earth-textures.js';
 
 export function createEarthAppBootstrap({
     THREE,

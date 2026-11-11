@@ -1,7 +1,7 @@
 import { createObservatoryModuleHost } from '../core/observatory/module-host.js';
-import { platformRegistry } from '../core/platform-registry.js?v=capabilityInspector1';
-import { createLivingEarthAtlasModule } from '../earth/living-earth-atlas-module.js?v=atlasEarthMount1';
-import { createLivingProteinAtlasModule } from '../protein/living-protein-atlas-module.js?v=atlasProteinMount1';
+import { platformRegistry } from '../core/platform-registry.js';
+import { createLivingEarthAtlasModule } from '../earth/living-earth-atlas-module.js';
+import { createLivingProteinAtlasModule } from '../protein/living-protein-atlas-module.js';
 
 const HISTORY_KEY = '__lumiMountedObservatory';
 const EXIT_DURATION_MS = 520;

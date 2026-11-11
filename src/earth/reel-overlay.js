@@ -1,6 +1,6 @@
 import { roundRect, fitText, colorToRgba } from './reel-drawing.js';
 import { getVerticalCaptionLayout } from './vertical-director.js';
-import { createCaptionSystem } from './caption-system.js?v=issReelBeat1';
+import { createCaptionSystem } from './caption-system.js';
 
 function clippedCard(ctx, x, y, width, height, radius) {
     ctx.save();

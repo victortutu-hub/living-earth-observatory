@@ -1,4 +1,4 @@
-import { startProteinApp } from './protein-app.js?v=moduleHost3';
+import { startProteinApp } from './protein-app.js';
 
 export const livingProteinModule = Object.freeze({
   id: 'living-protein',

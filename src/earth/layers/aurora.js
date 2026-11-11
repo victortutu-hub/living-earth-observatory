@@ -10,7 +10,7 @@
 // OVATION), dar geometria ovalului si perdeaua sunt reprezentari procedurale
 // derivate, nu o imagine directa a aurorei.
 
-import { createNoaaAuroraLayer } from '../noaa-aurora-layer.js?v=unifiedEarth1';
+import { createNoaaAuroraLayer } from '../noaa-aurora-layer.js';
 
 export const auroraPlugin = {
     id: 'aurora',

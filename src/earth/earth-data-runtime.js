@@ -1,4 +1,4 @@
-import { dataBroker } from '../core/data-broker.js?v=cacheStatus1';
+import { dataBroker } from '../core/data-broker.js';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;

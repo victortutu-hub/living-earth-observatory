@@ -1,6 +1,6 @@
-import { createCloudSystem } from './cloud-system.js?v=dailyCloudsPaused7';
-import { createCloudFallbackTexture, makeCloudMat } from './cloud-shaders.js?v=refraction1';
-import { createFrameRuntime } from './frame-runtime.js?v=terminatorGuide1';
+import { createCloudSystem } from './cloud-system.js';
+import { createCloudFallbackTexture, makeCloudMat } from './cloud-shaders.js';
+import { createFrameRuntime } from './frame-runtime.js';
 
 export function createCloudSetup({
     THREE,

@@ -1,6 +1,6 @@
-import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js?v=taxonomyV4';
-import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js?v=taxonomyV4';
-import { SOURCE_DEFINITIONS } from '../config/source-registry.js?v=sourceInspectorV4';
+import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js';
+import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
+import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
 
 let platformFilters = { family: 'all', scale: 'all', status: 'all' };

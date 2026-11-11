@@ -1,6 +1,6 @@
-import { SOURCE_DEFINITIONS } from '../config/source-registry.js?v=sourceInspectorV4';
+import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
-import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
+import { atlasStatus } from '../core/status-store.js';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
 import { runtimeControl } from '../core/runtime/runtime-control.js';
 import { classifyCacheRecord } from '../core/runtime/persistent-cache.js';

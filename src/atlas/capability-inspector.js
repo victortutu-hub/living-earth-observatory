@@ -1,4 +1,4 @@
-import { platformRegistry } from '../core/platform-registry.js?v=capabilityInspector1';
+import { platformRegistry } from '../core/platform-registry.js';
 
 const GROUP_LABELS = Object.freeze({
   data: 'Data & provenance',

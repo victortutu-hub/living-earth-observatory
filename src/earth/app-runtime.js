@@ -1,8 +1,8 @@
-import { createAppLifecycle } from './app-lifecycle.js?v=surfaceVisualLock2';
-import { createAppStartup } from './app-startup.js?v=earthLifecycle1';
-import { createDemoReelTimeline } from './reel-timeline.js?v=localCinemaCode4';
-import { createSocialPresetSystem } from './preset-system.js?v=issOrbitalBeat1';
-import { createFramePerformanceSampler } from './performance-sampler.js?v=perfSampler1';
+import { createAppLifecycle } from './app-lifecycle.js';
+import { createAppStartup } from './app-startup.js';
+import { createDemoReelTimeline } from './reel-timeline.js';
+import { createSocialPresetSystem } from './preset-system.js';
+import { createFramePerformanceSampler } from './performance-sampler.js';
 
 export function createEarthAppRuntime({
     state,

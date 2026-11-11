@@ -1,5 +1,5 @@
-import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js?v=cacheFix1';
-import { createFirmsWildfireProvider } from './firms-wildfires.js?v=firms4';
+import { createUsgsEarthquakeProvider } from './usgs-earthquakes.js';
+import { createFirmsWildfireProvider } from './firms-wildfires.js';
 
 // Aurora a fost migrata la registry-ul de layere (layers/aurora.js, tip 'custom').
 // Aici raman doar sursele inca bespoke: USGS quakes si NASA FIRMS.

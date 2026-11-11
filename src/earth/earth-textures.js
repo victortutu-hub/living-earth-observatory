@@ -1,4 +1,4 @@
-import { ktx2Requested } from './ktx2-support.js?v=ktx2pilot6';
+import { ktx2Requested } from './ktx2-support.js';
 
 // 1x1 flat placeholder used only on the KTX2-primary path, so the heavy relief/
 // normal PNGs are NOT downloaded. The real texture (KTX2, or PNG only if KTX2

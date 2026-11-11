@@ -1,4 +1,4 @@
-import { atlasStatus } from '../core/status-store.js?v=unifiedEarthLot2';
+import { atlasStatus } from '../core/status-store.js';
 
 const ASTRONOMY_ENGINE_URLS = Object.freeze([
     'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/+esm',

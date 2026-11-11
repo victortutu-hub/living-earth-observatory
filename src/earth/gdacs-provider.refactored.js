@@ -16,7 +16,7 @@
 
 import { defineFeedAdapter } from '../core/feed-adapter.js';
 import { createProxyRequiredError, isPublicProxyDisabledRuntime } from './public-runtime.js';
-import { normalizeLonLatCoordinates } from './event-utils.js?v=polyFix2';
+import { normalizeLonLatCoordinates } from './event-utils.js';
 
 // ---------------------------------------------------------------------------
 // Normalizare specifica GDACS (identica cu originalul)

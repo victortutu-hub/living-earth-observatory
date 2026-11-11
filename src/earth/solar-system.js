@@ -1,4 +1,4 @@
-import { loadAstronomyEngine } from './astronomy-runtime.js?v=unifiedEarthLot2';
+import { loadAstronomyEngine } from './astronomy-runtime.js';
 
 export function createSolarSystem({
     THREE,

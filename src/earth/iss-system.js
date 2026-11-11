@@ -1,4 +1,4 @@
-import { fetchEarthCelesTrakTle } from './earth-data-runtime.js?v=unifiedEarthLot2';
+import { fetchEarthCelesTrakTle } from './earth-data-runtime.js';
 import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 const SATELLITE_JS_URLS = [

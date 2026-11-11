@@ -1,4 +1,4 @@
-import { GIBS_LAYERS, composeGibsEquirectangularMosaic } from './gibs-tiles.js?v=seamGate2';
+import { GIBS_LAYERS, composeGibsEquirectangularMosaic } from './gibs-tiles.js';
 
 const GIBS_FIXED_ZOOM = 1;
 // VIIRS true-colour tiles can contain acquisition swaths with hard data

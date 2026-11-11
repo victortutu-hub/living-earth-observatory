@@ -1,5 +1,5 @@
 import { buildEventPolygonOverlays } from './polygon-overlays.js';
-import { markerHorizonWeight } from './marker-horizon.js?v=markerHorizon1';
+import { markerHorizonWeight } from './marker-horizon.js';
 
 function disposeObject3D(node) {
     node.geometry?.dispose?.();

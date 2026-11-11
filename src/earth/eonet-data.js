@@ -1,6 +1,6 @@
 import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
-import { normalizeEventGeometry } from './event-utils.js?v=polyFix2';
-import { fetchEarthEonet } from './earth-data-runtime.js?v=cacheStatus1';
+import { normalizeEventGeometry } from './event-utils.js';
+import { fetchEarthEonet } from './earth-data-runtime.js';
 
 export function createEonetDataSource({
     apiUrl,

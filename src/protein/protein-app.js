@@ -2,7 +2,7 @@ import { fetchProteinPrediction, fetchUniProtProfile } from './protein-data.js';
 import { parseAlphaFoldPdb, splitContiguousSegments, summarizeConfidence } from './protein-geometry.js';
 import { crossReferenceFeatures } from './protein-analysis.js';
 import { createProteinScene } from './protein-scene.js';
-import { prepareObservatoryEntry } from '../portal-continuity.js?v=atlasProtein1';
+import { prepareObservatoryEntry } from '../portal-continuity.js';
 
 const PROTEIN_MODELS = {
   P04637: {

@@ -3,7 +3,7 @@
 // - de aceea layer 'custom' in registry (acelasi tipar ca aurora.js), nu
 // 'points'. Provenance 'observed': mascheaza direct un produs satelitar
 // zilnic, fara interpretare procedurala intre mijloc.
-import { loadSnowIceMaskTexture } from '../gibs-snow-ice.js?v=snowIce1';
+import { loadSnowIceMaskTexture } from '../gibs-snow-ice.js';
 import { formatTemporalBadge } from '../temporal-provenance.js';
 
 function formatClock(timestamp) {

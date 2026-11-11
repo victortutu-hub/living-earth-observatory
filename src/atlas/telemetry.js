@@ -1,4 +1,4 @@
-import { atlasStatus } from '../core/status-store.js?v=sourceInspectorV4';
+import { atlasStatus } from '../core/status-store.js';
 
 const TELEMETRY_KEY = 'lumi.atlas.telemetry.open';
 

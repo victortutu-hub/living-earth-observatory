@@ -1,5 +1,5 @@
 import { platformRegistry } from '../core/platform-registry.js';
-import { atlasStatus, formatSourceStatus } from '../core/status-store.js?v=sourceInspectorV4';
+import { atlasStatus, formatSourceStatus } from '../core/status-store.js';
 
 function formatSourceTime(value) {
   if (!value) return 'No live timestamp available';

@@ -1,4 +1,4 @@
-import { loadAstronomyEngine } from './astronomy-runtime.js?v=unifiedEarthLot2';
+import { loadAstronomyEngine } from './astronomy-runtime.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 

@@ -1,8 +1,8 @@
-import { createEarthAppBootstrap } from './earth-app-bootstrap.js?v=surfaceVisualFreezeV3d';
-import { createSceneRuntime } from './scene-runtime.js?v=realistBloom2';
-import { createInitialEarthState } from './app-state.js?v=atmoHalo1';
-import { createEarthAppServices } from './app-services.js?v=surfaceVisualFreezeV3d';
-import { prepareObservatoryEntry } from '../portal-continuity.js?v=atlasEarthMount1';
+import { createEarthAppBootstrap } from './earth-app-bootstrap.js';
+import { createSceneRuntime } from './scene-runtime.js';
+import { createInitialEarthState } from './app-state.js';
+import { createEarthAppServices } from './app-services.js';
+import { prepareObservatoryEntry } from '../portal-continuity.js';
 
 export function createLivingEarthModule({ THREE, earcut }) {
   if (!THREE || typeof earcut !== 'function') {
