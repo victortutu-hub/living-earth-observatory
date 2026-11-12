@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ktx2 binary
+*.wasm binary
+*.zip binary
+*.webm binary
+*.pdf binary
+*.docx binary
