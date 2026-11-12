@@ -43,11 +43,15 @@ cPanel sau prin WinSCP Synchronize.
 - Arhiva se face din commit, nu din working tree:
 
   ```bash
-  git archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
+  git -c core.autocrlf=false archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
     src styles index.html earth-eonet-relief.html living-protein.html sw.js
   ```
 
   Plus un manifest `<sha256>  <cale>`, calculat din conținutul arhivei.
+
+  > ⚠️ `-c core.autocrlf=false` e obligatoriu pe Windows. Fără el, `git archive`
+  > convertește toate fișierele la CRLF, iar arhiva nu mai e identică cu HEAD.
+  > Verificare: niciun fișier din arhivă nu conține `\r`.
 - `assets/` și `vendor/` (fișiere mari) nu intră în arhivă. Le compari separat
   cu serverul (`git ls-tree -r -l HEAD -- assets vendor` față de lista de pe
   server) și le urci doar dacă diferă.
