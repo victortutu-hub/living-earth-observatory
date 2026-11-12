@@ -43,6 +43,16 @@ policies:
 The app is an artistic/scientific visualization, not an operational emergency
 system. Always consult the original providers for authoritative data.
 
+## Bundled Earth Surface Texture
+
+- `assets/blue-marble-ng-4096x2048.jpg`: NASA Blue Marble: Next Generation
+  (NASA Earth Observatory / Reto Stöckli), downloaded once from NASA GIBS
+  (WMS layer `BlueMarble_NextGeneration`, EPSG:4326, 4096×2048, JPEG).
+  NASA imagery is public domain; attribution to NASA is retained. Used as the
+  initial surface texture and as the fallback when GIBS is unreachable. This
+  product has no baked hillshade; relief shading comes from the ETOPO normals
+  lit by the computed Sun position.
+
 ## Moon Textures And Lunar Assets
 
 The Moon system supports multiple visual sources:
