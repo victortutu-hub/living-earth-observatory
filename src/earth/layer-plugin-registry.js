@@ -11,7 +11,11 @@
 //   {
 //     id:          string   // unic, ex. 'gvp'
 //     label:       string   // text buton, ex. 'Smithsonian volcanoes'
-//     provenance:  'observed' | 'physical' | 'interpretive' | 'fallback'
+//     sourceKey:   string   // cheie in src/config/source-registry.js; proveniența
+//                           // (vocabularul canonic din AGENTS.md: observed |
+//                           // reconstructed | physical-model | simulation |
+//                           // prediction | interpretive | fallback) se citeste
+//                           // DOAR de acolo - plugin-ul nu o redeclara.
 //     attribution: string    // obligatoriu, non-null (identitatea proiectului)
 //     license:     string
 //     source:      { url: string, requiresProxy?: boolean, apiKey?: string|null }
@@ -27,6 +31,29 @@
 //
 // resolveUrl(plugin) primeste din afara politica de proxy (acelasi
 // NASA_PROXY_BASE folosit de restul aplicatiei), ca sa nu cablam iar manual.
+
+import { describeSourceProvenance } from '../config/source-registry.js';
+import { composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
+
+// Varsta relativa din status ("fetched 7 min ago") se recalculeaza din
+// timestamp-uri la acest interval, din hook-ul per-frame update(t).
+const STATUS_REFRESH_SECONDS = 30;
+
+// Termina o fraza cu exact un punct (licentele se termina deja cu '.').
+function asSentence(text) {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return '';
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+/** Tooltip-ul butonului unui plugin: atribuire + licenta, apoi proveniența din registry. */
+export function buildPluginTooltip(plugin) {
+    const provenance = describeSourceProvenance(plugin?.sourceKey);
+    return [`${plugin?.attribution} - ${plugin?.license}`, provenance?.title]
+        .map(asSentence)
+        .filter(Boolean)
+        .join(' ');
+}
 
 function createPointsRenderer({ THREE, earthGroup, lonLatToVec3 }) {
     const group = new THREE.Group();
@@ -164,10 +191,30 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
     toolbar?.appendChild(container);
 
     const entries = new Map();
+    let lastStatusRefresh = null;
 
-    function setStatus(entry, stateName, message) {
+    function setStatus(entry, stateName, message, title = '') {
         entry.statusEl.dataset.state = stateName;
         entry.statusEl.textContent = message;
+        entry.statusEl.title = title;
+    }
+
+    function renderCustomStatus(entry) {
+        const { plugin } = entry;
+        const st = entry.layer.getStatus?.() || {};
+        setStatus(entry, st.state || 'on', `${st.message || `${plugin.label}: on`}${temporalSuffix(plugin)}`, st.title || '');
+    }
+
+    // Puncte (ex. GVP): statusul se compune din count + invelisul proxy-ului.
+    function renderPointsStatus(entry) {
+        const { plugin, points } = entry;
+        const status = composeSourceStatus({
+            sourceKey: plugin.sourceKey,
+            message: `${plugin.label}: ${points.count} (${plugin.attribution})`,
+            fetchedAt: points.fetchedAt,
+            fetchState: points.fetchState,
+        });
+        setStatus(entry, 'on', `${status.message}${temporalSuffix(plugin)}`, status.title);
     }
 
     function makeRenderer(kind) {
@@ -187,8 +234,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
                 await entry.layer.setEnabled(true);
                 entry.enabled = true;
                 entry.btn.textContent = `${plugin.label}: on`;
-                const st = entry.layer.getStatus?.() || {};
-                setStatus(entry, st.state || 'on', `${st.message || `${plugin.label}: on`}${temporalSuffix(plugin)}`);
+                renderCustomStatus(entry);
             } catch (error) {
                 entry.enabled = false;
                 entry.btn.textContent = `${plugin.label}: off`;
@@ -214,7 +260,13 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             if (obj) obj.userData.pluginId = plugin.id; // pentru rezolvarea la picking
             entry.enabled = true;
             entry.btn.textContent = `${plugin.label}: on`;
-            setStatus(entry, 'on', `${plugin.label}: ${items.length} (${plugin.attribution})${temporalSuffix(plugin)}`);
+            const envelope = raw && typeof raw === 'object' && 'proxyStatus' in raw ? raw : null;
+            entry.points = {
+                count: items.length,
+                fetchedAt: envelope?.proxyFetchedAt || new Date().toISOString(),
+                fetchState: envelope ? fetchStateFromProxyStatus(envelope.proxyStatus) : 'live',
+            };
+            renderPointsStatus(entry);
         } catch (error) {
             if (error?.name === 'AbortError') return;
             entry.enabled = false;
@@ -231,6 +283,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             entry.renderer.clear();
         }
         entry.enabled = false;
+        entry.points = null;
         entry.btn.textContent = `${entry.plugin.label}: off`;
         setStatus(entry, 'off', `${entry.plugin.label}: off`);
     }
@@ -240,7 +293,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
         const btn = document.createElement('button');
         btn.id = `${plugin.id}LayerBtn`;
         btn.textContent = `${plugin.label}: off`;
-        btn.title = `${plugin.attribution} - ${plugin.license}. Provenance: ${plugin.provenance}.`;
+        btn.title = buildPluginTooltip(plugin);
         const statusEl = document.createElement('div');
         statusEl.id = `${plugin.id}LayerStatus`;
         statusEl.className = 'layer-plugin-status';
@@ -265,10 +318,15 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
     }
 
     function update(t) {
+        const refreshStatus = lastStatusRefresh === null || t - lastStatusRefresh >= STATUS_REFRESH_SECONDS;
+        if (refreshStatus) lastStatusRefresh = t;
         for (const entry of entries.values()) {
             if (!entry.enabled) continue;
             if (entry.layer) entry.layer.update?.(t);
             else entry.renderer.update?.(t);
+            if (!refreshStatus) continue;
+            if (entry.layer) renderCustomStatus(entry);
+            else if (entry.points) renderPointsStatus(entry);
         }
     }
 

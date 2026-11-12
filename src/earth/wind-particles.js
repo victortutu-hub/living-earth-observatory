@@ -14,6 +14,7 @@ export function createWindParticles({ THREE, renderer, earthGroup, gridSize = 12
         fetchField: fetchWindFieldTexture,
         label: 'Wind',
         sourceLabel: 'Open-Meteo current field',
+        provenanceKey: 'openMeteo',
         landAware: false,
         speedScale: 50000,
         trailFade: 0.985,

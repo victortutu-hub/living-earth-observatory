@@ -272,6 +272,18 @@ export function createEarthAppRuntime({
         updateIssLayerUi?.({ enabled: true, tracking: true });
     }
 
+    // Statusurile vant/curenti si linia "Data source" contin varste relative
+    // (data/fetched); le recalculam din timestamp-uri la 30 s, din bucla de
+    // animatie existenta.
+    let lastFieldStatusRefresh = null;
+    function refreshFieldStatuses(t) {
+        if (lastFieldStatusRefresh !== null && t - lastFieldStatusRefresh < 30) return;
+        lastFieldStatusRefresh = t;
+        if (state.windParticles) controlPanel.updateWindLayerStatus?.(windParticles?.getStatus?.());
+        if (state.oceanCurrents) controlPanel.updateOceanLayerStatus?.(oceanCurrents?.getStatus?.());
+        controlPanel.refreshDataSourceStatus?.();
+    }
+
     async function toggleWindLayer() {
         const next = !state.windParticles;
         state.windParticles = next;
@@ -485,6 +497,7 @@ export function createEarthAppRuntime({
         noctilucentCloudSystem?.update?.(camera, t);
         windParticles?.update?.(t);
         oceanCurrents?.update?.(t);
+        refreshFieldStatuses(t);
         liveDataLayers.update(t);
         layerRegistry?.update?.(t);
         updateCameraControls();

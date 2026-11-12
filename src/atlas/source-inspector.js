@@ -1,11 +1,19 @@
 import { platformRegistry } from '../core/platform-registry.js';
 import { atlasStatus, formatSourceStatus } from '../core/status-store.js';
+import { describeSourceProvenance } from '../config/source-registry.js';
 
-function formatSourceTime(value) {
-  if (!value) return 'No live timestamp available';
+function formatTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return `${date.toISOString().slice(0, 10)} · ${date.toISOString().slice(11, 19)} UTC`;
+}
+
+// Only the source's own timestamp is shown as source time. The browser cache
+// time (status.updated) is labelled as a fetch time, never as source time.
+function formatSourceTime(status) {
+  if (status.sourceTime) return formatTimestamp(status.sourceTime);
+  if (status.updated) return `Source time unavailable · fetched ${formatTimestamp(status.updated)}`;
+  return 'No live timestamp available';
 }
 
 function formatDuration(value) {
@@ -91,14 +99,24 @@ export function initSourceInspector() {
     inspectorTitle.textContent = definition.title;
     inspectorStatus.textContent = formatSourceStatus(key, status);
     inspectorStatus.dataset.state = status.state;
-    inspectorUpdated.textContent = formatSourceTime(status.sourceTime || status.updated);
+    inspectorUpdated.textContent = formatSourceTime(status);
     if (inspectorClassification) {
       const classification = getSourceClassification(definition);
       const badge = document.createElement('span');
       badge.className = `source-class-badge source-class-${classification.tone}`;
       badge.textContent = classification.label;
       badge.title = classification.description;
-      inspectorClassification.replaceChildren(badge);
+      const badges = [badge];
+      const provenance = describeSourceProvenance(key);
+      if (provenance) {
+        const provenanceBadge = document.createElement('span');
+        provenanceBadge.className = 'source-class-badge source-provenance-badge';
+        provenanceBadge.dataset.provenance = provenance.provenance;
+        provenanceBadge.textContent = provenance.label;
+        provenanceBadge.title = provenance.title;
+        badges.push(document.createTextNode(' '), provenanceBadge);
+      }
+      inspectorClassification.replaceChildren(...badges);
     }
     inspectorEndpoint.textContent = definition.endpoint;
     if (inspectorAuthority) inspectorAuthority.textContent = definition.authority;

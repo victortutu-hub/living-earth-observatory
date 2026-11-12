@@ -6,16 +6,16 @@
 // existent createNoaaAuroraLayer (pastrat neatins) intr-un layer self-managed,
 // iar registry-ul ii da doar butonul + statusul + lifecycle-ul.
 //
-// Provenance: 'interpretive'. Datele de intensitate sunt reale (NOAA SWPC
-// OVATION), dar geometria ovalului si perdeaua sunt reprezentari procedurale
-// derivate, nu o imagine directa a aurorei.
+// Provenance: citita din source-registry (sourceKey 'ovation' -> 'prediction').
+// Datele de intensitate vin din modelul NOAA SWPC OVATION (prognoza), iar
+// geometria ovalului si perdeaua sunt reprezentari procedurale ale lor.
 
 import { createNoaaAuroraLayer } from '../noaa-aurora-layer.js';
 
 export const auroraPlugin = {
     id: 'aurora',
     label: 'Aurora',
-    provenance: 'interpretive',
+    sourceKey: 'ovation',
     temporal: { temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only', cacheState: 'unknown' },
     attribution: 'NOAA SWPC - OVATION aurora model',
     license: 'NOAA public domain; attribution retained.',

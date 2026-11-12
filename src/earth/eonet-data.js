@@ -1,6 +1,17 @@
 import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
 import { normalizeEventGeometry } from './event-utils.js';
 import { fetchEarthEonet } from './earth-data-runtime.js';
+import { composeSourceStatus, fetchStateFromRuntime } from './temporal-provenance.js';
+
+/** Transport label for a requestRuntime meta; a live network response is never "cached". */
+export function eonetTransportLabel(meta) {
+    if (!meta) return '';
+    if (meta.cache === 'service-worker-cache') {
+        return meta.freshness === 'stale' ? 'cached / stale' : 'cached / fresh';
+    }
+    if (meta.cache === 'hit') return 'cached / fresh';
+    return 'live / fresh';
+}
 
 export function createEonetDataSource({
     apiUrl,
@@ -16,18 +27,16 @@ export function createEonetDataSource({
     const activeControllers = new Set();
     let disposed = false;
 
-    function transportLabel(meta) {
-        if (!meta) return '';
-        if (meta.cache === 'service-worker-cache') {
-            return meta.freshness === 'stale' ? 'cached / stale' : 'cached / fresh';
-        }
-        if (meta.cache === 'hit') return 'cached / fresh';
-        return 'live / fresh';
+    function withTransport(message, meta) {
+        const label = eonetTransportLabel(meta);
+        return label ? `${message} — ${label}` : message;
     }
 
-    function withTransport(message, meta) {
-        const label = transportLabel(meta);
-        return label ? `${message} — ${label}` : message;
+    // GDACS (fallback provider) status: provenance badge + data/fetch ages.
+    function gdacsDetail(fallbackCount) {
+        const status = fallbackProviders[0]?.getStatus?.();
+        if (status?.state === 'on' && status.message) return { message: status.message, title: status.title || '' };
+        return { message: `${fallbackCount} alerts`, title: '' };
     }
 
     function readFilters() {
@@ -150,13 +159,18 @@ export function createEonetDataSource({
             // agatat pe "loading" la infinit cat timp sursa era setata pe 'gdacs'.
             const supplementalEvents = await fetchSupplementalEvents(filters);
             const combined = dedupeEvents([...fallback.events, ...supplementalEvents]).filter(latestGeometry);
+            const alertCount = fallback.events.length;
+            const gdacsOnly = () => {
+                const detail = gdacsDetail(alertCount);
+                return { message: `Data source: GDACS only - ${detail.message}`, title: detail.title };
+            };
             onSourceStateChange({
                 mode: sourceMode,
                 activeProvider: 'GDACS',
-                state: fallback.events.length ? 'on' : fallback.error ? 'error' : 'off',
-                message: fallback.events.length
-                    ? `Data source: GDACS only - ${fallback.events.length} alerts`
-                    : `Data source: GDACS only - ${readableError(fallback.error, 'GDACS')}`
+                state: alertCount ? 'on' : fallback.error ? 'error' : 'off',
+                ...(alertCount
+                    ? { ...gdacsOnly(), recompose: gdacsOnly }
+                    : { message: `Data source: GDACS only - ${readableError(fallback.error, 'GDACS')}`, title: '' })
             });
             if (!combined.length && fallback.error) throw fallback.error;
             return combined;
@@ -188,13 +202,18 @@ export function createEonetDataSource({
                 const fallback = await fetchFallbackEvents(filters, 'fallback');
                 const primaryEvents = fallback.events.length ? fallback.events : nasaEvents;
                 const combined = dedupeEvents([...primaryEvents, ...supplementalEvents]).filter(latestGeometry);
+                const alertCount = fallback.events.length;
+                const smartGdacs = () => {
+                    const detail = gdacsDetail(alertCount);
+                    return { message: `Data source: smart fallback - GDACS active (${detail.message})`, title: detail.title };
+                };
                 onSourceStateChange({
                     mode: sourceMode,
-                    activeProvider: fallback.events.length ? 'GDACS' : 'NASA EONET',
-                    state: fallback.events.length ? 'on' : nasaError ? 'error' : 'stale',
-                    message: fallback.events.length
-                        ? `Data source: smart fallback - GDACS active (${fallback.events.length} alerts)`
-                        : withTransport(`Data source: smart fallback - ${nasaEvents.length ? 'using stale NASA EONET, GDACS unavailable' : readableError(nasaError || fallback.error, 'GDACS')}`, nasaTransport)
+                    activeProvider: alertCount ? 'GDACS' : 'NASA EONET',
+                    state: alertCount ? 'on' : nasaError ? 'error' : 'stale',
+                    ...(alertCount
+                        ? { ...smartGdacs(), recompose: smartGdacs }
+                        : { message: withTransport(`Data source: smart fallback - ${nasaEvents.length ? 'using stale NASA EONET, GDACS unavailable' : readableError(nasaError || fallback.error, 'GDACS')}`, nasaTransport), title: '' })
                 });
                 if (!combined.length && nasaError) throw nasaError;
                 return combined;
@@ -202,13 +221,23 @@ export function createEonetDataSource({
         }
 
         const events = dedupeEvents([...nasaEvents, ...supplementalEvents]).filter(latestGeometry);
+        const newestNasa = newestEventTime(nasaEvents);
+        const eonetCount = nasaEvents.length;
+        // Recalculat la fiecare re-randare (varsta relativa nu ramane inghetata).
+        const eonetDefault = () => composeSourceStatus({
+            sourceKey: 'eonet',
+            message: `Data source: NASA EONET default - ${eonetCount} NASA events`,
+            dataTime: newestNasa ? new Date(newestNasa).toISOString() : null,
+            fetchedAt: nasaTransport?.updated || null,
+            fetchState: fetchStateFromRuntime({ state: nasaTransport?.freshness === 'stale' ? 'stale' : 'live', meta: nasaTransport }),
+        });
         onSourceStateChange({
             mode: sourceMode,
             activeProvider: 'NASA EONET',
             state: nasaError ? 'error' : nasaTransport?.freshness === 'stale' ? 'stale' : 'on',
-            message: nasaError
-                ? `Data source: NASA EONET failed - ${nasaError.message}`
-                : withTransport(`Data source: NASA EONET default - ${nasaEvents.length} NASA events`, nasaTransport)
+            ...(nasaError
+                ? { message: `Data source: NASA EONET failed - ${nasaError.message}`, title: '' }
+                : { ...eonetDefault(), recompose: eonetDefault })
         });
         if (!events.length && nasaError) throw nasaError;
         return events;

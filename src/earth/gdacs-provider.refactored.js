@@ -17,6 +17,7 @@
 import { defineFeedAdapter } from '../core/feed-adapter.js';
 import { createProxyRequiredError, isPublicProxyDisabledRuntime } from './public-runtime.js';
 import { normalizeLonLatCoordinates } from './event-utils.js';
+import { composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
 
 // ---------------------------------------------------------------------------
 // Normalizare specifica GDACS (identica cu originalul)
@@ -95,6 +96,33 @@ function featureToEvent(feature, proxyBase) {
   };
 }
 
+/**
+ * "Data time" GDACS: lastBuildDate/pubDate declarat de feed daca exista,
+ * altfel data celui mai recent eveniment. Niciodata ora browserului.
+ */
+export function gdacsDataTime(payload) {
+  const feed = payload?.data || {};
+  const declared = parseDate(feed.lastBuildDate || feed.pubDate || feed.metadata?.lastBuildDate || feed.metadata?.pubDate);
+  if (declared) return declared.toISOString();
+  let newest = null;
+  for (const feature of Array.isArray(feed.features) ? feed.features : []) {
+    const date = parseDate(feature?.properties?.fromdate);
+    if (date && (!newest || date > newest)) newest = date;
+  }
+  return newest ? newest.toISOString() : null;
+}
+
+export function describeGdacsStatus({ count, dataTime, fetchedAt, proxyStatus, runtimeState, now = Date.now() }) {
+  return composeSourceStatus({
+    sourceKey: 'gdacs',
+    message: `GDACS: ${count} alerts`,
+    dataTime,
+    fetchedAt,
+    fetchState: runtimeState === 'stale' ? 'stale' : fetchStateFromProxyStatus(proxyStatus),
+    now,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Providerul - acum doar configurare peste contractul unic
 // ---------------------------------------------------------------------------
@@ -109,6 +137,8 @@ export function createGdacsProvider({ timeoutMs = 15000, maxEvents = 120 } = {})
     maxEvents,
     ttl: 60_000,
     staleTtl: 24 * 60 * 60_000,
+    sourceTimeSelector: gdacsDataTime,
+    describeStatus: describeGdacsStatus,
     preflight() {
       if (isPublicProxyDisabledRuntime()) {
         const error = createProxyRequiredError('GDACS');

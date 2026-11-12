@@ -1,3 +1,5 @@
+import { composeProvenanceStatus } from './temporal-provenance.js';
+
 const NOCTILUCENT_VERT = `
 varying vec3 vLocalDir;
 varying vec3 vWorldNormal;
@@ -112,20 +114,25 @@ function updateNoctilucentStatus(state) {
     status.dataset.state = state.enabled ? 'on' : 'off';
     if (!state.enabled) {
         status.textContent = 'Noctilucent: off';
+        status.title = '';
         return;
     }
     const presetLabel = state.preset === 'cinematic' ? 'cinematic' : 'scientific';
     const intensityLabel = `${state.intensity.toFixed(1)}x`;
+    let seasonWindow;
     if (state.northSeason && state.southSeason) {
-        status.textContent = `Noctilucent: ${presetLabel} ${intensityLabel}, north/south twilight windows`;
+        seasonWindow = 'north/south twilight windows';
     } else if (state.northSeason) {
-        status.textContent = `Noctilucent: ${presetLabel} ${intensityLabel}, northern summer twilight`;
+        seasonWindow = 'northern summer twilight';
     } else if (state.southSeason) {
-        status.textContent = `Noctilucent: ${presetLabel} ${intensityLabel}, southern summer twilight`;
+        seasonWindow = 'southern summer twilight';
     } else {
         status.dataset.state = 'pending';
-        status.textContent = `Noctilucent: ${presetLabel} ${intensityLabel}, out of seasonal window`;
+        seasonWindow = 'out of seasonal window';
     }
+    const composed = composeProvenanceStatus('noctilucent', `Noctilucent: ${presetLabel} ${intensityLabel}, ${seasonWindow}`);
+    status.textContent = composed.message;
+    status.title = composed.title;
 }
 
 function createStatusThrottle(updateStatus, intervalMs = 1000) {

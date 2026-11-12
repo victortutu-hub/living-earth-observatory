@@ -58,6 +58,8 @@ export function defineFeedAdapter(config) {
     readPayloadStatus = (payload) => payload?.proxyStatus || null,
     isPayloadError = (payload) => payload?.proxyStatus === 'error',
     payloadErrorMessage = (payload) => payload?.proxyError || `${label} upstream error`,
+    sourceTimeSelector = null, // (payload) => ISO "data time" de la sursa (nu ora browserului)
+    describeStatus = null,     // ({label, count, unit, dataTime, fetchedAt, proxyStatus, runtimeState}) => {message, title}
   } = config;
 
   if (typeof resolveUrl !== 'function') throw new TypeError('defineFeedAdapter requires resolveUrl(filters).');
@@ -70,6 +72,8 @@ export function defineFeedAdapter(config) {
   let lastError = null;
   let lastPayloadStatus = null;
   let lastRuntimeState = null;
+  let lastDataTime = null;
+  let lastFetchedAt = null;
 
   async function fetchEvents(filters = {}) {
     if (disposed) throw new DOMException(`${label} adapter disposed`, 'AbortError');
@@ -90,6 +94,7 @@ export function defineFeedAdapter(config) {
         retries,
         signal: controller.signal,
         fetchOptions,
+        sourceTimeSelector,
       });
 
       const payload = result.data;
@@ -97,6 +102,10 @@ export function defineFeedAdapter(config) {
 
       lastPayloadStatus = readPayloadStatus(payload);
       lastRuntimeState = result.state;
+      lastDataTime = result.meta?.sourceTime || null;
+      // "fetched" = cand a fost luat de la sursa: proxyFetchedAt daca exista,
+      // altfel momentul in care runtime-ul a stocat raspunsul.
+      lastFetchedAt = payload?.proxyFetchedAt || result.meta?.updated || null;
 
       const raw = normalize(payload, { filters, url });
       const events = shape(raw, { maxEvents, ...filters });
@@ -124,6 +133,14 @@ export function defineFeedAdapter(config) {
       };
     }
     if (!lastUpdated) return { state: 'off', message: `${label}: standby` };
+    if (typeof describeStatus === 'function') {
+      // Recalculat la fiecare apel: varsta relativa nu ramane inghetata.
+      const described = describeStatus({
+        label, count: lastCount, unit, dataTime: lastDataTime, fetchedAt: lastFetchedAt,
+        proxyStatus: lastPayloadStatus, runtimeState: lastRuntimeState,
+      });
+      return { state: 'on', ...described };
+    }
     const time = new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     const stale = (lastPayloadStatus === 'stale-cache' || lastRuntimeState === RUNTIME_STATE.STALE)
       ? ' (cached, live fetch failed)'

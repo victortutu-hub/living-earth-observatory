@@ -27,7 +27,13 @@ const LON_MAX = 170;
 
 const CACHE_KEY = 'lea-ocean-current-v1';
 const CACHE_TTL_MS = 30 * 60 * 1000; // curentii se schimba lent; 30 min e ok
-import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
+import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS, parseOpenMeteoTime } from './temporal-provenance.js';
+
+// Model valid time of the batch: Open-Meteo `current.time` (same for all points).
+function modelValidTime(payload) {
+    const point = payload.find(item => item?.current?.time);
+    return point ? parseOpenMeteoTime(point.current.time, point.utc_offset_seconds) : null;
+}
 
 function buildGrid() {
     const lats = [];
@@ -119,7 +125,7 @@ async function fetchOceanGrid(timeoutMs, maxSpeedMs) {
     if (!Array.isArray(payload) || payload.length !== lats.length * lons.length) {
         throw new Error('Open-Meteo Marine batch response shape unexpected.');
     }
-    return encodeGrid(payload, lons.length, lats.length, maxSpeedMs);
+    return { ...encodeGrid(payload, lons.length, lats.length, maxSpeedMs), dataTime: modelValidTime(payload) };
 }
 
 function buildTexture(THREE, grid, { cached, cacheState }) {
@@ -151,7 +157,8 @@ function buildTexture(THREE, grid, { cached, cacheState }) {
         latMax: LAT_MAX,
         gridPoints: grid.gridPoints,
         cached,
-        temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.oceanCurrents, loadedAt: grid.t || new Date(), cacheState }),
+        dataTime: grid.dataTime || null,
+        temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.oceanCurrents, sourceTime: grid.dataTime || null, loadedAt: grid.t || new Date(), cacheState }),
         source: 'Open-Meteo Marine ocean_current_velocity / ocean_current_direction, 10 degree global grid',
     };
     return texture;

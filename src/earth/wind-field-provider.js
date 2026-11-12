@@ -24,7 +24,13 @@ const LON_MAX = 170; // 180 ar duplica meridianul cu -180
 
 const CACHE_KEY = 'lea-wind-field-v1';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minute: campul de vant se schimba orar
-import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
+import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS, parseOpenMeteoTime } from './temporal-provenance.js';
+
+// Model valid time of the batch: Open-Meteo `current.time` (same for all points).
+function modelValidTime(payload) {
+    const point = payload.find(item => item?.current?.time);
+    return point ? parseOpenMeteoTime(point.current.time, point.utc_offset_seconds) : null;
+}
 
 function buildGrid() {
     const lats = [];
@@ -119,7 +125,7 @@ async function fetchWindGrid(timeoutMs, maxSpeedMs) {
     if (!Array.isArray(payload) || payload.length !== lats.length * lons.length) {
         throw new Error('Open-Meteo wind batch response shape unexpected.');
     }
-    return encodeGrid(payload, lons.length, lats.length, maxSpeedMs);
+    return { ...encodeGrid(payload, lons.length, lats.length, maxSpeedMs), dataTime: modelValidTime(payload) };
 }
 
 function buildTexture(THREE, grid, { cached, cacheState }) {
@@ -139,7 +145,8 @@ function buildTexture(THREE, grid, { cached, cacheState }) {
         latMax: LAT_MAX,
         gridPoints: grid.gridPoints,
         cached,
-        temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.wind, loadedAt: grid.t || new Date(), cacheState }),
+        dataTime: grid.dataTime || null,
+        temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.wind, sourceTime: grid.dataTime || null, loadedAt: grid.t || new Date(), cacheState }),
         source: 'Open-Meteo current wind_speed_10m / wind_direction_10m, 10 degree global grid',
     };
     return texture;

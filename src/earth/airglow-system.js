@@ -1,3 +1,5 @@
+import { composeProvenanceStatus } from './temporal-provenance.js';
+
 const AIRGLOW_VERT = `
 varying vec3 vWorldNormal;
 varying vec3 vWorldPos;
@@ -87,9 +89,11 @@ function updateAirglowStatus(state) {
     if (button) button.textContent = `Airglow: ${state.enabled ? 'on' : 'off'}`;
     if (!status) return;
     status.dataset.state = state.enabled ? 'on' : 'off';
-    status.textContent = state.enabled
-        ? `Airglow: ${state.preset} ${state.intensity.toFixed(1)}x - real OI emission, procedural intensity`
-        : 'Airglow: off';
+    const composed = state.enabled
+        ? composeProvenanceStatus('airglow', `Airglow: ${state.preset} ${state.intensity.toFixed(1)}x - OI emission colour, procedural intensity`)
+        : { message: 'Airglow: off', title: '' };
+    status.textContent = composed.message;
+    status.title = composed.title;
 }
 
 function createStatusThrottle(updateStatus, intervalMs = 1000) {

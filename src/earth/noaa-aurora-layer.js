@@ -1,5 +1,5 @@
 import { fetchEarthOvation } from './earth-data-runtime.js';
-import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
+import { composeSourceStatus, fetchStateFromRuntime } from './temporal-provenance.js';
 
 function disposeObject3D(node) {
     node.geometry?.dispose?.();
@@ -112,7 +112,7 @@ export function createNoaaAuroraLayer({
     let lastActiveCount = 0;
     let lastUpdated = null;
     let lastLoadedAt = null;
-    let cacheState = 'unknown';
+    let fetchState = 'live';
     let lastError = null;
     let northSamples = new Map();
     let southSamples = new Map();
@@ -267,7 +267,7 @@ export function createNoaaAuroraLayer({
             rebuild();
             lastUpdated = result.meta.sourceTime || null;
             lastLoadedAt = result.meta.updated || new Date().toISOString();
-            cacheState = result.state === 'stale' ? 'stale' : 'fresh';
+            fetchState = fetchStateFromRuntime(result);
         } catch (error) {
             lastError = error;
             clear();
@@ -293,14 +293,18 @@ export function createNoaaAuroraLayer({
         if (loading) return { enabled, loading, state: 'refreshing', message: 'Aurora: loading NOAA OVATION...' };
         if (lastError) return { enabled, loading, state: 'error', message: `Aurora: ${lastError.message || 'network error'}` };
         if (!enabled) return { enabled, loading, state: 'off', message: 'Aurora: NOAA OVATION off' };
-        return {
-            enabled,
-            loading,
-            state: 'on',
+        // lastUpdated = OVATION Observation/Forecast Time: model valid time.
+        const status = composeSourceStatus({
+            sourceKey: 'ovation',
             message: lastActiveCount > 0
-                ? `Aurora: oval from ${lastActiveCount}/${lastCount} active NOAA cells · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.aurora, sourceTime: lastUpdated, loadedAt: lastLoadedAt, cacheState }))}`
-                : `Aurora: quiet oval from ${lastCount} NOAA polar cells · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.aurora, sourceTime: lastUpdated, loadedAt: lastLoadedAt, cacheState }))}`
-        };
+                ? `Aurora: oval from ${lastActiveCount}/${lastCount} active OVATION cells`
+                : `Aurora: quiet oval from ${lastCount} OVATION polar cells`,
+            dataTime: lastUpdated,
+            validAt: lastUpdated,
+            fetchedAt: lastLoadedAt,
+            fetchState,
+        });
+        return { enabled, loading, state: 'on', ...status };
     }
 
     function dispose() {

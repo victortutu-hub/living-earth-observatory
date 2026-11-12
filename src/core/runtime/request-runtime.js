@@ -83,6 +83,16 @@ async function parseResponse(response, responseType) {
   }
 }
 
+// The service worker stamps cached responses with x-lea-cached-at (ms epoch).
+// A missing header is NOT a cache hit: Number(null) === 0 would otherwise
+// pass Number.isFinite and label every network response as 56 years old.
+export function serviceWorkerCachedAt(response) {
+  const raw = response?.headers?.get?.('x-lea-cached-at');
+  if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
 function sourceTimeFromData(data, selector) {
   if (typeof selector !== 'function') return null;
   try { return selector(data) || null; } catch (_) { return null; }
@@ -178,8 +188,8 @@ export function createRequestRuntime({ cache = persistentCache, onDiagnostic = n
         try {
           control.assertNetworkAllowed(url);
           const response = await fetch(url, { ...networkOptions, headers, signal: linked.controller.signal });
-          const swCachedAt = Number(response.headers.get('x-lea-cached-at'));
-          const swCacheState = Number.isFinite(swCachedAt)
+          const swCachedAt = serviceWorkerCachedAt(response);
+          const swCacheState = swCachedAt !== null
             ? classifyCacheRecord({ storedAt: swCachedAt }, { ttl, staleTtl })
             : null;
           if (response.status === 304 && cached) {

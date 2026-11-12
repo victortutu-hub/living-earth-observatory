@@ -11,11 +11,11 @@
 // Camp: R = u, G = v (normalizate pe uMaxSpeed), B = masca (1 = valid, 0 =
 // uscat) folosita doar cand landAware (curentii nu trec peste continente).
 //
-// Provenance: campul e 'observed' (model real), reprezentarea ca streamlines e
-// o conventie de vizualizare - 'interpretive' pentru miscare, 'observed' pentru
-// campul subiacent.
+// Provenance: campul subiacent e iesire de MODEL (Open-Meteo), nu observatie;
+// proveniența vine din source-registry prin `provenanceKey` (ex. 'openMeteo' ->
+// 'prediction'). Reprezentarea ca streamlines e o conventie de vizualizare.
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
-import { formatTemporalBadge } from './temporal-provenance.js';
+import { composeSourceStatus } from './temporal-provenance.js';
 
 const TRAIL_WIDTH = 2048;
 const TRAIL_HEIGHT = 1024;
@@ -149,6 +149,7 @@ export function createFieldParticles({
     fetchField,
     label = 'Field',
     sourceLabel = 'field',
+    provenanceKey = null,
     gridSize = 128,
     landAware = false,
     speedScale = 50000,
@@ -358,12 +359,16 @@ export function createFieldParticles({
         if (lastError) return { enabled, loading, state: 'error', message: `${label}: ${lastError.message || 'network error'}` };
         if (!enabled) return { enabled, loading, state: 'off', message: `${label}: off` };
         if (!ready) return { enabled, loading, state: 'refreshing', message: `${label}: preparing simulation...` };
-        return {
-            enabled,
-            loading,
-            state: 'on',
-            message: `${label}: ${sourceLabel} (${fieldMeta.gridPoints} grid points) · ${formatTemporalBadge(fieldMeta.temporal)}, ${gridSize * gridSize} particles`,
-        };
+        const cacheState = fieldMeta.temporal?.cacheState;
+        const status = composeSourceStatus({
+            sourceKey: provenanceKey,
+            message: `${label}: ${sourceLabel} (${fieldMeta.gridPoints} grid points), ${gridSize * gridSize} particles`,
+            dataTime: fieldMeta.dataTime,
+            validAt: fieldMeta.dataTime,
+            fetchedAt: fieldMeta.temporal?.loadedAt,
+            fetchState: cacheState === 'stale' ? 'stale' : fieldMeta.cached ? 'cache' : 'live',
+        });
+        return { enabled, loading, state: 'on', ...status };
     }
 
     function dispose() {

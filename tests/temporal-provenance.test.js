@@ -18,7 +18,9 @@ describe('Earth temporal provenance contract', () => {
             temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only', loadedAt: '2026-09-10T14:08:00Z'
         });
         expect(temporal.sourceTime).toBeNull();
-        expect(formatTemporalBadge(temporal)).toBe('Observed · source time unavailable');
+        // The temporal badge never claims "Observed": scientific provenance
+        // comes from the source registry (see source-provenance.test.js).
+        expect(formatTemporalBadge(temporal)).toBe('Source time · source time unavailable');
     });
 
     it('classifies static, procedural, and latest-only layers truthfully', () => {

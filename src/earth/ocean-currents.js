@@ -17,6 +17,7 @@ export function createOceanCurrents({ THREE, renderer, earthGroup, gridSize = 12
         fetchField: fetchOceanCurrentTexture,
         label: 'Ocean currents',
         sourceLabel: 'Open-Meteo Marine',
+        provenanceKey: 'openMeteoMarine',
         landAware: true,
         speedScale: 200000,
         trailFade: 0.985,

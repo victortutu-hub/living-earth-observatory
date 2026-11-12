@@ -1,20 +1,15 @@
 // Faza 1 - Sprint 1.5: masca de zapada/gheata (MODIS Terra NDSI Snow Cover,
 // GIBS). E o textura overlay pe sfera Earth, nu un set de puncte selectabile
 // - de aceea layer 'custom' in registry (acelasi tipar ca aurora.js), nu
-// 'points'. Provenance 'observed': mascheaza direct un produs satelitar
-// zilnic, fara interpretare procedurala intre mijloc.
+// 'points'. Provenance citita din source-registry (sourceKey 'gibs' ->
+// 'observed'): mascheaza direct un produs satelitar zilnic.
 import { loadSnowIceMaskTexture } from '../gibs-snow-ice.js';
-import { formatTemporalBadge } from '../temporal-provenance.js';
-
-function formatClock(timestamp) {
-    if (!timestamp) return '--:--';
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-}
+import { composeSourceStatus } from '../temporal-provenance.js';
 
 export const snowIcePlugin = {
     id: 'snowIce',
     label: 'Snow & ice',
-    provenance: 'observed',
+    sourceKey: 'gibs',
     temporal: { temporalType: 'observed', sceneTimeCompatibility: 'latest-only', cacheState: 'unknown' },
     attribution: 'NASA GIBS / MODIS Terra NDSI Snow Cover',
     license: 'NASA public domain; attribution retained.',
@@ -78,15 +73,14 @@ export const snowIcePlugin = {
             if (loading) return { enabled, loading, state: 'refreshing', message: 'Snow & ice: loading NASA GIBS / MODIS Terra NDSI...' };
             if (lastError) return { enabled, loading, state: 'error', message: `Snow & ice: ${lastError.message || 'network error'}` };
             if (!enabled) return { enabled, loading, state: 'off', message: 'Snow & ice: off' };
-            const date = material?.map?.userData?.snowIceDate;
-            return {
-                enabled,
-                loading,
-                state: 'on',
-                message: date
-                    ? `Snow & ice: NASA GIBS / MODIS Terra NDSI · ${formatTemporalBadge(material?.map?.userData?.temporal, { sourceLabel: 'Daily' })}`
-                    : `Snow & ice: on · observed source time unavailable`
-            };
+            const status = composeSourceStatus({
+                sourceKey: 'gibs',
+                message: 'Snow & ice: NASA GIBS / MODIS Terra NDSI daily product',
+                dataTime: material?.map?.userData?.temporal?.sourceTime || null,
+                fetchedAt: lastLoadedAt,
+                fetchState: 'live',
+            });
+            return { enabled, loading, state: 'on', ...status };
         }
 
         function dispose() {

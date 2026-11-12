@@ -1,5 +1,5 @@
 import { fetchEarthCelesTrakTle } from './earth-data-runtime.js';
-import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
+import { EARTH_TEMPORAL_LAYERS, composeProvenanceStatus, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
 const SATELLITE_JS_URLS = [
     'https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/+esm',
@@ -59,8 +59,13 @@ function updateIssStatus(state) {
         return;
     }
     const temporal = createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.iss, sourceTime: state.tleEpoch, loadedAt: state.loadedAt, cacheState: state.cacheState });
-    status.textContent = `ISS: ${formatIssAltitude(state.altitudeKm)} · ${formatIssSpeed(state.velocityEci)} · ${formatTemporalBadge(temporal, { sourceLabel: 'TLE epoch' })}`;
-    status.title = `International Space Station — NORAD 25544, SGP4 propagated from CelesTrak TLE, source: ${state.source}. Historical accuracy depends on TLE epoch.`;
+    const composed = composeProvenanceStatus(
+        'celestrak',
+        `ISS: ${formatIssAltitude(state.altitudeKm)} · ${formatIssSpeed(state.velocityEci)} · ${formatTemporalBadge(temporal, { sourceLabel: 'TLE epoch' })}`,
+        { extraTitle: `International Space Station — NORAD 25544, SGP4 propagated from CelesTrak TLE, source: ${state.source}. Historical accuracy depends on TLE epoch.` }
+    );
+    status.textContent = composed.message;
+    status.title = composed.title;
 }
 
 // Punct luminos simplu — ISS nu are disc rezolvabil la aceasta scara,

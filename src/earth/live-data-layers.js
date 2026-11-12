@@ -60,8 +60,17 @@ export function createLiveDataLayers({
         refreshUsgsStatus();
     }
 
-    function update() {
-        // USGS/FIRMS nu au animatie per-frame; hook pastrat pentru simetrie.
+    // USGS/FIRMS nu au animatie per-frame. Hook-ul re-randeaza doar statusul,
+    // ca varsta relativa ("data 12 min ago") sa nu ramana inghetata.
+    const STATUS_REFRESH_SECONDS = 30;
+    let lastStatusRefresh = null;
+
+    function update(t) {
+        if (!Number.isFinite(t)) return;
+        if (lastStatusRefresh !== null && t - lastStatusRefresh < STATUS_REFRESH_SECONDS) return;
+        lastStatusRefresh = t;
+        if (state.usgsQuakes) refreshUsgsStatus();
+        if (state.firmsWildfires) refreshFirmsStatus();
     }
 
     function dispose() {

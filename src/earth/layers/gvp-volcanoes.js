@@ -31,7 +31,7 @@ function eruptionColor(lastEruptionYear) {
 export const gvpVolcanoesPlugin = {
     id: 'gvp',
     label: 'GVP volcanoes',
-    provenance: 'observed',
+    sourceKey: 'gvp', // provenance from source-registry ('observed')
     temporal: { temporalType: 'historical-catalog', sceneTimeCompatibility: 'static', cacheState: 'unknown' },
     attribution: 'Smithsonian Institution - Global Volcanism Program (GVP)',
     license: 'Smithsonian GVP terms; attribution retained.',
@@ -43,10 +43,15 @@ export const gvpVolcanoesPlugin = {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = await response.json();
         if (payload.proxyStatus === 'error') throw new Error(payload.proxyError || 'proxy error');
-        return payload.data; // FeatureCollection despachetat din invelisul proxy-ului
+        // Invelisul proxy-ului ramane intreg: registry-ul citeste din el
+        // proxyStatus/proxyFetchedAt pentru statusul "fetched".
+        return payload;
     },
     normalize(raw) {
-        const features = Array.isArray(raw?.features) ? raw.features : [];
+        // Accepta atat invelisul proxy-ului ({data: FeatureCollection}) cat si
+        // un FeatureCollection direct.
+        const collection = raw?.data && !Array.isArray(raw?.features) ? raw.data : raw;
+        const features = Array.isArray(collection?.features) ? collection.features : [];
         const items = [];
         for (const feature of features) {
             const coords = feature?.geometry?.coordinates;

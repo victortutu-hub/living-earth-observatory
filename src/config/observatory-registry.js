@@ -58,7 +58,10 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
       'NOAA aurora', 'Moon & Earthshine', 'ISS tracking',
     ]),
     representations: Object.freeze(['observed', 'reconstructed', 'physical-model', 'interpretive', 'fallback']),
-    sources: Object.freeze(['eonet', 'gibs', 'usgs', 'firms', 'gdacs', 'ovation', 'etopo', 'astronomy', 'celestrak']),
+    sources: Object.freeze([
+      'eonet', 'gibs', 'usgs', 'firms', 'gdacs', 'ovation', 'etopo', 'astronomy', 'celestrak',
+      'openMeteo', 'openMeteoMarine', 'gvp', 'airglow', 'zodiacal', 'noctilucent',
+    ]),
     roadmap: ROADMAP.earth,
     gateway: Object.freeze({
       enabled: true,

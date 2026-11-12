@@ -1,4 +1,5 @@
 import { loadAstronomyEngine } from './astronomy-runtime.js';
+import { composeProvenanceStatus } from './temporal-provenance.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -40,8 +41,11 @@ function updateMoonStatus(state) {
     const phase = Number.isFinite(state.phaseFraction)
         ? `${Math.round(state.phaseFraction * 100)}% lit`
         : 'phase unknown';
-    status.textContent = `Moon: ${phase} · ${formatMoonDistance(state.distanceKm)}`;
-    status.title = `Moon position and phase from ${state.source}`;
+    const composed = composeProvenanceStatus('astronomy', `Moon: ${phase} · ${formatMoonDistance(state.distanceKm)}`, {
+        extraTitle: `Moon position and phase from ${state.source}`,
+    });
+    status.textContent = composed.message;
+    status.title = composed.title;
 }
 
 const MOON_TEXTURE_URL = 'https://cdn.jsdelivr.net/gh/CoryG89/MoonDemo@master/img/maps/moon.jpg';

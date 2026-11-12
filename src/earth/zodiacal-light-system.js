@@ -1,3 +1,5 @@
+import { composeProvenanceStatus } from './temporal-provenance.js';
+
 const ZODIACAL_VERT = `
 varying vec3 vWorldDir;
 void main() {
@@ -77,9 +79,11 @@ function updateZodiacalStatus(state) {
     if (button) button.textContent = `Zodiacal light: ${state.enabled ? 'on' : 'off'}`;
     if (!status) return;
     status.dataset.state = state.enabled ? 'on' : 'off';
-    status.textContent = state.enabled
-        ? 'Zodiacal light: solar dust glow on ecliptic'
-        : 'Zodiacal light: off';
+    const composed = state.enabled
+        ? composeProvenanceStatus('zodiacal', 'Zodiacal light: solar dust glow on ecliptic')
+        : { message: 'Zodiacal light: off', title: '' };
+    status.textContent = composed.message;
+    status.title = composed.title;
 }
 
 export function createZodiacalLightSystem({

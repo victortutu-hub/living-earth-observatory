@@ -1,5 +1,5 @@
 import { fetchEarthUsgs } from './earth-data-runtime.js';
-import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
+import { composeSourceStatus, fetchStateFromRuntime } from './temporal-provenance.js';
 
 function formatMagnitude(magnitude) {
     return Number.isFinite(magnitude) ? magnitude.toFixed(1) : 'unknown magnitude';
@@ -76,7 +76,7 @@ export function createUsgsEarthquakeProvider({
     let lastCount = 0;
     let lastUpdated = null;
     let lastLoadedAt = null;
-    let cacheState = 'unknown';
+    let fetchState = 'live';
     let lastError = null;
 
     async function fetchEvents(filters = {}) {
@@ -111,7 +111,7 @@ export function createUsgsEarthquakeProvider({
             lastCount = events.length;
             lastUpdated = result.meta.sourceTime || null;
             lastLoadedAt = result.meta.updated || new Date().toISOString();
-            cacheState = result.state === 'stale' ? 'stale' : 'fresh';
+            fetchState = fetchStateFromRuntime(result);
             return events;
         } catch (error) {
             lastError = error;
@@ -136,12 +136,14 @@ export function createUsgsEarthquakeProvider({
         if (loading) return { enabled, loading, state: 'refreshing', message: 'USGS quakes: loading selected time window...' };
         if (lastError) return { enabled, loading, state: 'error', message: `USGS quakes: ${lastError.message || 'network error'}` };
         if (!enabled) return { enabled, loading, state: 'off', message: 'USGS quakes: off' };
-        return {
-            enabled,
-            loading,
-            state: 'on',
-            message: `USGS quakes: ${lastCount} added to Earthquakes · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.usgs, sourceTime: lastUpdated, loadedAt: lastLoadedAt, cacheState }))}`
-        };
+        const status = composeSourceStatus({
+            sourceKey: 'usgs',
+            message: `USGS quakes: ${lastCount} added to Earthquakes`,
+            dataTime: lastUpdated,
+            fetchedAt: lastLoadedAt,
+            fetchState,
+        });
+        return { enabled, loading, state: 'on', ...status };
     }
 
     function dispose() {

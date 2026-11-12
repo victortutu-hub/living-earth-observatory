@@ -1,5 +1,5 @@
 import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
-import { EARTH_TEMPORAL_LAYERS, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
+import { composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
 
 function readProxyBase() {
     const params = new URLSearchParams(window.location.search);
@@ -75,6 +75,22 @@ function rowToEvent(row, { endpointBase, source }) {
     };
 }
 
+/**
+ * Ranks all eligible hotspots BEFORE truncation: FRP descending, then
+ * confidence rank descending, then newest acquisition. Returns the top
+ * `maxEvents` plus the eligible count for the "top N of M" status.
+ */
+export function selectTopHotspots(events, maxEvents) {
+    const ranked = [...events].sort((a, b) => {
+        const frpDiff = (Number(b.firms?.frp) || 0) - (Number(a.firms?.frp) || 0);
+        if (Math.abs(frpDiff) > 0.001) return frpDiff;
+        const confidenceDiff = confidenceRank(b.firms?.confidence) - confidenceRank(a.firms?.confidence);
+        if (confidenceDiff !== 0) return confidenceDiff;
+        return new Date(b.geometry[0].date) - new Date(a.geometry[0].date);
+    });
+    return { selected: ranked.slice(0, Math.max(0, maxEvents)), eligible: ranked.length };
+}
+
 export function createFirmsWildfireProvider({
     source = 'MODIS_NRT',
     area = 'world',
@@ -89,7 +105,8 @@ export function createFirmsWildfireProvider({
     let enabled = false;
     let loading = false;
     let lastCount = 0;
-    let lastUpdated = null;
+    let lastEligible = 0;
+    let lastFetchedAt = null;
     let lastSourceTime = null;
     let lastError = null;
     let lastProxyStatus = null;
@@ -124,19 +141,16 @@ export function createFirmsWildfireProvider({
             lastProxyStatus = payload.proxyStatus;
 
             const rows = payload.data?.fires || [];
-            const events = rows
+            const eligible = rows
                 .map(row => rowToEvent(row, { endpointBase: 'https://firms.modaps.eosdis.nasa.gov/api/', source: effectiveSource }))
                 .filter(Boolean)
                 .filter(event => confidenceRank(event.firms?.confidence) >= minConfidenceRank)
-                .filter(event => !Number.isFinite(event.firms?.frp) || event.firms.frp >= minFrp)
-                .sort((a, b) => {
-                    const frpDiff = (Number(b.firms?.frp) || 0) - (Number(a.firms?.frp) || 0);
-                    if (Math.abs(frpDiff) > 0.001) return frpDiff;
-                    return new Date(b.geometry[0].date) - new Date(a.geometry[0].date);
-                })
-                .slice(0, maxEvents);
+                .filter(event => !Number.isFinite(event.firms?.frp) || event.firms.frp >= minFrp);
+            const { selected: events, eligible: eligibleCount } = selectTopHotspots(eligible, maxEvents);
             lastCount = events.length;
-            lastUpdated = Date.now();
+            lastEligible = eligibleCount;
+            // "fetched" = cand proxy-ul a luat datele de la FIRMS, nu ora browserului.
+            lastFetchedAt = payload.proxyFetchedAt || new Date().toISOString();
             lastSourceTime = events.reduce((latest, event) => {
                 const time = event.geometry?.[0]?.date;
                 return !latest || Date.parse(time) > Date.parse(latest) ? time : latest;
@@ -171,13 +185,15 @@ export function createFirmsWildfireProvider({
         if (loading) return { enabled, loading, state: 'refreshing', message: 'NASA FIRMS: loading wildfire hotspots...' };
         if (!enabled) return { enabled, loading, state: 'off', message: 'NASA FIRMS: off' };
         if (lastError) return { enabled, loading, state: 'error', message: `NASA FIRMS: ${lastError.message || 'network error'}` };
-        const cacheState = lastProxyStatus === 'stale-cache' ? 'stale' : 'fresh';
-        return {
-            enabled,
-            loading,
-            state: 'on',
-            message: `NASA FIRMS: ${lastCount} wildfire hotspots · ${formatTemporalBadge(createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.firms, sourceTime: lastSourceTime, loadedAt: lastUpdated, cacheState }))}`
-        };
+        // data = cea mai recenta achizitie satelitara dintre hotspot-urile afisate.
+        const status = composeSourceStatus({
+            sourceKey: 'firms',
+            message: `NASA FIRMS: top ${lastCount} of ${lastEligible} hotspots by FRP`,
+            dataTime: lastSourceTime,
+            fetchedAt: lastFetchedAt,
+            fetchState: fetchStateFromProxyStatus(lastProxyStatus),
+        });
+        return { enabled, loading, state: 'on', ...status };
     }
 
     function dispose() {

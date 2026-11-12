@@ -106,19 +106,32 @@ export function createControlPanel({ state }) {
             status.dataset.state = 'error';
             status.textContent = `EONET: refresh failed - ${lastError.message || 'network error'}`;
         } else if (enabled) {
-            status.textContent = `EONET: auto on - last ${formatClock(lastRefresh)}, next ${formatClock(nextRefresh)}`;
+            status.textContent = `EONET: auto on - last refresh ${formatClock(lastRefresh)}, next ${formatClock(nextRefresh)}`;
         } else {
             status.textContent = lastRefresh
-                ? `EONET: auto off - last ${formatClock(lastRefresh)}`
+                ? `EONET: auto off - last refresh ${formatClock(lastRefresh)}`
                 : 'EONET: manual refresh';
         }
     }
 
-    function updateDataSourceStatus({ state: statusState = 'off', message = 'Data source: NASA EONET default' } = {}) {
+    let lastDataSourceStatus = null;
+
+    function updateDataSourceStatus(sourceStatus = {}) {
+        const { state: statusState = 'off', message = 'Data source: NASA EONET default', title = '' } = sourceStatus;
+        lastDataSourceStatus = sourceStatus;
         const status = byId('dataSourceStatus');
         if (!status) return;
         status.dataset.state = statusState;
         status.textContent = message.includes('latest available data') ? message : `${message} · latest available data`;
+        status.title = title;
+    }
+
+    // Recalculeaza varstele relative ale liniei "Data source" din timestamp-uri
+    // (apelat periodic din bucla de animatie), fara un nou fetch.
+    function refreshDataSourceStatus() {
+        const previous = lastDataSourceStatus;
+        if (typeof previous?.recompose !== 'function') return;
+        updateDataSourceStatus({ ...previous, ...previous.recompose() });
     }
 
     function updateNightLightsStatus({ state: statusState = 'loading', message = 'Black Marble: loading NASA GIBS / VIIRS 2016' } = {}) {
@@ -135,40 +148,44 @@ export function createControlPanel({ state }) {
         status.textContent = message;
     }
 
-    function updateSeismicLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'USGS quakes: 24h layer off' } = {}) {
+    function updateSeismicLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'USGS quakes: 24h layer off', title = '' } = {}) {
         const button = byId('seismicLayerBtn');
         const status = byId('liveLayerStatus');
         if (button) button.textContent = `USGS quakes: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
         status.dataset.state = loading ? 'refreshing' : statusState;
         status.textContent = message;
+        status.title = title;
     }
 
-    function updateFirmsLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'NASA FIRMS: off' } = {}) {
+    function updateFirmsLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'NASA FIRMS: off', title = '' } = {}) {
         const button = byId('firmsLayerBtn');
         const status = byId('firmsLayerStatus');
         if (button) button.textContent = `NASA FIRMS fires: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
         status.dataset.state = loading ? 'refreshing' : statusState;
         status.textContent = message;
+        status.title = title;
     }
 
-    function updateWindLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Wind: off' } = {}) {
+    function updateWindLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Wind: off', title = '' } = {}) {
         const button = byId('windLayerBtn');
         const status = byId('windLayerStatus');
         if (button) button.textContent = `Wind particles: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
         status.dataset.state = loading ? 'refreshing' : statusState;
         status.textContent = message;
+        status.title = title;
     }
 
-    function updateOceanLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Ocean currents: off' } = {}) {
+    function updateOceanLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Ocean currents: off', title = '' } = {}) {
         const button = byId('oceanLayerBtn');
         const status = byId('oceanLayerStatus');
         if (button) button.textContent = `Ocean currents: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
         status.dataset.state = loading ? 'refreshing' : statusState;
         status.textContent = message;
+        status.title = title;
     }
 
     function updateIssLayerUi({ enabled = state.issLayer, tracking = false } = {}) {
@@ -471,6 +488,7 @@ export function createControlPanel({ state }) {
         updateTerminatorGuideUi,
         updateEonetRefreshStatus,
         updateDataSourceStatus,
+        refreshDataSourceStatus,
         updateNightLightsStatus,
         updateSurfaceStatus,
         updateSeismicLayerStatus,
