@@ -2,10 +2,10 @@ import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js';
 import { createEarthMaterial, createEarthMaterialPBR, displacementScaleForExaggeration, reliefExaggerationLabel, syncActiveReliefTexture } from './earth-material.js';
 import { createEarthRoughnessTexture } from './earth-roughness.js';
 import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
-import { SURFACE_VISUAL_ALBEDO_SIZE, surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
+import { surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
 import { makeNightLightsMat } from './night-lights.js';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js';
-import { loadBlueMarbleSurfaceTexture } from './gibs-surface.js';
+import { loadBlueMarbleSurfaceTexture, surfaceStatus as surfaceStatusFor } from './gibs-surface.js';
 import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
 
 export function createEarthLayers({
@@ -283,9 +283,12 @@ export function createEarthLayers({
             const previous = nightLights.material.uniforms.uMap.value;
             nightLights.material.uniforms.uMap.value = texture;
             if (previous && previous !== texture) previous.dispose?.();
+            performance.mark?.('lea:black-marble:wmts-z2', {
+                detail: { tiles: texture.userData.gibsTiles, elapsedMs: texture.userData.gibsElapsedMs }
+            });
             publishNightLightsStatus({
                 state: 'nasa',
-                message: 'Black Marble: annual observed product · 2016 — fades at solar terminator'
+                message: `Black Marble: annual observed product · 2016 (NASA GIBS WMTS z${texture.userData.gibsLevel}, ${texture.userData.resolution}) — fades at solar terminator`
             });
         })
         .catch(error => {
@@ -298,64 +301,58 @@ export function createEarthLayers({
             });
         });
 
-    // Upgrade the day-side surface color from the bundled low-resolution CDN
-    // texture to a NASA GIBS Blue Marble raster, once it decodes. Blue Marble
-    // is non-temporal (a single reference composite, not a daily swath), so a
-    // network/CORS failure simply leaves the bundled texture in place — same
-    // fail-safe shape as the Black Marble night-lights upgrade above.
+    // Upgrade the day-side surface from the bundled Blue Marble NG texture to
+    // NASA GIBS WMTS tiles, level by level (z2 preview, then z3 resampled to
+    // 4096x2048). Blue Marble is non-temporal (one reference composite, not a
+    // daily swath), so a network/CORS failure simply leaves the bundled
+    // texture in place — same fail-safe shape as Black Marble above.
     let surfaceSettled = false;
+    let surfaceLevelApplied = false;
     const surfaceWatchdog = setTimeout(() => {
-        if (surfaceSettled) return;
-        publishSurfaceStatus({
-            state: 'fallback',
-            message: 'Surface: bundled fallback texture active — NASA GIBS Blue Marble still loading'
-        });
+        if (surfaceSettled || surfaceLevelApplied) return;
+        publishSurfaceStatus(surfaceStatusFor({ kind: 'still-loading' }));
     }, 16_000);
 
-    // A visual lock never selects an albedo source. It keeps the normal GIBS
-    // lifecycle intact; same-session OFF/ON begins only after this settles.
-    // The visual lock pins one albedo size so comparisons never mix resolutions.
+    function applySurfaceTexture(texture) {
+        const previous = activeSurfaceMap;
+        activeSurfaceMap = texture;
+        earthMat.map = texture;
+        earthMat.needsUpdate = true;
+        if (earthMatPBR) {
+            earthMatPBR.map = texture;
+            earthMatPBR.needsUpdate = true;
+        }
+        if (previous && previous !== texture) previous.dispose?.();
+    }
+
+    // A visual lock never selects an albedo source; it loads only z3 so every
+    // capture uses the same 4096x2048 albedo (never the z2 preview).
+    const surfaceLevels = surfaceVisualCase ? [3] : [2, 3];
     const surfaceUpgrade = loadBlueMarbleSurfaceTexture({
         THREE,
         renderer,
-        sizes: surfaceVisualCase ? [SURFACE_VISUAL_ALBEDO_SIZE] : undefined
+        levels: surfaceLevels,
+        onLevel: (texture, { z, resolution, tiles, elapsedMs, final }) => {
+            surfaceLevelApplied = true;
+            applySurfaceTexture(texture);
+            performance.mark?.(`lea:surface:wmts-z${z}`, { detail: { tiles, elapsedMs, resolution } });
+            if (!final) publishSurfaceStatus(surfaceStatusFor({ kind: 'preview', z, resolution }));
+        }
     });
     const surfaceReady = surfaceUpgrade
-        .then(texture => {
-            if (!texture) {
-                surfaceSettled = true;
-                clearTimeout(surfaceWatchdog);
-                publishSurfaceStatus({
-                    state: 'locked-fallback',
-                    message: 'Surface: stable bundled fallback locked for deterministic material comparison'
-                });
-                return activeSurfaceMap;
-            }
+        .then(({ texture, z, resolution, failures }) => {
             surfaceSettled = true;
             clearTimeout(surfaceWatchdog);
-            const previous = activeSurfaceMap;
-            activeSurfaceMap = texture;
-            earthMat.map = texture;
-            earthMat.needsUpdate = true;
-            if (earthMatPBR) {
-                earthMatPBR.map = texture;
-                earthMatPBR.needsUpdate = true;
-            }
-            if (previous && previous !== texture) previous.dispose?.();
-            publishSurfaceStatus({
-                state: 'nasa',
-                message: `Surface: NASA GIBS / Blue Marble static reference active (${texture.userData.surfaceResolution})`
-            });
-            return activeSurfaceMap;
+            const finalLevel = surfaceLevels[surfaceLevels.length - 1];
+            publishSurfaceStatus(surfaceStatusFor({ kind: 'settled', z, resolution, finalLevel }));
+            if (failures.length) console.warn('[Earth] NASA GIBS Blue Marble WMTS: some levels failed.', failures);
+            return texture;
         })
         .catch(error => {
             surfaceSettled = true;
             clearTimeout(surfaceWatchdog);
             console.warn('[Earth] NASA GIBS Blue Marble surface unavailable; keeping bundled fallback texture.', error);
-            publishSurfaceStatus({
-                state: 'fallback',
-                message: 'Surface: bundled fallback texture active — NASA GIBS Blue Marble unavailable'
-            });
+            publishSurfaceStatus(surfaceStatusFor({ kind: 'unavailable' }));
             return activeSurfaceMap;
         });
 

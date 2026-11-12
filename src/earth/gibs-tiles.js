@@ -19,22 +19,48 @@ export const GIBS_LAYERS = Object.freeze({
         temporal: true,
         attribution: 'NASA GIBS / MODIS Terra Corrected Reflectance True Color',
     }),
+    // Unshaded surface composite (no baked hillshade; see gibs-surface.js).
     blueMarble: Object.freeze({
-        id: 'BlueMarble_ShadedRelief_Bathymetry',
+        id: 'BlueMarble_NextGeneration',
         matrixSet: '500m',
         extension: 'jpeg',
-        maxZoom: 8,
+        maxZoom: 7,
         temporal: false,
-        attribution: 'NASA GIBS / Blue Marble Shaded Relief and Bathymetry',
+        attribution: 'NASA GIBS / Blue Marble Next Generation',
     }),
     nightLights: Object.freeze({
         id: 'VIIRS_Black_Marble',
         matrixSet: '500m',
         extension: 'png',
-        maxZoom: 8,
+        maxZoom: 7,
         temporal: true,
         attribution: 'NASA GIBS / VIIRS Black Marble annual nighttime lights',
     }),
+});
+
+// GIBS EPSG:4326 TileMatrixSets, copied level by level from the WMTS
+// GetCapabilities document
+//   https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/1.0.0/WMTSCapabilities.xml
+// (read 2026-11-12). Every set has TopLeftCorner (-180, 90) and 512x512 px
+// tiles. Each entry is [MatrixWidth, MatrixHeight, tile span in degrees]
+// (span = ScaleDenominator * 0.28 mm * 512 / 111319.49 m per degree).
+// The matrix does NOT tile the globe evenly at the coarse levels: at z=0 two
+// tiles of 288 deg overhang 360 x 180; it fits exactly only from z=3 (10 x 5
+// tiles of 36 deg). Tiles beyond the globe are padding and are cropped away.
+export const GIBS_TILE_SIZE = 512;
+export const GIBS_EPSG4326_TILE_MATRIX_SETS = Object.freeze({
+    '16km': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72]]),
+    '2km': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72], [10, 5, 36], [20, 10, 18], [40, 20, 9]]),
+    '1km': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72], [10, 5, 36], [20, 10, 18], [40, 20, 9], [80, 40, 4.5]]),
+    '500m': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72], [10, 5, 36], [20, 10, 18], [40, 20, 9], [80, 40, 4.5],
+        [160, 80, 2.25]]),
+    '250m': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72], [10, 5, 36], [20, 10, 18], [40, 20, 9], [80, 40, 4.5],
+        [160, 80, 2.25], [320, 160, 1.125]]),
+    '31.25m': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72], [10, 5, 36], [20, 10, 18], [40, 20, 9], [80, 40, 4.5],
+        [160, 80, 2.25], [320, 160, 1.125], [640, 320, 0.5625], [1280, 640, 0.28125], [2560, 1280, 0.140625]]),
+    '15.625m': Object.freeze([[2, 1, 288], [3, 2, 144], [5, 3, 72], [10, 5, 36], [20, 10, 18], [40, 20, 9], [80, 40, 4.5],
+        [160, 80, 2.25], [320, 160, 1.125], [640, 320, 0.5625], [1280, 640, 0.28125], [2560, 1280, 0.140625],
+        [5120, 2560, 0.0703125]]),
 });
 
 // GIBS publishes the public WMTS endpoint on this canonical host. Keep the
@@ -47,26 +73,48 @@ function assertIntegerInRange(value, name, min, max) {
     }
 }
 
-export function tileGridDimensions(z) {
-    assertIntegerInRange(z, 'z', 0, 8);
-    return { columns: 2 * 2 ** z, rows: 2 ** z };
+function matrixLevels(matrixSet) {
+    const levels = GIBS_EPSG4326_TILE_MATRIX_SETS[matrixSet];
+    if (!levels) throw new RangeError(`Unknown GIBS EPSG:4326 TileMatrixSet: ${matrixSet}.`);
+    return levels;
 }
 
-export function tileLatLonBounds(z, x, y) {
-    const { columns, rows } = tileGridDimensions(z);
+/** Full WMTS matrix at level z: tile counts and the span of one tile in degrees. */
+export function tileGridDimensions(matrixSet, z) {
+    const levels = matrixLevels(matrixSet);
+    assertIntegerInRange(z, 'z', 0, levels.length - 1);
+    const [columns, rows, tileSpanDeg] = levels[z];
+    return { columns, rows, tileSpanDeg };
+}
+
+/** Geographic bounds of one tile; padding tiles extend past 180 E / 90 S. */
+export function tileLatLonBounds(matrixSet, z, x, y) {
+    const { columns, rows, tileSpanDeg } = tileGridDimensions(matrixSet, z);
     assertIntegerInRange(x, 'x', 0, columns - 1);
     assertIntegerInRange(y, 'y', 0, rows - 1);
-    const lonSpan = 360 / columns;
-    const latSpan = 180 / rows;
-    const west = -180 + x * lonSpan;
-    const east = west + lonSpan;
-    const north = 90 - y * latSpan;
-    return { west, east, north, south: north - latSpan };
+    const west = -180 + x * tileSpanDeg;
+    const north = 90 - y * tileSpanDeg;
+    return { west, east: west + tileSpanDeg, north, south: north - tileSpanDeg };
+}
+
+/**
+ * The part of level z that covers the globe: the tiles to request and the
+ * pixel size of the 360 x 180 crop (e.g. 500m z2 -> 5 x 3 tiles, 2560 x 1280).
+ */
+export function gibsGlobeCoverage(matrixSet, z) {
+    const { tileSpanDeg } = tileGridDimensions(matrixSet, z);
+    return {
+        columns: Math.ceil(360 / tileSpanDeg - 1e-9),
+        rows: Math.ceil(180 / tileSpanDeg - 1e-9),
+        width: Math.round(360 / tileSpanDeg * GIBS_TILE_SIZE),
+        height: Math.round(180 / tileSpanDeg * GIBS_TILE_SIZE),
+        tileSpanDeg,
+    };
 }
 
 export function gibsTileUrl(layer, date, z, x, y) {
     if (!layer?.id || !layer.matrixSet || !layer.extension) throw new TypeError('A valid GIBS layer is required.');
-    const { columns, rows } = tileGridDimensions(z);
+    const { columns, rows } = tileGridDimensions(layer.matrixSet, z);
     assertIntegerInRange(x, 'x', 0, columns - 1);
     assertIntegerInRange(y, 'y', 0, rows - 1);
     if (z > layer.maxZoom) throw new RangeError(`${layer.id} supports levels through z=${layer.maxZoom}.`);
@@ -76,27 +124,6 @@ export function gibsTileUrl(layer, date, z, x, y) {
     }
     const host = GIBS_HOSTS[(x + y) % GIBS_HOSTS.length];
     return `https://${host}.earthdata.nasa.gov/wmts/epsg4326/best/${layer.id}/default/${time}/${layer.matrixSet}/${z}/${y}/${x}.${layer.extension}`;
-}
-
-// WMS is a per-tile transport fallback for browsers or networks that reject a
-// WMTS tile request. It preserves the same EPSG:4326 bounds and resolution.
-export function gibsWmsTileUrl(layer, date, z, x, y) {
-    const bounds = tileLatLonBounds(z, x, y);
-    const params = new URLSearchParams({
-        SERVICE: 'WMS',
-        REQUEST: 'GetMap',
-        VERSION: '1.3.0',
-        LAYERS: layer.id,
-        STYLES: '',
-        FORMAT: layer.extension === 'png' ? 'image/png' : 'image/jpeg',
-        TRANSPARENT: 'false',
-        HEIGHT: '512',
-        WIDTH: '512',
-        CRS: 'EPSG:4326',
-        BBOX: `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`,
-    });
-    if (layer.temporal) params.set('TIME', date);
-    return `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?${params}`;
 }
 
 export function gibsTileKey(layer, date, z, x, y) {
@@ -177,50 +204,140 @@ export class GibsTileQueue {
     }
 }
 
-// Compose a fixed GIBS level into one equirectangular raster before it reaches
-// Three.js.  This is intentionally different from mapping one mesh per tile:
-// there can be no UV gaps, z-fighting, or floating-point cracks between tiles.
-// The caller owns image loading so this module stays browser/renderer agnostic.
+function abortError(signal) {
+    return signal?.reason || new DOMException('Aborted', 'AbortError');
+}
+
+/**
+ * One tile attempt bounded by timeoutMs, retried `retries` times. The timer
+ * is always cleared; an abort is never retried.
+ */
+export async function loadTileWithRetry(loadImage, url, { timeoutMs = 15_000, retries = 1, signal = null } = {}) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        if (signal?.aborted) throw abortError(signal);
+        let timer = null;
+        try {
+            return await Promise.race([
+                Promise.resolve().then(() => loadImage(url, { timeoutMs, signal })),
+                new Promise((_, reject) => {
+                    timer = setTimeout(() => reject(new Error(`GIBS tile timed out after ${timeoutMs} ms: ${url}`)), timeoutMs);
+                }),
+            ]);
+        } catch (error) {
+            if (error?.name === 'AbortError') throw error;
+            lastError = error;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    throw lastError;
+}
+
+/** Browser tile loader: decoded <img>; the request is dropped on timeout or abort. */
+export function loadGibsTileImage(url, { timeoutMs = 15_000, signal = null } = {}) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        let settled = false;
+        const finish = (error) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', onAbort);
+            if (error) {
+                image.src = '';
+                reject(error);
+            } else {
+                resolve(image);
+            }
+        };
+        const onAbort = () => finish(abortError(signal));
+        const timer = setTimeout(() => finish(new Error(`GIBS tile timed out after ${timeoutMs} ms`)), timeoutMs);
+        if (signal?.aborted) return onAbort();
+        signal?.addEventListener('abort', onAbort, { once: true });
+        image.crossOrigin = 'anonymous';
+        image.decoding = 'async';
+        image.src = url;
+        image.decode().then(() => finish(null), () => finish(new Error(`GIBS tile failed to load: ${url}`)));
+    });
+}
+
+function defaultCreateCanvas(width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+}
+
+// Compose one fixed GIBS level into a single equirectangular raster, cropped
+// to 360 x 180, before it reaches the renderer: no UV gaps, z-fighting or
+// cracks between tiles. Only tiles that intersect the globe are requested.
+// Each tile gets its own timeout and retries; there is no per-tile WMS
+// fallback (WMS is the slow GIBS service). Any tile failing after its retries
+// rejects the whole mosaic, so a partial globe is never shown as observed
+// imagery. outputSize, if given, resamples the crop (e.g. z3 5120 -> 4096).
 export async function composeGibsEquirectangularMosaic({
     layer,
     date,
     z = 1,
-    tileSize = 512,
-    loadImage,
-    concurrency = 8
+    loadImage = loadGibsTileImage,
+    concurrency = 8,
+    tileTimeoutMs = 15_000,
+    retries = 1,
+    outputSize = null,
+    createCanvas = defaultCreateCanvas,
+    signal = null,
 }) {
     if (typeof loadImage !== 'function') throw new TypeError('composeGibsEquirectangularMosaic requires loadImage(url).');
-    if (!Number.isInteger(tileSize) || tileSize < 1) throw new RangeError('tileSize must be a positive integer.');
-    const { columns, rows } = tileGridDimensions(z);
     if (z > layer.maxZoom) throw new RangeError(`${layer.id} supports levels through z=${layer.maxZoom}.`);
+    const coverage = gibsGlobeCoverage(layer.matrixSet, z);
+    const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
-    const canvas = document.createElement('canvas');
-    canvas.width = columns * tileSize;
-    canvas.height = rows * tileSize;
+    const canvas = createCanvas(coverage.width, coverage.height);
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Unable to create GIBS mosaic canvas.');
 
     const queue = new GibsTileQueue({
         concurrency,
-        load: async (url) => loadImage(url)
+        load: (url) => loadTileWithRetry(loadImage, url, { timeoutMs: tileTimeoutMs, retries, signal }),
     });
     const tasks = [];
-    for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < columns; x++) {
-            const key = gibsTileKey(layer, date, z, x, y);
-            const nativeUrl = gibsTileUrl(layer, date, z, x, y);
-            const fallbackUrl = gibsWmsTileUrl(layer, date, z, x, y);
-            tasks.push(
-                queue.request(key, nativeUrl, 0)
-                    .catch(() => queue.request(`${key}:wms`, fallbackUrl, 0))
-                    .then((image) => ({ x, y, image }))
-            );
+    for (let y = 0; y < coverage.rows; y++) {
+        for (let x = 0; x < coverage.columns; x++) {
+            const url = gibsTileUrl(layer, date, z, x, y);
+            tasks.push(queue.request(gibsTileKey(layer, date, z, x, y), url, 0).then((image) => {
+                // Padding past 180 E / 90 S falls outside the canvas and is clipped.
+                ctx.drawImage(image, x * GIBS_TILE_SIZE, y * GIBS_TILE_SIZE, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+                image.close?.();
+            }));
         }
     }
+    await Promise.all(tasks);
+    if (signal?.aborted) throw abortError(signal);
 
-    const tiles = await Promise.all(tasks);
-    for (const { x, y, image } of tiles) {
-        ctx.drawImage(image, x * tileSize, y * tileSize, tileSize, tileSize);
+    let output = canvas;
+    if (outputSize && (outputSize.width !== coverage.width || outputSize.height !== coverage.height)) {
+        output = createCanvas(outputSize.width, outputSize.height);
+        const outputCtx = output.getContext('2d', { alpha: false });
+        if (!outputCtx) throw new Error('Unable to create GIBS output canvas.');
+        outputCtx.imageSmoothingEnabled = true;
+        outputCtx.imageSmoothingQuality = 'high';
+        outputCtx.drawImage(canvas, 0, 0, outputSize.width, outputSize.height);
+        canvas.width = 0; // release the full-resolution crop
+        canvas.height = 0;
     }
-    return { canvas, columns, rows, z, tileSize };
+    const finished = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    return {
+        canvas: output,
+        z,
+        columns: coverage.columns,
+        rows: coverage.rows,
+        tiles: tasks.length,
+        sourceWidth: coverage.width,
+        sourceHeight: coverage.height,
+        width: output.width,
+        height: output.height,
+        tileSize: GIBS_TILE_SIZE,
+        elapsedMs: Math.round(finished - started),
+    };
 }

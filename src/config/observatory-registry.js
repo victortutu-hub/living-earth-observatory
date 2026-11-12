@@ -74,7 +74,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
         cssPrimary: '42,198,234', cssSecondary: '99,102,241', motion: Object.freeze([1.45, 0.0, 1.0, 0.32]),
       }),
       resources: Object.freeze({
-        primary: Object.freeze({ key: 'nasa-gibs-blue-marble-2048', ttl: 24 * 60 * 60 * 1000, staleTtl: 30 * 24 * 60 * 60 * 1000, timeout: 16000, retries: 2 }),
+        primary: Object.freeze({ key: 'nasa-gibs-bmng-wmts', ttl: 24 * 60 * 60 * 1000, staleTtl: 30 * 24 * 60 * 60 * 1000, timeout: 15000, retries: 1 }),
         overlay: Object.freeze({ key: 'nasa-eonet-open-events-v3', ttl: 60 * 1000, staleTtl: 24 * 60 * 60 * 1000, timeout: 14000, retries: 2 }),
       }),
       adapterOptions: Object.freeze({ textureSource: 'earthTexture', eventSource: 'eonet', statusKey: 'gibs' }),

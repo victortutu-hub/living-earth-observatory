@@ -1,5 +1,74 @@
 import { createCanvas, blobToImageSource } from './canvas-utils.js';
 import { RUNTIME_STATE, mergeRuntimeState } from '../../core/runtime/runtime-states.js';
+import { GIBS_LAYERS, GIBS_TILE_SIZE, GibsTileQueue, gibsGlobeCoverage, gibsTileUrl } from '../../earth/gibs-tiles.js';
+
+const GIBS_TILE_CONCURRENCY = 8;
+
+/** Tiles of a GIBS WMTS mosaic spec (gateway-config.js) that cover the globe. */
+export function planGibsMosaic(spec) {
+  const layer = GIBS_LAYERS[spec?.layer];
+  if (spec?.kind !== 'gibs-wmts-mosaic' || !layer) throw new TypeError('A GIBS WMTS mosaic spec is required.');
+  const coverage = gibsGlobeCoverage(layer.matrixSet, spec.z);
+  const tiles = [];
+  for (let y = 0; y < coverage.rows; y++) {
+    for (let x = 0; x < coverage.columns; x++) {
+      tiles.push({ x, y, url: gibsTileUrl(layer, spec.date, spec.z, x, y) });
+    }
+  }
+  return { layer, coverage, tiles };
+}
+
+/** One runtime state/meta for the whole mosaic from the per-tile results. */
+export function summarizeTileResults(results) {
+  const metas = results.map((result) => result.meta || {});
+  const caches = metas.map((meta) => meta.cache);
+  const offline = metas.find((meta) => meta.networkState && meta.networkState !== 'online');
+  return {
+    state: mergeRuntimeState(...results.map((result) => result.state)),
+    meta: {
+      cache: caches.every((cache) => cache === 'hit') ? 'hit' : caches.some((cache) => cache === 'hit') ? 'partial' : 'miss',
+      cacheAgeMs: Math.max(0, ...metas.map((meta) => meta.cacheAgeMs || 0)),
+      latencyMs: Math.max(0, ...metas.map((meta) => meta.latencyMs || 0)),
+      attempts: metas.reduce((sum, meta) => sum + (meta.attempts || 0), 0),
+      updated: metas.map((meta) => meta.updated).filter(Boolean).sort().pop() || null,
+      networkState: offline ? offline.networkState : (metas[0]?.networkState || 'online'),
+      tiles: results.length,
+    },
+  };
+}
+
+// Every tile goes through the shared request runtime (cache, TTL, retries,
+// abort); the mosaic is cropped to 360 x 180 and drawn at spec size.
+async function fetchGibsMosaic({ dataBroker, spec, policy, signal, forceRefresh }) {
+  const { coverage, tiles } = planGibsMosaic(spec);
+  const keyPrefix = policy.key || 'nasa-gibs-bmng-wmts';
+  const crop = createCanvas(coverage.width, coverage.height);
+  const cropContext = crop.getContext('2d');
+  const queue = new GibsTileQueue({
+    concurrency: GIBS_TILE_CONCURRENCY,
+    load: async (tile) => {
+      const result = await dataBroker.fetchBlobResource(`${keyPrefix}-z${spec.z}-${tile.y}-${tile.x}`, tile.url, {
+        ttl: policy.ttl ?? 24 * 60 * 60_000,
+        staleTtl: policy.staleTtl ?? 30 * 24 * 60 * 60_000,
+        timeout: policy.timeout ?? 15_000,
+        retries: policy.retries ?? 1,
+        backoffBase: 650,
+        signal,
+        forceRefresh,
+      });
+      const image = await blobToImageSource(result.data, { signal });
+      cropContext.drawImage(image, tile.x * GIBS_TILE_SIZE, tile.y * GIBS_TILE_SIZE, GIBS_TILE_SIZE, GIBS_TILE_SIZE);
+      image.close?.();
+      return result;
+    },
+  });
+  const results = await Promise.all(tiles.map((tile) => queue.request(tile.url, tile, 0)));
+  const map = createCanvas(spec.width, spec.height);
+  map.getContext('2d').drawImage(crop, 0, 0, map.width, map.height);
+  crop.width = 0;
+  crop.height = 0;
+  return { map, ...summarizeTileResults(results) };
+}
 
 export function seedEarthFallback({ gl, texture, uploadTexture }) {
   const canvas = createCanvas(512);
@@ -111,24 +180,14 @@ export async function loadEarthTexture({
   const primaryPolicy = resources.primary || {};
   const refreshAll = forceRefresh && forceResources.length === 0;
   try {
-    const gibs = await dataBroker.fetchBlobResource(
-      primaryPolicy.key || 'nasa-gibs-blue-marble-2048',
-      earthTextureUrl,
-      {
-        ttl: primaryPolicy.ttl ?? 24 * 60 * 60_000,
-        staleTtl: primaryPolicy.staleTtl ?? 30 * 24 * 60 * 60_000,
-        timeout: primaryPolicy.timeout ?? 16_000,
-        retries: primaryPolicy.retries ?? 2,
-        backoffBase: 650,
-        signal,
-        forceRefresh: refreshAll || forceResources.includes('gibs'),
-      },
-    );
-    const image = await blobToImageSource(gibs.data, { signal });
-    const map = createCanvas(2048, 1024);
+    const { map, ...gibs } = await fetchGibsMosaic({
+      dataBroker,
+      spec: earthTextureUrl,
+      policy: primaryPolicy,
+      signal,
+      forceRefresh: refreshAll || forceResources.includes('gibs'),
+    });
     const context = map.getContext('2d');
-    context.drawImage(image, 0, 0, map.width, map.height);
-    image.close?.();
 
     let overlayState = RUNTIME_STATE.FALLBACK;
     let overlayMeta = { phase: 'error', freshness: 'none', cache: 'miss', networkState: 'offline' };

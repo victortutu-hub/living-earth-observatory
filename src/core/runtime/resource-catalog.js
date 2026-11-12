@@ -9,7 +9,12 @@ const catalog = Object.freeze([
     reloadable: true,
     ttl: DAY,
     staleTtl: 30 * DAY,
-    patterns: Object.freeze([{ type: 'exact', value: 'nasa-gibs-blue-marble-2048' }]),
+    patterns: Object.freeze([
+      // WMTS tiles of the Atlas preview (earth-texture-loader.js).
+      { type: 'prefix', value: 'nasa-gibs-bmng-wmts-' },
+      // Legacy single WMS raster, kept so old cache entries stay clearable.
+      { type: 'exact', value: 'nasa-gibs-blue-marble-2048' },
+    ]),
   }),
   Object.freeze({
     sourceId: 'eonet',
