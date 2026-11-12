@@ -52,6 +52,12 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { URL } = require('url');
+const zlib = require('zlib');
+
+// Raspunsurile JSON peste acest prag se comprima cu gzip cand clientul accepta.
+const GZIP_MIN_BYTES = 1024;
+// Coloane FIRMS pe care frontend-ul (src/earth/firms-wildfires.js) nu le citeste.
+const FIRMS_UNUSED_FIELDS = Object.freeze(['scan', 'track']);
 
 loadLocalEnv(path.join(__dirname, '.env'));
 
@@ -316,6 +322,42 @@ function csvToJsonArray(csvText) {
     return rows;
 }
 
+/** true daca Accept-Encoding contine gzip cu q > 0 (ex. "gzip, br", nu "gzip;q=0"). */
+function acceptsGzip(header) {
+    return String(header || '').split(',').some(part => {
+        const [coding, ...params] = part.trim().toLowerCase().split(';');
+        if (coding.trim() !== 'gzip') return false;
+        const q = params.map(param => param.trim()).find(param => param.startsWith('q='));
+        return q === undefined || Number(q.slice(2)) > 0;
+    });
+}
+
+/**
+ * Trimite JSON cu Content-Length corect; peste GZIP_MIN_BYTES si doar daca
+ * cererea accepta gzip, corpul e comprimat (zlib, disponibil in Node 18 si 22).
+ * Vary: Origin, Accept-Encoding e setat global de server.
+ */
+function sendJson(res, statusCode, payload) {
+    const body = Buffer.from(JSON.stringify(payload), 'utf8');
+    const headers = { 'Content-Type': 'application/json; charset=utf-8' };
+    const writeBody = (buffer, extraHeaders = {}) => {
+        if (res.destroyed || res.headersSent) return;
+        res.writeHead(statusCode, { ...headers, ...extraHeaders, 'Content-Length': buffer.length });
+        res.end(buffer);
+    };
+    if (body.length <= GZIP_MIN_BYTES || !acceptsGzip(res.req?.headers['accept-encoding'])) {
+        writeBody(body);
+        return Promise.resolve();
+    }
+    return new Promise(resolve => {
+        zlib.gzip(body, (error, compressed) => {
+            if (error) writeBody(body);
+            else writeBody(compressed, { 'Content-Encoding': 'gzip' });
+            resolve();
+        });
+    });
+}
+
 /**
  * Orchestreaza fetch + cache pentru o sursa: un cache mai nou decat TTL-ul
  * sursei se serveste direct ('cache-fresh'); altfel incearca live, la esec
@@ -331,8 +373,7 @@ async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, norm
     const ageMs = upstream.now() - Date.parse(cached?.proxyFetchedAt || '');
     if (cached && ttlMs > 0 && Number.isFinite(ageMs) && ageMs >= 0 && ageMs < ttlMs) {
         const { proxyError: _staleError, ...fresh } = cached;
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ ...fresh, proxyStatus: 'cache-fresh' }));
+        await sendJson(res, 200, { ...fresh, proxyStatus: 'cache-fresh' });
         return;
     }
 
@@ -356,8 +397,7 @@ async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, norm
                 data: normalized,
             };
             writeCache(filePath, payload);
-            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify(payload));
+            await sendJson(res, 200, payload);
             return;
         }
     }
@@ -366,18 +406,16 @@ async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, norm
     if (cached) {
         cached.proxyStatus = 'stale-cache';
         cached.proxyError = result.error || 'normalize failed';
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify(cached));
+        await sendJson(res, 200, cached);
         return;
     }
 
     // Nimic - nici live, nici cache. Eroare clara, nu tacere.
-    res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify({
+    await sendJson(res, 502, {
         proxySource: source,
         proxyStatus: 'error',
         proxyError: result.error || 'unknown upstream failure',
-    }));
+    });
 }
 
 class PayloadTooLargeError extends Error {
@@ -595,6 +633,7 @@ function createProxyServer({
     fetchUpstream: fetchUpstreamImpl = fetchUpstream,
     upstreamGet = https.get,
     maxUpstreamBytes = MAX_UPSTREAM_BYTES,
+    firmsMapKey = FIRMS_MAP_KEY,
 } = {}) {
     const upstream = {
         cacheDirectory,
@@ -622,7 +661,7 @@ function createProxyServer({
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Vary', 'Origin');
+    res.setHeader('Vary', 'Origin, Accept-Encoding');
 
     const url = new URL(req.url, `http://${req.headers.host}`);
     const route = stripBasePath(url.pathname, basePath);
@@ -713,7 +752,7 @@ function createProxyServer({
     }
 
     if (source === 'firms') {
-        if (!FIRMS_MAP_KEY) {
+        if (!firmsMapKey) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ proxySource: 'firms', proxyStatus: 'error', proxyError: 'FIRMS_MAP_KEY not configured on server' }));
             return;
@@ -723,12 +762,18 @@ function createProxyServer({
         const area = (url.searchParams.get('area') || 'world').replace(/[^0-9,.\-a-z]/gi, '');
         const dayRange = Math.min(Math.max(parseInt(url.searchParams.get('days') || '1', 10), 1), 3);
 
-        const upstreamUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${FIRMS_MAP_KEY}/${sensor}/${area}/${dayRange}`;
+        const upstreamUrl = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${firmsMapKey}/${sensor}/${area}/${dayRange}`;
         const cacheKey = require('crypto').createHash('md5').update(`${sensor}_${area}_${dayRange}`).digest('hex');
 
         await proxyWithCache(upstream, res,'firms', cacheKey, upstreamUrl, body => {
-            const rows = csvToJsonArray(body);
-            if (rows.length === 0 && body.trim() !== '') return null; // posibil raspuns de eroare FIRMS ca text simplu
+            const parsed = csvToJsonArray(body);
+            if (parsed.length === 0 && body.trim() !== '') return null; // posibil raspuns de eroare FIRMS ca text simplu
+            // Formatul {fires:[{...}], count} ramane; doar coloanele nefolosite dispar.
+            const rows = parsed.map(row => {
+                const compact = { ...row };
+                for (const field of FIRMS_UNUSED_FIELDS) delete compact[field];
+                return compact;
+            });
             return { fires: rows, count: rows.length };
         });
         return;

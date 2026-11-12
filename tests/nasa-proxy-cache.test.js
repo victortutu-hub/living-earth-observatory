@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import proxyModule from '../nasa-proxy-server.js';
 
 const { createProxyServer, parseAllowedOrigins, resolveH264Enabled, normalizeBasePath } = proxyModule;
@@ -353,5 +354,78 @@ describe('/convert-h264 exposure', () => {
     expect(response.status).toBe(403);
     expect(response.json.proxyStatus).toBe('error');
     expect(conversions).toBe(0);
+  });
+});
+
+// Raw GET: returns the undecoded body so compression can be asserted.
+function getRaw(port, requestPath, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path: requestPath, method: 'GET', headers }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+const FIRMS_CSV = [
+  'latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_t31,frp,daynight',
+  ...Array.from({ length: 40 }, (_, i) => `${10 + i * 0.01},${20 + i * 0.01},320.5,1.2,1.1,2026-11-11,1030,Terra,MODIS,${50 + i},6.1NRT,290.1,${12 + i},D`),
+].join('\n');
+
+describe('JSON compression and FIRMS payload', () => {
+  async function startFirmsProxy() {
+    const upstream = fakeUpstream(() => ({ ok: true, body: FIRMS_CSV, statusCode: 200, error: null }));
+    const proxy = await startProxy({ fetchUpstream: upstream, firmsMapKey: 'test-key' });
+    return { ...proxy, upstream };
+  }
+  const firmsPath = '/nasa-proxy?source=firms&sensor=MODIS_NRT&area=world&days=1';
+
+  it('gzips JSON over 1 KB when Accept-Encoding contains gzip, with Vary and Content-Length', async () => {
+    const { port } = await startFirmsProxy();
+    const response = await getRaw(port, firmsPath, { 'Accept-Encoding': 'gzip, deflate, br' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-encoding']).toBe('gzip');
+    expect(response.headers.vary).toMatch(/Accept-Encoding/);
+    expect(response.headers.vary).toMatch(/Origin/);
+    expect(Number(response.headers['content-length'])).toBe(response.body.length);
+    const json = JSON.parse(zlib.gunzipSync(response.body).toString('utf8'));
+    expect(json.data.count).toBe(40);
+  });
+
+  it('sends identity JSON without Accept-Encoding gzip, or with gzip;q=0', async () => {
+    const { port } = await startFirmsProxy();
+    for (const headers of [{}, { 'Accept-Encoding': 'gzip;q=0, br' }, { 'Accept-Encoding': 'identity' }]) {
+      const response = await getRaw(port, firmsPath, headers);
+      expect(response.headers['content-encoding']).toBeUndefined();
+      expect(response.headers.vary).toMatch(/Accept-Encoding/);
+      expect(Number(response.headers['content-length'])).toBe(response.body.length);
+      expect(JSON.parse(response.body.toString('utf8')).data.count).toBe(40);
+    }
+  });
+
+  it('does not gzip JSON of 1 KB or less', async () => {
+    const { port } = await startProxy({ fetchUpstream: fakeUpstream() });
+    const response = await getRaw(port, '/nasa-proxy?source=gvp', { 'Accept-Encoding': 'gzip' });
+    expect(response.body.length).toBeLessThanOrEqual(1024);
+    expect(response.headers['content-encoding']).toBeUndefined();
+    expect(JSON.parse(response.body.toString('utf8')).proxySource).toBe('gvp');
+  });
+
+  it('drops the unused FIRMS columns but keeps the {data:{fires:[...]}} format', async () => {
+    const { port } = await startFirmsProxy();
+    const response = await getRaw(port, firmsPath);
+    const json = JSON.parse(response.body.toString('utf8'));
+    expect(Array.isArray(json.data.fires)).toBe(true);
+    expect(json.data.fires).toHaveLength(40);
+    const fields = Object.keys(json.data.fires[0]);
+    expect(fields).not.toContain('scan');
+    expect(fields).not.toContain('track');
+    for (const used of ['latitude', 'longitude', 'frp', 'acq_date', 'acq_time', 'confidence', 'satellite', 'instrument', 'brightness', 'bright_t31', 'daynight', 'version']) {
+      expect(fields).toContain(used);
+    }
   });
 });
