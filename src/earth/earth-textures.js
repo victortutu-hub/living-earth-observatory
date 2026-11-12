@@ -22,7 +22,7 @@ export function loadEarthTextures({ THREE, renderer, textureLoader }) {
     const earthClouds = textureLoader.load(textureBase + 'earth_clouds_1024.png');
     const earthLights = textureLoader.load(textureBase + 'earth_lights_2048.png');
     const earthReliefSeaLevel = 0.42;
-    // Vertical exaggeration x10 at Everest (RELIEF_VERTICAL_EXAGGERATION).
+    // Legacy displacement scale (non-linear; see reliefExaggerationLabel).
     const earthReliefScale = EARTH_RELIEF_SCALE;
     // KTX2-primary: start relief/normal as tiny flat placeholders (no PNG fetch).
     // Default path (no ?ktx2): load the PNGs exactly as before.

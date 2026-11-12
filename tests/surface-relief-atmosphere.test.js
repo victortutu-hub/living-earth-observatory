@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
     ATMOSPHERE,
     ATMOSPHERE_GLSL,
@@ -10,14 +11,16 @@ import {
     AERIAL_PERSPECTIVE_UNIFORMS,
     BATHYMETRY_MIX,
     EARTH_RELIEF_SCALE,
+    RELIEF_ENCODING,
     RELIEF_STRENGTH,
-    RELIEF_VERTICAL_EXAGGERATION,
     RELIEF_TERMINATOR_EDGES,
     createEarthMaterial,
     createEarthMaterialPBR,
     displacementScaleForExaggeration,
+    reliefExaggerationLabel,
+    reliefGrayForLandElevation,
     reliefPerturbationWeight,
-    verticalExaggerationAtPeak,
+    verticalExaggerationAt,
 } from '../src/earth/earth-material.js';
 import { makeNightLightsMat } from '../src/earth/night-lights.js';
 import { makeAtmosphereMat } from '../src/earth/atmosphere.js';
@@ -121,7 +124,7 @@ describe('Earth materials', () => {
         expect(material.bumpMap).toBeUndefined();
         expect(material.normalScale).toEqual(new Vector2(1, 1));
         expect(material.fog).toBe(false);
-        // Declared x10 vertical exaggeration at Everest.
+        // Legacy displacement scale, unchanged since LOT 4.
         expect(material.displacementScale).toBe(EARTH_RELIEF_SCALE);
         expect(material.displacementBias).toBeCloseTo(-0.42 * EARTH_RELIEF_SCALE, 12);
 
@@ -180,18 +183,40 @@ describe('Earth materials', () => {
 });
 
 describe('relief vertical exaggeration', () => {
-    it('declares x10 at Everest for production (the former 0.18 was about 28x)', () => {
-        expect(RELIEF_VERTICAL_EXAGGERATION).toBe(10);
-        expect(verticalExaggerationAtPeak(EARTH_RELIEF_SCALE)).toBeCloseTo(10, 10);
-        expect(EARTH_RELIEF_SCALE).toBeCloseTo(0.0633, 4);
-        expect(verticalExaggerationAtPeak(0.18)).toBeCloseTo(28.4, 1);
-        expect(verticalExaggerationAtPeak(0)).toBe(0);
+    it('uses the reconstructed encoding anchors (highest 1/6 deg sample, not Everest)', () => {
+        expect(reliefGrayForLandElevation(0)).toBe(0.42);
+        expect(reliefGrayForLandElevation(RELIEF_ENCODING.landMaxM)).toBeCloseTo(0.9246, 4); // gray max of the PNG
+        expect(reliefGrayForLandElevation(5029)).toBeCloseTo(0.8586, 3); // the texel at Everest
+        expect(RELIEF_ENCODING).not.toHaveProperty('peakElevationM');
     });
 
-    it('inverts exactly', () => {
-        expect(displacementScaleForExaggeration(10)).toBeCloseTo(0.0633, 4);
-        expect(verticalExaggerationAtPeak(displacementScaleForExaggeration(10))).toBeCloseTo(10, 10);
+    it('keeps the LOT 4 displacement and states its real, non-linear exaggeration', () => {
+        expect(EARTH_RELIEF_SCALE).toBe(0.0633356100942748);
+        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE)).toBeCloseTo(15.1, 1);
+        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE, 5029)).toBeCloseTo(17.6, 1);
+        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE, 100)).toBeGreaterThan(100);
+        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE, 0)).toBeNaN();
+    });
+
+    it('inverts exactly at a given elevation', () => {
+        expect(verticalExaggerationAt(displacementScaleForExaggeration(15), 6734)).toBeCloseTo(15, 10);
+        expect(verticalExaggerationAt(displacementScaleForExaggeration(10, 1000), 1000)).toBeCloseTo(10, 10);
         expect(displacementScaleForExaggeration(0)).toBe(0);
+    });
+
+    it('labels the relief honestly (no single "x10" claim)', () => {
+        const label = reliefExaggerationLabel(EARTH_RELIEF_SCALE);
+        expect(label).toBe('Relief: non-linear vertical exaggeration (≈×15 at the highest 1/6° sample, 6,734 m; '
+            + '≈×41 at 1,000 m; ≈×135 at 100 m; much stronger at low elevations — legacy sqrt-like encoding '
+            + 'of ETOPO 2022 60″ bedrock, point-sampled 1/6°; ocean surface flat)');
+        expect(label).not.toMatch(/×10\b|highest summit|Everest/);
+        expect(reliefExaggerationLabel(0)).toBe('Relief: no geometric displacement (relief shading from ETOPO 2022 normals only)');
+    });
+
+    it('names the real relief source on the Earth page (ETOPO 2022, not ETOPO1)', () => {
+        const page = readFileSync(new URL('../earth-eonet-relief.html', import.meta.url), 'utf8');
+        expect(page).toContain('NOAA ETOPO 2022 (60″ bedrock, point-sampled 1/6°) relief');
+        expect(page).not.toMatch(/ETOPO-?1\b/);
     });
 
     it('night lights are attenuated by the same view transmittance', () => {

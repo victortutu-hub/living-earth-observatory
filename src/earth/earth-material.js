@@ -12,34 +12,63 @@ export const RELIEF_STRENGTH = Object.freeze({ phong: 0.72, pbr: 0.4 });
 // (0.28) survives only as a visual-lock A/B option (bathymetryMix).
 export const BATHYMETRY_MIX = 0;
 
-// Encoding of assets/etopo2022-bedrock-relief-2160x1080.png (PNG tEXt):
-// "seaLevelGray=0.42; ocean compressed; land sqrt-like emphasis" - NOT linear
-// in metres. The normal map is "central differences; strength=38" of that
-// gray, i.e. n.xy = -76 * (central difference per texel) (refit: error 0.002).
-// The vertical exaggeration is therefore elevation-dependent; it is quoted at
-// the highest summit: the Everest texel reads gray 0.8586 (Everest 8,849 m).
+// Encoding of assets/etopo2022-bedrock-relief-2160x1080.png, reconstructed
+// (LOT 4b ETAPA 0) from 2.3 M (elevation, gray) pairs of the ETOPO 2022 60"
+// grid at the same stride 10 (median error 4e-6 gray). The PNG holds POINT
+// samples every 1/6 deg, so peaks are missed: the highest sample is 6,734 m
+// (Karakoram); the texel at Everest reads ~5,029 m, not 8,849 m.
+//   land  (z > 0): gray = 0.42 + 0.5046 * (z / 6734 m)^0.48   (sqrt-like)
+//   ocean (z < 0): gray = 0.42 - 0.2323 * (|z| / 10511 m)^0.72
+// The normal map is "central differences; strength=38" of that gray, i.e.
+// n.xy = -76 * (central difference per texel). The geometric exaggeration is
+// therefore NOT a constant: it grows strongly towards low elevations.
 export const RELIEF_ENCODING = Object.freeze({
     seaLevelGray: 0.42,
     normalGainPerTexel: 76,
-    peakGray: 0.8586,
-    peakElevationM: 8849,
+    landGrayRange: 0.5046,
+    landMaxM: 6734,
+    landExponent: 0.48,
+    oceanGrayRange: 0.2323,
+    oceanMaxDepthM: 10511,
+    oceanExponent: 0.72,
     metersPerSceneUnit: ATMOSPHERE.metersPerSceneUnit,
 });
 
-/** Vertical exaggeration at the highest summit for a displacementScale (scene units per gray unit). */
-export function verticalExaggerationAtPeak(displacementScale, encoding = RELIEF_ENCODING) {
-    return (encoding.peakGray - encoding.seaLevelGray) * displacementScale * encoding.metersPerSceneUnit / encoding.peakElevationM;
+/** Relief gray for a land elevation in metres (z > 0), per the reconstructed encoding. */
+export function reliefGrayForLandElevation(elevationM, encoding = RELIEF_ENCODING) {
+    const z = Math.max(0, elevationM);
+    return encoding.seaLevelGray + encoding.landGrayRange * (z / encoding.landMaxM) ** encoding.landExponent;
 }
 
-/** displacementScale giving vertical exaggeration N at the highest summit. */
-export function displacementScaleForExaggeration(exaggeration, encoding = RELIEF_ENCODING) {
-    return exaggeration * encoding.peakElevationM / ((encoding.peakGray - encoding.seaLevelGray) * encoding.metersPerSceneUnit);
+/** Geometric vertical exaggeration at a land elevation (default: the highest 1/6 deg sample). */
+export function verticalExaggerationAt(displacementScale, elevationM = RELIEF_ENCODING.landMaxM, encoding = RELIEF_ENCODING) {
+    if (!(elevationM > 0)) return NaN;
+    const displacedM = (reliefGrayForLandElevation(elevationM, encoding) - encoding.seaLevelGray) * displacementScale * encoding.metersPerSceneUnit;
+    return displacedM / elevationM;
 }
 
-// Declared vertical exaggeration of the geometric relief, at Everest (LOT 4).
-export const RELIEF_VERTICAL_EXAGGERATION = 10;
-/** Scene units per relief gray unit for RELIEF_VERTICAL_EXAGGERATION (~0.0633). */
-export const EARTH_RELIEF_SCALE = displacementScaleForExaggeration(RELIEF_VERTICAL_EXAGGERATION);
+/** displacementScale giving exaggeration N at a land elevation (default: the highest sample). */
+export function displacementScaleForExaggeration(exaggeration, elevationM = RELIEF_ENCODING.landMaxM, encoding = RELIEF_ENCODING) {
+    const grayRise = reliefGrayForLandElevation(elevationM, encoding) - encoding.seaLevelGray;
+    return exaggeration * elevationM / (grayRise * encoding.metersPerSceneUnit);
+}
+
+// Displacement in scene units per relief gray unit, unchanged since LOT 4.
+// LOT 4 labelled it "x10 at Everest" from a wrong anchor (gray 0.8586 taken
+// as 8,849 m); with the reconstructed encoding it is ~x15 at the highest
+// sample and far more at low elevations (see reliefExaggerationLabel).
+export const EARTH_RELIEF_SCALE = 0.0633356100942748;
+
+/** Honest UI description of the current (legacy, non-linear) geometric relief. */
+export function reliefExaggerationLabel(displacementScale) {
+    if (!(displacementScale > 0)) {
+        return 'Relief: no geometric displacement (relief shading from ETOPO 2022 normals only)';
+    }
+    const at = (m) => Math.round(verticalExaggerationAt(displacementScale, m));
+    return `Relief: non-linear vertical exaggeration (≈×${at(RELIEF_ENCODING.landMaxM)} at the highest 1/6° sample, 6,734 m; `
+        + `≈×${at(1000)} at 1,000 m; ≈×${at(100)} at 100 m; much stronger at low elevations — legacy sqrt-like encoding `
+        + 'of ETOPO 2022 60″ bedrock, point-sampled 1/6°; ocean surface flat)';
+}
 
 export const SURFACE_DEBUG_VIEWS = Object.freeze({ none: 0, tilt: 1, tiltClipped: 2, landWeight: 3 });
 

@@ -1,5 +1,5 @@
 import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js';
-import { createEarthMaterial, createEarthMaterialPBR, displacementScaleForExaggeration, syncActiveReliefTexture, verticalExaggerationAtPeak } from './earth-material.js';
+import { createEarthMaterial, createEarthMaterialPBR, displacementScaleForExaggeration, reliefExaggerationLabel, syncActiveReliefTexture } from './earth-material.js';
 import { createEarthRoughnessTexture } from './earth-roughness.js';
 import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
 import { SURFACE_VISUAL_ALBEDO_SIZE, surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
@@ -27,12 +27,9 @@ export function createEarthLayers({
     const earthReliefScale = materialOverrides.reliefExaggeration === undefined
         ? defaultReliefScale
         : displacementScaleForExaggeration(materialOverrides.reliefExaggeration);
-    // Geometric displacement only; the encoding is sqrt-like, so the factor is
-    // quoted at the highest summit (larger on plateaus and lowlands).
-    const reliefExaggeration = verticalExaggerationAtPeak(earthReliefScale);
-    const reliefTitle = reliefExaggeration === 0
-        ? 'Relief: vertical exaggeration ×0 (no geometric displacement; relief shading from ETOPO 2022 normals only)'
-        : `Relief: vertical exaggeration ×${reliefExaggeration.toFixed(reliefExaggeration < 10 ? 1 : 0)} at the highest summit (ETOPO 2022 bedrock; displacement ${earthReliefScale.toFixed(4)} scene units per gray unit; nonlinear encoding, larger on plateaus and lowlands; ocean surface flat)`;
+    // Geometric displacement only; legacy sqrt-like encoding, so the factor
+    // depends on elevation (see reliefExaggerationLabel).
+    const reliefTitle = reliefExaggerationLabel(earthReliefScale);
     const surfaceMaterial = createSurfaceMaterialLodConfig({
         earthRadius: 2,
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
