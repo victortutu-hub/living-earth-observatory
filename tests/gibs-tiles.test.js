@@ -43,9 +43,11 @@ describe('GIBS URL builders', () => {
             .toBe('BlueMarble_ShadedRelief_Bathymetry:default:1:0:0');
     });
 
-    it('requests the full global equirectangular Blue Marble raster', () => {
+    it('requests the full global equirectangular Blue Marble raster (no baked relief)', () => {
         const url = new URL(blueMarbleWmsUrl(8192, 4096));
-        expect(url.searchParams.get('LAYERS')).toBe('BlueMarble_ShadedRelief_Bathymetry');
+        // Next Generation, not ShadedRelief: relief shading comes only from the
+        // ETOPO normals lit by the real Sun (see earth-material.js).
+        expect(url.searchParams.get('LAYERS')).toBe('BlueMarble_NextGeneration');
         expect(url.searchParams.get('BBOX')).toBe('-90,-180,90,180');
         expect(url.searchParams.get('WIDTH')).toBe('8192');
         expect(url.searchParams.get('HEIGHT')).toBe('4096');

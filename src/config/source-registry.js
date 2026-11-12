@@ -72,7 +72,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
   gibs: defineSource({
     title: 'NASA GIBS WMS',
     provenance: 'observed',
-    provenanceNote: 'Satellite imagery products served by NASA GIBS (Blue Marble relief, daily MODIS snow and ice)',
+    provenanceNote: 'Satellite imagery products served by NASA GIBS (Blue Marble shaded relief in this gateway; Living Earth surface: Blue Marble Next Generation; daily MODIS snow and ice)',
     authority: 'NASA Global Imagery Browse Services',
     endpoint: 'WMS GetMap · BlueMarble_ShadedRelief · EPSG:4326',
     type: 'JPEG equirectangular raster, 2048 x 1024',

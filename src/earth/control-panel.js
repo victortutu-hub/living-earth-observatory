@@ -141,11 +141,12 @@ export function createControlPanel({ state }) {
         status.textContent = message;
     }
 
-    function updateSurfaceStatus({ state: statusState = 'loading', message = 'Surface: loading NASA GIBS / Blue Marble Shaded Relief and Bathymetry' } = {}) {
+    function updateSurfaceStatus({ state: statusState = 'loading', message = 'Surface: loading NASA GIBS / Blue Marble Next Generation', title = '' } = {}) {
         const status = byId('surfaceStatus');
         if (!status) return;
         status.dataset.state = statusState;
         status.textContent = message;
+        status.title = title;
     }
 
     function updateSeismicLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'USGS quakes: 24h layer off', title = '' } = {}) {

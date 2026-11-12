@@ -1,3 +1,5 @@
+import { aerialPerspectiveSettings } from './atmosphere.js';
+
 export function createFrameRuntime({
     THREE,
     getTime,
@@ -52,7 +54,31 @@ export function createFrameRuntime({
         atmosphereMat.uniforms.uCamPos?.value?.copy(camera.position);
         earthMat.userData.shader?.uniforms.uSunDirTw?.value?.copy(sunDir);
         getEarthMatPBR?.()?.userData.shader?.uniforms.uSunDirTw?.value?.copy(sunDir);
+        syncAerialPerspective();
         updateTerminatorGuide?.(sunDir);
+    }
+
+    // The surface aerial perspective and the night lights use the shell's own
+    // mode, haze and alpha (earth-look presets change the alpha). The in-scatter
+    // is driven by the sun light that also lights the ground (colour x intensity).
+    function syncAerialPerspective() {
+        const settings = aerialPerspectiveSettings(atmosphereMat);
+        for (const material of [earthMat, getEarthMatPBR?.()]) {
+            const uniforms = material?.userData?.shader?.uniforms;
+            if (!uniforms?.uAerialPerspectiveTw) continue;
+            uniforms.uAerialPerspectiveTw.value = settings.enabled;
+            uniforms.uSunIrradianceTw.value.set(
+                sunLight.color.r * sunLight.intensity,
+                sunLight.color.g * sunLight.intensity,
+                sunLight.color.b * sunLight.intensity
+            );
+            uniforms.uAtmosphereHazeTw.value = settings.haze;
+            uniforms.uAtmosphereAlphaTw.value = settings.alpha;
+        }
+        if (nightLights.material.uniforms.uAerialPerspective) {
+            nightLights.material.uniforms.uAerialPerspective.value = settings.enabled;
+            nightLights.material.uniforms.uAtmosphereHaze.value = settings.haze;
+        }
     }
 
     function update(t) {

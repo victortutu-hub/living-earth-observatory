@@ -1,3 +1,5 @@
+import { ATMOSPHERE, ATMOSPHERE_GLSL } from './atmosphere-physics.js';
+
 const ATMOSPHERE_VERT = `
 varying vec3 vNormal;
 varying vec3 vWorldNormal;
@@ -27,14 +29,9 @@ varying vec3 vNormal;
 varying vec3 vWorldNormal;
 varying vec3 vWorldPos;
 
-const float M_PER_UNIT = 3185500.0;
-const float R_E = 6371000.0;
-const float R_A = 6471000.0;
-const vec3 BETA_R = vec3(5.8e-6, 13.5e-6, 33.1e-6);
-const float H_R = 7994.0;
-const float BETA_M = 21.0e-6;
-const float H_M = 1200.0;
-const float G_MIE = 0.76;
+// Constants, phase functions and extinction shared with the surface aerial
+// perspective (src/earth/atmosphere-physics.js).
+${ATMOSPHERE_GLSL}
 const int N_VIEW = 16;
 const int N_SUN = 8;
 
@@ -64,17 +61,6 @@ vec2 sunTau(vec3 p, vec3 sd) {
         tau += densityAt(p + sd * ti) * dt;
     }
     return tau;
-}
-
-float phaseR(float mu) {
-    return 0.75 * (1.0 + mu * mu);
-}
-
-float phaseM(float mu) {
-    float g = G_MIE;
-    float g2 = g * g;
-    float denom = pow(max(0.0, 1.0 + g2 - 2.0 * g * mu), 1.5);
-    return 0.5 * (1.0 - g2) * (1.0 + mu * mu) / ((2.0 + g2) * denom);
 }
 
 vec4 simpleAtmosphere() {
@@ -141,7 +127,7 @@ vec4 physicalAtmosphere() {
         tauV += dens;
 
         vec2 tau = tauV + sunTau(sp, sd);
-        vec3 transmittance = exp(-(BETA_R * tau.x + BETA_M * uPhysicalHaze * (tau.x + tau.y)));
+        vec3 transmittance = exp(-atmoExtinction(tau, uPhysicalHaze));
         sR += dens.x * transmittance;
         sM += dens.y * transmittance;
     }
@@ -153,7 +139,7 @@ vec4 physicalAtmosphere() {
     vec3 ozoneWarmth = vec3(1.0, 0.70, 0.46);
     sky = mix(sky, sky * ozoneWarmth + vec3(0.030, 0.010, 0.002) * uSunsetBoost, terminator * uOzoneStrength);
     sky += sqrt(max(sky, vec3(0.0))) * vec3(0.035, 0.060, 0.095) * terminator * uHorizonLift;
-    sky *= uAtmosphereAlpha * 0.72;
+    sky *= uAtmosphereAlpha * ATMO_SKY_GAIN;
 
     float alpha = clamp(dot(sky, vec3(0.33)) * 0.78, 0.0, 1.0);
     return vec4(sky, alpha);
@@ -172,8 +158,8 @@ export function makeAtmosphereMat(THREE) {
             uSunsetAlpha: { value: 1.0 },
             uNightRim: { value: 1.0 },
             uAtmosphereMode: { value: 0.0 },
-            uPhysicalIntensity: { value: 16.0 },
-            uPhysicalHaze: { value: 0.55 },
+            uPhysicalIntensity: { value: ATMOSPHERE.sunIntensity },
+            uPhysicalHaze: { value: ATMOSPHERE.haze },
             uOzoneStrength: { value: 0.18 },
             uSunsetBoost: { value: 0.55 },
             uHorizonLift: { value: 0.10 }
@@ -185,6 +171,18 @@ export function makeAtmosphereMat(THREE) {
         vertexShader: ATMOSPHERE_VERT,
         fragmentShader: ATMOSPHERE_FRAG
     });
+}
+
+// Values the surface aerial perspective must share with the shell, so the
+// disc and the limb use one exposure, haze and mode.
+export function aerialPerspectiveSettings(atmosphereMat) {
+    const u = atmosphereMat?.uniforms;
+    return {
+        enabled: (u?.uAtmosphereMode?.value ?? 0) > 0.5 ? 1 : 0,
+        intensity: u?.uPhysicalIntensity?.value ?? ATMOSPHERE.sunIntensity,
+        haze: u?.uPhysicalHaze?.value ?? ATMOSPHERE.haze,
+        alpha: u?.uAtmosphereAlpha?.value ?? 1,
+    };
 }
 
 export function setAtmosphereMode(atmosphereMat, mode) {

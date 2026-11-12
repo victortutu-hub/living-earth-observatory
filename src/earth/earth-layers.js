@@ -1,8 +1,8 @@
 import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js';
-import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js';
+import { createEarthMaterial, createEarthMaterialPBR, displacementScaleForExaggeration, syncActiveReliefTexture, verticalExaggerationAtPeak } from './earth-material.js';
 import { createEarthRoughnessTexture } from './earth-roughness.js';
 import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
-import { surfaceVisualCaseFromSearch } from './surface-visual-lock.js';
+import { SURFACE_VISUAL_ALBEDO_SIZE, surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
 import { makeNightLightsMat } from './night-lights.js';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js';
 import { loadBlueMarbleSurfaceTexture } from './gibs-surface.js';
@@ -18,10 +18,21 @@ export function createEarthLayers({
     earthRelief,
     earthReliefNormal,
     earthReliefSeaLevel,
-    earthReliefScale
+    earthReliefScale: defaultReliefScale
 }) {
     const activeReliefRef = { current: earthRelief };
     const surfaceVisualCase = surfaceVisualCaseFromSearch(window.location.search);
+    // Visual-lock A/B overrides only ({} outside a lock case).
+    const materialOverrides = surfaceVisualOverridesFromSearch(window.location.search);
+    const earthReliefScale = materialOverrides.reliefExaggeration === undefined
+        ? defaultReliefScale
+        : displacementScaleForExaggeration(materialOverrides.reliefExaggeration);
+    // Geometric displacement only; the encoding is sqrt-like, so the factor is
+    // quoted at the highest summit (larger on plateaus and lowlands).
+    const reliefExaggeration = verticalExaggerationAtPeak(earthReliefScale);
+    const reliefTitle = reliefExaggeration === 0
+        ? 'Relief: vertical exaggeration ×0 (no geometric displacement; relief shading from ETOPO 2022 normals only)'
+        : `Relief: vertical exaggeration ×${reliefExaggeration.toFixed(reliefExaggeration < 10 ? 1 : 0)} at the highest summit (ETOPO 2022 bedrock; displacement ${earthReliefScale.toFixed(4)} scene units per gray unit; nonlinear encoding, larger on plateaus and lowlands; ocean surface flat)`;
     const surfaceMaterial = createSurfaceMaterialLodConfig({
         earthRadius: 2,
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
@@ -45,7 +56,8 @@ export function createEarthLayers({
 
     const surfaceStatus = {
         state: 'loading',
-        message: 'Surface: loading NASA GIBS / Blue Marble Shaded Relief and Bathymetry'
+        message: 'Surface: loading NASA GIBS / Blue Marble Next Generation',
+        title: reliefTitle
     };
     let surfaceStatusListener = null;
 
@@ -68,7 +80,8 @@ export function createEarthLayers({
         earthReliefSeaLevel,
         earthReliefScale,
         reliefTextureRef: activeReliefRef,
-        surfaceMaterial
+        surfaceMaterial,
+        overrides: materialOverrides
     });
 
     const earth = new THREE.Mesh(new THREE.SphereGeometry(2, 512, 256), earthMat);
@@ -114,7 +127,8 @@ export function createEarthLayers({
                     earthReliefSeaLevel,
                     earthReliefScale,
                     reliefTextureRef: activeReliefRef,
-                    surfaceMaterial
+                    surfaceMaterial,
+                    overrides: materialOverrides
                 });
                 return earthMatPBR;
             })
@@ -303,7 +317,12 @@ export function createEarthLayers({
 
     // A visual lock never selects an albedo source. It keeps the normal GIBS
     // lifecycle intact; same-session OFF/ON begins only after this settles.
-    const surfaceUpgrade = loadBlueMarbleSurfaceTexture({ THREE, renderer });
+    // The visual lock pins one albedo size so comparisons never mix resolutions.
+    const surfaceUpgrade = loadBlueMarbleSurfaceTexture({
+        THREE,
+        renderer,
+        sizes: surfaceVisualCase ? [SURFACE_VISUAL_ALBEDO_SIZE] : undefined
+    });
     const surfaceReady = surfaceUpgrade
         .then(texture => {
             if (!texture) {

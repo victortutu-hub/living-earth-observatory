@@ -578,6 +578,7 @@ export function createEarthAppServices({
         exportSystem.dispose?.();
         timeScrubPanel.dispose();
         visualFoundation.dispose();
+        surfaceVisualLock.dispose?.();
     }
 
     return {

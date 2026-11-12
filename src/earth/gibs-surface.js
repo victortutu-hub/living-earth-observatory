@@ -1,12 +1,14 @@
-// NASA GIBS Blue Marble Shaded Relief & Bathymetry — a single, seamless,
-// non-temporal global composite (unlike the daily VIIRS true-colour product
-// in cloud-system.js, which is stitched from separate orbital swaths and
-// showed hard seams when reassembled from tiles). Because this layer is one
-// continuous NASA-rendered raster, a single large WMS GetMap request is both
-// simpler and safer than reassembling WMTS tiles client-side: there is no
-// swath boundary to gate against, so composeGibsEquirectangularMosaic (built
-// for the harder tiled-streaming case) is not needed here.
-const BLUE_MARBLE_LAYER = 'BlueMarble_ShadedRelief_Bathymetry';
+// NASA GIBS Blue Marble: Next Generation — a single, seamless, non-temporal
+// global surface composite (unlike the daily VIIRS true-colour product in
+// cloud-system.js, which is stitched from separate orbital swaths and showed
+// hard seams when reassembled from tiles). One large WMS GetMap request is
+// simpler and safer than reassembling WMTS tiles client-side.
+//
+// Next Generation, not "Shaded Relief and Bathymetry": the shaded variant has
+// a fixed-direction hillshade baked into the pixels (strong over the ocean
+// floor, moderate on land). Relief shading here comes only from the ETOPO
+// normals lit by the real Sun (earth-material.js), so the albedo must be flat.
+const BLUE_MARBLE_LAYER = 'BlueMarble_NextGeneration';
 import { EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
 
 // Largest-to-smallest fallback ladder. GIBS WMS enforces a server-side
@@ -57,9 +59,9 @@ async function loadImage(url, timeoutMs) {
 
 // Walks the size ladder from largest to smallest, returning the first
 // resolution that loads successfully. Throws only if every size fails.
-export async function loadBlueMarbleSurfaceTexture({ THREE, renderer, timeoutMs = 20_000 }) {
+export async function loadBlueMarbleSurfaceTexture({ THREE, renderer, timeoutMs = 20_000, sizes = SIZE_LADDER }) {
     const errors = [];
-    for (const { width, height } of SIZE_LADDER) {
+    for (const { width, height } of sizes) {
         const url = blueMarbleWmsUrl(width, height);
         try {
             const image = await loadImage(url, timeoutMs);
@@ -68,7 +70,7 @@ export async function loadBlueMarbleSurfaceTexture({ THREE, renderer, timeoutMs 
             texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
             texture.needsUpdate = true;
             texture.userData.surfaceResolution = `${width}x${height}`;
-            texture.userData.surfaceSource = 'NASA GIBS / Blue Marble Shaded Relief and Bathymetry';
+            texture.userData.surfaceSource = 'NASA GIBS / Blue Marble Next Generation (no baked relief)';
             texture.userData.temporal = EARTH_TEMPORAL_LAYERS.blueMarble;
             return texture;
         } catch (error) {
