@@ -76,9 +76,11 @@ export function surfaceVisualMaterialFromSearch(search = '') {
 
 // A/B review overrides. Honoured only together with a valid surfaceVisualCase,
 // so the normal app never reads them; invalid values are ignored (the
-// production default stays in force). reliefExaggeration is the linear E.
+// production default stays in force). reliefExaggeration is the linear E of
+// the geometry; shadingGain is the gain G of the shading normals (LOT 4b-C).
 const OVERRIDE_RANGES = Object.freeze({
     reliefExaggeration: [0, 100],
+    shadingGain: [0, 100],
     reliefStrength: [0, 2],
 });
 const OVERRIDE_ENUMS = Object.freeze({});

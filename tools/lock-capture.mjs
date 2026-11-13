@@ -33,6 +33,7 @@ const CROP_TARGETS = {
   baikal: { lon: 108.0, lat: 53.5 },
   greatLakes: { lon: -84.0, lat: 45.0 },
   greenland: { lon: -40.0, lat: 72.0 },
+  alps: { lon: 10.0, lat: 46.5 },
 };
 // Per-target preference of source frame. The existing `terminator` lock case
 // (00:00Z, Earth rotated 90 deg) is captured as an extra frame for that crop.
@@ -47,6 +48,7 @@ const CROP_SOURCE_ORDER = {
   baikal: ['asia', 'polar', 'global'],
   greatLakes: ['americas', 'polar', 'global'],
   greenland: ['polar', 'americas', 'global'],
+  alps: ['close', 'regional', 'global'],
 };
 // Extra lock cases captured only as crop sources: `polar` (northern
 // hemisphere), `asia` (Baikal) and `americas` (Great Lakes) at local noon.

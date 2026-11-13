@@ -125,7 +125,7 @@ describe('Earth materials', () => {
         const shader = fakeShader();
         material.onBeforeCompile(shader);
         expect(shader.uniforms.uReliefStrengthTw.value).toBe(strength);
-        expect(shader.uniforms.uReliefExaggerationTw.value).toBe(10);
+        expect(shader.uniforms.uShadingGainTw.value).toBe(30); // production shading gain G (LOT 4b-C)
         // Shared uniform objects: the R8 mask swap and the ready flag reach every material.
         expect(shader.uniforms.uWaterMaskTw).toBe(waterMask.uniform);
         expect(shader.uniforms.uWaterMaskReadyTw).toBe(waterMask.ready);
@@ -138,7 +138,7 @@ describe('Earth materials', () => {
         expect(shader.vertexShader).not.toContain('#include <displacementmap_vertex>');
         // Normals: 4 surface-height samples, gain E, along local east/north.
         expect(shader.fragmentShader.match(/reliefSurfaceHeightTw\(vMapUv [+-] vec2/g)).toHaveLength(4);
-        expect(shader.fragmentShader).toContain('uReliefExaggerationTw * vec2(');
+        expect(shader.fragmentShader).toContain('uShadingGainTw * vec2(');
         expect(shader.fragmentShader).toContain('reliefSunTw = smoothstep(-0.05, 0.05');
         expect(shader.fragmentShader).toContain('surfaceLandWeightTw * reliefSunTw');
         // Land weight from the water fraction, not from a gray threshold.
@@ -150,13 +150,15 @@ describe('Earth materials', () => {
             .toBeLessThan(shader.fragmentShader.indexOf('#include <opaque_fragment>'));
     });
 
-    it('accepts the lock relief strength and exaggeration overrides only', () => {
+    it('keeps the shading gain G apart from the geometric exaggeration E', () => {
         const shader = fakeShader();
-        const material = createEarthMaterial({ ...common, waterMask, overrides: { reliefStrength: 0.9 }, reliefExaggeration: 0 });
+        const material = createEarthMaterial({ ...common, waterMask, overrides: { reliefStrength: 0.9 }, reliefExaggeration: 10, shadingGain: 30 });
         material.onBeforeCompile(shader);
         expect(shader.uniforms.uReliefStrengthTw.value).toBe(0.9);
-        expect(shader.uniforms.uReliefExaggerationTw.value).toBe(0);
-        expect(material.displacementScale).toBe(0);
+        expect(shader.uniforms.uShadingGainTw.value).toBe(30);
+        // Geometry still x10: the limb silhouette does not follow G.
+        expect(material.displacementScale).toBeCloseTo(10 / ATMOSPHERE.metersPerSceneUnit, 15);
+        expect(shader.vertexShader).not.toContain('uShadingGainTw');
     });
 
     it('no longer exports the legacy sqrt-like relief (encoding, labels, lock options)', () => {

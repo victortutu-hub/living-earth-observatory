@@ -1,6 +1,6 @@
 import { createSurfaceMaterialLodConfig } from './surface-material-lod.js';
 import { ATMOSPHERE, ATMOSPHERE_GLSL } from './atmosphere-physics.js';
-import { RELIEF_LINEAR_EXAGGERATION, RELIEF_SOURCE, linearDisplacementScale } from './relief-linear.js';
+import { RELIEF_LINEAR_EXAGGERATION, RELIEF_SHADING_GAIN, RELIEF_SOURCE, linearDisplacementScale } from './relief-linear.js';
 
 // Relief (LOT 4b-B): ETOPO 2022 60" ice surface in metres, area-averaged to
 // 1/6 deg, displaced linearly (x E) with water flat at 0 m, and normals computed
@@ -27,7 +27,7 @@ export function reliefPerturbationWeight({ strength, landWeight, sunDotGeometric
 const LINEAR_RELIEF_FRAGMENT_PARS = `
         uniform sampler2D uWaterMaskTw;
         uniform float uWaterMaskReadyTw;
-        uniform float uReliefExaggerationTw;
+        uniform float uShadingGainTw;
         varying vec3 vReliefEastTw;
         varying vec3 vReliefNorthTw;
         // Water fraction: MOD44W once loaded, z <= 0 until then.
@@ -47,7 +47,7 @@ const linearReliefNormalBody = () => `
                 float hNTw = reliefSurfaceHeightTw(vMapUv + vec2(0.0, reliefTexelTw.y));
                 vec3 reliefDirTw = normalize(vSurfaceMaterialDirectionTw);
                 float reliefCosLatTw = max(sqrt(max(0.0, 1.0 - reliefDirTw.y * reliefDirTw.y)), 0.02);
-                vec2 reliefSlopeTw = uReliefExaggerationTw * vec2(
+                vec2 reliefSlopeTw = uShadingGainTw * vec2(
                     (hETw - hWTw) / (4.0 * PI * R_E * reliefCosLatTw * reliefTexelTw.x),
                     (hNTw - hSTw) / (2.0 * PI * R_E * reliefTexelTw.y));
                 normal = normalize(normal - reliefSlopeTw.x * normalize(vReliefEastTw) - reliefSlopeTw.y * normalize(vReliefNorthTw));
@@ -117,10 +117,11 @@ export const AERIAL_PERSPECTIVE_UNIFORMS = Object.freeze([
 
 // Shared by Phong and PBR: relief strength, aerial perspective uniforms,
 // world-position varying and the GLSL physics library.
-function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, waterMask = null, exaggeration = RELIEF_LINEAR_EXAGGERATION }) {
+function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, waterMask = null, shadingGain = RELIEF_SHADING_GAIN }) {
     injectLinearDisplacement(shader, waterMask);
     shader.uniforms.uReliefStrengthTw = { value: reliefStrength };
-    shader.uniforms.uReliefExaggerationTw = { value: exaggeration };
+    // Shading only: the geometry uses displacementScale (exaggeration E).
+    shader.uniforms.uShadingGainTw = { value: shadingGain };
     shader.uniforms.uAerialPerspectiveTw = { value: 1.0 };
     shader.uniforms.uSunIrradianceTw = { value: new THREE.Vector3(0, 0, 0) }; // synced from the sun light each frame
     shader.uniforms.uAtmosphereHazeTw = { value: ATMOSPHERE.haze };
@@ -326,6 +327,8 @@ export function createEarthMaterial({
     // Scene units per metre (E / metres per scene unit).
     reliefExaggeration = RELIEF_LINEAR_EXAGGERATION,
     earthReliefScale = linearDisplacementScale(reliefExaggeration),
+    // Gain on the shading normals only (G), separate from the geometric E.
+    shadingGain = RELIEF_SHADING_GAIN,
     // { uniform: { value: texture }, ready: { value } } shared by every material (MOD44W R8).
     waterMask = null,
     reliefTextureRef = { current: earthRelief },
@@ -355,7 +358,7 @@ export function createEarthMaterial({
         injectReliefAndAerialPerspective(shader, THREE, {
             reliefStrength: overrides.reliefStrength ?? RELIEF_STRENGTH.phong,
             waterMask,
-            exaggeration: reliefExaggeration
+            shadingGain
         });
         shader.uniforms.uSunDirTw = { value: new THREE.Vector3(1, 0, 0) };
         shader.uniforms.uEarthNightTw = { value: 1.0 };
@@ -474,6 +477,8 @@ export function createEarthMaterialPBR({
     // Scene units per metre (E / metres per scene unit).
     reliefExaggeration = RELIEF_LINEAR_EXAGGERATION,
     earthReliefScale = linearDisplacementScale(reliefExaggeration),
+    // Gain on the shading normals only (G), separate from the geometric E.
+    shadingGain = RELIEF_SHADING_GAIN,
     // { uniform: { value: texture }, ready: { value } } shared by every material (MOD44W R8).
     waterMask = null,
     reliefTextureRef = { current: earthRelief },
@@ -505,7 +510,7 @@ export function createEarthMaterialPBR({
         injectReliefAndAerialPerspective(shader, THREE, {
             reliefStrength: overrides.reliefStrength ?? RELIEF_STRENGTH.pbr,
             waterMask,
-            exaggeration: reliefExaggeration
+            shadingGain
         });
 
         // Same relief rule as Phong (land only, fades only below the local

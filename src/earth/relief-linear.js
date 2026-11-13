@@ -23,6 +23,11 @@ export const RELIEF_LINEAR_ASSETS = Object.freeze({
 });
 
 export const RELIEF_LINEAR_EXAGGERATION = 10;
+// Gain on the slopes used for the shading normals only (LOT 4b-C). Kept apart
+// from the geometric exaggeration (x10) so the limb silhouette stays smooth
+// while relief shading reads at 1/6 deg; G = 30 chosen from the lock A/B
+// (tmp/lot4b/shading). Declared in the #surfaceStatus tooltip.
+export const RELIEF_SHADING_GAIN = 30;
 
 export const RELIEF_SOURCE = 'NOAA NCEI ETOPO 2022 60" ice surface (DOI 10.25921/fd45-gt74), area-averaged to 1/6 deg, linear metres; water fraction NASA MODIS MOD44W';
 
@@ -42,22 +47,23 @@ export function surfaceHeightM(elevationM, waterFraction) {
  * sphere of radius R, exaggerated by E. Returns the local (east, north, up)
  * components of the unit normal.
  */
-export function reliefNormalENU({ heights, water, latDeg, width = RELIEF_LINEAR_ASSETS.width, height = RELIEF_LINEAR_ASSETS.height, exaggeration = RELIEF_LINEAR_EXAGGERATION }) {
+export function reliefNormalENU({ heights, water, latDeg, width = RELIEF_LINEAR_ASSETS.width, height = RELIEF_LINEAR_ASSETS.height, shadingGain = RELIEF_SHADING_GAIN }) {
     const R = ATMOSPHERE.earthRadiusM;
     const h = (k) => surfaceHeightM(heights[k], water[k]);
     const eastM = 2 * Math.PI * R * Math.max(Math.cos(latDeg * Math.PI / 180), 0.02) / width;
     const northM = Math.PI * R / height;
     const dzde = (h('east') - h('west')) / (2 * eastM);
     const dzdn = (h('north') - h('south')) / (2 * northM);
-    const n = [-exaggeration * dzde, -exaggeration * dzdn, 1];
+    const n = [-shadingGain * dzde, -shadingGain * dzdn, 1];
     const length = Math.hypot(...n);
     return n.map((v) => v / length);
 }
 
-export function linearReliefLabel(exaggeration = RELIEF_LINEAR_EXAGGERATION) {
-    if (!(exaggeration > 0)) return 'Relief: no geometric displacement (linear ETOPO 2022 relief; shading only)';
-    const e = Number.isInteger(exaggeration) ? exaggeration : exaggeration.toFixed(1);
-    return `Relief: vertical exaggeration ×${e} (linear, ETOPO 2022 60″ ice surface, area-averaged 1/6°; water mask MODIS MOD44W; lake surfaces rendered at 0 m — ETOPO has no lake levels)`;
+export function linearReliefLabel(exaggeration = RELIEF_LINEAR_EXAGGERATION, shadingGain = RELIEF_SHADING_GAIN) {
+    const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+    const sources = 'linear, ETOPO 2022 60″ ice surface, area-averaged 1/6°; water mask MODIS MOD44W; lake surfaces rendered at 0 m — ETOPO has no lake levels';
+    const geometry = exaggeration > 0 ? `vertical exaggeration ×${fmt(exaggeration)} (geometry)` : 'no geometric displacement';
+    return `Relief: ${geometry}, shading gain ×${fmt(shadingGain)} (${sources})`;
 }
 
 /** Validates and wraps a raw little-endian half-float file (no header, no mips). */

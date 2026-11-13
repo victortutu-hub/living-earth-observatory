@@ -65,8 +65,9 @@ describe('surface visual lock query contract', () => {
     it('reads A/B material overrides only inside a lock case, and only valid values', () => {
         expect(surfaceVisualOverridesFromSearch('?reliefExaggeration=10&bathymetryMix=0')).toEqual({});
         expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close')).toEqual({});
-        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=0&reliefStrength=0.936'))
-            .toEqual({ reliefExaggeration: 0, reliefStrength: 0.936 });
+        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=0&reliefStrength=0.936&shadingGain=30'))
+            .toEqual({ reliefExaggeration: 0, reliefStrength: 0.936, shadingGain: 30 });
+        expect(surfaceVisualOverridesFromSearch('?shadingGain=30')).toEqual({}); // lock only
         expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=-1&reliefStrength=abc'))
             .toEqual({});
         // The legacy relief A/B options are gone (LOT 4b-B).

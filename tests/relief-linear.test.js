@@ -5,6 +5,7 @@ import { ATMOSPHERE } from '../src/earth/atmosphere-physics.js';
 import {
     RELIEF_LINEAR_ASSETS,
     RELIEF_LINEAR_EXAGGERATION,
+    RELIEF_SHADING_GAIN,
     decodeR16fBin,
     linearDisplacementScale,
     linearReliefLabel,
@@ -38,6 +39,17 @@ describe('linear relief: shader normals (JS mirror) on synthetic data', () => {
     const base = { latDeg: 40 };
     const tilt = (n) => 1 - n[2];
 
+    it('the coast stays fault-free at every shading gain (water clamped at 0 m)', () => {
+        const heights = { west: -4000, east: 10, south: 10, north: 10 };
+        for (const shadingGain of [10, 20, 30, 40]) {
+            const n = reliefNormalENU({ ...base, heights, water: { west: 1, east: 0, south: 0, north: 0 }, shadingGain });
+            expect(tilt(n)).toBeLessThan(1e-3);
+        }
+        // Open sea: all neighbours are water -> flat at any gain.
+        const sea = reliefNormalENU({ ...base, heights: { west: -5000, east: -2000, south: -4000, north: -3000 }, water: { west: 1, east: 1, south: 1, north: 1 }, shadingGain: 40 });
+        expect(tilt(sea)).toBe(0);
+    });
+
     it('a coast next to a deep sea floor has no fault once water is clamped', () => {
         // Flat 10 m coastal plain; the western neighbour is ocean at -4000 m.
         const heights = { west: -4000, east: 10, south: 10, north: 10 };
@@ -51,7 +63,7 @@ describe('linear relief: shader normals (JS mirror) on synthetic data', () => {
         const heights = { west: 0, east: 2000, south: 1000, north: 1000 };
         const water = { west: 0, east: 0, south: 0, north: 0 };
         const n10 = reliefNormalENU({ ...base, heights, water });
-        const n1 = reliefNormalENU({ ...base, heights, water, exaggeration: 1 });
+        const n1 = reliefNormalENU({ ...base, heights, water, shadingGain: 1 });
         expect(n10[0]).toBeLessThan(0); // rises to the east -> normal leans west
         expect(Math.abs(n10[1])).toBeLessThan(1e-12);
         expect(tilt(n10)).toBeGreaterThan(tilt(n1) * 50);
@@ -148,7 +160,9 @@ describe('MOD44W mask as R8', () => {
 
 describe('relief tooltip', () => {
     it('states the linear, constant exaggeration and both sources', () => {
-        expect(linearReliefLabel()).toBe('Relief: vertical exaggeration ×10 (linear, ETOPO 2022 60″ ice surface, area-averaged 1/6°; water mask MODIS MOD44W; lake surfaces rendered at 0 m — ETOPO has no lake levels)');
-        expect(linearReliefLabel(0)).toMatch(/no geometric displacement/);
+        expect(RELIEF_SHADING_GAIN).toBe(30);
+        expect(linearReliefLabel()).toBe('Relief: vertical exaggeration ×10 (geometry), shading gain ×30 (linear, ETOPO 2022 60″ ice surface, area-averaged 1/6°; water mask MODIS MOD44W; lake surfaces rendered at 0 m — ETOPO has no lake levels)');
+        expect(linearReliefLabel(10, 30)).toMatch(/^Relief: vertical exaggeration ×10 \(geometry\), shading gain ×30 \(/);
+        expect(linearReliefLabel(0, 20)).toMatch(/^Relief: no geometric displacement, shading gain ×20/);
     });
 });

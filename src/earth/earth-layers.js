@@ -11,6 +11,7 @@ import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
 import {
     RELIEF_LINEAR_ASSETS,
     RELIEF_LINEAR_EXAGGERATION,
+    RELIEF_SHADING_GAIN,
     configureReliefTexture,
     linearDisplacementScale,
     linearReliefLabel,
@@ -31,11 +32,13 @@ export function createEarthLayers({
     const surfaceVisualCase = surfaceVisualCaseFromSearch(window.location.search);
     // Visual-lock A/B overrides only ({} outside a lock case).
     const materialOverrides = surfaceVisualOverridesFromSearch(window.location.search);
-    // One real exaggeration E for the linear relief (a lock A/B may override it).
+    // Geometry: one real exaggeration E. Shading: its own gain G on the
+    // shader normals. A lock A/B may override either.
     const reliefExaggeration = materialOverrides.reliefExaggeration ?? RELIEF_LINEAR_EXAGGERATION;
+    const shadingGain = materialOverrides.shadingGain ?? RELIEF_SHADING_GAIN;
     const earthReliefScale = linearDisplacementScale(reliefExaggeration);
-    const reliefTitle = linearReliefLabel(reliefExaggeration);
-    const reliefMaterialOptions = { waterMask: earthWaterMask, reliefExaggeration };
+    const reliefTitle = linearReliefLabel(reliefExaggeration, shadingGain);
+    const reliefMaterialOptions = { waterMask: earthWaterMask, reliefExaggeration, shadingGain };
     const surfaceMaterial = createSurfaceMaterialLodConfig({
         earthRadius: 2,
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
