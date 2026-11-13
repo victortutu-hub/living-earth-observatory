@@ -2,6 +2,10 @@ import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
 import { atlasStatus } from '../core/status-store.js';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
+import { observatoryRuntimeBadge } from '../core/observatory-runtime-badge.js';
+import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js';
+
+const STATUS_LABELS = new Map(PLATFORM_TAXONOMY.statuses.map((status) => [status.id, status.label]));
 import { runtimeControl } from '../core/runtime/runtime-control.js';
 import { classifyCacheRecord } from '../core/runtime/persistent-cache.js';
 import { initDiagnosticSnapshotPanel } from './diagnostic-snapshot-panel.js';
@@ -238,7 +242,8 @@ export function initRuntimeControlCenter({ dataBroker, portalRenderer = null } =
       const title = document.createElement('strong');
       title.textContent = `${observatory.title} ${observatory.subtitle}`;
       titleWrap.append(label, title);
-      head.append(titleWrap, stateBadge(runtime.value || 'FALLBACK', runtime.state || 'fallback'));
+      const badge = observatoryRuntimeBadge(observatory, runtimeSnapshot[observatory.id], STATUS_LABELS.get(observatory.status));
+      head.append(titleWrap, stateBadge(badge.text, badge.state));
 
       const grid = document.createElement('dl');
       grid.className = 'runtime-observatory-grid';

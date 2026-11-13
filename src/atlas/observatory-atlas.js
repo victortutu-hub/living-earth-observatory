@@ -2,6 +2,7 @@ import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
 import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
+import { hasRuntime, observatoryRuntimeBadge } from '../core/observatory-runtime-badge.js';
 
 let platformFilters = { family: 'all', scale: 'all', status: 'all' };
 
@@ -63,12 +64,17 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
         const status = createElement('span',`obs-status ${item.status === 'live' ? 'live' : item.status === 'development' ? 'soon' : ''}`,statusById.get(item.status)?.label || item.status);
         const coordinate = createElement('span','obs-coordinate',`${familyById.get(item.family)?.short || item.family} · ${scaleById.get(item.scale)?.label || item.scale}`);
         coordinate.textContent = getScopeCoordinate(item);
-        const hasPublicRoute = Boolean(item.route);
-        const runtime = hasPublicRoute ? observatoryRuntime.get(item.id) : null;
-        const runtimeStatus = createElement('span','obs-runtime-status',runtime?.value || (hasPublicRoute ? 'FALLBACK' : 'ROADMAP'));
-        runtimeStatus.dataset.observatoryRuntime = item.id;
-        runtimeStatus.dataset.state = runtime?.state || (hasPublicRoute ? 'fallback' : 'declared');
-        head.append(status,runtimeStatus,coordinate);
+        // Runtime badge only for routed observatories; the status chip above
+        // already states PLANNED / RESEARCH / IN DEVELOPMENT for the rest.
+        if (hasRuntime(item)) {
+          const badge = observatoryRuntimeBadge(item, observatoryRuntime.get(item.id));
+          const runtimeStatus = createElement('span','obs-runtime-status',badge.text);
+          runtimeStatus.dataset.observatoryRuntime = item.id;
+          runtimeStatus.dataset.state = badge.state;
+          head.append(status,runtimeStatus,coordinate);
+        } else {
+          head.append(status,coordinate);
+        }
 
         const title = createElement('h3');
         title.append(document.createTextNode(item.title + ' '));
