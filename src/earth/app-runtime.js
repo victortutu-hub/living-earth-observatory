@@ -13,7 +13,7 @@ export function createEarthAppRuntime({
     bloomResolutionScale,
     smaaPass,
     controls,
-    clock,
+    timer,
     controlPanel,
     solarRuntime,
     moonSystem,
@@ -121,7 +121,7 @@ export function createEarthAppRuntime({
         state,
         controls,
         focus,
-        getTime: () => clock.getElapsedTime(),
+        getTime: () => timer.getElapsed(),
         currentReelMood,
         eventLonLat,
         eventCategory,
@@ -485,7 +485,8 @@ export function createEarthAppRuntime({
     function animate() {
         if (!running || disposed) return;
         performanceSampler.record(performance.now());
-        const t = clock.getElapsedTime();
+        timer.update();
+        const t = timer.getElapsed();
         demoReel.update(t);
         updateFocus(t, () => demoReel.onFocusComplete());
         updateMarkerAnimation(t, currentReelMood().markerPulseAmp * (state.dataRhythmPulseAmp || 1), camera);

@@ -42,13 +42,18 @@ export function createEarthAppServices({
         bloomResolutionScale,
         smaaPass
     } = sceneRuntime;
-    const clock = new THREE.Clock();
+    // THREE.Timer (THREE.Clock is deprecated in r185): app-runtime calls
+    // timer.update() once at the start of every frame; getElapsed() then gives
+    // the same seconds-since-start as Clock.getElapsedTime(), constant within a
+    // frame. Not connected to the Page Visibility API, so hidden time still
+    // counts, as it did with Clock.
+    const timer = new THREE.Timer();
     const visualFoundation = createAppVisualFoundation({
         THREE,
         state,
         sceneRuntime,
         bootstrap,
-        getTime: () => clock.getElapsedTime()
+        getTime: () => timer.getElapsed()
     });
     const {
         lonLatToVec3,
@@ -100,7 +105,7 @@ export function createEarthAppServices({
     const reelOverlay = createReelOverlay({
         THREE,
         scene,
-        getTime: () => clock.getElapsedTime(),
+        getTime: () => timer.getElapsed(),
         currentReelMood,
         officialCategoryLabels,
         latestGeometry,
@@ -205,7 +210,7 @@ export function createEarthAppServices({
         bloomPass,
         smaaPass,
         state,
-        getTime: () => clock.getElapsedTime(),
+        getTime: () => timer.getElapsed(),
         updateCaptureMode,
         updateGuide916,
         positionReelCaptionForCamera,
@@ -229,7 +234,7 @@ export function createEarthAppServices({
         heroDriftProfiles,
         eventCategory,
         lonLatToVec3,
-        getTime: () => clock.getElapsedTime(),
+        getTime: () => timer.getElapsed(),
         applyExportCameraFramingTo,
         updateGuide916,
         updateMotionPresetUi
@@ -479,7 +484,7 @@ export function createEarthAppServices({
         bloomResolutionScale,
         smaaPass,
         controls,
-        clock,
+        timer,
         controlPanel,
         solarRuntime,
         timeState,

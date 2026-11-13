@@ -53,7 +53,9 @@ export function createAppLifecycle({
             resizeObserver.observe(document.body);
         }
         realCloudTimer = setInterval(refreshRealClouds, realCloudRefreshMs);
-        window.addEventListener('unload', dispose);
+        // pagehide, not unload: unload listeners block the back/forward cache
+        // and are deprecated; pagehide also fires when the page is cached.
+        window.addEventListener('pagehide', dispose);
     }
 
     function dispose() {
@@ -69,7 +71,7 @@ export function createAppLifecycle({
         }
         solarRuntime?.stop();
         eonetAutoRefresh?.dispose();
-        window.removeEventListener('unload', dispose);
+        window.removeEventListener('pagehide', dispose);
     }
 
     return {
