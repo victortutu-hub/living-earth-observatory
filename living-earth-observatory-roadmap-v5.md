@@ -41,7 +41,7 @@ Toate se măsoară pe GTX 1650, 1080p, Chrome, fereastră maximizată.
 | Time to interactive (glob rotibil) | ? | ≤ 6 s | ≤ 4 s | manual + Performance |
 | Draw calls / frame | ? | ≤ 120 | ≤ 80 | Spector.js |
 | Payload inițial (network) | ? | ≤ 8 MB | ≤ 5 MB | DevTools Network |
-| Rezoluție efectivă suprafață la zoom max | ~2160px echiv. | ≥ 8192px echiv. | ≥ 16384px echiv. | vizual + tile level |
+| Rezoluție efectivă suprafață la zoom max | ~2160px echiv. | ≥ 8192px echiv. — atins în aug. prin WMS 8192×4096; **din 12 nov. 2026 textura globală e 4096×2048** (WMTS z3, 5120×2560 redus), regresie acceptată pentru fiabilitate (WMS 45–160 s / 504). z4 (10240×5120, 200 de dale, ~9 s) ar readuce ≥ 8192, cu ~210 MB VRAM RGBA8 | ≥ 16384px echiv. — **amânat**: cere LOD dinamic pe dale (tăiat în Sprint 0.3), nu o singură textură globală | vizual + tile level |
 
 > **IMPORTANT:** Coloana „Baseline" se completează în Sprint 0.1. Fără baseline, nu ai cum să știi dacă o optimizare a ajutat. Nu sări peste asta.
 
@@ -171,7 +171,7 @@ Toate se măsoară pe GTX 1650, 1080p, Chrome, fereastră maximizată.
 - [x] **Experiment respins:** mozaicul WMTS VIIRS la `z=1` a produs discontinuități/swatch-uri vizibile în masca de nori. `Daily clouds` a revenit la WMS global, coerent vizual; concluzia a ghidat direct decizia de mai jos — nu relua stitching client-side de tile-uri pe un produs cu swath-uri (imagerie zilnică).
 - [ ] Cross-fade între nivelurile LOD (evită pop-ul brusc). *(irelevant fără LOD dinamic — trece în Faza 1 odată cu el.)*
 - [ ] Cache LRU în memorie, plafonat (ex. 400 tile-uri) pentru a nu exploda VRAM. *(neutilizat încă — vezi nota de mai sus.)*
-- [x] **Regulă de tăiere aplicată (6 august):** în loc de quadtree/LOD dinamic, suprafața de zi (`earthMat.map`, fostă textură CDN low-res threejs.org 2048×1024) e alimentată acum dintr-un **singur raster WMS NASA GIBS Blue Marble Shaded Relief and Bathymetry**, la cea mai mare rezoluție care răspunde dintr-o scară de fallback (`8192×4096 → 4096×2048 → 2048×1024`). Confirmat live: **8192×4096** răspunde direct, fără a fi nevoie de treptele mai mici. Blue Marble e non-temporal (compozit unic, nu swath-uri zilnice), deci nu are problema de seams întâlnită mai sus la VIIRS — un singur `WMS GetMap` mare e suficient, fără `composeGibsEquirectangularMosaic`. Implementare: `src/earth/gibs-surface.js` (nou) + swap async în `src/earth/earth-layers.js` pe `earthMat.map`/`earthMatPBR.map`, cu watchdog de 16s și fallback onest pe textura veche dacă rețeaua/CORS eșuează, plus rând nou de status `#surfaceStatus` în panou (același tipar ca Black Marble).
+- [x] **Regulă de tăiere aplicată (6 august):** în loc de quadtree/LOD dinamic, suprafața de zi (`earthMat.map`, fostă textură CDN low-res threejs.org 2048×1024) e alimentată acum dintr-un **singur raster WMS NASA GIBS Blue Marble Shaded Relief and Bathymetry**, la cea mai mare rezoluție care răspunde dintr-o scară de fallback (`8192×4096 → 4096×2048 → 2048×1024`). Confirmat live: **8192×4096** răspunde direct, fără a fi nevoie de treptele mai mici. Blue Marble e non-temporal (compozit unic, nu swath-uri zilnice), deci nu are problema de seams întâlnită mai sus la VIIRS — un singur `WMS GetMap` mare e suficient, fără `composeGibsEquirectangularMosaic`. Implementare: `src/earth/gibs-surface.js` (nou) + swap async în `src/earth/earth-layers.js` pe `earthMat.map`/`earthMatPBR.map`, cu watchdog de 16s și fallback onest pe textura veche dacă rețeaua/CORS eșuează, plus rând nou de status `#surfaceStatus` în panou (același tipar ca Black Marble). **Actualizare 12–13 nov. 2026 (LOT 4 / 4b-A, `5cd2873`, `48a2651`, `9b02f3e`):** stratul e acum `BlueMarble_NextGeneration` (fără relief umbrit), încărcat din **dale WMTS**, progresiv: z2 (2560×1280) apoi z3 (5120×2560 redus la 4096×2048), cu timeout de 15 s per dală (doar timp vizibil) și o reîncercare. Motiv: WMS-ul GIBS răspundea în 45–160 s sau cu 504 (măsurat 12 nov. 2026), iar WMTS în ~0,3–0,7 s per dală. Fallback local: `assets/blue-marble-ng-4096x2048.jpg`.
 
 **Definition of Done:**
 - [x] Zoom la nivel de regiune arată detaliu satelit real, nu texeli întinși — satisfăcut prin nivelul fix Blue Marble 8192×4096, nu prin LOD dinamic.
@@ -179,7 +179,7 @@ Toate se măsoară pe GTX 1650, 1080p, Chrome, fereastră maximizată.
 - [ ] Nicio cerere de tile pentru fața invizibilă a globului — N/A pe calea aleasă (un singur raster global, nu tile-uri individuale).
 - [x] Atribuire NASA/GIBS vizibilă în UI — rândul `Surface: NASA GIBS / Blue Marble Shaded Relief and Bathymetry active (...)`.
 
-**Regulă de tăiere:** ~~Dacă la ziua 3 quadtree-ul nu e funcțional, taie LOD-ul dinamic și livrează **un singur nivel fix** de tile-uri (z=4 sau z=5) în loc de PNG-ul static.~~ **Aplicată pe 6 august**, dar cu un raster WMS unic în loc de tile-uri fixe asamblate — echivalent ca rezultat (salt masiv față de 2160×1080), mai simplu de implementat și fără risc de seams. LOD-ul dinamic real rămâne tăiat spre Faza 1, dacă se dovedește necesar după Gate 0.
+**Regulă de tăiere:** ~~Dacă la ziua 3 quadtree-ul nu e funcțional, taie LOD-ul dinamic și livrează **un singur nivel fix** de tile-uri (z=4 sau z=5) în loc de PNG-ul static.~~ **Aplicată pe 6 august**, dar cu un raster WMS unic în loc de tile-uri fixe asamblate — echivalent ca rezultat (salt masiv față de 2160×1080), mai simplu de implementat și fără risc de seams. LOD-ul dinamic real rămâne tăiat spre Faza 1, dacă se dovedește necesar după Gate 0. **Actualizare 12 nov. 2026:** s-a ajuns totuși la nivelul fix de tile-uri — dale WMTS compuse într-o singură textură (z3 pentru suprafață, z2 pentru Black Marble), pentru că WMS-ul a devenit nefiabil (45–160 s / 504); grila EPSG:4326 corectă (2×1 dale de 288° la z0, 10×5 de 36° la z3) e declarată explicit în `src/earth/gibs-tiles.js`.
 
 ---
 
@@ -188,7 +188,7 @@ Toate se măsoară pe GTX 1650, 1080p, Chrome, fereastră maximizată.
 **Livrabil:** partea de noapte a globului devine cinematică; pipeline HDR corect.
 
 **Task-uri:**
-- [x] **Night lights VIIRS Black Marble** prin GIBS: compozitul anual observat 2016 este încărcat asincron prin WMS (2048×1024) peste fallbackul local. Dacă rețeaua/CORS eșuează, fallbackul rămâne activ; atribuirea NASA GIBS / VIIRS Black Marble este vizibilă în UI. Răspuns NASA verificat: `200 image/png`.
+- [x] **Night lights VIIRS Black Marble** prin GIBS: compozitul anual observat 2016 este încărcat asincron prin WMS (2048×1024) peste fallbackul local. *Actualizare 12 nov. 2026 (`48a2651`):* acum din dale WMTS z2 (5×3 dale, 2560×1280), din același motiv ca suprafața (WMS 45–160 s / 504). Dacă rețeaua/CORS eșuează, fallbackul rămâne activ; atribuirea NASA GIBS / VIIRS Black Marble este vizibilă în UI. Răspuns NASA verificat: `200 image/png`.
 - [x] Blend cu terminatorul solar pe care deja îl calculezi: Black Marble folosește `sunDotRefracted = dot(N, L) + 0.0099` și o mască emisivă de noapte; tranziția a fost verificată vizual la 2026-07-26 cu ghidul de terminator. UI-ul confirmă explicit `Black Marble: NASA GIBS / VIIRS 2016 active — fades at solar terminator`; dacă încărcarea eșuează sau întârzie, declară fallbackul local după watchdog, fără stare ambiguă.
   ```glsl
   // Ai deja refracția: sunDot' = dot(N, L) + 0.0099  (≈ +0.567° la orizont)
@@ -340,10 +340,10 @@ interface LayerPlugin {
 **Decizie (12 august):** Gate 1 rămâne acceptat parțial (deschis) — se trece la Faza 2 fără cele 4 puncte de mai jos bifate. Revizitat la o sesiune ulterioară, nu abandonat. Motivul: sprint-urile de conținut (1.1–1.5) sunt toate închise; ce rămâne (CI real pe push, măsurători de performanță, deploy) sunt verificări de infrastructură care nu blochează dezvoltarea următoarelor funcționalități din Faza 2.
 
 - [x] Adăugarea unei surse noi = 1 fișier + 1 linie, verificat cu un exemplu real — validat de două ori: GVP (Sprint 1.1) și Snow & ice (Sprint 1.5).
-- [~] Suita de teste verde în CI — 25/25 teste verzi local (`npm test`), workflow `.github/workflows/ci.yml` există, dar **nu a rulat încă pe GitHub Actions** — tot lucrul e pe branch local `dev/post-hackathon`, nepublicat (vezi nota despre `main` = snapshot hackathon). De verificat după push.
-- [ ] Timeline scrubbing funcțional pe ≥3 straturi temporale — **netrecut, onest.** Sprint 1.4 a livrat scrubbing doar pentru astronomie (Soare/Lună), tăiat deliberat față de straturile de date GIBS (nori opriți, night lights fix pe ani). Ar necesita reactivarea norilor zilnici + propagarea datei către minim 2 straturi temporale reale (acum există doar Snow & ice ca strat temporal nou, neconectat încă la slider).
-- [ ] Draw calls ≤ 80, FPS ≥ 45 — nemăsurat, necesită Spector.js/DevTools într-o sesiune de browser reală.
-- [ ] **Deploy public actualizat** — nefăcut; deploy-ul curent (`luminomorphism.ro`) rămâne pe starea dinainte de Faza 1.
+- [~] Suita de teste verde în CI — **stare 13 nov. 2026:** `npm run verify:f0` (sintaxă + importuri + 201 teste + registry) iese cu 0 local; `ci.yml` rula doar pe `main` și la PR, deci `dev/post-hackathon` nu avea nicio rulare pe GitHub Actions (verificat prin API). Commit `2cdd203` adaugă `dev/**` la triggere (Node 22, ca pe server); devine `[x]` după prima rulare verde pe branch.
+- [ ] Timeline scrubbing funcțional pe ≥3 straturi temporale — **netrecut, onest** (stare 13 nov. 2026: slider-ul mută doar Soarele, Luna și ISS — `src/earth/app-visual-foundation.js:56-59`; niciun strat de date nu e legat de dată). Sprint 1.4 a livrat scrubbing doar pentru astronomie (Soare/Lună), tăiat deliberat față de straturile de date GIBS (nori opriți, night lights fix pe ani). Ar necesita reactivarea norilor zilnici + propagarea datei către minim 2 straturi temporale reale (acum există doar Snow & ice ca strat temporal nou, neconectat încă la slider).
+- [~] Draw calls ≤ 80, FPS ≥ 45 — **măsurat 13 nov. 2026, dar nu în condițiile complete ale metricii:** pe producție, 59,9 FPS median (vsync) într-un panou mic, nu în fereastră maximizată; local, Chrome headless 1920×1080 pe GTX 1650, straturi implicite: 41 draw calls/cadru, 59,9 FPS median (p1 59,2), GPU 4,3 ms/cadru. Rămâne de confirmat într-o fereastră maximizată cu toate straturile pornite.
+- [x] **Deploy public actualizat** — 13 nov. 2026: `luminomorphism.ro` servește LOT 4b (`src/earth/relief-linear.js` cu `RELIEF_SHADING_GAIN = 30`, `assets/etopo2022-surface-m-2160x1080.ktx2` → 200, dale WMTS cu timeout pe timp vizibil); asset-urile vechi de relief → 404.
 
 ---
 
@@ -404,10 +404,12 @@ Tehnica canonică (Cameron Beccario / earth.nullschool.net, baza pentru Windy, V
 
 ### 🚪 GATE 2
 
-- [ ] Particulele de vânt rulează la ≥45 FPS pe GTX 1650.
-- [ ] Fallback WebGL2 funcțional (testat cu WebGPU dezactivat din flags).
-- [ ] Zero regresie de VRAM (≤ 3.2 GB).
-- [ ] **Deploy public actualizat + reel video.**
+*Stare 13 nov. 2026 (măsurători în `tmp/registry-himalaya/gate-measure.json`, Chrome headless 1920×1080, GTX 1650, vsync):*
+
+- [x] Particulele de vânt rulează la ≥45 FPS pe GTX 1650 — 16 384 particule (Open-Meteo, 612 puncte): 59,9 FPS median, p1 59,2, cadru p95 16,8 ms; 42 draw calls/cadru.
+- [x] **Aplicația rulează exclusiv pe WebGL2; migrarea WebGPU a fost tăiată în Sprint 2.1** (vezi mai sus) — criteriul inițial („fallback WebGL2 cu WebGPU dezactivat”) nu mai are obiect.
+- [ ] Zero regresie de VRAM (≤ 3.2 GB) — nemăsurat: cere `chrome://gpu` / Task Manager într-o fereastră reală (`renderer.info`: 30 texturi, 18 geometrii, 25 programe; texturile mari: suprafață 4096×2048, Black Marble 2560×1280, relief R16F 2160×1080, mască R8).
+- [~] **Deploy public actualizat + reel video** — deploy făcut (vezi Gate 1); reel-ul video nu e produs/publicat.
 
 ---
 
@@ -479,7 +481,8 @@ Ordonate după raportul valoare/fricțiune. **Integrează de sus în jos.** Tot 
 - **Living Himalaya Observatory V0** (adăugat 11 noiembrie 2026) → **înghețat până după Gate 2**, conform regulii de mai sus.
   - Ce este: observator regional separat (nu strat pe glob), teren 3D Khumbu la ~30 m, expediții din feed-uri Garmin MapShare publicate de echipe. Click pe marker → zbor la ~1,2 km deasupra punctului → cea mai recentă imagine Sentinel-2 clară, cu data ei; vânt de model la altitudinea GPS.
   - Specificație completă: [Living Himalaya Observatory — Specificație V0](https://claude.ai/artifact/YYrJd5hwNx5Ge25hi6xSyu) (surse, arhitectură, interacțiune, etică, 4 sprint-uri ~19 zile, Gate H0).
-  - Precondiții de dezghețare: Gate 2 verde; LOT 2 (proxy unificat) și LOT 3 (clasele de proveniență `model` și `reported`) închise; cele 5 verificări din spec (CORS Earth Search/COG, termeni Garmin, licențe, calitate SRTM vs Copernicus GLO-30, un feed MapShare real cu acord).
+  - Precondiții de dezghețare (stare 13 nov. 2026): Gate 2 verde — **nu încă**; LOT 2 (proxy unificat) — **închis** (`7bb6c15`, `1f23100`, `ec879f8`, `1123791`); LOT 3 (proveniență în vocabularul canonic din AGENTS.md: `prediction` afișat ca „Model prediction”, raportarea GDACS ca notă de proveniență) — **închis** (`a6d7cd1`); cele 5 verificări din spec (CORS Earth Search/COG, termeni Garmin, licențe, calitate SRTM vs Copernicus GLO-30, un feed MapShare real cu acord) — **neîncepute**.
+  - În registru: înregistrare `planned`, fără rută, scara `regional` (`c879480`) — nu e prezentată ca observator lansat.
   - Pe glob, Living Earth primește doar un marker „expediție activă” care deschide observatorul; terenul detaliat nu intră în Living Earth.
   - Regulă de etică non-negociabilă: doar expediții din listă albă, fără nume de persoane, fără extrapolarea poziției, banner „nu este serviciu de salvare”.
 - Migrare completă la WebGPU pe `main` → doar dacă benchmark-ul din 2.1 arată >10% câștig.
@@ -536,7 +539,7 @@ SEP 7  ─── NOV 1    FAZA 2: LIVING                     8 săpt → GATE 2 
 NOV 2  ─── ?        FAZA 3: CINEMATIC             opțional, fără deadline
 ```
 
-**Actualizare 11 noiembrie 2026:** Gate 1 și Gate 2 sunt încă deschise. Între timp rulează trei loturi de consolidare, în afara planului inițial: LOT 1 (o singură instanță per modul + `verify:f0` verde) — închis, commit `ca764ac`; LOT 2 (proxy unificat, TTL, H.264 sigur în producție) — în lucru; LOT 3 (taxonomie de proveniență `model`/`reported`, etichete oneste) — urmează. Living Himalaya V0 (~19 zile) vine după Gate 2 și după aceste loturi (vezi §7).
+**Actualizare 13 noiembrie 2026:** Gate 1 și Gate 2 sunt încă deschise (stare pe criterii în §3 și §4). Loturile de consolidare, în afara planului inițial: LOT 1 (o singură instanță per modul + `verify:f0` verde) — închis, `ca764ac`; LOT 2 (proxy unificat, TTL, H.264 sigur în producție) — închis, `7bb6c15`, `1f23100`, `ec879f8`, `1123791`; LOT 3 (proveniență canonică, timp de date vs. timp de preluare) — închis, `a6d7cd1`; LOT 4 (relief luminat doar de Soare, mare plată, perspectivă aeriană Chapman) — livrat, `5cd2873`, `3c2e2dd`, `ceb5ccc`; LOT 4b — livrat: etichetă onestă `0c4cb54`, GIBS pe WMTS `48a2651` + `9b02f3e`, relief liniar ETOPO 2022 ice surface + mască MOD44W `76361df` + `d4b0552`, consolă `f594e43`, câștig de umbrire ×30 `2240754`. Living Himalaya V0 (~19 zile) vine după Gate 2 (vezi §7).
 
 **Actualizare 12 noiembrie 2026 — LOT 4 / LOT 4b.** LOT 4 (relief luminat doar de Soarele real, mare plată, perspectivă aeriană Chapman, ocean doar din albedo Blue Marble NG) — închis. *Corecție (12 noiembrie, LOT 4b ETAPA 0):* eticheta „×10 la Everest” din LOT 4 era greșită — texelul de la Everest e un eșantion punctual de ~5.029 m, iar codarea e neliniară; exagerarea reală este ≈×15 la cel mai înalt eșantion (6.734 m) și mult mai mare la altitudini mici. **LOT 4b (de făcut): regenerarea reliefului și a normal map-ului din ETOPO 2022 în metri.** Codare liniară în metri (nu sqrt-like), normale pe uscat calculate din `max(elev, 0)`, rezoluție ~4320×2160, KTX2 produs cu `toktx` (pipeline-ul existent). Motiv, din capturile LOT 4 (`tmp/lot4/ab-coast/`): coaste întunecate — codarea sqrt-like pune primul texel de uscat la gri ~0.48 față de 0.42 la nivelul mării, deci normale foarte înclinate pe coastă (1−n.z mediană 0.71 față de 0.18 în interior); tăierea la nivelul mării singură nu ajută (0.69); relief grosier la zoom; exagerare neliniară (≈×15 la cel mai înalt eșantion, mult mai mare la altitudini mici). Notă pentru un lot ulterior, separat de 4b: `FogExp2` negru din scenă întunecă Luna cu 7–16%, iar `gibs-tiles.js` și Atlas (`gateway-config.js`) folosesc încă stratul umbrit `BlueMarble_ShadedRelief`.
 
