@@ -9,6 +9,9 @@ import {
     gibsTileKey,
     gibsTileUrl,
     loadTileWithRetry,
+    visibleTimeout,
+    watchPageVisibility,
+    whenVisible,
     tileGridDimensions,
     tileLatLonBounds,
 } from '../src/earth/gibs-tiles.js';
@@ -289,5 +292,120 @@ describe('GibsTileQueue', () => {
         expect(started).toEqual(['low', 'high']);
         release.shift()();
         await expect(high).resolves.toBe('high');
+    });
+});
+
+// --- LOT 4b-B PARTEA 0: tiles must not time out while the page is hidden ---
+class FakeDocument extends EventTarget {
+    constructor(hidden = false) { super(); this.hidden = hidden; }
+    setHidden(hidden) { this.hidden = hidden; this.dispatchEvent(new Event('visibilitychange')); }
+}
+
+describe('visibility-aware tile timeouts', () => {
+    it('counts only visible time: pauses while hidden, resumes with the remainder', () => {
+        vi.useFakeTimers();
+        try {
+            const doc = new FakeDocument(false);
+            const fired = vi.fn();
+            visibleTimeout(1000, fired, doc);
+            vi.advanceTimersByTime(600);
+            doc.setHidden(true);
+            vi.advanceTimersByTime(60_000);
+            expect(fired).not.toHaveBeenCalled();
+            doc.setHidden(false);
+            vi.advanceTimersByTime(399);
+            expect(fired).not.toHaveBeenCalled();
+            vi.advanceTimersByTime(1);
+            expect(fired).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('does not start counting while the page starts hidden; cancel() detaches', () => {
+        vi.useFakeTimers();
+        try {
+            const doc = new FakeDocument(true);
+            const fired = vi.fn();
+            const timeout = visibleTimeout(500, fired, doc);
+            vi.advanceTimersByTime(10_000);
+            expect(fired).not.toHaveBeenCalled();
+            timeout.cancel();
+            doc.setHidden(false);
+            vi.advanceTimersByTime(10_000);
+            expect(fired).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('a tile that downloads slowly while hidden is not timed out', async () => {
+        vi.useFakeTimers();
+        try {
+            const doc = new FakeDocument(true);
+            const loadImage = vi.fn(() => new Promise((resolve) => setTimeout(() => resolve('tile'), 40_000)));
+            const result = loadTileWithRetry(loadImage, 'u', { timeoutMs: 15_000, retries: 1, doc });
+            await vi.advanceTimersByTimeAsync(40_000);
+            await expect(result).resolves.toBe('tile');
+            expect(loadImage).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('the same slow tile still times out (and retries) while the page is visible', async () => {
+        vi.useFakeTimers();
+        try {
+            const doc = new FakeDocument(false);
+            const loadImage = vi.fn(() => new Promise(() => {}));
+            const result = loadTileWithRetry(loadImage, 'u', { timeoutMs: 15_000, retries: 1, doc });
+            const settled = expect(result).rejects.toThrow(/timed out after 15000 ms/);
+            await vi.advanceTimersByTimeAsync(30_000);
+            await settled;
+            expect(loadImage).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('a mosaic composed while hidden completes once its tiles arrive', async () => {
+        vi.useFakeTimers();
+        try {
+            const doc = new FakeDocument(true);
+            const loadImage = (url) => new Promise((resolve) => setTimeout(() => resolve(tileImage(url)), 25_000));
+            const mosaic = composeGibsEquirectangularMosaic({ layer: GIBS_LAYERS.blueMarble, z: 2, loadImage, createCanvas: fakeCanvasFactory().create, doc });
+            await vi.advanceTimersByTimeAsync(25_000 * 2);
+            await expect(mosaic).resolves.toMatchObject({ tiles: 15, width: 2560 });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('remembers that the page was hidden during a load, and waits for visibility', async () => {
+        const doc = new FakeDocument(false);
+        const watch = watchPageVisibility(doc);
+        expect(watch.wasHidden()).toBe(false);
+        doc.setHidden(true);
+        doc.setHidden(false);
+        expect(watch.wasHidden()).toBe(true);
+        watch.stop();
+
+        const hiddenDoc = new FakeDocument(true);
+        const visible = vi.fn();
+        const waiting = whenVisible(hiddenDoc).then(visible);
+        await Promise.resolve();
+        expect(visible).not.toHaveBeenCalled();
+        hiddenDoc.setHidden(false);
+        await waiting;
+        expect(visible).toHaveBeenCalledTimes(1);
+        await expect(whenVisible(new FakeDocument(false))).resolves.toBeUndefined();
+    });
+
+    it('status says when a layer fell back because the page was hidden, and that it will retry', () => {
+        expect(surfaceStatus({ kind: 'unavailable', retryWhenVisible: true }).message)
+            .toBe('Surface: bundled fallback texture active — NASA GIBS WMTS tiles did not finish while the page was hidden; retrying when visible');
+        expect(surfaceStatus({ kind: 'settled', z: 2, resolution: '2560x1280', finalLevel: 3, retryWhenVisible: true }).message)
+            .toBe('Surface: NASA GIBS / Blue Marble static reference active (WMTS z2, 2560x1280; z3 did not finish while the page was hidden — retrying when visible)');
+        expect(surfaceStatus({ kind: 'unavailable' }).message).toBe('Surface: bundled fallback texture active — NASA GIBS WMTS unavailable');
     });
 });

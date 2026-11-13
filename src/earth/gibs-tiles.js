@@ -208,41 +208,113 @@ function abortError(signal) {
     return signal?.reason || new DOMException('Aborted', 'AbortError');
 }
 
+const pageDocument = () => (typeof document !== 'undefined' ? document : null);
+
 /**
- * One tile attempt bounded by timeoutMs, retried `retries` times. The timer
- * is always cleared; an abort is never retried.
+ * A timeout that counts only time while the page is visible. Browsers throttle
+ * timers and image decoding in hidden tabs, so a wall-clock timeout would
+ * expire on tiles that have already downloaded (LOT 4b-B, found at deploy).
+ * The countdown pauses on `visibilitychange` to hidden and resumes with the
+ * remaining time when the page is visible again. cancel() always detaches.
  */
-export async function loadTileWithRetry(loadImage, url, { timeoutMs = 15_000, retries = 1, signal = null } = {}) {
+export function visibleTimeout(ms, onTimeout, doc = pageDocument()) {
+    let remaining = ms;
+    let startedAt = 0;
+    let timer = null;
+    let done = false;
+    const isHidden = () => Boolean(doc?.hidden);
+    const detach = () => doc?.removeEventListener?.('visibilitychange', onVisibility);
+    const start = () => {
+        if (done || timer !== null) return;
+        startedAt = Date.now();
+        timer = setTimeout(() => {
+            timer = null;
+            done = true;
+            detach();
+            onTimeout();
+        }, remaining);
+    };
+    const pause = () => {
+        if (timer === null) return;
+        clearTimeout(timer);
+        timer = null;
+        remaining = Math.max(0, remaining - (Date.now() - startedAt));
+    };
+    function onVisibility() {
+        if (isHidden()) pause();
+        else start();
+    }
+    doc?.addEventListener?.('visibilitychange', onVisibility);
+    if (!isHidden()) start();
+    return {
+        cancel() {
+            done = true;
+            if (timer !== null) clearTimeout(timer);
+            timer = null;
+            detach();
+        },
+    };
+}
+
+/** Records whether the page was hidden at any moment while a load ran. */
+export function watchPageVisibility(doc = pageDocument()) {
+    let hidden = Boolean(doc?.hidden);
+    const onVisibility = () => { if (doc.hidden) hidden = true; };
+    doc?.addEventListener?.('visibilitychange', onVisibility);
+    return {
+        wasHidden: () => hidden,
+        stop: () => doc?.removeEventListener?.('visibilitychange', onVisibility),
+    };
+}
+
+/** Resolves when the page is visible (immediately if it already is). */
+export function whenVisible(doc = pageDocument()) {
+    if (!doc?.hidden) return Promise.resolve();
+    return new Promise((resolve) => {
+        const onVisibility = () => {
+            if (doc.hidden) return;
+            doc.removeEventListener('visibilitychange', onVisibility);
+            resolve();
+        };
+        doc.addEventListener('visibilitychange', onVisibility);
+    });
+}
+
+/**
+ * One tile attempt bounded by timeoutMs of visible time, retried `retries`
+ * times. The timer is always cancelled; an abort is never retried.
+ */
+export async function loadTileWithRetry(loadImage, url, { timeoutMs = 15_000, retries = 1, signal = null, doc = pageDocument() } = {}) {
     let lastError = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
         if (signal?.aborted) throw abortError(signal);
-        let timer = null;
+        let timeout = null;
         try {
             return await Promise.race([
-                Promise.resolve().then(() => loadImage(url, { timeoutMs, signal })),
+                Promise.resolve().then(() => loadImage(url, { timeoutMs, signal, doc })),
                 new Promise((_, reject) => {
-                    timer = setTimeout(() => reject(new Error(`GIBS tile timed out after ${timeoutMs} ms: ${url}`)), timeoutMs);
+                    timeout = visibleTimeout(timeoutMs, () => reject(new Error(`GIBS tile timed out after ${timeoutMs} ms: ${url}`)), doc);
                 }),
             ]);
         } catch (error) {
             if (error?.name === 'AbortError') throw error;
             lastError = error;
         } finally {
-            clearTimeout(timer);
+            timeout?.cancel();
         }
     }
     throw lastError;
 }
 
 /** Browser tile loader: decoded <img>; the request is dropped on timeout or abort. */
-export function loadGibsTileImage(url, { timeoutMs = 15_000, signal = null } = {}) {
+export function loadGibsTileImage(url, { timeoutMs = 15_000, signal = null, doc = pageDocument() } = {}) {
     return new Promise((resolve, reject) => {
         const image = new Image();
         let settled = false;
         const finish = (error) => {
             if (settled) return;
             settled = true;
-            clearTimeout(timer);
+            timeout.cancel();
             signal?.removeEventListener('abort', onAbort);
             if (error) {
                 image.src = '';
@@ -252,7 +324,7 @@ export function loadGibsTileImage(url, { timeoutMs = 15_000, signal = null } = {
             }
         };
         const onAbort = () => finish(abortError(signal));
-        const timer = setTimeout(() => finish(new Error(`GIBS tile timed out after ${timeoutMs} ms`)), timeoutMs);
+        const timeout = visibleTimeout(timeoutMs, () => finish(new Error(`GIBS tile timed out after ${timeoutMs} ms`)), doc);
         if (signal?.aborted) return onAbort();
         signal?.addEventListener('abort', onAbort, { once: true });
         image.crossOrigin = 'anonymous';
@@ -287,6 +359,7 @@ export async function composeGibsEquirectangularMosaic({
     outputSize = null,
     createCanvas = defaultCreateCanvas,
     signal = null,
+    doc = pageDocument(),
 }) {
     if (typeof loadImage !== 'function') throw new TypeError('composeGibsEquirectangularMosaic requires loadImage(url).');
     if (z > layer.maxZoom) throw new RangeError(`${layer.id} supports levels through z=${layer.maxZoom}.`);
@@ -299,7 +372,7 @@ export async function composeGibsEquirectangularMosaic({
 
     const queue = new GibsTileQueue({
         concurrency,
-        load: (url) => loadTileWithRetry(loadImage, url, { timeoutMs: tileTimeoutMs, retries, signal }),
+        load: (url) => loadTileWithRetry(loadImage, url, { timeoutMs: tileTimeoutMs, retries, signal, doc }),
     });
     const tasks = [];
     for (let y = 0; y < coverage.rows; y++) {

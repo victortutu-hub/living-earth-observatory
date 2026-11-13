@@ -37,12 +37,19 @@ export function surfaceStatus(event) {
             state: 'nasa',
             message: event.z === event.finalLevel
                 ? `Surface: NASA GIBS / Blue Marble static reference active (WMTS z${event.z} → ${event.resolution})`
-                : `Surface: NASA GIBS / Blue Marble static reference active (WMTS z${event.z}, ${event.resolution}; z${event.finalLevel} unavailable)`,
+                : event.retryWhenVisible
+                    ? `Surface: NASA GIBS / Blue Marble static reference active (WMTS z${event.z}, ${event.resolution}; z${event.finalLevel} did not finish while the page was hidden — retrying when visible)`
+                    : `Surface: NASA GIBS / Blue Marble static reference active (WMTS z${event.z}, ${event.resolution}; z${event.finalLevel} unavailable)`,
         };
     case 'still-loading':
         return { state: 'fallback', message: 'Surface: bundled fallback texture active — NASA GIBS WMTS tiles still loading' };
     case 'unavailable':
-        return { state: 'fallback', message: 'Surface: bundled fallback texture active — NASA GIBS WMTS unavailable' };
+        return {
+            state: 'fallback',
+            message: event.retryWhenVisible
+                ? 'Surface: bundled fallback texture active — NASA GIBS WMTS tiles did not finish while the page was hidden; retrying when visible'
+                : 'Surface: bundled fallback texture active — NASA GIBS WMTS unavailable',
+        };
     default:
         throw new RangeError(`Unknown surface status event: ${event.kind}`);
     }

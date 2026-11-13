@@ -5,6 +5,7 @@ import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, sur
 import { surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
 import { makeNightLightsMat } from './night-lights.js';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js';
+import { watchPageVisibility, whenVisible } from './gibs-tiles.js';
 import { loadBlueMarbleSurfaceTexture, surfaceStatus as surfaceStatusFor } from './gibs-surface.js';
 import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
 
@@ -264,11 +265,20 @@ export function createEarthLayers({
     }, 16_000);
 
     // Night cases must not change beneath a capture when GIBS finishes loading.
-    const nightLightsUpgrade = surfaceVisualCase
-        ? Promise.resolve(null)
-        : loadBlackMarbleTexture({ THREE, renderer });
-    nightLightsUpgrade
-        .then(texture => {
+    // A load that fails while the page was hidden (throttled timers/decoding)
+    // is retried once when the page becomes visible again.
+    function loadNightLights(isRetry) {
+        if (surfaceVisualCase) return Promise.resolve(null);
+        const visibility = watchPageVisibility();
+        return loadBlackMarbleTexture({ THREE, renderer })
+            .catch(error => {
+                error.retryWhenVisible = !isRetry && visibility.wasHidden();
+                throw error;
+            })
+            .finally(() => visibility.stop());
+    }
+    function startNightLights(isRetry = false) {
+        return loadNightLights(isRetry).then(texture => {
             if (!texture) {
                 blackMarbleSettled = true;
                 clearTimeout(blackMarbleWatchdog);
@@ -297,9 +307,14 @@ export function createEarthLayers({
             console.warn('[Earth] NASA GIBS Black Marble unavailable; keeping local night-lights fallback.', error);
             publishNightLightsStatus({
                 state: 'fallback',
-                message: 'Black Marble: local fallback active — terminator linked; NASA GIBS unavailable'
+                message: error.retryWhenVisible
+                    ? 'Black Marble: local fallback active — NASA GIBS tiles did not finish while the page was hidden; retrying when visible'
+                    : 'Black Marble: local fallback active — terminator linked; NASA GIBS unavailable'
             });
+            if (error.retryWhenVisible) whenVisible().then(() => startNightLights(true));
         });
+    }
+    startNightLights();
 
     // Upgrade the day-side surface from the bundled Blue Marble NG texture to
     // NASA GIBS WMTS tiles, level by level (z2 preview, then z3 resampled to
@@ -328,33 +343,47 @@ export function createEarthLayers({
     // A visual lock never selects an albedo source; it loads only z3 so every
     // capture uses the same 4096x2048 albedo (never the z2 preview).
     const surfaceLevels = surfaceVisualCase ? [3] : [2, 3];
-    const surfaceUpgrade = loadBlueMarbleSurfaceTexture({
-        THREE,
-        renderer,
-        levels: surfaceLevels,
-        onLevel: (texture, { z, resolution, tiles, elapsedMs, final }) => {
-            surfaceLevelApplied = true;
-            applySurfaceTexture(texture);
-            performance.mark?.(`lea:surface:wmts-z${z}`, { detail: { tiles, elapsedMs, resolution } });
-            if (!final) publishSurfaceStatus(surfaceStatusFor({ kind: 'preview', z, resolution }));
-        }
-    });
-    const surfaceReady = surfaceUpgrade
-        .then(({ texture, z, resolution, failures }) => {
-            surfaceSettled = true;
-            clearTimeout(surfaceWatchdog);
-            const finalLevel = surfaceLevels[surfaceLevels.length - 1];
-            publishSurfaceStatus(surfaceStatusFor({ kind: 'settled', z, resolution, finalLevel }));
-            if (failures.length) console.warn('[Earth] NASA GIBS Blue Marble WMTS: some levels failed.', failures);
-            return texture;
+    const finalSurfaceLevel = surfaceLevels[surfaceLevels.length - 1];
+    // levels: all on the first attempt; a retry (page hidden during the first
+    // attempt) asks only for what is still missing.
+    function startSurface(levels, isRetry = false) {
+        const visibility = watchPageVisibility();
+        return loadBlueMarbleSurfaceTexture({
+            THREE,
+            renderer,
+            levels,
+            onLevel: (texture, { z, resolution, tiles, elapsedMs, final }) => {
+                surfaceLevelApplied = true;
+                applySurfaceTexture(texture);
+                performance.mark?.(`lea:surface:wmts-z${z}`, { detail: { tiles, elapsedMs, resolution } });
+                if (!final) publishSurfaceStatus(surfaceStatusFor({ kind: 'preview', z, resolution }));
+            }
         })
-        .catch(error => {
-            surfaceSettled = true;
-            clearTimeout(surfaceWatchdog);
-            console.warn('[Earth] NASA GIBS Blue Marble surface unavailable; keeping bundled fallback texture.', error);
-            publishSurfaceStatus(surfaceStatusFor({ kind: 'unavailable' }));
-            return activeSurfaceMap;
-        });
+            .then(({ texture, z, resolution, failures }) => {
+                visibility.stop();
+                surfaceSettled = true;
+                clearTimeout(surfaceWatchdog);
+                const retry = !isRetry && z !== finalSurfaceLevel && visibility.wasHidden();
+                publishSurfaceStatus(surfaceStatusFor({ kind: 'settled', z, resolution, finalLevel: finalSurfaceLevel, retryWhenVisible: retry }));
+                if (failures.length) console.warn('[Earth] NASA GIBS Blue Marble WMTS: some levels failed.', failures);
+                if (retry) whenVisible().then(() => startSurface([finalSurfaceLevel], true));
+                return texture;
+            })
+            .catch(error => {
+                visibility.stop();
+                surfaceSettled = true;
+                clearTimeout(surfaceWatchdog);
+                const retry = !isRetry && visibility.wasHidden();
+                console.warn('[Earth] NASA GIBS Blue Marble surface unavailable; keeping bundled fallback texture.', error);
+                // A retry that fails keeps the level that is already applied.
+                if (!(isRetry && surfaceLevelApplied)) {
+                    publishSurfaceStatus(surfaceStatusFor({ kind: 'unavailable', retryWhenVisible: retry }));
+                }
+                if (retry) whenVisible().then(() => startSurface(surfaceLevels, true));
+                return activeSurfaceMap;
+            });
+    }
+    const surfaceReady = startSurface(surfaceLevels);
 
 
     const atmosphereMat = makeAtmosphereMat(THREE);
