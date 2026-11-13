@@ -13,7 +13,7 @@ import {
     rgbaToR8SouthFirst,
     surfaceHeightM,
 } from '../src/earth/relief-linear.js';
-import { VK_FORMAT_R16_SFLOAT, buildMipChain, decodeKtx2R16F, encodeKtx2R16F, toHalfBits } from '../tools/lib/ktx2-r16f.mjs';
+import { VK_FORMAT_R16_SFLOAT, buildMipChain, decodeKtx2R16F, encodeKtx2R16F, floatToHalfBits, fromHalfBits, halfBitsToFloat, toHalfBits } from '../tools/lib/ktx2-r16f.mjs';
 
 const asset = (name) => readFileSync(new URL(`../assets/${name}`, import.meta.url));
 
@@ -75,6 +75,28 @@ describe('linear relief: shader normals (JS mirror) on synthetic data', () => {
     });
 });
 
+describe('half-float codec (no Float16Array: CI and server run Node 22)', () => {
+    it('encodes known IEEE 754 binary16 patterns, rounding to nearest even', () => {
+        expect(floatToHalfBits(1)).toBe(0x3c00);
+        expect(floatToHalfBits(-2)).toBe(0xc000);
+        expect(floatToHalfBits(65504)).toBe(0x7bff); // max finite
+        expect(floatToHalfBits(70000)).toBe(0x7c00); // overflow -> +Inf
+        expect(floatToHalfBits(2 ** -24)).toBe(0x0001); // smallest subnormal
+        expect(floatToHalfBits(-0)).toBe(0x8000);
+        expect(floatToHalfBits(1 + 2 ** -11)).toBe(0x3c00); // tie -> even
+        expect(floatToHalfBits(1 + 3 * 2 ** -11)).toBe(0x3c02); // tie -> even (up)
+        expect(floatToHalfBits(8849)).toBe(0x7052); // 8848 (step 8 m above 8192)
+    });
+
+    it('decodes every pattern back to the same bits', () => {
+        for (let bits = 0; bits < 0x10000; bits++) {
+            const value = halfBitsToFloat(bits);
+            if (Number.isNaN(value)) continue;
+            expect(floatToHalfBits(value)).toBe(bits);
+        }
+    });
+});
+
 describe('linear relief: R16F files', () => {
     it('encodes and decodes KTX2 R16_SFLOAT + Zstd with mips and metadata', () => {
         const width = 8; const height = 4;
@@ -88,14 +110,14 @@ describe('linear relief: R16F files', () => {
         const back = decodeKtx2R16F(file);
         expect(back).toMatchObject({ vkFormat: 76, width: 8, height: 4, supercompression: 2 });
         expect(back.levels).toHaveLength(4);
-        expect(Array.from(new Float16Array(back.levels[0].data.buffer))).toEqual(Array.from(data));
+        expect(Array.from(fromHalfBits(back.levels[0].data))).toEqual(Array.from(data));
         expect(back.keyValues.LEA_doi).toBe('10.25921/fd45-gt74');
         expect(back.keyValues.KTXwriter).toContain('build-relief');
     });
 
     it('decodes the raw .bin and rejects a wrong size', () => {
         const bits = toHalfBits(Float32Array.from([-427, 0, 8848, -10935]));
-        expect(Array.from(new Float16Array(decodeR16fBin(bits.buffer, 2, 2).buffer))).toEqual([-427, 0, 8848, -10936]);
+        expect(Array.from(fromHalfBits(decodeR16fBin(bits.buffer, 2, 2)))).toEqual([-427, 0, 8848, -10936]);
         expect(() => decodeR16fBin(new ArrayBuffer(10), 2, 2)).toThrow(/2x2 half floats/);
     });
 
@@ -108,7 +130,7 @@ describe('linear relief: R16F files', () => {
         expect(ktx2.keyValues.LEA_product).toMatch(/ice surface/);
         const bin = decodeR16fBin(asset('etopo2022-surface-m-2160x1080.r16f.bin'));
         expect(Buffer.from(bin.buffer).equals(Buffer.from(ktx2.levels[0].data.buffer))).toBe(true);
-        const metres = new Float16Array(bin.buffer);
+        const metres = fromHalfBits(bin);
         let min = Infinity; let max = -Infinity;
         for (const v of metres) { if (v < min) min = v; if (v > max) max = v; }
         expect(min).toBeLessThan(-9000); // Mariana area mean

@@ -28,7 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fromFile } from 'geotiff';
-import { buildMipChain, decodeKtx2R16F, encodeKtx2R16F, toHalfBits } from './lib/ktx2-r16f.mjs';
+import { buildMipChain, decodeKtx2R16F, encodeKtx2R16F, fromHalfBits, toHalfBits } from './lib/ktx2-r16f.mjs';
 import { decodePngIndexed, encodePngGray8 } from './lib/png.mjs';
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -271,7 +271,7 @@ fs.writeFileSync(path.join(ASSETS, 'mod44w-water-2160x1080.png'), maskPng);
 
 // Verification: read the KTX2 back and compare with the float source.
 const back = decodeKtx2R16F(ktx2);
-const back0 = new Float16Array(back.levels[0].data.buffer);
+const back0 = fromHalfBits(back.levels[0].data);
 let maxHalfError = 0;
 for (let i = 0; i < southFirst.length; i++) maxHalfError = Math.max(maxHalfError, Math.abs(back0[i] - southFirst[i]));
 const probes = {};

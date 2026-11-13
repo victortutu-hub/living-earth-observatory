@@ -169,9 +169,58 @@ export function buildMipChain(data, width, height) {
     return chain;
 }
 
-/** Float32 -> IEEE half-float bit patterns (round to nearest even, via Float16Array). */
+// IEEE 754 half-float codec written out explicitly: Float16Array exists only
+// from Node 24, while CI and the server run Node 22.
+const f32 = new Float32Array(1);
+const u32 = new Uint32Array(f32.buffer);
+
+/** One float -> half-float bits, round to nearest even (overflow -> Inf, NaN kept). */
+export function floatToHalfBits(value) {
+    f32[0] = value;
+    const x = u32[0];
+    const sign = (x >>> 16) & 0x8000;
+    const exponent = (x >>> 23) & 0xff;
+    let mantissa = x & 0x7fffff;
+    if (exponent === 0xff) return sign | 0x7c00 | (mantissa ? 0x200 : 0); // Inf / NaN
+    let e = exponent - 127 + 15;
+    if (e >= 0x1f) return sign | 0x7c00; // overflow -> Inf
+    if (e <= 0) {
+        // Subnormal half (or zero): shift the implicit 1 in, then round.
+        if (e < -10) return sign;
+        mantissa |= 0x800000;
+        const shift = 14 - e;
+        let half = mantissa >>> shift;
+        const rest = mantissa & ((1 << shift) - 1);
+        const halfway = 1 << (shift - 1);
+        if (rest > halfway || (rest === halfway && (half & 1))) half += 1;
+        return sign | half;
+    }
+    let half = (e << 10) | (mantissa >>> 13);
+    const rest = mantissa & 0x1fff;
+    if (rest > 0x1000 || (rest === 0x1000 && (half & 1))) half += 1; // may carry into the exponent (correct)
+    return sign | half;
+}
+
+/** Half-float bits -> number. */
+export function halfBitsToFloat(bits) {
+    const sign = bits & 0x8000 ? -1 : 1;
+    const exponent = (bits >>> 10) & 0x1f;
+    const mantissa = bits & 0x3ff;
+    if (exponent === 0) return sign * mantissa * 2 ** -24;
+    if (exponent === 0x1f) return mantissa ? NaN : sign * Infinity;
+    return sign * (1 + mantissa / 1024) * 2 ** (exponent - 15);
+}
+
+/** Float32 -> IEEE half-float bit patterns (round to nearest even). */
 export function toHalfBits(floats) {
-    const half = new Float16Array(floats.length);
-    half.set(floats);
-    return new Uint16Array(half.buffer);
+    const out = new Uint16Array(floats.length);
+    for (let i = 0; i < floats.length; i++) out[i] = floatToHalfBits(floats[i]);
+    return out;
+}
+
+/** Half-float bit patterns -> Float32Array. */
+export function fromHalfBits(bits) {
+    const out = new Float32Array(bits.length);
+    for (let i = 0; i < bits.length; i++) out[i] = halfBitsToFloat(bits[i]);
+    return out;
 }
