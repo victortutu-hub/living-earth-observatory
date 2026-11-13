@@ -200,16 +200,22 @@ describe('POST /convert-h264 boundary', () => {
 
   it('returns deterministic failure and cleans files when FFmpeg fails', async () => {
     let conversions = 0;
+    const firstSettled = deferred();
     const { port, tempDirectory } = await startServer({
       runFfmpeg: async (_input, output) => {
         conversions += 1;
         if (conversions === 1) throw new Error('ffmpeg failed');
         await fs.writeFile(output, Buffer.from('mp4-output'));
       },
+      // The 500 is sent from the handler's catch, before its finally removes
+      // the temp files; wait for the settled hook (after cleanup) instead of
+      // racing the unlink (seen on Windows).
+      onConversionSettled: firstSettled.resolve,
     });
     const failed = request(port, { headers: { 'Content-Length': '1' } });
 
     expect((await failed.result).status).toBe(500);
+    await firstSettled.promise;
     expect(await fs.readdir(tempDirectory)).toEqual([]);
     const recovered = request(port, { headers: { 'Content-Length': '1' } });
     expect((await recovered.result).status).toBe(200);
