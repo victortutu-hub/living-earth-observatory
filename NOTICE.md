@@ -43,6 +43,24 @@ policies:
 The app is an artistic/scientific visualization, not an operational emergency
 system. Always consult the original providers for authoritative data.
 
+## Bundled Earth Relief And Water Mask
+
+- `assets/etopo2022-surface-m-2160x1080.ktx2` and
+  `assets/etopo2022-surface-m-2160x1080.r16f.bin` (metadata in
+  `assets/etopo2022-surface-m-2160x1080.json`): surface elevation in metres
+  (half float; the top of the Greenland/Antarctic ice sheets, bedrock
+  elsewhere), derived from NOAA National Centers for Environmental
+  Information. 2022: ETOPO 2022 15 Arc-Second Global Relief Model, 60
+  arc-second ice-surface GeoTIFF. DOI: 10.25921/fd45-gt74. Area-averaged
+  (cos-latitude weighted) to 1/6° by `tools/build-relief.mjs`. NOAA data are
+  in the public domain; attribution to NOAA NCEI is retained. ETOPO holds no
+  lake levels: lake surfaces are rendered at 0 m.
+- `assets/mod44w-water-2160x1080.png`: water fraction per 1/6° texel from the
+  NASA GIBS layer `MODIS_Water_Mask` (MOD44W, MODIS/SRTM water mask; EPSG:4326
+  250m set, level 5), built by `tools/build-relief.mjs`; decoded to an R8
+  texture at runtime. NASA data are public domain; attribution to NASA is
+  retained.
+
 ## Bundled Earth Surface Texture
 
 - `assets/blue-marble-ng-4096x2048.jpg`: NASA Blue Marble: Next Generation

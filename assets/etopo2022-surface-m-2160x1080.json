@@ -1,0 +1,19 @@
+{
+  "product": "NOAA NCEI ETOPO 2022 Global Relief Model, 60 arc-second ice surface elevation (bedrock outside the ice sheets)",
+  "doi": "10.25921/fd45-gt74",
+  "sourceUrl": "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/data/60s/60s_surface_elev_gtif/ETOPO_2022_v1_60s_N90W180_surface.tif",
+  "sourceSha256": "9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e",
+  "units": "metres above mean sea level (EGM2008 geoid), negative below",
+  "grid": "2160x1080, 1/6 deg texels, cell-registered, lon -180..180",
+  "method": "area average: cos(latitude)-weighted mean of the 10x10 source cells in each texel",
+  "rows": "south first (uv.y = 0 at the south pole)",
+  "encoding": "IEEE 754 half float (R16F), little-endian",
+  "builtBy": "tools/build-relief.mjs",
+  "files": {
+    "ktx2": "etopo2022-surface-m-2160x1080.ktx2 (VK_FORMAT_R16_SFLOAT, Zstd, 12 mip levels)",
+    "bin": "etopo2022-surface-m-2160x1080.r16f.bin (level 0 only, no header)"
+  },
+  "notes": {
+    "lakes": "lake surfaces rendered at 0 m (ETOPO has no lake levels)"
+  }
+}
