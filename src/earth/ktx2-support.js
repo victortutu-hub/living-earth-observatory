@@ -87,7 +87,23 @@ function isStillReferenced(materials, texture) {
 // Fire-and-forget. Returns immediately; upgrades happen asynchronously over the
 // already-rendering placeholder, with PNG loaded only if KTX2 cannot be used.
 export function upgradeEarthTexturesToKtx2({ THREE, renderer, getMaterials, targets, onUpgrade }) {
-    if (!ktx2Requested()) return;
+    // ?noktx2: targets with their own fallback (the relief .bin) still need it.
+    if (!ktx2Requested()) {
+        for (const target of targets.filter((t) => t.fallback)) {
+            target.fallback().then(
+                (texture) => {
+                    target.configure?.(texture);
+                    const previous = target.fromTexture;
+                    swapTextureInMaterials(getMaterials(), previous, texture);
+                    target.fromTexture = texture;
+                    onUpgrade?.(target.key, texture, previous);
+                    if (previous !== texture && !isStillReferenced(getMaterials(), previous)) previous.dispose();
+                },
+                (error) => console.warn(`[KTX2] ${target.key} fallback failed.`, error),
+            );
+        }
+        return;
+    }
     if (!renderer?.capabilities) {
         console.warn('[KTX2] renderer not available; keeping PNG textures.');
         return;
@@ -101,6 +117,7 @@ export function upgradeEarthTexturesToKtx2({ THREE, renderer, getMaterials, targ
     const applyTexture = (target, texture) => {
         try {
             configureDataTexture(THREE, texture, anisotropy);
+            target.configure?.(texture);
             const previous = target.fromTexture;
             swapTextureInMaterials(getMaterials(), previous, texture);
             target.fromTexture = texture; // future fallbacks swap from the new one
@@ -116,6 +133,13 @@ export function upgradeEarthTexturesToKtx2({ THREE, renderer, getMaterials, targ
     // PNG fallback: only fetched if the .ktx2 (or the transcoder) fails. On the
     // happy path the heavy PNG is never downloaded.
     const loadPngFallback = (target) => {
+        if (target.fallback) {
+            target.fallback().then(
+                (texture) => applyTexture(target, texture),
+                (error) => console.warn(`[KTX2] ${target.key} fallback also failed.`, error),
+            );
+            return;
+        }
         new THREE.TextureLoader().load(
             target.pngUrl,
             (pngTexture) => applyTexture(target, pngTexture),

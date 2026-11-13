@@ -33,9 +33,7 @@ export function createAppVisualFoundation({
         earthClouds,
         earthLights,
         earthRelief,
-        earthReliefNormal,
-        earthReliefSeaLevel,
-        earthReliefScale,
+        earthWaterMask,
         sunLight
     } = bootstrap;
 
@@ -68,9 +66,7 @@ export function createAppVisualFoundation({
         earthSpecular,
         earthLights,
         earthRelief,
-        earthReliefNormal,
-        earthReliefSeaLevel,
-        earthReliefScale
+        earthWaterMask
     });
     const {
         earthMat,

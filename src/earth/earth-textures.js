@@ -1,19 +1,32 @@
-import { ktx2Requested } from './ktx2-support.js';
-import { EARTH_RELIEF_SCALE } from './earth-material.js';
-
-// 1x1 flat placeholder used only on the KTX2-primary path, so the heavy relief/
-// normal PNGs are NOT downloaded. The real texture (KTX2, or PNG only if KTX2
-// fails) is swapped in a moment later by ktx2-support.
-function makeFlatDataTexture(THREE, rgba) {
-    const texture = new THREE.DataTexture(new Uint8Array(rgba), 1, 1, THREE.RGBAFormat);
-    texture.needsUpdate = true;
-    return texture;
-}
+import { RELIEF_LINEAR_EXAGGERATION, createFlatReliefTexture, createWaterMaskTexture, linearDisplacementScale, loadWaterMaskR8 } from './relief-linear.js';
 
 // Initial surface and fallback when GIBS is unavailable: the same unshaded
 // NASA Blue Marble Next Generation product as the live layer, saved once from
 // GIBS (public domain; see NOTICE.md). No baked hillshade.
 export const BUNDLED_BLUE_MARBLE = 'assets/blue-marble-ng-4096x2048.jpg';
+
+// Relief: a flat 0 m placeholder now, the R16F metres later (KTX2, or the raw
+// .bin; see earth-layers.js). Water mask: MOD44W fraction as R8. Its uniform
+// objects are shared by every Earth material, so swapping the texture and
+// flipping ready.value reach Phong and PBR at once; until ready, the shaders
+// use z <= 0 as water.
+function loadReliefAndWaterMask({ THREE }) {
+    const placeholder = createWaterMaskTexture(THREE, new Uint8Array(1), 1, 1);
+    const earthWaterMask = { uniform: { value: placeholder }, ready: { value: 0 } };
+    loadWaterMaskR8({ THREE }).then(
+        (texture) => {
+            earthWaterMask.uniform.value = texture;
+            earthWaterMask.ready.value = 1;
+            placeholder.dispose();
+        },
+        (error) => console.warn('[Earth] MOD44W water mask unavailable; using z <= 0 as water.', error),
+    );
+    return {
+        earthRelief: createFlatReliefTexture(THREE),
+        earthReliefScale: linearDisplacementScale(RELIEF_LINEAR_EXAGGERATION),
+        earthWaterMask,
+    };
+}
 
 export function loadEarthTextures({ THREE, renderer, textureLoader }) {
     const textureBase = 'https://threejs.org/examples/textures/planets/';
@@ -21,29 +34,7 @@ export function loadEarthTextures({ THREE, renderer, textureLoader }) {
     const earthSpecular = textureLoader.load(textureBase + 'earth_specular_2048.jpg');
     const earthClouds = textureLoader.load(textureBase + 'earth_clouds_1024.png');
     const earthLights = textureLoader.load(textureBase + 'earth_lights_2048.png');
-    const earthReliefSeaLevel = 0.42;
-    // Legacy displacement scale (non-linear; see reliefExaggerationLabel).
-    const earthReliefScale = EARTH_RELIEF_SCALE;
-    // KTX2-primary: start relief/normal as tiny flat placeholders (no PNG fetch).
-    // Default path (no ?ktx2): load the PNGs exactly as before.
-    const useKtx2Primary = ktx2Requested();
-    const earthRelief = useKtx2Primary
-        ? makeFlatDataTexture(THREE, [128, 128, 128, 255])   // flat mid height
-        : textureLoader.load('assets/etopo2022-bedrock-relief-2160x1080.png');
-    const earthReliefNormal = useKtx2Primary
-        ? makeFlatDataTexture(THREE, [128, 128, 255, 255])   // flat tangent normal
-        : textureLoader.load('assets/etopo2022-bedrock-normal-2160x1080.png');
     const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-
-    earthRelief.colorSpace = THREE.NoColorSpace;
-    earthRelief.wrapS = THREE.RepeatWrapping;
-    earthRelief.wrapT = THREE.RepeatWrapping;
-    earthRelief.anisotropy = maxAnisotropy;
-
-    earthReliefNormal.colorSpace = THREE.NoColorSpace;
-    earthReliefNormal.wrapS = THREE.RepeatWrapping;
-    earthReliefNormal.wrapT = THREE.RepeatWrapping;
-    earthReliefNormal.anisotropy = maxAnisotropy;
 
     [earthMap, earthSpecular, earthClouds, earthLights].forEach(texture => {
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -56,9 +47,6 @@ export function loadEarthTextures({ THREE, renderer, textureLoader }) {
         earthSpecular,
         earthClouds,
         earthLights,
-        earthRelief,
-        earthReliefNormal,
-        earthReliefSeaLevel,
-        earthReliefScale
+        ...loadReliefAndWaterMask({ THREE }),
     };
 }

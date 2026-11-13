@@ -9,19 +9,13 @@ import {
 } from '../src/earth/atmosphere-physics.js';
 import {
     AERIAL_PERSPECTIVE_UNIFORMS,
-    BATHYMETRY_MIX,
-    EARTH_RELIEF_SCALE,
-    RELIEF_ENCODING,
     RELIEF_STRENGTH,
     RELIEF_TERMINATOR_EDGES,
     createEarthMaterial,
     createEarthMaterialPBR,
-    displacementScaleForExaggeration,
-    reliefExaggerationLabel,
-    reliefGrayForLandElevation,
     reliefPerturbationWeight,
-    verticalExaggerationAt,
 } from '../src/earth/earth-material.js';
+import * as earthMaterial from '../src/earth/earth-material.js';
 import { makeNightLightsMat } from '../src/earth/night-lights.js';
 import { makeAtmosphereMat } from '../src/earth/atmosphere.js';
 
@@ -114,109 +108,70 @@ describe('relief: one shading, land only, real Sun', () => {
 });
 
 describe('Earth materials', () => {
-    const common = { THREE, earthMap: texture, earthSpecular: texture, earthRelief: texture, earthReliefNormal: texture };
+    const common = { THREE, earthMap: texture, earthSpecular: texture, earthRelief: texture };
+    const waterMask = { uniform: { value: { userData: {} } }, ready: { value: 0 } };
 
     it.each([
-        ['Phong', () => createEarthMaterial(common), RELIEF_STRENGTH.phong],
-        ['PBR', () => createEarthMaterialPBR({ ...common, earthRoughnessMap: texture }), RELIEF_STRENGTH.pbr],
-    ])('%s: no bumpMap, unit normalScale, no fog, relief + aerial perspective uniforms', (_name, build, strength) => {
+        ['Phong', (extra) => createEarthMaterial({ ...common, waterMask, ...extra }), RELIEF_STRENGTH.phong],
+        ['PBR', (extra) => createEarthMaterialPBR({ ...common, earthRoughnessMap: texture, waterMask, ...extra }), RELIEF_STRENGTH.pbr],
+    ])('%s: linear metres x E, water flat, normals from heights, MOD44W land weight', (_name, build, strength) => {
         const material = build();
+        expect(material.normalMap).toBeUndefined(); // no normal map
         expect(material.bumpMap).toBeUndefined();
-        expect(material.normalScale).toEqual(new Vector2(1, 1));
         expect(material.fog).toBe(false);
-        // Legacy displacement scale, unchanged since LOT 4.
-        expect(material.displacementScale).toBe(EARTH_RELIEF_SCALE);
-        expect(material.displacementBias).toBeCloseTo(-0.42 * EARTH_RELIEF_SCALE, 12);
-
+        expect(material.displacementScale).toBeCloseTo(10 / ATMOSPHERE.metersPerSceneUnit, 15);
+        expect(material.displacementBias).toBe(0);
+        expect(material.userData.reliefSource).toMatch(/ETOPO 2022 60" ice surface .*area-averaged.*MOD44W/);
         const shader = fakeShader();
         material.onBeforeCompile(shader);
         expect(shader.uniforms.uReliefStrengthTw.value).toBe(strength);
+        expect(shader.uniforms.uReliefExaggerationTw.value).toBe(10);
+        // Shared uniform objects: the R8 mask swap and the ready flag reach every material.
+        expect(shader.uniforms.uWaterMaskTw).toBe(waterMask.uniform);
+        expect(shader.uniforms.uWaterMaskReadyTw).toBe(waterMask.ready);
         for (const name of AERIAL_PERSPECTIVE_UNIFORMS) expect(shader.uniforms[name]).toBeDefined();
         expect(shader.uniforms.uSunIrradianceTw.value).toEqual(new Vector3(0, 0, 0)); // synced from the sun light per frame
         expect(shader.uniforms.uAtmosphereHazeTw.value).toBe(ATMOSPHERE.haze);
         expect(shader.vertexShader).toContain('vWorldPosTw = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-        // Flat sea in geometry: displacement clamped at the relief sea level (0.42).
-        expect(shader.vertexShader).toContain('max( texture2D( displacementMap, vDisplacementMapUv ).x, 0.4200 )');
+        // Geometry: water clamped at 0 m, dry land below sea level kept.
+        expect(shader.vertexShader).toContain('float reliefSurfaceVTw = mix( reliefHTw, max( reliefHTw, 0.0 ), reliefWaterVTw );');
         expect(shader.vertexShader).not.toContain('#include <displacementmap_vertex>');
+        // Normals: 4 surface-height samples, gain E, along local east/north.
+        expect(shader.fragmentShader.match(/reliefSurfaceHeightTw\(vMapUv [+-] vec2/g)).toHaveLength(4);
+        expect(shader.fragmentShader).toContain('uReliefExaggerationTw * vec2(');
         expect(shader.fragmentShader).toContain('reliefSunTw = smoothstep(-0.05, 0.05');
         expect(shader.fragmentShader).toContain('surfaceLandWeightTw * reliefSunTw');
-        expect(shader.fragmentShader).toContain('atmoAerialInscatter(vWorldPosTw, cameraPosition');
+        // Land weight from the water fraction, not from a gray threshold.
+        expect(shader.fragmentShader).toContain('float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);');
+        expect(shader.fragmentShader).not.toMatch(/CoastStart|uSeaLevelTw|normalMap|bathyRampTw|gradClipTw|visual-lock debug view/);
         // The aerial perspective runs once, right before the opaque output.
         expect(shader.fragmentShader.split('atmoAerialInscatter(vWorldPosTw').length - 1).toBe(1);
         expect(shader.fragmentShader.indexOf('outgoingLight * apTransmittanceTw'))
             .toBeLessThan(shader.fragmentShader.indexOf('#include <opaque_fragment>'));
-        expect(shader.fragmentShader).not.toContain('oceanFlattenPBR');
-        // Production: ocean = Blue Marble NG albedo only, no lock-only code compiled in.
-        expect(BATHYMETRY_MIX).toBe(0);
-        expect(shader.fragmentShader).not.toContain('bathyRampTw');
-        expect(shader.fragmentShader).not.toContain('gradClipTw');
-        expect(shader.fragmentShader).not.toContain('visual-lock debug view');
-        // The land/water mask stays (one relief sample).
-        expect(shader.fragmentShader).toContain('surfaceLandWeightTw = smoothstep(');
-        expect(shader.fragmentShader.match(/texture2D\(uReliefMapTw/g)).toHaveLength(1);
-        expect(material.customProgramCacheKey()).toContain('"coastNormals":false');
     });
 
-    it.each([
-        ['Phong', (overrides) => createEarthMaterial({ ...common, overrides })],
-        ['PBR', (overrides) => createEarthMaterialPBR({ ...common, earthRoughnessMap: texture, overrides })],
-    ])('%s: visual-lock overrides compile the lock-only code in', (_name, build) => {
+    it('accepts the lock relief strength and exaggeration overrides only', () => {
         const shader = fakeShader();
-        const material = build({ reliefStrength: 0.936, bathymetryMix: 0.07, coastNormals: 'clip', surfaceDebug: 'tiltClipped' });
+        const material = createEarthMaterial({ ...common, waterMask, overrides: { reliefStrength: 0.9 }, reliefExaggeration: 0 });
         material.onBeforeCompile(shader);
-        expect(shader.uniforms.uReliefStrengthTw.value).toBe(0.936);
-        expect(shader.fragmentShader).toContain('mix(diffuseColor.rgb, bathyRampTw, 0.0700)');
-        // Coast correction: 4 relief samples, gain of the ETOPO normal map (76 per texel).
-        expect(shader.fragmentShader).toContain('slopeTw - 76.0 * (gradClipTw - gradRawTw)');
-        expect(shader.fragmentShader).toContain('normal = normalize(tbn * coastNTw)');
-        expect(shader.fragmentShader.match(/texture2D\(uReliefMapTw, vMapUv [+-] vec2/g)).toHaveLength(4);
-        expect(shader.fragmentShader).toContain('outgoingLight = vec3(dbgTiltClipTw);');
-        expect(material.customProgramCacheKey()).toContain('"surfaceDebug":2');
+        expect(shader.uniforms.uReliefStrengthTw.value).toBe(0.9);
+        expect(shader.uniforms.uReliefExaggerationTw.value).toBe(0);
+        expect(material.displacementScale).toBe(0);
     });
 
-    it('debug view without the coast correction keeps the production normal', () => {
-        const shader = fakeShader();
-        createEarthMaterial({ ...common, overrides: { surfaceDebug: 'landWeight' } }).onBeforeCompile(shader);
-        expect(shader.fragmentShader).toContain('outgoingLight = vec3(surfaceLandWeightTw);');
-        expect(shader.fragmentShader).not.toContain('coastNTw');
+    it('no longer exports the legacy sqrt-like relief (encoding, labels, lock options)', () => {
+        for (const name of ['RELIEF_ENCODING', 'EARTH_RELIEF_SCALE', 'BATHYMETRY_MIX', 'RELIEF_MODELS', 'SURFACE_DEBUG_VIEWS',
+            'reliefExaggerationLabel', 'verticalExaggerationAt', 'displacementScaleForExaggeration']) {
+            expect(earthMaterial[name]).toBeUndefined();
+        }
     });
 });
 
-describe('relief vertical exaggeration', () => {
-    it('uses the reconstructed encoding anchors (highest 1/6 deg sample, not Everest)', () => {
-        expect(reliefGrayForLandElevation(0)).toBe(0.42);
-        expect(reliefGrayForLandElevation(RELIEF_ENCODING.landMaxM)).toBeCloseTo(0.9246, 4); // gray max of the PNG
-        expect(reliefGrayForLandElevation(5029)).toBeCloseTo(0.8586, 3); // the texel at Everest
-        expect(RELIEF_ENCODING).not.toHaveProperty('peakElevationM');
-    });
-
-    it('keeps the LOT 4 displacement and states its real, non-linear exaggeration', () => {
-        expect(EARTH_RELIEF_SCALE).toBe(0.0633356100942748);
-        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE)).toBeCloseTo(15.1, 1);
-        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE, 5029)).toBeCloseTo(17.6, 1);
-        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE, 100)).toBeGreaterThan(100);
-        expect(verticalExaggerationAt(EARTH_RELIEF_SCALE, 0)).toBeNaN();
-    });
-
-    it('inverts exactly at a given elevation', () => {
-        expect(verticalExaggerationAt(displacementScaleForExaggeration(15), 6734)).toBeCloseTo(15, 10);
-        expect(verticalExaggerationAt(displacementScaleForExaggeration(10, 1000), 1000)).toBeCloseTo(10, 10);
-        expect(displacementScaleForExaggeration(0)).toBe(0);
-    });
-
-    it('labels the relief honestly (no single "x10" claim)', () => {
-        const label = reliefExaggerationLabel(EARTH_RELIEF_SCALE);
-        expect(label).toBe('Relief: non-linear vertical exaggeration (≈×15 at the highest 1/6° sample, 6,734 m; '
-            + '≈×41 at 1,000 m; ≈×135 at 100 m; much stronger at low elevations — legacy sqrt-like encoding '
-            + 'of ETOPO 2022 60″ bedrock, point-sampled 1/6°; ocean surface flat)');
-        expect(label).not.toMatch(/×10\b|highest summit|Everest/);
-        expect(reliefExaggerationLabel(0)).toBe('Relief: no geometric displacement (relief shading from ETOPO 2022 normals only)');
-    });
-
-    it('names the real relief source on the Earth page (ETOPO 2022, not ETOPO1)', () => {
+describe('relief provenance and shared shading', () => {
+    it('names the real relief source on the Earth page (ETOPO 2022 ice surface, lakes at 0 m)', () => {
         const page = readFileSync(new URL('../earth-eonet-relief.html', import.meta.url), 'utf8');
-        expect(page).toContain('NOAA ETOPO 2022 (60″ bedrock, point-sampled 1/6°) relief');
-        expect(page).not.toMatch(/ETOPO-?1\b/);
+        expect(page).toContain('NOAA ETOPO 2022 (60″ ice surface, area-averaged 1/6°, linear metres, vertical exaggeration ×10) relief; water mask NASA MODIS MOD44W via GIBS; lake surfaces rendered at 0 m (ETOPO has no lake levels).');
+        expect(page).not.toMatch(/ETOPO-?1\b|bedrock-relief|bedrock-normal/);
     });
 
     it('night lights are attenuated by the same view transmittance', () => {

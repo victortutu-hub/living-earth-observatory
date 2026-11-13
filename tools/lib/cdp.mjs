@@ -36,9 +36,16 @@ export async function launchChrome({ port = 9350, headless = true, extraArgs = [
     'about:blank',
   ], { stdio: 'ignore' });
   const close = async () => {
+    const exited = child.exitCode !== null ? Promise.resolve() : new Promise((resolve) => child.once('exit', resolve));
     child.kill();
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 5000))]);
+    // Windows can keep profile files locked for a moment after exit; a leftover
+    // temp profile must not fail a capture that has already been written.
+    try {
+      fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    } catch (error) {
+      console.warn(`[cdp] could not remove the temporary Chrome profile ${profileDir}: ${error.code || error.message}`);
+    }
   };
   for (let i = 0; i < 100; i++) {
     try {

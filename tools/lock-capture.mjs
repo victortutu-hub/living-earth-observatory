@@ -4,8 +4,8 @@
 //   npm run capture:lock -- --label before
 //   npm run capture:lock -- --label after
 //   npm run capture:lock -- --compare before after
-//   npm run capture:lock -- --label ab-ocean/ramp-0 --query bathymetryMix=0
-//   npm run capture:lock -- --montage ab-ocean ramp-0.28 ramp-0.07 ramp-0
+//   npm run capture:lock -- --label ab-relief/x5 --query reliefExaggeration=5
+//   npm run capture:lock -- --montage ab-relief x10 x5
 // Output (git-ignored): tmp/lot4/<label>/ and tmp/lot4/compare-<a>-vs-<b>/
 //   <preset>.png                  full 1440x900 frame, UI hidden by the lock
 //   crop-<target>.png             1:1 crops (Himalaya, Mediterranean, terminator)
@@ -27,6 +27,12 @@ const CROP_TARGETS = {
   // Coast checks on the close preset (Black Sea shore, Italy / Adriatic).
   blackSea: { lon: 34.0, lat: 43.0 },
   italy: { lon: 13.0, lat: 42.0 },
+  // LOT 4b-B: water mask and land below sea level.
+  deadSea: { lon: 35.5, lat: 31.5 },
+  qattara: { lon: 27.1, lat: 29.6 },
+  baikal: { lon: 108.0, lat: 53.5 },
+  greatLakes: { lon: -84.0, lat: 45.0 },
+  greenland: { lon: -40.0, lat: 72.0 },
 };
 // Per-target preference of source frame. The existing `terminator` lock case
 // (00:00Z, Earth rotated 90 deg) is captured as an extra frame for that crop.
@@ -36,8 +42,15 @@ const CROP_SOURCE_ORDER = {
   terminator: ['terminator', 'global', 'regional', 'close'],
   blackSea: ['close', 'regional', 'global'],
   italy: ['close', 'regional', 'global'],
+  deadSea: ['close', 'regional', 'global'],
+  qattara: ['close', 'regional', 'global'],
+  baikal: ['asia', 'polar', 'global'],
+  greatLakes: ['americas', 'polar', 'global'],
+  greenland: ['polar', 'americas', 'global'],
 };
-const EXTRA_CAPTURE_PRESETS = ['terminator'];
+// Extra lock cases captured only as crop sources: `polar` (northern
+// hemisphere), `asia` (Baikal) and `americas` (Great Lakes) at local noon.
+const EXTRA_CAPTURE_PRESETS = ['terminator', 'polar', 'asia', 'americas'];
 
 function profileMetrics(rows) {
   const limb = rows.findIndex((row, i) => i > 0 && rows[i - 1].disc === 1 && row.disc === 0);
@@ -74,18 +87,7 @@ async function capture(label) {
     for (const preset of presets) {
       await navigate(page, lockUrl(args.origin || DEFAULT_ORIGIN, preset, query));
       const ready = await waitFor(page, READY_JS);
-      // Debug views write raw values (tilt, land weight) as gray: bloom and the
-      // additive atmosphere shell would lift them, so both are off for these
-      // captures only (harness-side, through the ?debug handle).
-      if (/(^|&)surfaceDebug=/.test(query)) {
-        record.debugCapture = await page.evaluate(`(() => {
-          const sr = window.__livingEarthDebug.sceneRuntime; let shells = 0;
-          sr.bloomPass.enabled = false;
-          sr.earthGroup.traverse((o) => { if (o.material?.uniforms?.uAtmosphereMode) { o.visible = false; shells++; } });
-          return 'bloom pass disabled; atmosphere shells hidden: ' + shells;
-        })()`);
-      }
-      await sleep(6000); // KTX2 relief/normal swap + upload settle
+      await sleep(6000); // KTX2 relief swap + water mask decode + upload settle
       const uiHidden = await page.evaluate("document.body.classList.contains('surface-visual-capture')");
       const png = await screenshotPng(page);
       fs.writeFileSync(path.join(dir, `${preset}.png`), png);

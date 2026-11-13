@@ -1,5 +1,5 @@
 import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js';
-import { createEarthMaterial, createEarthMaterialPBR, displacementScaleForExaggeration, reliefExaggerationLabel, syncActiveReliefTexture } from './earth-material.js';
+import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js';
 import { createEarthRoughnessTexture } from './earth-roughness.js';
 import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
 import { surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
@@ -8,6 +8,14 @@ import { loadBlackMarbleTexture } from './gibs-night-lights.js';
 import { watchPageVisibility, whenVisible } from './gibs-tiles.js';
 import { loadBlueMarbleSurfaceTexture, surfaceStatus as surfaceStatusFor } from './gibs-surface.js';
 import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
+import {
+    RELIEF_LINEAR_ASSETS,
+    RELIEF_LINEAR_EXAGGERATION,
+    configureReliefTexture,
+    linearDisplacementScale,
+    linearReliefLabel,
+    loadReliefBin
+} from './relief-linear.js';
 
 export function createEarthLayers({
     THREE,
@@ -17,20 +25,17 @@ export function createEarthLayers({
     earthSpecular,
     earthLights,
     earthRelief,
-    earthReliefNormal,
-    earthReliefSeaLevel,
-    earthReliefScale: defaultReliefScale
+    earthWaterMask = null
 }) {
     const activeReliefRef = { current: earthRelief };
     const surfaceVisualCase = surfaceVisualCaseFromSearch(window.location.search);
     // Visual-lock A/B overrides only ({} outside a lock case).
     const materialOverrides = surfaceVisualOverridesFromSearch(window.location.search);
-    const earthReliefScale = materialOverrides.reliefExaggeration === undefined
-        ? defaultReliefScale
-        : displacementScaleForExaggeration(materialOverrides.reliefExaggeration);
-    // Geometric displacement only; legacy sqrt-like encoding, so the factor
-    // depends on elevation (see reliefExaggerationLabel).
-    const reliefTitle = reliefExaggerationLabel(earthReliefScale);
+    // One real exaggeration E for the linear relief (a lock A/B may override it).
+    const reliefExaggeration = materialOverrides.reliefExaggeration ?? RELIEF_LINEAR_EXAGGERATION;
+    const earthReliefScale = linearDisplacementScale(reliefExaggeration);
+    const reliefTitle = linearReliefLabel(reliefExaggeration);
+    const reliefMaterialOptions = { waterMask: earthWaterMask, reliefExaggeration };
     const surfaceMaterial = createSurfaceMaterialLodConfig({
         earthRadius: 2,
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
@@ -74,12 +79,11 @@ export function createEarthLayers({
         earthMap,
         earthSpecular,
         earthRelief,
-        earthReliefNormal,
-        earthReliefSeaLevel,
         earthReliefScale,
         reliefTextureRef: activeReliefRef,
         surfaceMaterial,
-        overrides: materialOverrides
+        overrides: materialOverrides,
+        ...reliefMaterialOptions
     });
 
     const earth = new THREE.Mesh(new THREE.SphereGeometry(2, 512, 256), earthMat);
@@ -96,11 +100,10 @@ export function createEarthLayers({
     };
     earthGroup.add(earth);
 
-    // KTX2 pilot: relief + normal are the two heavy local textures. This tracks
-    // the currently-active version of each (placeholder, then KTX2 or PNG
-    // fallback) so the lazily-built PBR material always references the right one.
+    // The relief starts as a flat placeholder and is replaced by the KTX2 (or
+    // .bin) metres; track the active texture so the lazily-built PBR material
+    // always references the right one.
     let activeRelief = earthRelief;
-    let activeReliefNormal = earthReliefNormal;
     // Blue Marble surface upgrade (see below): starts as the bundled CDN
     // texture, swapped for the NASA GIBS raster once it decodes. Read at
     // call-time by ensureEarthMatPBR so the PBR material picks up whichever
@@ -121,12 +124,11 @@ export function createEarthLayers({
                     earthMap: activeSurfaceMap,
                     earthRoughnessMap,
                     earthRelief: activeRelief,
-                    earthReliefNormal: activeReliefNormal,
-                    earthReliefSeaLevel,
                     earthReliefScale,
                     reliefTextureRef: activeReliefRef,
                     surfaceMaterial,
-                    overrides: materialOverrides
+                    overrides: materialOverrides,
+                    ...reliefMaterialOptions
                 });
                 return earthMatPBR;
             })
@@ -137,33 +139,26 @@ export function createEarthLayers({
         return earthMatPBRLoading;
     }
 
-    // KTX2-primary upgrade (disabled with `?noktx2`). The material starts with
-    // flat placeholders, then swaps in compressed textures; on failure, the PNG
-    // fallback is loaded instead.
+    // KTX2-primary upgrade: the R16F metres (KTX2, or the raw .bin with
+    // ?noktx2 / on failure) replace the flat placeholder.
+    const reliefTargets = [
+        {
+            key: 'relief',
+            url: RELIEF_LINEAR_ASSETS.ktx2,
+            fallback: () => loadReliefBin({ THREE }),
+            configure: (texture) => configureReliefTexture(THREE, texture, { mipmapped: (texture.mipmaps?.length || 0) > 1 }),
+            fromTexture: earthRelief,
+        },
+    ];
     upgradeEarthTexturesToKtx2({
         THREE,
         renderer,
         getMaterials: () => [earthMat, earthMatPBR],
-        targets: [
-            {
-                key: 'relief',
-                url: 'assets/etopo2022-bedrock-relief-2160x1080.ktx2',
-                pngUrl: 'assets/etopo2022-bedrock-relief-2160x1080.png',
-                fromTexture: earthRelief,
-            },
-            {
-                key: 'normal',
-                url: 'assets/etopo2022-bedrock-normal-2160x1080.ktx2',
-                pngUrl: 'assets/etopo2022-bedrock-normal-2160x1080.png',
-                fromTexture: earthReliefNormal,
-            },
-        ],
+        targets: reliefTargets,
         onUpgrade: (key, texture) => {
-            if (key === 'relief') {
-                activeRelief = texture;
-                syncActiveReliefTexture([earthMat, earthMatPBR], activeReliefRef, texture);
-            }
-            else if (key === 'normal') activeReliefNormal = texture;
+            if (key !== 'relief') return;
+            activeRelief = texture;
+            syncActiveReliefTexture([earthMat, earthMatPBR], activeReliefRef, texture);
         },
     });
 

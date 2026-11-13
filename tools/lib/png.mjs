@@ -51,6 +51,52 @@ export function decodePng(buffer) {
   return { width, height, data: out };
 }
 
+// 8-bit palette PNG (colour type 3) -> palette indices, plus palette and
+// tRNS alpha (used for the GIBS MODIS_Water_Mask tiles).
+export function decodePngIndexed(buffer) {
+  let offset = 8;
+  let width = 0; let height = 0; let colorType = 0; let bitDepth = 0;
+  const idat = [];
+  let palette = null; let alpha = null;
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    const data = buffer.subarray(offset + 8, offset + 8 + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0); height = data.readUInt32BE(4);
+      bitDepth = data[8]; colorType = data[9];
+      if (data[12] !== 0) throw new Error('interlaced PNG not supported');
+    } else if (type === 'PLTE') palette = Buffer.from(data);
+    else if (type === 'tRNS') alpha = Buffer.from(data);
+    else if (type === 'IDAT') idat.push(data);
+    else if (type === 'IEND') break;
+    offset += 12 + length;
+  }
+  if (bitDepth !== 8 || colorType !== 3) throw new Error(`not an 8-bit palette PNG (${bitDepth}/${colorType})`);
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const indices = new Uint8Array(width * height);
+  let previous = new Uint8Array(width);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (width + 1)];
+    const line = new Uint8Array(raw.subarray(y * (width + 1) + 1, (y + 1) * (width + 1)));
+    for (let x = 0; x < width; x++) {
+      const a = x >= 1 ? line[x - 1] : 0; const b = previous[x]; const c = x >= 1 ? previous[x - 1] : 0;
+      let value = line[x];
+      if (filter === 1) value += a;
+      else if (filter === 2) value += b;
+      else if (filter === 3) value += (a + b) >> 1;
+      else if (filter === 4) {
+        const p = a + b - c; const pa = Math.abs(p - a); const pb = Math.abs(p - b); const pc = Math.abs(p - c);
+        value += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      line[x] = value & 0xff;
+    }
+    indices.set(line, y * width);
+    previous = line;
+  }
+  return { width, height, indices, palette, alpha };
+}
+
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -86,6 +132,29 @@ export function encodePng({ width, height, data }) {
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', header),
+    chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** 8-bit grayscale PNG with tEXt metadata ({ keyword: text }), Up-filtered rows. */
+export function encodePngGray8({ width, height, data, text = {} }) {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4);
+  header[8] = 8; header[9] = 0; header[10] = 0; header[11] = 0; header[12] = 0;
+  const raw = Buffer.alloc((width + 1) * height);
+  for (let y = 0; y < height; y++) {
+    raw[y * (width + 1)] = 2; // Up filter
+    for (let x = 0; x < width; x++) {
+      const above = y > 0 ? data[(y - 1) * width + x] : 0;
+      raw[y * (width + 1) + 1 + x] = (data[y * width + x] - above) & 0xff;
+    }
+  }
+  const textChunks = Object.entries(text).map(([keyword, value]) => chunk('tEXt', Buffer.from(`${keyword}\0${value}`, 'latin1')));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    ...textChunks,
     chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
     chunk('IEND', Buffer.alloc(0)),
   ]);

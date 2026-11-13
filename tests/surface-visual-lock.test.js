@@ -18,7 +18,7 @@ describe('surface visual lock query contract', () => {
         expect(surfaceVisualCaseFromSearch('?surfaceVisualCase=regional')).toBe('regional');
         expect(surfaceVisualCaseFromSearch('?surfaceVisualCase=limb')).toBe('limb');
         expect(Object.keys(SURFACE_VISUAL_CASES)).toEqual([
-            'global', 'continental', 'regional', 'close', 'terminator', 'night', 'polar', 'antimeridian', 'limb'
+            'global', 'continental', 'regional', 'close', 'terminator', 'night', 'polar', 'antimeridian', 'asia', 'americas', 'limb'
         ]);
         expect(surfaceVisualCaseFromSearch('?surfaceVisualCase=unknown')).toBeNull();
         expect(surfaceVisualCaseFromSearch('')).toBeNull();
@@ -65,9 +65,12 @@ describe('surface visual lock query contract', () => {
     it('reads A/B material overrides only inside a lock case, and only valid values', () => {
         expect(surfaceVisualOverridesFromSearch('?reliefExaggeration=10&bathymetryMix=0')).toEqual({});
         expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close')).toEqual({});
-        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=0&reliefStrength=0.936&bathymetryMix=0.07&coastNormals=clip&surfaceDebug=tilt'))
-            .toEqual({ reliefExaggeration: 0, reliefStrength: 0.936, bathymetryMix: 0.07, coastNormals: 'clip', surfaceDebug: 'tilt' });
-        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=-1&reliefStrength=abc&bathymetryMix=&coastNormals=yes&surfaceDebug=all'))
+        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=0&reliefStrength=0.936'))
+            .toEqual({ reliefExaggeration: 0, reliefStrength: 0.936 });
+        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefExaggeration=-1&reliefStrength=abc'))
+            .toEqual({});
+        // The legacy relief A/B options are gone (LOT 4b-B).
+        expect(surfaceVisualOverridesFromSearch('?surfaceVisualCase=close&reliefModel=legacy&coastNormals=clip&surfaceDebug=tilt&bathymetryMix=0.07'))
             .toEqual({});
     });
 

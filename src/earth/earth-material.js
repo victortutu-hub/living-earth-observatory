@@ -1,115 +1,16 @@
 import { createSurfaceMaterialLodConfig } from './surface-material-lod.js';
 import { ATMOSPHERE, ATMOSPHERE_GLSL } from './atmosphere-physics.js';
+import { RELIEF_LINEAR_EXAGGERATION, RELIEF_SOURCE, linearDisplacementScale } from './relief-linear.js';
 
-// Relief shading has one source only: ETOPO normals lit by the real Sun
-// (Lambert through the material's lighting). The perturbation is limited to
-// land (the sea surface is flat; the sea floor stays only in the bathymetry
-// colour ramp) and fades only where the Sun is below the local horizon, so
-// long shadows at low Sun survive up to the terminator.
+// Relief (LOT 4b-B): ETOPO 2022 60" ice surface in metres, area-averaged to
+// 1/6 deg, displaced linearly (x E) with water flat at 0 m, and normals computed
+// in the shader from the same heights (no normal map). Relief shading has one
+// source only: those normals lit by the real Sun. The perturbation is limited
+// to land (MOD44W water fraction) and fades only where the Sun is below the
+// local horizon, so long shadows at low Sun survive up to the terminator.
+// The ocean colour is the Blue Marble NG albedo only.
 export const RELIEF_TERMINATOR_EDGES = Object.freeze([-0.05, 0.05]);
 export const RELIEF_STRENGTH = Object.freeze({ phong: 0.72, pbr: 0.4 });
-// Ocean colour = Blue Marble NG albedo only. The former bathymetric ramp
-// (0.28) survives only as a visual-lock A/B option (bathymetryMix).
-export const BATHYMETRY_MIX = 0;
-
-// Encoding of assets/etopo2022-bedrock-relief-2160x1080.png, reconstructed
-// (LOT 4b ETAPA 0) from 2.3 M (elevation, gray) pairs of the ETOPO 2022 60"
-// grid at the same stride 10 (median error 4e-6 gray). The PNG holds POINT
-// samples every 1/6 deg, so peaks are missed: the highest sample is 6,734 m
-// (Karakoram); the texel at Everest reads ~5,029 m, not 8,849 m.
-//   land  (z > 0): gray = 0.42 + 0.5046 * (z / 6734 m)^0.48   (sqrt-like)
-//   ocean (z < 0): gray = 0.42 - 0.2323 * (|z| / 10511 m)^0.72
-// The normal map is "central differences; strength=38" of that gray, i.e.
-// n.xy = -76 * (central difference per texel). The geometric exaggeration is
-// therefore NOT a constant: it grows strongly towards low elevations.
-export const RELIEF_ENCODING = Object.freeze({
-    seaLevelGray: 0.42,
-    normalGainPerTexel: 76,
-    landGrayRange: 0.5046,
-    landMaxM: 6734,
-    landExponent: 0.48,
-    oceanGrayRange: 0.2323,
-    oceanMaxDepthM: 10511,
-    oceanExponent: 0.72,
-    metersPerSceneUnit: ATMOSPHERE.metersPerSceneUnit,
-});
-
-/** Relief gray for a land elevation in metres (z > 0), per the reconstructed encoding. */
-export function reliefGrayForLandElevation(elevationM, encoding = RELIEF_ENCODING) {
-    const z = Math.max(0, elevationM);
-    return encoding.seaLevelGray + encoding.landGrayRange * (z / encoding.landMaxM) ** encoding.landExponent;
-}
-
-/** Geometric vertical exaggeration at a land elevation (default: the highest 1/6 deg sample). */
-export function verticalExaggerationAt(displacementScale, elevationM = RELIEF_ENCODING.landMaxM, encoding = RELIEF_ENCODING) {
-    if (!(elevationM > 0)) return NaN;
-    const displacedM = (reliefGrayForLandElevation(elevationM, encoding) - encoding.seaLevelGray) * displacementScale * encoding.metersPerSceneUnit;
-    return displacedM / elevationM;
-}
-
-/** displacementScale giving exaggeration N at a land elevation (default: the highest sample). */
-export function displacementScaleForExaggeration(exaggeration, elevationM = RELIEF_ENCODING.landMaxM, encoding = RELIEF_ENCODING) {
-    const grayRise = reliefGrayForLandElevation(elevationM, encoding) - encoding.seaLevelGray;
-    return exaggeration * elevationM / (grayRise * encoding.metersPerSceneUnit);
-}
-
-// Displacement in scene units per relief gray unit, unchanged since LOT 4.
-// LOT 4 labelled it "x10 at Everest" from a wrong anchor (gray 0.8586 taken
-// as 8,849 m); with the reconstructed encoding it is ~x15 at the highest
-// sample and far more at low elevations (see reliefExaggerationLabel).
-export const EARTH_RELIEF_SCALE = 0.0633356100942748;
-
-/** Honest UI description of the current (legacy, non-linear) geometric relief. */
-export function reliefExaggerationLabel(displacementScale) {
-    if (!(displacementScale > 0)) {
-        return 'Relief: no geometric displacement (relief shading from ETOPO 2022 normals only)';
-    }
-    const at = (m) => Math.round(verticalExaggerationAt(displacementScale, m));
-    return `Relief: non-linear vertical exaggeration (≈×${at(RELIEF_ENCODING.landMaxM)} at the highest 1/6° sample, 6,734 m; `
-        + `≈×${at(1000)} at 1,000 m; ≈×${at(100)} at 100 m; much stronger at low elevations — legacy sqrt-like encoding `
-        + 'of ETOPO 2022 60″ bedrock, point-sampled 1/6°; ocean surface flat)';
-}
-
-export const SURFACE_DEBUG_VIEWS = Object.freeze({ none: 0, tilt: 1, tiltClipped: 2, landWeight: 3 });
-
-/** Visual-lock A/B options -> shader options. Production ({}) compiles none of them in. */
-function lockShaderOptions(overrides = {}) {
-    return Object.freeze({
-        coastNormals: overrides.coastNormals === 'clip',
-        surfaceDebug: SURFACE_DEBUG_VIEWS[overrides.surfaceDebug] || 0,
-        bathymetryMix: Number(overrides.bathymetryMix) > 0 ? Number(overrides.bathymetryMix) : 0,
-    });
-}
-
-// Visual-lock only (not in production): coast correction A/B and debug views,
-// compiled in only when requested. The correction removes from the normal-map
-// slope the part that comes from the relief below sea level: slope' = slope - k * (grad(max(h, sea)) - grad(h)),
-// from 4 extra relief samples. Debug views (grayscale, so the tone mapper
-// keeps them monotonic): tangent tilt (1 - n.z) of the raw normal map (1) or
-// of the sea-level-clipped relief (2), and the land weight w (3).
-const coastNormalBody = ({ coastNormals }) => `
-            float dbgTiltRawTw = 0.0;
-            float dbgTiltClipTw = 0.0;
-            #ifdef USE_NORMALMAP_TANGENTSPACE
-            {
-                vec2 reliefTexelTw = 1.0 / vec2(textureSize(uReliefMapTw, 0));
-                float hLTw = texture2D(uReliefMapTw, vMapUv - vec2(reliefTexelTw.x, 0.0)).r;
-                float hRTw = texture2D(uReliefMapTw, vMapUv + vec2(reliefTexelTw.x, 0.0)).r;
-                float hDTw = texture2D(uReliefMapTw, vMapUv - vec2(0.0, reliefTexelTw.y)).r;
-                float hUTw = texture2D(uReliefMapTw, vMapUv + vec2(0.0, reliefTexelTw.y)).r;
-                vec2 gradRawTw = 0.5 * vec2(hRTw - hLTw, hUTw - hDTw);
-                vec2 gradClipTw = 0.5 * vec2(max(hRTw, uSeaLevelTw) - max(hLTw, uSeaLevelTw), max(hUTw, uSeaLevelTw) - max(hDTw, uSeaLevelTw));
-                vec3 mapNTw = texture2D(normalMap, vNormalMapUv).xyz * 2.0 - 1.0;
-                vec2 slopeTw = mapNTw.xy / max(mapNTw.z, 1e-3);
-                vec2 slopeClipTw = slopeTw - ${RELIEF_ENCODING.normalGainPerTexel.toFixed(1)} * (gradClipTw - gradRawTw);
-                dbgTiltRawTw = 1.0 - inversesqrt(1.0 + dot(slopeTw, slopeTw));
-                dbgTiltClipTw = 1.0 - inversesqrt(1.0 + dot(slopeClipTw, slopeClipTw));
-                ${coastNormals ? `vec3 coastNTw = normalize(vec3(slopeClipTw, 1.0));
-                coastNTw.xy *= normalScale;
-                normal = normalize(tbn * coastNTw);` : ''}
-            }
-            #endif`;
-
 function smoothstep(edge0, edge1, x) {
     const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
     return t * t * (3 - 2 * t);
@@ -120,8 +21,40 @@ export function reliefPerturbationWeight({ strength, landWeight, sunDotGeometric
     return strength * landWeight * smoothstep(RELIEF_TERMINATOR_EDGES[0], RELIEF_TERMINATOR_EDGES[1], sunDotGeometric);
 }
 
-const reliefNormalBody = (lock) => `
-            ${lock.coastNormals || lock.surfaceDebug ? coastNormalBody(lock) : ''}
+// Linear model: normal from 4 neighbouring surface heights (water clamped at
+// 0 m, so the sea floor never tilts the coast), exaggerated by E, along the
+// sphere's local east/north (no tangent frame and no normal map involved).
+const LINEAR_RELIEF_FRAGMENT_PARS = `
+        uniform sampler2D uWaterMaskTw;
+        uniform float uWaterMaskReadyTw;
+        uniform float uReliefExaggerationTw;
+        varying vec3 vReliefEastTw;
+        varying vec3 vReliefNorthTw;
+        // Water fraction: MOD44W once loaded, z <= 0 until then.
+        float reliefWaterTw(vec2 uv, float h) {
+            return mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw);
+        }
+        float reliefSurfaceHeightTw(vec2 uv) {
+            float h = texture2D(uReliefMapTw, uv).r;
+            return mix(h, max(h, 0.0), reliefWaterTw(uv, h));
+        }`;
+const linearReliefNormalBody = () => `
+            {
+                vec2 reliefTexelTw = 1.0 / vec2(textureSize(uReliefMapTw, 0));
+                float hWTw = reliefSurfaceHeightTw(vMapUv - vec2(reliefTexelTw.x, 0.0));
+                float hETw = reliefSurfaceHeightTw(vMapUv + vec2(reliefTexelTw.x, 0.0));
+                float hSTw = reliefSurfaceHeightTw(vMapUv - vec2(0.0, reliefTexelTw.y));
+                float hNTw = reliefSurfaceHeightTw(vMapUv + vec2(0.0, reliefTexelTw.y));
+                vec3 reliefDirTw = normalize(vSurfaceMaterialDirectionTw);
+                float reliefCosLatTw = max(sqrt(max(0.0, 1.0 - reliefDirTw.y * reliefDirTw.y)), 0.02);
+                vec2 reliefSlopeTw = uReliefExaggerationTw * vec2(
+                    (hETw - hWTw) / (4.0 * PI * R_E * reliefCosLatTw * reliefTexelTw.x),
+                    (hNTw - hSTw) / (2.0 * PI * R_E * reliefTexelTw.y));
+                normal = normalize(normal - reliefSlopeTw.x * normalize(vReliefEastTw) - reliefSlopeTw.y * normalize(vReliefNorthTw));
+            }`;
+
+const RELIEF_NORMAL_BODY = `
+            ${linearReliefNormalBody()}
             // n_geom . sunDir uses the geometric normal (vWorldNormalTw).
             float reliefSunTw = smoothstep(${RELIEF_TERMINATOR_EDGES[0].toFixed(2)}, ${RELIEF_TERMINATOR_EDGES[1].toFixed(2)},
                 dot(normalize(vWorldNormalTw), normalize(uSunDirTw)));
@@ -135,10 +68,8 @@ const reliefNormalBody = (lock) => `
 // attenuated by the view transmittance and the in-scattered sunlight is added.
 // uSunIrradianceTw is the scene sun light (the irradiance that lights the
 // ground), so haze and ground share one physical exposure.
-const DEBUG_VIEW_VALUE = ['', 'dbgTiltRawTw', 'dbgTiltClipTw', 'surfaceLandWeightTw'];
-const aerialPerspectiveBody = ({ surfaceDebug }) => `
-            ${surfaceDebug ? `outgoingLight = vec3(${DEBUG_VIEW_VALUE[surfaceDebug]}); // visual-lock debug view
-            if (false) {` : 'if (uAerialPerspectiveTw > 0.5) {'}
+const AERIAL_PERSPECTIVE_BODY = `
+            if (uAerialPerspectiveTw > 0.5) {
                 vec3 apTransmittanceTw;
                 vec3 apInscatterTw = atmoAerialInscatter(vWorldPosTw, cameraPosition, normalize(uSunDirTw),
                     uAtmosphereHazeTw, uSunIrradianceTw, apTransmittanceTw);
@@ -146,16 +77,37 @@ const aerialPerspectiveBody = ({ surfaceDebug }) => `
             }
             #include <opaque_fragment>`;
 
-// The sea surface is flat in geometry too: displacement is clamped at sea
-// level (the ETOPO bedrock map would otherwise sink the ocean surface to the
-// exaggerated sea floor, pulling the limb silhouette inside the atmosphere's
-// R_E sphere and leaving a dark notch between disc and limb glow).
-function injectFlatSeaDisplacement(shader, seaLevel) {
+// Displacement = surfaceHeight(z) * E / metresPerSceneUnit with
+// surfaceHeight = mix(z, max(z, 0), water): the sea and lakes are flat at 0 m,
+// dry land below sea level (Qattara, Death Valley) keeps its negative height.
+// The local east/north directions feed the shader normals.
+function injectLinearDisplacement(shader, waterMask) {
+    shader.uniforms.uWaterMaskTw = waterMask?.uniform ?? { value: null }; // shared: swapped once the R8 mask loads
+    shader.uniforms.uWaterMaskReadyTw = waterMask?.ready ?? { value: 0 };
+    shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>
+        uniform sampler2D uWaterMaskTw;
+        uniform float uWaterMaskReadyTw;
+        varying vec3 vReliefEastTw;
+        varying vec3 vReliefNorthTw;`
+    );
     shader.vertexShader = shader.vertexShader.replace(
         '#include <displacementmap_vertex>',
         `#ifdef USE_DISPLACEMENTMAP
-            transformed += normalize( objectNormal ) * ( max( texture2D( displacementMap, vDisplacementMapUv ).x, ${Number(seaLevel).toFixed(4)} ) * displacementScale + displacementBias );
-        #endif`
+            float reliefHTw = texture2D( displacementMap, vDisplacementMapUv ).x;
+            float reliefWaterVTw = mix( step( reliefHTw, 0.0 ), texture2D( uWaterMaskTw, vDisplacementMapUv ).x, uWaterMaskReadyTw );
+            float reliefSurfaceVTw = mix( reliefHTw, max( reliefHTw, 0.0 ), reliefWaterVTw );
+            transformed += normalize( objectNormal ) * ( reliefSurfaceVTw * displacementScale + displacementBias );
+        #endif
+        {
+            vec3 reliefDirVTw = normalize( position );
+            vec3 reliefEastObjTw = vec3( reliefDirVTw.z, 0.0, -reliefDirVTw.x );
+            float reliefEastLenTw = length( reliefEastObjTw );
+            reliefEastObjTw = reliefEastLenTw > 1e-5 ? reliefEastObjTw / reliefEastLenTw : vec3( 1.0, 0.0, 0.0 );
+            vReliefEastTw = normalMatrix * reliefEastObjTw;
+            vReliefNorthTw = normalMatrix * cross( reliefDirVTw, reliefEastObjTw );
+        }`
     );
 }
 
@@ -165,9 +117,10 @@ export const AERIAL_PERSPECTIVE_UNIFORMS = Object.freeze([
 
 // Shared by Phong and PBR: relief strength, aerial perspective uniforms,
 // world-position varying and the GLSL physics library.
-function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, seaLevel, lock }) {
-    injectFlatSeaDisplacement(shader, seaLevel);
+function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, waterMask = null, exaggeration = RELIEF_LINEAR_EXAGGERATION }) {
+    injectLinearDisplacement(shader, waterMask);
     shader.uniforms.uReliefStrengthTw = { value: reliefStrength };
+    shader.uniforms.uReliefExaggerationTw = { value: exaggeration };
     shader.uniforms.uAerialPerspectiveTw = { value: 1.0 };
     shader.uniforms.uSunIrradianceTw = { value: new THREE.Vector3(0, 0, 0) }; // synced from the sun light each frame
     shader.uniforms.uAtmosphereHazeTw = { value: ATMOSPHERE.haze };
@@ -191,9 +144,10 @@ function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, seaLe
         uniform float uAtmosphereHazeTw;
         uniform float uAtmosphereAlphaTw;
         varying vec3 vWorldPosTw;
-        ${ATMOSPHERE_GLSL}`
+        ${ATMOSPHERE_GLSL}
+        ${LINEAR_RELIEF_FRAGMENT_PARS}`
     );
-    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', aerialPerspectiveBody(lock));
+    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', AERIAL_PERSPECTIVE_BODY);
 }
 
 // Injectie de zi/noapte comuna intre MeshPhongMaterial (V1) si
@@ -260,41 +214,11 @@ function injectDayNightTint(shader, THREE) {
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * duskTintTw, twilightTw * uEarthTwilightTw);
         diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);
 
-        // A single observed-derived ETOPO sample is shared by bathymetry and
-        // 2.4B land gating below. It is intentionally not a new detail map.
+        // Land weight = 1 - MOD44W water fraction (z <= 0 until the mask loads).
         float surfaceReliefTw = texture2D(uReliefMapTw, vMapUv).r;
-        float surfaceLandWeightTw = smoothstep(
-            uSurfaceMaterialCoastStartTw,
-            uSurfaceMaterialCoastEndTw,
-            surfaceReliefTw
-        );`
+        float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);`
     );
 }
-
-// Sprint 1.5 - Batimetrie: rampa hipsometrica pe adancime, din aceeasi
-// textura ETOPO folosita deja ca displacement/bump (earthRelief), fara sursa
-// noua de date. Sub nivelul marii (relief < seaLevel) tenta oceanul spre
-// turcoaz la tarm si bleumarin foarte inchis la santuri adanci, in loc de un
-// albastru uniform din harta de baza - acelasi tip de semnal ca o harta
-// batimetrica reala (GEBCO etc.), derivat din elevatia deja incarcata.
-// Ancorat pe <normal_fragment_maps> (nu <map_fragment>, deja ocupat de
-// injectDayNightTint / glint-ul oceanic Phong) - ruleaza dupa ambele, pe
-// diffuseColor deja calculat.
-// GLSL-ul care sampleaza relieful si aplica rampa. `vMapUv` e varying-ul de UV
-// pe care Three.js il declara pentru textura `map` (Three modern: NU `vUv`,
-// care exista doar cu USE_UV). Ambele materiale au `map`, deci `vMapUv` e
-// garantat prezent aici.
-// Visual-lock A/B only since LOT 4 (production: BATHYMETRY_MIX = 0, not compiled).
-const bathymetryRampBody = (mix) => mix > 0 ? `
-        float depthTw = clamp(uSeaLevelTw - surfaceReliefTw, 0.0, uSeaLevelTw) / max(uSeaLevelTw, 0.0001);
-        // Tranzitie imblanzita la tarm, evita o linie dura de coasta.
-        float underwaterTw = smoothstep(0.0, 0.012, uSeaLevelTw - surfaceReliefTw);
-        // Culori mai putin saturate: un indiciu subtil de adancime peste
-        // imaginea reala Blue Marble, nu o revopsire a oceanului.
-        vec3 shelfColorTw = vec3(0.10, 0.34, 0.42);
-        vec3 abyssColorTw = vec3(0.02, 0.05, 0.11);
-        vec3 bathyRampTw = mix(shelfColorTw, abyssColorTw, pow(depthTw, 0.6));
-        diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, bathyRampTw, ${mix.toFixed(4)}), underwaterTw);` : '';
 
 // Inregistreaza valorile uniformelor SI le declara in sursa GLSL. Uniformele
 // GLSL sunt globale - nu pot fi declarate in interiorul blocului main() unde
@@ -304,11 +228,10 @@ const bathymetryRampBody = (mix) => mix > 0 ? `
 // ar fi apelata in interiorul aceleiasi expresii `x = x.replace(a, f())`,
 // ordinea de evaluare JS (citeste x, apoi evalueaza argumentele) ar face ca
 // replace-ul sa ruleze pe stringul dinainte de prepend, pierzand declaratiile.
-// uReliefMapTw feeds the land/water mask (surfaceLandWeightTw).
-function declareReliefMaskUniforms(shader, { reliefTextureRef, earthReliefSeaLevel }) {
+// uReliefMapTw: the relief in metres, for the land weight and the normals.
+function declareReliefUniforms(shader, { reliefTextureRef }) {
     shader.uniforms.uReliefMapTw = { value: reliefTextureRef.current };
-    shader.uniforms.uSeaLevelTw = { value: earthReliefSeaLevel };
-    shader.fragmentShader = `uniform sampler2D uReliefMapTw;\nuniform float uSeaLevelTw;\n${shader.fragmentShader}`;
+    shader.fragmentShader = `uniform sampler2D uReliefMapTw;\n${shader.fragmentShader}`;
 }
 
 // KTX2 upgrades replace material slots after shaders have been compiled. Keep
@@ -323,13 +246,11 @@ export function syncActiveReliefTexture(materials, reliefTextureRef, texture) {
     }
 }
 
-function injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReliefSeaLevel }) {
+function injectSurfaceMaterialShared(shader, { surfaceMaterial }) {
     shader.uniforms.uSurfaceMaterialCameraDistanceTw = { value: Infinity };
     shader.uniforms.uSurfaceMaterialMesoFullDistanceTw = { value: surfaceMaterial.mesoFullDistance };
     shader.uniforms.uSurfaceMaterialMesoFadeDistanceTw = { value: surfaceMaterial.mesoFadeOutDistance };
     shader.uniforms.uSurfaceMaterialMesoEnabledTw = { value: surfaceMaterial.mode === 'off' ? 0 : 1 };
-    shader.uniforms.uSurfaceMaterialCoastStartTw = { value: earthReliefSeaLevel + surfaceMaterial.coastStartReliefOffset };
-    shader.uniforms.uSurfaceMaterialCoastEndTw = { value: earthReliefSeaLevel + surfaceMaterial.coastEndReliefOffset };
     shader.uniforms.uSurfaceMaterialMesoFrequencyTw = { value: surfaceMaterial.mesoFrequency };
     shader.uniforms.uSurfaceMaterialPbrRoughnessAmplitudeTw = { value: surfaceMaterial.pbrRoughnessAmplitude };
     shader.uniforms.uSurfaceMaterialPbrRoughnessMinTw = { value: surfaceMaterial.pbrRoughnessMin };
@@ -353,8 +274,6 @@ function injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReli
         uniform float uSurfaceMaterialMesoFullDistanceTw;
         uniform float uSurfaceMaterialMesoFadeDistanceTw;
         uniform float uSurfaceMaterialMesoEnabledTw;
-        uniform float uSurfaceMaterialCoastStartTw;
-        uniform float uSurfaceMaterialCoastEndTw;
         uniform float uSurfaceMaterialMesoFrequencyTw;
         uniform float uSurfaceMaterialPbrRoughnessAmplitudeTw;
         uniform float uSurfaceMaterialPbrRoughnessMinTw;
@@ -404,24 +323,24 @@ export function createEarthMaterial({
     earthMap,
     earthSpecular,
     earthRelief,
-    earthReliefNormal,
-    earthReliefSeaLevel = 0.42,
-    earthReliefScale = EARTH_RELIEF_SCALE,
+    // Scene units per metre (E / metres per scene unit).
+    reliefExaggeration = RELIEF_LINEAR_EXAGGERATION,
+    earthReliefScale = linearDisplacementScale(reliefExaggeration),
+    // { uniform: { value: texture }, ready: { value } } shared by every material (MOD44W R8).
+    waterMask = null,
     reliefTextureRef = { current: earthRelief },
     surfaceMaterial = createSurfaceMaterialLodConfig(),
-    // Visual-lock A/B overrides only (surfaceVisualOverridesFromSearch); {} = defaults.
+    // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
     overrides = {}
 }) {
     const material = new THREE.MeshPhongMaterial({
         map: earthMap,
         specularMap: earthSpecular,
-        normalMap: earthReliefNormal,
-        // Full tangent perturbation here; its strength is uReliefStrengthTw.
-        // No bumpMap: three r185 ignores it whenever a normalMap is present.
-        normalScale: new THREE.Vector2(1, 1),
+        // No normal map and no bumpMap: the relief normals are computed in the
+        // shader from the heights (RELIEF_NORMAL_BODY), scaled by uReliefStrengthTw.
         displacementMap: earthRelief,
         displacementScale: earthReliefScale,
-        displacementBias: -earthReliefSeaLevel * earthReliefScale,
+        displacementBias: 0,
         shininess: 28,
         specular: new THREE.Color(0x1e4a6e),
         // The black scene fog has no physical meaning on the surface; the
@@ -429,15 +348,14 @@ export function createEarthMaterial({
         fog: false
     });
 
-    material.userData.reliefSource = 'NOAA NCEI ETOPO 2022 60 arc-second Bedrock elevation, sampled with horizStride=10';
+    material.userData.reliefSource = RELIEF_SOURCE;
     material.userData.surfaceMaterial = surfaceMaterial;
-    const lock = lockShaderOptions(overrides);
     material.onBeforeCompile = shader => {
-        injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReliefSeaLevel });
+        injectSurfaceMaterialShared(shader, { surfaceMaterial });
         injectReliefAndAerialPerspective(shader, THREE, {
             reliefStrength: overrides.reliefStrength ?? RELIEF_STRENGTH.phong,
-            seaLevel: earthReliefSeaLevel,
-            lock
+            waterMask,
+            exaggeration: reliefExaggeration
         });
         shader.uniforms.uSunDirTw = { value: new THREE.Vector3(1, 0, 0) };
         shader.uniforms.uEarthNightTw = { value: 1.0 };
@@ -491,14 +409,9 @@ export function createEarthMaterial({
             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * duskTintTw, twilightTw * uEarthTwilightTw);
             diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);
 
-            // Shares the active observed-derived ETOPO sample with
-            // bathymetry and 2.4B material land gating below.
+            // Land weight = 1 - MOD44W water fraction (z <= 0 until the mask loads).
             float surfaceReliefTw = texture2D(uReliefMapTw, vMapUv).r;
-            float surfaceLandWeightTw = smoothstep(
-                uSurfaceMaterialCoastStartTw,
-                uSurfaceMaterialCoastEndTw,
-                surfaceReliefTw
-            );`
+            float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);`
         );
 
         // Ocean roughness at the terminator: boosts specular ocean glints near sunrise/sunset.
@@ -535,18 +448,15 @@ export function createEarthMaterial({
             }`
         );
 
-        declareReliefMaskUniforms(shader, { reliefTextureRef, earthReliefSeaLevel });
+        declareReliefUniforms(shader, { reliefTextureRef });
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <normal_fragment_maps>',
             `#include <normal_fragment_maps>
-            ${reliefNormalBody(lock)}
-            ${bathymetryRampBody(lock.bathymetryMix)}`
+            ${RELIEF_NORMAL_BODY}`
         );
 
         material.userData.shader = shader;
     };
-    // Lock A/B options change the generated GLSL: keep their programs apart.
-    material.customProgramCacheKey = () => `earth-phong:${JSON.stringify(lock)}`;
 
     return material;
 }
@@ -561,12 +471,14 @@ export function createEarthMaterialPBR({
     earthMap,
     earthRoughnessMap,
     earthRelief,
-    earthReliefNormal,
-    earthReliefSeaLevel = 0.42,
-    earthReliefScale = EARTH_RELIEF_SCALE,
+    // Scene units per metre (E / metres per scene unit).
+    reliefExaggeration = RELIEF_LINEAR_EXAGGERATION,
+    earthReliefScale = linearDisplacementScale(reliefExaggeration),
+    // { uniform: { value: texture }, ready: { value } } shared by every material (MOD44W R8).
+    waterMask = null,
     reliefTextureRef = { current: earthRelief },
     surfaceMaterial = createSurfaceMaterialLodConfig(),
-    // Visual-lock A/B overrides only (surfaceVisualOverridesFromSearch); {} = defaults.
+    // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
     overrides = {}
 }) {
     const material = new THREE.MeshStandardMaterial({
@@ -575,52 +487,41 @@ export function createEarthMaterialPBR({
         metalnessMap: earthRoughnessMap,
         roughness: 1.0,
         metalness: 1.0,
-        normalMap: earthReliefNormal,
-        // Full tangent perturbation; strength is uReliefStrengthTw (0.4, lower
-        // than Phong's 0.72: under GGX the same normal map reads much rougher,
-        // flat basins like the Amazon looked mountainous).
-        normalScale: new THREE.Vector2(1, 1),
-        // FARA bumpMap aici (spre deosebire de varianta Phong) - bump-ul e o
-        // pseudo-normala mai bruta (derivata numeric din inaltime), iar sub
-        // Fresnel real (GGX, corect fizic) devine vizibil sparkle/patratele la
-        // unghi razant/terminator - normalMap + displacementMap deja dau
-        // suficient detaliu de relief fara acest strat suplimentar.
+        // Relief normals from the heights in the shader; strength 0.4, lower
+        // than Phong's 0.72: under GGX the same slopes read much rougher.
         displacementMap: earthRelief,
         displacementScale: earthReliefScale,
-        displacementBias: -earthReliefSeaLevel * earthReliefScale,
+        displacementBias: 0,
         fog: false
     });
 
-    material.userData.reliefSource = 'NOAA NCEI ETOPO 2022 60 arc-second Bedrock elevation, sampled with horizStride=10';
+    material.userData.reliefSource = RELIEF_SOURCE;
     material.userData.roughnessSource = earthRoughnessMap.userData?.source
         || 'Procedural roughness/metalness approximation (see earth-roughness.js)';
     material.userData.surfaceMaterial = surfaceMaterial;
-    const lock = lockShaderOptions(overrides);
     material.onBeforeCompile = shader => {
-        injectSurfaceMaterialShared(shader, { THREE, surfaceMaterial, earthReliefSeaLevel });
+        injectSurfaceMaterialShared(shader, { surfaceMaterial });
         injectDayNightTint(shader, THREE);
         injectReliefAndAerialPerspective(shader, THREE, {
             reliefStrength: overrides.reliefStrength ?? RELIEF_STRENGTH.pbr,
-            seaLevel: earthReliefSeaLevel,
-            lock
+            waterMask,
+            exaggeration: reliefExaggeration
         });
 
         // Same relief rule as Phong (land only, fades only below the local
         // horizon). It replaces the former partial ocean flattening (0.55 by
         // roughness): the sea surface is now flat, so no glint field from
         // sea-floor ridges either.
-        declareReliefMaskUniforms(shader, { reliefTextureRef, earthReliefSeaLevel });
+        declareReliefUniforms(shader, { reliefTextureRef });
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <normal_fragment_maps>',
             `#include <normal_fragment_maps>
-            ${reliefNormalBody(lock)}
-            ${bathymetryRampBody(lock.bathymetryMix)}
+            ${RELIEF_NORMAL_BODY}
             ${surfaceMaterialPbrRoughnessBody()}`
         );
 
         material.userData.shader = shader;
     };
-    material.customProgramCacheKey = () => `earth-pbr:${JSON.stringify(lock)}`;
 
     return material;
 }

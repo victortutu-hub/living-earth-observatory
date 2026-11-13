@@ -33,6 +33,16 @@ export const SURFACE_VISUAL_CASES = Object.freeze({
         cameraPosition: [-3.15, 2.32, 0.12], target: [0, 0, 0],
         earthRotation: [0, 0, 0], iso: '2026-06-21T12:00:00.000Z'
     }),
+    // LOT 4b-B relief checks at local solar noon, 4 units out (as `regional`):
+    // over 48 N 108 E (Lake Baikal) and over 42 N 84 W (Great Lakes).
+    asia: Object.freeze({
+        cameraPosition: [-0.83, 2.97, -2.55], target: [0, 0, 0],
+        earthRotation: [0, 0, 0], iso: '2026-06-21T04:48:00.000Z'
+    }),
+    americas: Object.freeze({
+        cameraPosition: [0.31, 2.68, 2.96], target: [0, 0, 0],
+        earthRotation: [0, 0, 0], iso: '2026-06-21T17:36:00.000Z'
+    }),
     // The only case whose target is not the origin: the camera (3.6 units from
     // the centre, along the `global` direction) looks along a line that grazes
     // the Earth surface (closest approach 2.0), so the daylit limb crosses the
@@ -64,18 +74,14 @@ export function surfaceVisualMaterialFromSearch(search = '') {
     return new URLSearchParams(search).get('surfaceVisualMaterial') === 'pbr' ? 'pbr' : 'phong';
 }
 
-// A/B review overrides (LOT 4). Honoured only together with a valid
-// surfaceVisualCase, so the normal app never reads them; invalid values are
-// ignored (the production default stays in force).
+// A/B review overrides. Honoured only together with a valid surfaceVisualCase,
+// so the normal app never reads them; invalid values are ignored (the
+// production default stays in force). reliefExaggeration is the linear E.
 const OVERRIDE_RANGES = Object.freeze({
     reliefExaggeration: [0, 100],
     reliefStrength: [0, 2],
-    bathymetryMix: [0, 1],
 });
-const OVERRIDE_ENUMS = Object.freeze({
-    coastNormals: ['clip'],
-    surfaceDebug: ['tilt', 'tiltClipped', 'landWeight'],
-});
+const OVERRIDE_ENUMS = Object.freeze({});
 
 export function surfaceVisualOverridesFromSearch(search = '') {
     if (!surfaceVisualCaseFromSearch(search)) return {};

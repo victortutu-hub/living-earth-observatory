@@ -6,7 +6,7 @@
 //     A/B interleaved in one Chrome session (A,B then B,A ...), so GPU clock
 //     and background-load drift affect both builds equally; writes both perf.json
 //     files and applies the budget.
-//   npm run perf:lock -- --ab base=http://127.0.0.1:8767 cur=http://127.0.0.1:8766 clip=http://127.0.0.1:8766@coastNormals=clip
+//   npm run perf:lock -- --ab base=http://127.0.0.1:8767 cur=http://127.0.0.1:8766 x5=http://127.0.0.1:8766@reliefExaggeration=5
 //     N builds (each compared with the first); "@query" adds lock-only A/B
 //     parameters to that build's URL.
 // GPU time = EXT_disjoint_timer_query_webgl2 around composer.render (scene +

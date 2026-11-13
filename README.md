@@ -78,13 +78,13 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 
 ### Living Earth Observatory
 
-- Renders a 3D Earth with relief and bathymetry based on ETOPO-style local textures.
+- Renders a 3D Earth with linear relief (×10) from NOAA ETOPO 2022 (60″ ice surface, area-averaged 1/6°) and a NASA MODIS MOD44W water mask.
 - Loads natural events from NASA EONET.
 - Uses GDACS as an intelligent fallback or temporary primary data source.
 - Integrates USGS earthquakes into the shared `Earthquakes` category.
 - Adds NASA FIRMS wildfire hotspots through the local proxy.
 - Supports NASA GIBS daily cloud snapshots and observed VIIRS Black Marble annual night lights (2016), with local fallbacks.
-- Uses KTX2/Basis for the ETOPO relief and normal maps by default; append `?noktx2` only to exercise the PNG fallback.
+- Loads the relief as KTX2 (R16F metres + Zstd) by default; append `?noktx2` only to exercise the raw `.r16f.bin` fallback.
 - Keeps a versioned Service Worker cache for the app shell, GIBS imagery, and live EONET/USGS data.
 - Renders NOAA SWPC OVATION aurora as a restrained polar oval.
 - Synchronizes day/night lighting with the real solar position.
@@ -114,7 +114,7 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - NASA GIBS: daily cloud snapshot (not minute-by-minute live clouds) and VIIRS Black Marble annual night lights (2016).
 - USGS: earthquake feed, normalized into local `earthquakes` events.
 - NOAA SWPC OVATION: aurora forecast, used to drive polar oval intensity.
-- NOAA/ETOPO-derived relief assets: local relief and normal-map textures.
+- NOAA/ETOPO 2022-derived relief assets (built by `tools/build-relief.mjs`); lake surfaces rendered at 0 m (ETOPO has no lake levels).
 - Astronomy Engine: apparent solar position, solar clock, Moon position, phase, distance, and astronomical geometry.
 - TLE/SGP4: ISS position and orbital tracking.
 - Airglow: real upper-atmosphere emission phenomenon; procedural intensity, not a live snapshot.
@@ -127,8 +127,9 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 Important local assets:
 
 ```text
-assets/etopo2022-bedrock-relief-2160x1080.png
-assets/etopo2022-bedrock-normal-2160x1080.png
+assets/etopo2022-surface-m-2160x1080.ktx2
+assets/etopo2022-surface-m-2160x1080.r16f.bin
+assets/mod44w-water-2160x1080.png
 ```
 
 ## Offline And Cache Behaviour
