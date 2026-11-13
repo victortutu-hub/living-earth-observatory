@@ -11,6 +11,7 @@ const ROADMAP = Object.freeze({
   brain: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Atlas and neuron-scale MVP' }),
   cosmos: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Local stellar neighborhood, not a universe simulator' }),
   network: Object.freeze({ progress: 0, stage: 'Planned', next: 'Static topology and curated measurement story' }),
+  himalaya: Object.freeze({ progress: 0, stage: 'Frozen until Gate 2', next: 'Summit descent prototype once Gate 2 and its preconditions close' }),
 });
 
 function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'physical', conceptualScale = null, status, accent, secondaryAccent, description, features, representations, provenanceTag, roadmap }) {
@@ -146,6 +147,13 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     accent: '34,211,238', secondaryAccent: '14,165,233', provenanceTag: 'ocean', roadmap: ROADMAP.ocean,
     description: 'A separate ocean observatory for currents, temperature and biogeochemistry, rather than one more decorative Earth layer.',
     features: ['Current fields', 'Temperature stories', 'Biogeochemical context'], representations: ['observed', 'reconstructed', 'physical-model', 'fallback'],
+  }),
+  futureObservatory({
+    id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'planned',
+    accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
+    description: 'A planned regional observatory: click a summit or expedition marker to descend to ~1.2 km above it, with real terrain and the latest cloud-free Sentinel-2 scene.',
+    features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Opt-in expedition tracks'],
+    representations: ['observed', 'reconstructed', 'prediction', 'fallback'],
   }),
   futureObservatory({
     id: 'living-cell', title: 'Living Cell', subtitle: 'Observatory', family: 'life', scale: 'cellular', status: 'research',

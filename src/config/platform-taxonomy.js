@@ -14,12 +14,13 @@ export const PLATFORM_TAXONOMY = Object.freeze({
         {id:'cellular',label:'Cellular',order:3},
         {id:'organism',label:'Organism',order:4},
         {id:'ecological',label:'Ecological',order:5},
-        {id:'planetary',label:'Planetary',order:6},
-        {id:'stellar',label:'Stellar',order:7},
-        {id:'galactic',label:'Galactic',order:8},
-        {id:'cosmological',label:'Cosmological',order:9},
-        {id:'abstract',label:'Conceptual: Abstract',order:10,axis:'conceptual'},
-        {id:'global-network',label:'Network: Global network',order:11,axis:'network'}
+        {id:'regional',label:'Regional',order:6,description:'Regions and landscapes: mountain ranges, basins, coastlines.'},
+        {id:'planetary',label:'Planetary',order:7},
+        {id:'stellar',label:'Stellar',order:8},
+        {id:'galactic',label:'Galactic',order:9},
+        {id:'cosmological',label:'Cosmological',order:10},
+        {id:'abstract',label:'Conceptual: Abstract',order:11,axis:'conceptual'},
+        {id:'global-network',label:'Network: Global network',order:12,axis:'network'}
       ]),
       scaleAxes: Object.freeze([
         {id:'physical',label:'Physical scale',description:'Observable spatial scale, from quantum phenomena to cosmological systems.'},
