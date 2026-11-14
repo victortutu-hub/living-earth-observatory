@@ -125,6 +125,34 @@ export function validateObservatoryRegistry(modules, options = {}) {
       ]),
     });
   });
+  // Parent/child (one level): a child names an existing top-level observatory
+  // and is never a gateway (hero) portal; it is entered from its parent.
+  const byId = new Map((modules || []).filter((module) => module?.id).map((module) => [module.id, module]));
+  const hierarchyIssues = new Map();
+  (modules || []).forEach((module) => {
+    if (module?.parent === undefined || module?.parent === null) return;
+    const found = [];
+    const parent = byId.get(module.parent);
+    if (module.parent === module.id) {
+      found.push(issue('error', 'self-parent', `Observatory ${module.id} cannot be its own parent.`, 'parent'));
+    } else if (!parent) {
+      found.push(issue('error', 'unknown-parent', `Unknown parent observatory: ${module.parent}.`, 'parent'));
+    } else if (parent.parent !== undefined && parent.parent !== null) {
+      found.push(issue('error', 'nested-parent', `Parent ${module.parent} is itself a child; only one level is allowed.`, 'parent'));
+    }
+    if (module.gateway?.enabled) {
+      found.push(issue('error', 'gateway-child', `Child observatory ${module.id} cannot be a gateway portal; it is entered from its parent.`, 'gateway'));
+    }
+    if (found.length) hierarchyIssues.set(module, found);
+  });
+  if (hierarchyIssues.size) {
+    reports.forEach((report, index) => {
+      const found = hierarchyIssues.get(modules[index]);
+      if (!found) return;
+      reports[index] = Object.freeze({ ...report, valid: false, errors: Object.freeze([...report.errors, ...found]) });
+    });
+  }
+
   const errors = reports.flatMap((report) => report.errors.map((entry) => ({ ...entry, moduleId: report.id })));
   const warnings = reports.flatMap((report) => report.warnings.map((entry) => ({ ...entry, moduleId: report.id })));
 

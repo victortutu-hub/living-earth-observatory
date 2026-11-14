@@ -6,6 +6,7 @@ import { hasRuntime, observatoryRuntimeBadge } from '../core/observatory-runtime
 
 let platformFilters = { family: 'all', scale: 'all', status: 'all' };
 
+const observatoryById = new Map(OBSERVATORY_REGISTRY.map(item => [item.id,item]));
 const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]));
     const scaleById = new Map(PLATFORM_TAXONOMY.scales.map(item => [item.id,item]));
     const scaleAxisById = new Map(PLATFORM_TAXONOMY.scaleAxes.map(item => [item.id,item]));
@@ -74,6 +75,13 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
           head.append(status,runtimeStatus,coordinate);
         } else {
           head.append(status,coordinate);
+        }
+        // A child observatory names its parent, read from the registry.
+        const parent = item.parent ? observatoryById.get(item.parent) : null;
+        if (parent) {
+          const parentLabel = createElement('span','obs-coordinate obs-parent',`part of ${parent.title}`);
+          parentLabel.dataset.observatoryParent = parent.id;
+          head.append(parentLabel);
         }
 
         const title = createElement('h3');

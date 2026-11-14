@@ -14,8 +14,12 @@ const ROADMAP = Object.freeze({
   himalaya: Object.freeze({ progress: 0, stage: 'Frozen until Gate 2', next: 'Summit descent prototype once Gate 2 and its preconditions close' }),
 });
 
-function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'physical', conceptualScale = null, status, accent, secondaryAccent, description, features, representations, provenanceTag, roadmap }) {
+// `parent` (optional): id of an existing top-level observatory this one belongs
+// to. Children are entered from their parent, never from the gateway hero; the
+// registry contract allows one level only (see validateObservatoryRegistry).
+function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'physical', conceptualScale = null, status, accent, secondaryAccent, description, features, representations, provenanceTag, roadmap, parent = null }) {
   return Object.freeze({
+    ...(parent ? { parent } : {}),
     id,
     title,
     subtitle,
@@ -150,6 +154,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
   }),
   futureObservatory({
     id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'planned',
+    parent: 'living-earth', // entered from the Earth globe, not from the hero
     accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
     description: 'A planned regional observatory: click a summit or expedition marker to descend to ~1.2 km above it, with real terrain and the latest cloud-free Sentinel-2 scene.',
     features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Opt-in expedition tracks'],

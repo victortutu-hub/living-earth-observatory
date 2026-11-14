@@ -39,7 +39,8 @@ export const platformRegistry = Object.freeze({
 
   getGatewayFeatured(limit = 2) {
     return OBSERVATORY_REGISTRY
-      .filter((item) => item.gateway?.enabled)
+      // The hero shows parent observatories only; children are entered from their parent.
+      .filter((item) => item.gateway?.enabled && !item.parent)
       .sort((a, b) => (a.gateway.order ?? 999) - (b.gateway.order ?? 999))
       .slice(0, Math.max(0, limit));
   },
