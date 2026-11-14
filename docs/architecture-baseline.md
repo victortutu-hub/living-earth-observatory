@@ -120,8 +120,13 @@ applying it to skip fresh upstream requests.
 2. **Shared infrastructure without broker facade:** GDACS uses
    `defineFeedAdapter` → shared request runtime. This is reuse, not an independent
    networking architecture. Event providers need not become visual plugins.
-3. **Independent fetch/cache paths:** FIRMS, GVP, Wind, Ocean currents,
-   `layer-plugin-registry`, and live seismic. Wind/Marine use sessionStorage.
+3. **Independent fetch/cache paths:** FIRMS, GVP, Wind, Ocean currents and
+   `layer-plugin-registry`. Wind/Marine use sessionStorage. *LOT 5 (Nov 2026):*
+   a second USGS path existed, `src/earth/live-seismic-layer.js` (direct
+   `fetch()` on `all_day.geojson`, never imported by the app); it was removed,
+   and USGS is now requested only by `usgs-earthquakes.js` through
+   `earth-data-runtime.js` / DataBroker (summary feeds in Live, FDSN
+   `starttime/endtime` for a historical day; see `tests/usgs-single-path.test.js`).
    Image/TextureLoader, service-worker requests and conversion jobs also have
    distinct paths; direct fetch is not automatically wrong, but the policy,
    ownership and provenance must be explicit. Code presence alone does not
