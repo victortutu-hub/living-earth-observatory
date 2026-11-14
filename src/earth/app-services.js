@@ -366,6 +366,11 @@ export function createEarthAppServices({
             state.dataSourceState = status.state || 'off';
             state.dataSourceMessage = status.message || 'Data source: NASA EONET default';
             updateDataSourceStatus?.(status);
+            // A load of events reached its end (or a new day started): the
+            // USGS/FIRMS rows follow it, not only the toggle that started a
+            // load which may have been superseded since.
+            liveDataLayers.refreshUsgsStatus?.();
+            liveDataLayers.refreshFirmsStatus?.();
         },
         getDataDay: () => timeState.dataDay(),
         onDeferredEventsApplied: () => liveDataLayers.refreshFirmsStatus?.(),
