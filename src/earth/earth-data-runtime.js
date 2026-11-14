@@ -148,6 +148,36 @@ export function fetchEarthUsgs(url, {
     }));
 }
 
+/** requestRuntime key for one historical FIRMS day (proxy firms-day route). */
+export function firmsDayCacheKey(day) {
+    return `earth:firms:day:${day}`;
+}
+
+/**
+ * One UTC day of NASA FIRMS hotspots through the proxy's firms-day route
+ * (LOT 9). The proxy picks MODIS NRT or SP and reduces the rows; a day that
+ * ended before yesterday keeps the long cache policy of closed windows. No
+ * retries: the proxy has a global FIRMS budget and its own stale cache.
+ */
+export function fetchEarthFirmsDay(url, {
+    day,
+    signal = null,
+    timeout = 15_000,
+    forceRefresh = false,
+} = {}) {
+    const policy = windowCachePolicy({ start: day, end: day }, { ttl: 30 * MINUTE, staleTtl: DAY });
+    return run('firms', () => dataBroker.fetchJsonResource(firmsDayCacheKey(day), url, {
+        ttl: policy.ttl,
+        staleTtl: policy.staleTtl,
+        timeout,
+        retries: 0,
+        signal,
+        forceRefresh,
+        sourceTimeSelector: () => (day ? `${day}T00:00:00.000Z` : null),
+        fetchOptions: { mode: 'cors' },
+    }));
+}
+
 export function fetchEarthOvation(url, {
     signal = null,
     forceRefresh = false,

@@ -368,6 +368,7 @@ export function createEarthAppServices({
             updateDataSourceStatus?.(status);
         },
         getDataDay: () => timeState.dataDay(),
+        onDeferredEventsApplied: () => liveDataLayers.refreshFirmsStatus?.(),
         addMarkers,
         focusOnLonLat,
         setSelectedCinematic,

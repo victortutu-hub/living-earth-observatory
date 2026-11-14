@@ -58,7 +58,7 @@ export const EARTH_TEMPORAL_LAYERS = Object.freeze({
     snowIce: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
     eonet: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
     usgs: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
-    firms: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'latest-only' }),
+    firms: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
     gdacs: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
     aurora: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
     wind: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
@@ -260,7 +260,9 @@ export const EARTH_TIME_CAPABILITIES = Object.freeze({
     snowIce: createTimeCapability({ kind: 'daily', range: { start: '2000-02-24', end: 'latest' }, lagDays: 1, gaps: MODIS_TERRA_SNOW_GAPS }),
     eonet: createTimeCapability({ kind: 'event-range', range: { start: '2015-01-01', end: 'latest' }, windowDays: 7 }),
     usgs: createTimeCapability({ kind: 'event-range', range: { start: '1900-01-01', end: 'latest' }, windowDays: 7 }),
-    firms: createTimeCapability({ kind: 'live-only' }),
+    // LOT 9: one UTC day through the proxy's firms-day route (MODIS NRT or SP);
+    // the proxy enforces the real NRT/SP coverage and answers no-coverage.
+    firms: createTimeCapability({ kind: 'daily', range: { start: '2000-11-01', end: 'latest' }, lagDays: 1 }),
     gdacs: createTimeCapability({ kind: 'live-only' }),
     aurora: createTimeCapability({ kind: 'live-only' }),
     wind: createTimeCapability({ kind: 'live-only' }),
@@ -282,7 +284,7 @@ export function composeHistoricalStatus({ sourceKey, source, noun = 'events', wi
     const parts = [];
     if (provenance) parts.push(provenance.label);
     parts.push(source, `${noun} ${when}`);
-    if (count != null) parts.push(`${count} ${unit}`);
+    if (count != null) parts.push(unit ? `${count} ${unit}` : String(count));
     const requested = window ? `${window.start} .. ${window.end}` : day;
     return {
         message: parts.join(' · '),

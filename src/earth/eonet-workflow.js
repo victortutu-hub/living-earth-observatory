@@ -83,6 +83,29 @@ export function createEonetWorkflow({
         renderList(state.filtered);
     }
 
+    // LOT 9: events of a provider that renders on its own on a historical day
+    // (FIRMS) replace that provider's previous events, for the current day only.
+    // Kept until the day changes: a load of the same day that finishes after
+    // FIRMS answered must not drop its events.
+    let deferred = null; // { day, events, sourceProvider }
+
+    function withDeferred(events) {
+        const day = eonetData.readFilters().dataDay || null;
+        if (!deferred || !day || deferred.day !== day) return events;
+        return [...events.filter(event => event.sourceProvider !== deferred.sourceProvider), ...deferred.events];
+    }
+
+    function appendDeferredEvents({ day, events, sourceProvider }) {
+        if (disposed) return false;
+        if ((eonetData.readFilters().dataDay || null) !== (day || null)) return false;
+        deferred = { day, events, sourceProvider };
+        const kept = state.events.filter(event => event.sourceProvider !== sourceProvider);
+        state.events = [...kept, ...events];
+        populateCategoryFilter(state.events);
+        applyFilter();
+        return true;
+    }
+
     async function loadEvents({ silent = false, forceRefresh = false } = {}) {
         if (disposed) return;
         const generation = ++loadGeneration;
@@ -91,7 +114,7 @@ export function createEonetWorkflow({
         try {
             const events = await eonetData.fetchEvents(undefined, { forceRefresh });
             if (disposed || generation !== loadGeneration) return;
-            state.events = events;
+            state.events = withDeferred(events);
             populateCategoryFilter(state.events);
             applyFilter();
             if (!silent && loading) loading.style.display = 'none';
@@ -113,6 +136,7 @@ export function createEonetWorkflow({
         deselectAll,
         applyFilter,
         loadEvents,
+        appendDeferredEvents,
         dispose
     };
 }

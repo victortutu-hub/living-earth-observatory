@@ -322,6 +322,182 @@ function csvToJsonArray(csvText) {
     return rows;
 }
 
+// ---------------------------------------------------------------------
+// FIRMS istoric (LOT 9): /nasa-proxy?source=firms-day&date=YYYY-MM-DD
+// O zi UTC, toata lumea, doar MODIS: NRT daca ziua e in intervalul NRT,
+// altfel SP (granite din data_availability). Clientul trimite DOAR data.
+// ---------------------------------------------------------------------
+
+const FIRMS_API_BASE = 'https://firms.modaps.eosdis.nasa.gov/api';
+const DAY_MS = 86400000;
+
+// Acelasi filtru ca src/earth/firms-wildfires.js (FIRMS_ELIGIBILITY): nu se
+// poate importa un modul ESM comun aici (proxy-ul ramane CommonJS si ruleaza
+// si pe Node 18), deci pragurile sunt duplicate si un test verifica egalitatea.
+const FIRMS_DAY_ELIGIBILITY = Object.freeze({ minConfidenceRank: 2, minFrpMw: 5 });
+
+// Doar coloanele citite de rowToEvent din client; restul (scan, track,
+// bright_t31, type) nu ajung in raspuns.
+const FIRMS_DAY_FIELDS = Object.freeze([
+    'latitude', 'longitude', 'acq_date', 'acq_time', 'satellite', 'instrument',
+    'confidence', 'version', 'brightness', 'bright_ti4', 'frp', 'daynight',
+]);
+
+const FIRMS_DAY_DEFAULTS = Object.freeze({
+    minDay: '2000-11-01',            // inceputul MODIS_SP
+    maxRows: 1000,
+    recentNrtTtlMs: 30 * 60 * 1000,  // NRT < 2 zile: se completeaza inca
+    olderNrtTtlMs: DAY_MS,           // NRT >= 2 zile: trece mai tarziu in SP
+    availabilityTtlMs: DAY_MS,
+    memoryEntries: 8,
+    diskMaxFiles: 400,
+    diskMaxBytes: 100 * 1024 * 1024,
+    upstreamLimit: 60,               // apeluri spre FIRMS pe fereastra
+    upstreamWindowMs: 10 * 60 * 1000,
+});
+
+/** Acelasi rang ca in client: h/high 3, n/nominal 2, l/low 1; numeric 80/40. */
+function firmsConfidenceRank(value) {
+    const raw = String(value || '').toLowerCase();
+    if (raw === 'h' || raw === 'high') return 3;
+    if (raw === 'n' || raw === 'nominal' || raw === 'medium') return 2;
+    if (raw === 'l' || raw === 'low') return 1;
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric)) return 2;
+    if (numeric >= 80) return 3;
+    if (numeric >= 40) return 2;
+    return 1;
+}
+
+/**
+ * Filtrul clientului (confidence >= nominal, FRP >= 5 MW), sortare FRP desc,
+ * maxim maxRows, doar FIRMS_DAY_FIELDS. totalCount = randuri brute,
+ * filteredCount = randuri care trec filtrul (inainte de taiere).
+ */
+function reduceFirmsDayRows(rows, { maxRows = FIRMS_DAY_DEFAULTS.maxRows, eligibility = FIRMS_DAY_ELIGIBILITY } = {}) {
+    const eligible = rows.filter(row => {
+        const frp = Number(row.frp);
+        return firmsConfidenceRank(row.confidence) >= eligibility.minConfidenceRank
+            && !(Number.isFinite(frp) && frp < eligibility.minFrpMw);
+    });
+    eligible.sort((a, b) => (Number(b.frp) || 0) - (Number(a.frp) || 0));
+    const fires = eligible.slice(0, maxRows).map(row => {
+        const compact = {};
+        for (const field of FIRMS_DAY_FIELDS) if (row[field] !== undefined) compact[field] = row[field];
+        return compact;
+    });
+    return { fires, totalCount: rows.length, filteredCount: eligible.length };
+}
+
+function isoDayUtc(ms) {
+    return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Valideaza cererea: doar `source` si `date`; o zi calendaristica reala, nu in viitor. */
+function parseFirmsDayRequest(searchParams, nowMs, { minDay = FIRMS_DAY_DEFAULTS.minDay } = {}) {
+    const extra = [...searchParams.keys()].filter(key => key !== 'source' && key !== 'date');
+    if (extra.length) return { ok: false, status: 400, error: `unsupported parameter: ${extra[0]}` };
+    const day = searchParams.get('date') || '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return { ok: false, status: 400, error: 'date must be YYYY-MM-DD' };
+    const parsed = Date.parse(`${day}T00:00:00Z`);
+    if (!Number.isFinite(parsed) || isoDayUtc(parsed) !== day) return { ok: false, status: 400, error: 'invalid calendar date' };
+    if (day > isoDayUtc(nowMs)) return { ok: false, status: 400, error: 'date is in the future' };
+    if (day < minDay) return { ok: false, status: 404, error: 'no-coverage' };
+    return { ok: true, day };
+}
+
+/** CSV data_availability -> { MODIS_NRT: {min, max}, MODIS_SP: {min, max} } sau null. */
+function parseFirmsAvailability(csvText) {
+    const ranges = {};
+    for (const row of csvToJsonArray(String(csvText || ''))) {
+        if (row.data_id && /^\d{4}-\d{2}-\d{2}$/.test(row.min_date || '') && /^\d{4}-\d{2}-\d{2}$/.test(row.max_date || '')) {
+            ranges[row.data_id] = { min: row.min_date, max: row.max_date };
+        }
+    }
+    return ranges.MODIS_NRT || ranges.MODIS_SP ? { MODIS_NRT: ranges.MODIS_NRT || null, MODIS_SP: ranges.MODIS_SP || null } : null;
+}
+
+/** MODIS_NRT daca ziua e in intervalul NRT, altfel MODIS_SP, altfel null. */
+function chooseFirmsSource(day, availability) {
+    const inRange = range => Boolean(range) && range.min <= day && day <= range.max;
+    if (inRange(availability?.MODIS_NRT)) return 'MODIS_NRT';
+    if (inRange(availability?.MODIS_SP)) return 'MODIS_SP';
+    return null;
+}
+
+/** SP: imuabil. NRT < 2 zile: 30 min. NRT >= 2 zile: 24 h (nu immutable). */
+function firmsDayCachePolicy(day, source, nowMs, defaults = FIRMS_DAY_DEFAULTS) {
+    if (source === 'MODIS_SP') return { ttlMs: Infinity, cacheControl: 'public, max-age=604800, immutable' };
+    const ageDays = (Date.parse(`${isoDayUtc(nowMs)}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / DAY_MS;
+    return ageDays < 2
+        ? { ttlMs: defaults.recentNrtTtlMs, cacheControl: 'public, max-age=300' }
+        : { ttlMs: defaults.olderNrtTtlMs, cacheControl: 'public, max-age=86400' };
+}
+
+/** Bucket global pentru apelurile spre FIRMS (fereastra glisanta). */
+function createUpstreamBudget({ limit, windowMs, now = Date.now }) {
+    const stamps = [];
+    return {
+        take() {
+            const t = now();
+            while (stamps.length && t - stamps[0] >= windowMs) stamps.shift();
+            if (stamps.length >= limit) {
+                return { ok: false, retryAfterS: Math.max(1, Math.ceil((stamps[0] + windowMs - t) / 1000)) };
+            }
+            stamps.push(t);
+            return { ok: true };
+        },
+    };
+}
+
+/** LRU mic in memorie (Map pastreaza ordinea de inserare). */
+function createMemoryLru(limit) {
+    const entries = new Map();
+    return {
+        get(key) {
+            if (!entries.has(key)) return null;
+            const value = entries.get(key);
+            entries.delete(key);
+            entries.set(key, value);
+            return value;
+        },
+        set(key, value) {
+            entries.delete(key);
+            entries.set(key, value);
+            while (entries.size > limit) entries.delete(entries.keys().next().value);
+        },
+        get size() { return entries.size; },
+    };
+}
+
+/** Pastreaza cel mult maxFiles / maxBytes fisiere `<prefix>*.json`; sterge intai cele mai vechi (mtime). */
+function pruneCacheDirectory(directory, prefix, { maxFiles, maxBytes }) {
+    let files;
+    try {
+        files = fs.readdirSync(directory)
+            .filter(name => name.startsWith(prefix) && name.endsWith('.json'))
+            .map(name => {
+                const filePath = path.join(directory, name);
+                const stat = fs.statSync(filePath);
+                return { filePath, size: stat.size, mtimeMs: stat.mtimeMs };
+            })
+            .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    } catch {
+        return 0;
+    }
+    let count = 0;
+    let bytes = 0;
+    let removed = 0;
+    for (const file of files) {
+        count += 1;
+        bytes += file.size;
+        if (count > maxFiles || bytes > maxBytes) {
+            try { fs.unlinkSync(file.filePath); removed += 1; } catch { /* ignorat */ }
+        }
+    }
+    return removed;
+}
+
 /** true daca Accept-Encoding contine gzip cu q > 0 (ex. "gzip, br", nu "gzip;q=0"). */
 function acceptsGzip(header) {
     return String(header || '').split(',').some(part => {
@@ -337,9 +513,9 @@ function acceptsGzip(header) {
  * cererea accepta gzip, corpul e comprimat (zlib, disponibil in Node 18 si 22).
  * Vary: Origin, Accept-Encoding e setat global de server.
  */
-function sendJson(res, statusCode, payload) {
+function sendJson(res, statusCode, payload, extraHeaders = {}) {
     const body = Buffer.from(JSON.stringify(payload), 'utf8');
-    const headers = { 'Content-Type': 'application/json; charset=utf-8' };
+    const headers = { 'Content-Type': 'application/json; charset=utf-8', ...extraHeaders };
     const writeBody = (buffer, extraHeaders = {}) => {
         if (res.destroyed || res.headersSent) return;
         res.writeHead(statusCode, { ...headers, ...extraHeaders, 'Content-Length': buffer.length });
@@ -364,23 +540,43 @@ function sendJson(res, statusCode, payload) {
  * serveste ultimul cache bun (marcat clar ca atare), la esec total
  * fara niciun cache anterior, intoarce eroare JSON explicita.
  */
-async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, normalize) {
+/**
+ * options (toate optionale; folosite de firms-day, LOT 9):
+ *   ttlMs         suprascrie CACHE_TTL[source] (Infinity = imuabil)
+ *   cacheControl  header Cache-Control pe raspunsurile reusite; erorile si
+ *                 stale-cache primesc no-store
+ *   memory        LRU {get, set} consultat inaintea discului
+ *   beforeFetch   () => null | { status, error, retryAfterS }: refuza apelul
+ *                 upstream (ex. bucket global), fara a consuma din el la cache hit
+ *   fetchShared   (url, fetch) => Promise: deduplica apelurile concurente
+ *   afterWrite    () => void, dupa scrierea unui fisier nou (ex. prune)
+ */
+async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, normalize, options = {}) {
+    const { ttlMs: ttlOverride, cacheControl = null, memory = null, beforeFetch = null, fetchShared = null, afterWrite = null } = options;
+    const okHeaders = cacheControl ? { 'Cache-Control': cacheControl } : {};
+    const errorHeaders = cacheControl ? { 'Cache-Control': 'no-store' } : {};
     const filePath = cachePath(source, cacheKey, upstream.cacheDirectory);
-    const cached = readCache(filePath);
+    const memoryKey = `${source}:${cacheKey}`;
+    const cached = memory?.get(memoryKey) || readCache(filePath);
 
     // Marcaj onest: 'cache-fresh' pastreaza proxyFetchedAt-ul original, nu pretinde 'live'.
-    const ttlMs = (upstream.cacheTtl[source] || 0) * 1000;
+    const ttlMs = ttlOverride !== undefined ? ttlOverride : (upstream.cacheTtl[source] || 0) * 1000;
     const ageMs = upstream.now() - Date.parse(cached?.proxyFetchedAt || '');
     if (cached && ttlMs > 0 && Number.isFinite(ageMs) && ageMs >= 0 && ageMs < ttlMs) {
         const { proxyError: _staleError, ...fresh } = cached;
-        await sendJson(res, 200, { ...fresh, proxyStatus: 'cache-fresh' });
+        memory?.set(memoryKey, cached);
+        await sendJson(res, 200, { ...fresh, proxyStatus: 'cache-fresh' }, okHeaders);
         return;
     }
 
-    const result = await upstream.fetchUpstream(upstreamUrl, {
+    const refused = beforeFetch ? beforeFetch() : null;
+    const doFetch = () => upstream.fetchUpstream(upstreamUrl, {
         get: upstream.upstreamGet,
         maxBytes: upstream.maxUpstreamBytes,
     });
+    const result = refused
+        ? { ok: false, body: null, statusCode: 0, error: refused.error, refused }
+        : await (fetchShared ? fetchShared(upstreamUrl, doFetch) : doFetch());
 
     if (result.ok) {
         let normalized = null;
@@ -397,16 +593,29 @@ async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, norm
                 data: normalized,
             };
             writeCache(filePath, payload);
-            await sendJson(res, 200, payload);
+            memory?.set(memoryKey, payload);
+            afterWrite?.();
+            await sendJson(res, 200, payload, okHeaders);
             return;
         }
     }
 
     // Upstream a esuat sau normalizarea a esuat - incercam cache-ul.
     if (cached) {
-        cached.proxyStatus = 'stale-cache';
-        cached.proxyError = result.error || 'normalize failed';
-        await sendJson(res, 200, cached);
+        const stale = { ...cached, proxyStatus: 'stale-cache', proxyError: result.error || 'normalize failed' };
+        await sendJson(res, 200, stale, errorHeaders);
+        return;
+    }
+
+    // Refuz local (ex. bucket epuizat): statusul lui, cu Retry-After daca exista.
+    if (result.refused) {
+        const headers = { ...errorHeaders };
+        if (result.refused.retryAfterS) headers['Retry-After'] = String(result.refused.retryAfterS);
+        await sendJson(res, result.refused.status || 503, {
+            proxySource: source,
+            proxyStatus: 'error',
+            proxyError: result.refused.error,
+        }, headers);
         return;
     }
 
@@ -415,7 +624,7 @@ async function proxyWithCache(upstream, res, source, cacheKey, upstreamUrl, norm
         proxySource: source,
         proxyStatus: 'error',
         proxyError: result.error || 'unknown upstream failure',
-    });
+    }, errorHeaders);
 }
 
 class PayloadTooLargeError extends Error {
@@ -634,6 +843,7 @@ function createProxyServer({
     upstreamGet = https.get,
     maxUpstreamBytes = MAX_UPSTREAM_BYTES,
     firmsMapKey = FIRMS_MAP_KEY,
+    firmsDay: firmsDayOptions = {},
 } = {}) {
     const upstream = {
         cacheDirectory,
@@ -643,6 +853,78 @@ function createProxyServer({
         upstreamGet,
         maxUpstreamBytes,
     };
+
+    // firms-day (LOT 9): stare per server - buget global spre FIRMS, LRU in
+    // memorie, deduplicarea cererilor concurente, disponibilitatea MODIS.
+    const firmsDayConfig = { ...FIRMS_DAY_DEFAULTS, ...firmsDayOptions };
+    const firmsBudget = createUpstreamBudget({ limit: firmsDayConfig.upstreamLimit, windowMs: firmsDayConfig.upstreamWindowMs, now });
+    const firmsMemory = createMemoryLru(firmsDayConfig.memoryEntries);
+    const firmsInflight = new Map();
+    const firmsFetchShared = (key, fetchOnce) => {
+        if (firmsInflight.has(key)) return firmsInflight.get(key);
+        const pending = Promise.resolve().then(fetchOnce).finally(() => firmsInflight.delete(key));
+        firmsInflight.set(key, pending);
+        return pending;
+    };
+    let firmsAvailabilityLoad = null;
+    // Granitele MODIS NRT/SP: data_availability cel mult o data la 24 h (disc);
+    // la esec, ultima salvata; fara nimic salvat -> null (503 availability-unknown).
+    async function getFirmsAvailability() {
+        const filePath = cachePath('firms-availability', 'modis', cacheDirectory);
+        const saved = readCache(filePath);
+        const ageMs = now() - Date.parse(saved?.fetchedAt || '');
+        if (saved?.ranges && Number.isFinite(ageMs) && ageMs >= 0 && ageMs < firmsDayConfig.availabilityTtlMs) {
+            return saved.ranges;
+        }
+        if (!firmsAvailabilityLoad) {
+            firmsAvailabilityLoad = (async () => {
+                if (!firmsBudget.take().ok) return null;
+                const result = await fetchUpstreamImpl(`${FIRMS_API_BASE}/data_availability/csv/${firmsMapKey}/ALL`, {
+                    get: upstreamGet,
+                    maxBytes: maxUpstreamBytes,
+                });
+                const ranges = result.ok ? parseFirmsAvailability(result.body) : null;
+                if (ranges) writeCache(filePath, { fetchedAt: new Date(now()).toISOString(), ranges });
+                return ranges;
+            })().finally(() => { firmsAvailabilityLoad = null; });
+        }
+        return (await firmsAvailabilityLoad) || saved?.ranges || null;
+    }
+
+    async function handleFirmsDay(url, res) {
+        const noStore = { 'Cache-Control': 'no-store' };
+        const fail = (status, error) => sendJson(res, status, { proxySource: 'firms-day', proxyStatus: 'error', proxyError: error }, noStore);
+        if (!firmsMapKey) return fail(500, 'FIRMS_MAP_KEY not configured on server');
+        const request = parseFirmsDayRequest(url.searchParams, now(), { minDay: firmsDayConfig.minDay });
+        if (!request.ok) return fail(request.status, request.error);
+        const availability = await getFirmsAvailability();
+        if (!availability) return fail(503, 'availability-unknown');
+        const firmsSource = chooseFirmsSource(request.day, availability);
+        if (!firmsSource) return fail(404, 'no-coverage');
+        const { day } = request;
+        const policy = firmsDayCachePolicy(day, firmsSource, now(), firmsDayConfig);
+        const upstreamUrl = `${FIRMS_API_BASE}/area/csv/${firmsMapKey}/${firmsSource}/world/1/${day}`;
+        // Cheia de cache include sursa: o zi NRT nu e servita ca SP dupa reprocesare.
+        return proxyWithCache(upstream, res, 'firms-day', `${day}_${firmsSource}`, upstreamUrl, body => {
+            const text = String(body || '').trim();
+            if (!/^latitude,/.test(text)) return null; // mesaj de eroare FIRMS in loc de CSV
+            const reduced = reduceFirmsDayRows(csvToJsonArray(text), { maxRows: firmsDayConfig.maxRows });
+            return { day, firmsSource, count: reduced.fires.length, ...reduced };
+        }, {
+            ttlMs: policy.ttlMs,
+            cacheControl: policy.cacheControl,
+            memory: firmsMemory,
+            beforeFetch: () => {
+                const budget = firmsBudget.take();
+                return budget.ok ? null : { status: 429, error: 'rate-limited', retryAfterS: budget.retryAfterS };
+            },
+            fetchShared: firmsFetchShared,
+            afterWrite: () => pruneCacheDirectory(cacheDirectory, 'firms_day_', {
+                maxFiles: firmsDayConfig.diskMaxFiles,
+                maxBytes: firmsDayConfig.diskMaxBytes,
+            }),
+        });
+    }
     let activeConversions = 0;
     const acquireConversion = () => {
         if (activeConversions >= maxConcurrent) return false;
@@ -779,6 +1061,11 @@ function createProxyServer({
         return;
     }
 
+    if (source === 'firms-day') {
+        await handleFirmsDay(url, res);
+        return;
+    }
+
     if (source === 'gvp') {
         // Smithsonian GVP - Holocene volcanoes (GeoServer WFS). Nu trimite CORS,
         // deci il servim noi. URL fix, fara parametri din client.
@@ -796,7 +1083,7 @@ function createProxyServer({
     }
 
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms|gvp." }));
+    res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms|firms-day|gvp." }));
     });
 }
 
@@ -824,4 +1111,16 @@ module.exports = {
     normalizeBasePath,
     parsePort,
     listenProxyServer,
+    // firms-day (LOT 9), pure helpers exported for tests
+    FIRMS_DAY_ELIGIBILITY,
+    FIRMS_DAY_FIELDS,
+    FIRMS_DAY_DEFAULTS,
+    firmsConfidenceRank,
+    reduceFirmsDayRows,
+    parseFirmsDayRequest,
+    parseFirmsAvailability,
+    chooseFirmsSource,
+    firmsDayCachePolicy,
+    createUpstreamBudget,
+    pruneCacheDirectory,
 };

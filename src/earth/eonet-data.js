@@ -61,11 +61,15 @@ export function createEonetDataSource({
     capability = EARTH_TIME_CAPABILITIES.eonet,
     gdacsCapability = EARTH_TIME_CAPABILITIES.gdacs,
     fetchEonet = fetchEarthEonet,
+    // LOT 9: results of providers marked deferInHistory (FIRMS), delivered
+    // after the EONET/USGS events of the same historical day were returned.
+    onDeferredEvents = () => {},
 }) {
     const activeControllers = new Set();
     let disposed = false;
     let nasaController = null;
     let nasaGeneration = 0;
+    let deferredGeneration = 0;
 
     function withTransport(message, meta) {
         const label = eonetTransportLabel(meta);
@@ -144,12 +148,30 @@ export function createEonetDataSource({
 
     // A historical day: EONET for the window; GDACS (live-only) is never used
     // as a fallback for the past; FIRMS/USGS decide for themselves.
+    // Providers that would delay the day (FIRMS: one world day through the
+    // proxy) run on their own: the pipeline returns EONET/USGS without them,
+    // and their events arrive through onDeferredEvents for the same day only.
+    function startDeferredProviders(filters) {
+        const token = ++deferredGeneration;
+        const deferred = supplementalProviders.filter(provider => provider.deferInHistory);
+        if (!deferred.length) return;
+        Promise.allSettled(deferred.map(provider => provider.fetchEvents(filters))).then(results => {
+            if (disposed || token !== deferredGeneration) return;
+            const events = results
+                .filter(result => result.status === 'fulfilled')
+                .flatMap(result => result.value || [])
+                .filter(latestGeometry);
+            onDeferredEvents({ day: filters.dataDay, events });
+        });
+    }
+
     async function fetchHistoricalEvents(filters, { forceRefresh = false } = {}) {
+        startDeferredProviders(filters);
         const sourceMode = filters.dataSource || 'eonet';
         const day = filters.dataDay;
         const resolved = capability.resolve(day);
         if (sourceMode === 'gdacs') {
-            const supplementalEvents = await fetchSupplementalEvents(filters);
+            const supplementalEvents = await fetchSupplementalEvents(filters, { excludeDeferred: true });
             onSourceStateChange({
                 mode: sourceMode,
                 activeProvider: 'GDACS',
@@ -160,7 +182,7 @@ export function createEonetDataSource({
             return dedupeEvents(supplementalEvents).filter(latestGeometry);
         }
         if (!resolved.available) {
-            const supplementalEvents = await fetchSupplementalEvents(filters);
+            const supplementalEvents = await fetchSupplementalEvents(filters, { excludeDeferred: true });
             onSourceStateChange({
                 mode: sourceMode,
                 activeProvider: 'NASA EONET',
@@ -179,7 +201,7 @@ export function createEonetDataSource({
         });
         const [nasaResult, supplementalEvents] = await Promise.all([
             fetchNasaEvents(filters, { forceRefresh }).then(value => ({ value }), error => ({ error })),
-            fetchSupplementalEvents(filters)
+            fetchSupplementalEvents(filters, { excludeDeferred: true })
         ]);
         if (nasaResult.error?.name === 'AbortError') throw nasaResult.error;
         const nasaEvents = nasaResult.value || [];
@@ -211,9 +233,12 @@ export function createEonetDataSource({
         return events;
     }
 
-    async function fetchSupplementalEvents(filters) {
+    async function fetchSupplementalEvents(filters, { excludeDeferred = false } = {}) {
+        const providers = excludeDeferred
+            ? supplementalProviders.filter(provider => !provider.deferInHistory)
+            : supplementalProviders;
         const supplementalResults = await Promise.allSettled(
-            supplementalProviders.map(provider => provider.fetchEvents(filters))
+            providers.map(provider => provider.fetchEvents(filters))
         );
         return supplementalResults
             .filter(result => result.status === 'fulfilled')
@@ -264,6 +289,7 @@ export function createEonetDataSource({
         if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
         const sourceMode = filters.dataSource || 'eonet';
         if (filters.dataDay) return fetchHistoricalEvents(filters, { forceRefresh });
+        deferredGeneration += 1; // Live: a pending historical FIRMS result is stale
 
         if (sourceMode === 'gdacs') {
             if (isPublicProxyDisabledRuntime()) {
@@ -393,6 +419,7 @@ export function createEonetDataSource({
         activeControllers.clear();
         nasaController = null;
         nasaGeneration += 1;
+        deferredGeneration += 1;
         supplementalProviders.forEach(provider => provider.dispose?.());
         fallbackProviders.forEach(provider => provider.dispose?.());
     }

@@ -19,6 +19,7 @@ export function createEonetApp({
     fallbackProviders,
     onSourceStateChange,
     getDataDay,
+    onDeferredEventsApplied = () => {},
     updateStats,
     addMarkers,
     renderMissingGeometry,
@@ -54,7 +55,12 @@ export function createEonetApp({
         supplementalProviders,
         fallbackProviders,
         onSourceStateChange,
-        getDataDay
+        getDataDay,
+        // FIRMS on a historical day arrives after EONET/USGS (LOT 9).
+        onDeferredEvents: ({ day, events }) => {
+            const applied = workflow?.appendDeferredEvents({ day, events, sourceProvider: 'NASA FIRMS' });
+            onDeferredEventsApplied({ day, applied: Boolean(applied) });
+        }
     });
 
     workflow = createEonetWorkflow({

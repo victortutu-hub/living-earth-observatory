@@ -1,5 +1,27 @@
 import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
-import { EARTH_TIME_CAPABILITIES, composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
+import {
+    EARTH_TIME_CAPABILITIES,
+    composeHistoricalStatus,
+    composeSourceStatus,
+    fetchStateFromProxyStatus,
+    formatLoadingDay,
+    formatUtcDay,
+} from './temporal-provenance.js';
+import { fetchEarthFirmsDay } from './earth-data-runtime.js';
+
+/**
+ * firms-day failure -> what the status says. 404 no-coverage is not an error
+ * of the app: the day is outside the MODIS NRT/SP products.
+ */
+export function classifyDayError(error) {
+    const status = error?.status;
+    const code = error?.proxyError;
+    if (status === 404 || code === 'no-coverage') return { kind: 'no-coverage', text: 'no FIRMS product covers this day' };
+    if (status === 429 || code === 'rate-limited') return { kind: 'rate-limited', text: 'FIRMS request budget used, try again later' };
+    if (status === 503 || code === 'availability-unknown') return { kind: 'availability', text: 'FIRMS availability unknown' };
+    if (status >= 400) return { kind: 'proxy', text: `proxy returned ${status}` };
+    return { kind: 'unreachable', text: 'proxy unreachable' };
+}
 
 function readProxyBase() {
     const params = new URLSearchParams(window.location.search);
@@ -13,6 +35,21 @@ function parseFirmsDate(date, time) {
     const parsed = new Date(iso);
     return Number.isFinite(parsed.getTime()) ? parsed : null;
 }
+
+// Eligibility of a hotspot. The proxy's firms-day route applies the same
+// thresholds server-side (FIRMS_DAY_ELIGIBILITY in nasa-proxy-server.js,
+// CommonJS, so it cannot import this module); a test checks they are equal.
+export const FIRMS_ELIGIBILITY = Object.freeze({ minConfidenceRank: 2, minFrpMw: 5 });
+
+export function firmsConfidenceRank(value) {
+    return confidenceRank(value);
+}
+
+// Shown in the status tooltip on a historical day.
+const FIRMS_SOURCE_NOTES = Object.freeze({
+    MODIS_NRT: 'MODIS NRT: near real-time detections, provisional; replaced later by Standard Processing.',
+    MODIS_SP: 'MODIS SP: Standard Processing, science-quality archive, published with a delay of a few months.',
+});
 
 function confidenceRank(value) {
     const raw = String(value || '').toLowerCase();
@@ -96,9 +133,11 @@ export function createFirmsWildfireProvider({
     area = 'world',
     maxDays = 1,
     maxEvents = 220,
-    minConfidenceRank = 2,
-    minFrp = 5,
-    timeoutMs = 30000
+    minConfidenceRank = FIRMS_ELIGIBILITY.minConfidenceRank,
+    minFrp = FIRMS_ELIGIBILITY.minFrpMw,
+    timeoutMs = 30000,
+    dayTimeoutMs = 15000,
+    fetchDay = fetchEarthFirmsDay,
 } = {}) {
     const activeControllers = new Set();
     let disposed = false;
@@ -110,22 +149,95 @@ export function createFirmsWildfireProvider({
     let lastSourceTime = null;
     let lastError = null;
     let lastProxyStatus = null;
-    // LOT 5: FIRMS is live-only here (the proxy route has no DATE segment), so
-    // a historical day shows nothing and says so instead of today's fires.
+    // A day the capability rejects (before 2000-11-01, lag, future).
     let unavailableDay = null;
+    let unavailableReason = null;
     const capability = EARTH_TIME_CAPABILITIES.firms;
+    // LOT 9: a historical day goes through the proxy's firms-day route.
+    let dayController = null;
+    let dayGeneration = 0;
+    let dayState = null; // { day, loading, count, eligible, total, source, error }
+
+    function abortLive() {
+        for (const active of activeControllers) active.abort();
+    }
+
+    function cancelDay() {
+        dayGeneration += 1;
+        dayController?.abort();
+        dayController = null;
+    }
+
+    async function fetchHistoricalDay(day) {
+        cancelDay();
+        const generation = dayGeneration;
+        const own = new AbortController();
+        dayController = own;
+        dayState = { day, loading: true };
+        try {
+            const url = `${readProxyBase()}/nasa-proxy?${new URLSearchParams({ source: 'firms-day', date: day })}`;
+            const result = await fetchDay(url, { day, signal: own.signal, timeout: dayTimeoutMs });
+            if (disposed || generation !== dayGeneration) return [];
+            const payload = result.data || {};
+            if (payload.proxyStatus === 'error') throw Object.assign(new Error(payload.proxyError || 'proxy error'), { proxyError: payload.proxyError });
+            const data = payload.data || {};
+            const firmsSource = data.firmsSource || 'MODIS';
+            const eligible = (data.fires || [])
+                .map(row => rowToEvent(row, { endpointBase: 'https://firms.modaps.eosdis.nasa.gov/api/', source: firmsSource }))
+                .filter(Boolean)
+                .filter(event => confidenceRank(event.firms?.confidence) >= minConfidenceRank)
+                .filter(event => !Number.isFinite(event.firms?.frp) || event.firms.frp >= minFrp);
+            const { selected } = selectTopHotspots(eligible, maxEvents);
+            dayState = {
+                day,
+                loading: false,
+                count: selected.length,
+                eligible: Number.isFinite(data.filteredCount) ? data.filteredCount : eligible.length,
+                total: Number.isFinite(data.totalCount) ? data.totalCount : null,
+                source: firmsSource,
+                proxyStatus: payload.proxyStatus || null,
+            };
+            return selected;
+        } catch (error) {
+            if (disposed || generation !== dayGeneration) return [];
+            dayState = { day, loading: false, error: classifyDayError(error) };
+            return [];
+        } finally {
+            if (generation === dayGeneration && dayController === own) dayController = null;
+        }
+    }
 
     async function fetchEvents(filters = {}) {
         if (disposed) return [];
         unavailableDay = null;
+        unavailableReason = null;
+        if (!filters.dataDay) {
+            cancelDay();
+            dayState = null;
+        }
         if (!enabled) return [];
         if (filters.category && filters.category !== 'all' && filters.category !== 'wildfires') return [];
-        if (filters.dataDay && !capability.resolve(filters.dataDay).available) {
-            for (const active of activeControllers) active.abort();
-            unavailableDay = filters.dataDay;
+        if (filters.dataDay) {
+            abortLive();
+            const resolved = capability.resolve(filters.dataDay);
+            if (!resolved.available) {
+                cancelDay();
+                dayState = null;
+                unavailableDay = filters.dataDay;
+                unavailableReason = resolved.reason;
+                lastError = null;
+                lastCount = 0;
+                return [];
+            }
+            if (isPublicProxyDisabledRuntime()) {
+                cancelDay();
+                dayState = null;
+                lastError = createProxyRequiredError('NASA FIRMS');
+                lastCount = 0;
+                return [];
+            }
             lastError = null;
-            lastCount = 0;
-            return [];
+            return fetchHistoricalDay(filters.dataDay);
         }
 
         if (isPublicProxyDisabledRuntime()) {
@@ -184,10 +296,34 @@ export function createFirmsWildfireProvider({
     function setEnabled(value) {
         enabled = Boolean(value);
         if (!enabled) {
+            cancelDay();
+            dayState = null;
             loading = false;
             lastError = null;
             lastCount = 0;
         }
+    }
+
+    function historicalStatus() {
+        const { day } = dayState;
+        if (dayState.loading) return { enabled, loading: true, state: 'refreshing', message: formatLoadingDay('NASA FIRMS', day) };
+        const error = dayState.error;
+        if (error?.kind === 'no-coverage') {
+            return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `NASA FIRMS: Not available for ${formatUtcDay(day)} — no FIRMS product covers this day` };
+        }
+        if (error) return { enabled, loading: false, state: 'error', message: `NASA FIRMS: unavailable for ${formatUtcDay(day)} (${error.text})` };
+        const sourceLabel = dayState.source.replace('_', ' ');
+        const status = composeHistoricalStatus({
+            sourceKey: 'firms',
+            source: `NASA FIRMS ${sourceLabel}`,
+            noun: 'hotspots',
+            day,
+            count: `top ${dayState.count} of ${dayState.eligible}`,
+            unit: null,
+        });
+        const notes = [FIRMS_SOURCE_NOTES[dayState.source], dayState.total != null ? `Raw detections that day: ${dayState.total}; eligible (confidence >= nominal, FRP >= ${minFrp} MW): ${dayState.eligible}.` : null]
+            .filter(Boolean).join('\n');
+        return { enabled, loading: false, state: 'on', message: status.message, title: [status.title, notes].filter(Boolean).join('\n') };
     }
 
     function getStatus() {
@@ -195,8 +331,9 @@ export function createFirmsWildfireProvider({
             return { enabled, loading: false, state: 'off', message: proxyRequiredMessage('NASA FIRMS') };
         }
         if (enabled && unavailableDay) {
-            return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `NASA FIRMS: ${capability.unavailableMessage(unavailableDay)}` };
+            return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `NASA FIRMS: ${capability.unavailableMessage(unavailableDay, unavailableReason)}` };
         }
+        if (enabled && dayState) return historicalStatus();
         if (loading) return { enabled, loading, state: 'refreshing', message: 'NASA FIRMS: loading wildfire hotspots...' };
         if (!enabled) return { enabled, loading, state: 'off', message: 'NASA FIRMS: off' };
         if (lastError) return { enabled, loading, state: 'error', message: `NASA FIRMS: ${lastError.message || 'network error'}` };
@@ -216,11 +353,15 @@ export function createFirmsWildfireProvider({
         disposed = true;
         enabled = false;
         loading = false;
+        cancelDay();
         for (const controller of activeControllers) controller.abort();
         activeControllers.clear();
     }
 
     return {
+        // LOT 9: on a historical day the event pipeline renders FIRMS on its
+        // own, after EONET/USGS, instead of waiting for it.
+        deferInHistory: true,
         fetchEvents,
         setEnabled,
         getStatus,
