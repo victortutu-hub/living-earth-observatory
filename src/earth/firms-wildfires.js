@@ -1,5 +1,5 @@
 import { createProxyRequiredError, isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
-import { composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
+import { EARTH_TIME_CAPABILITIES, composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
 
 function readProxyBase() {
     const params = new URLSearchParams(window.location.search);
@@ -110,11 +110,23 @@ export function createFirmsWildfireProvider({
     let lastSourceTime = null;
     let lastError = null;
     let lastProxyStatus = null;
+    // LOT 5: FIRMS is live-only here (the proxy route has no DATE segment), so
+    // a historical day shows nothing and says so instead of today's fires.
+    let unavailableDay = null;
+    const capability = EARTH_TIME_CAPABILITIES.firms;
 
     async function fetchEvents(filters = {}) {
         if (disposed) return [];
+        unavailableDay = null;
         if (!enabled) return [];
         if (filters.category && filters.category !== 'all' && filters.category !== 'wildfires') return [];
+        if (filters.dataDay && !capability.resolve(filters.dataDay).available) {
+            for (const active of activeControllers) active.abort();
+            unavailableDay = filters.dataDay;
+            lastError = null;
+            lastCount = 0;
+            return [];
+        }
 
         if (isPublicProxyDisabledRuntime()) {
             lastError = createProxyRequiredError('NASA FIRMS');
@@ -181,6 +193,9 @@ export function createFirmsWildfireProvider({
     function getStatus() {
         if (enabled && isPublicProxyDisabledRuntime()) {
             return { enabled, loading: false, state: 'off', message: proxyRequiredMessage('NASA FIRMS') };
+        }
+        if (enabled && unavailableDay) {
+            return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `NASA FIRMS: ${capability.unavailableMessage(unavailableDay)}` };
         }
         if (loading) return { enabled, loading, state: 'refreshing', message: 'NASA FIRMS: loading wildfire hotspots...' };
         if (!enabled) return { enabled, loading, state: 'off', message: 'NASA FIRMS: off' };

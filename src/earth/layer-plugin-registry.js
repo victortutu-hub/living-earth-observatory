@@ -20,20 +20,25 @@
 //     license:     string
 //     source:      { url: string, requiresProxy?: boolean, apiKey?: string|null }
 //     cadence?:    number    // ms intre refresh-uri automate (optional)
+//     timeCapability: obiect createTimeCapability (temporal-provenance.js),
+//                  OBLIGATORIU (LOT 5): ce poate arata layerul pentru o zi
+//                  aleasa; fara date pentru ziua aleasa -> ascuns, cu
+//                  "Not available for <day>", butonul ramane pornit si marcat
 //     render:      'points' | 'custom'
 //     // pentru 'points' (sursa declarativa de puncte selectabile):
 //     async fetch(signal): Promise<raw>          // implicit: GET url -> JSON
 //     normalize(raw): Array<{ lon, lat, size?, color?, title?, detail? }>
 //     // pentru 'custom' (layer self-managed, ex. aurora cu mesh + shader propriu):
 //     createLayer({THREE, earthGroup, lonLatToVec3}):
-//         { async setEnabled(bool), update(t), getStatus()->{state,message}, dispose() }
+//         { async setEnabled(bool), update(t), getStatus()->{state,message}, dispose(),
+//           async setDataDay?(day|null) }   // doar layerele date-selectable
 //   }
 //
 // resolveUrl(plugin) primeste din afara politica de proxy (acelasi
 // NASA_PROXY_BASE folosit de restul aplicatiei), ca sa nu cablam iar manual.
 
 import { describeSourceProvenance } from '../config/source-registry.js';
-import { composeSourceStatus, fetchStateFromProxyStatus } from './temporal-provenance.js';
+import { composeSourceStatus, fetchStateFromProxyStatus, formatLoadingDay } from './temporal-provenance.js';
 
 // Varsta relativa din status ("fetched 7 min ago") se recalculeaza din
 // timestamp-uri la acest interval, din hook-ul per-frame update(t).
@@ -172,6 +177,7 @@ function temporalSuffix(plugin) {
     if (temporal.temporalType === 'historical-catalog') return ' · Historical catalog';
     if (temporal.temporalType === 'static-reference') return ' · Static reference';
     if (temporal.sceneTimeCompatibility === 'latest-only') return ' · Latest available data';
+    if (temporal.sceneTimeCompatibility === 'date-selectable') return '';
     return temporal.sceneTimeCompatibility === 'yes' ? ' · Scene-time model' : '';
 }
 
@@ -192,11 +198,31 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
 
     const entries = new Map();
     let lastStatusRefresh = null;
+    let dataDay = null; // UTC day of the scene (null = Live), see setDataDay()
 
     function setStatus(entry, stateName, message, title = '') {
         entry.statusEl.dataset.state = stateName;
         entry.statusEl.textContent = message;
         entry.statusEl.title = title;
+    }
+
+    function timeResolution(entry) {
+        return entry.plugin.timeCapability.resolve(dataDay);
+    }
+
+    // The user wants the layer but it has nothing for the chosen day: hidden,
+    // button still "on" and marked, status "Not available for <day> — ...".
+    function hideForTime(entry, resolved) {
+        entry.generation += 1;
+        entry.controller?.abort?.();
+        if (entry.layer) entry.layer.setEnabled(false);
+        else entry.renderer.clear();
+        entry.enabled = false;
+        entry.timeHidden = true;
+        entry.points = null;
+        entry.btn.textContent = `${entry.plugin.label}: on`;
+        entry.btn.dataset.timeUnavailable = 'true';
+        setStatus(entry, 'unavailable', `${entry.plugin.label}: ${entry.plugin.timeCapability.unavailableMessage(dataDay, resolved.reason)}`, entry.plugin.timeCapability.note || '');
     }
 
     function renderCustomStatus(entry) {
@@ -224,19 +250,36 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
 
     async function enable(entry) {
         const { plugin } = entry;
+        entry.wanted = true;
+        const resolved = timeResolution(entry);
+        if (!resolved.available) {
+            hideForTime(entry, resolved);
+            return;
+        }
+        entry.timeHidden = false;
+        delete entry.btn.dataset.timeUnavailable;
+        const generation = ++entry.generation;
+        const loadingText = dataDay && plugin.timeCapability.dateSelectable
+            ? formatLoadingDay(plugin.label, dataDay)
+            : `${plugin.label}: loading...`;
 
         // Layer self-managed (render:'custom'): plugin-ul isi face singur
         // fetch+render+update (ex. aurora, cu mesh oval si shader propriu).
         // Registry-ul ii da doar UI + lifecycle si citeste getStatus().
         if (entry.layer) {
-            setStatus(entry, 'pending', `${plugin.label}: loading...`);
+            setStatus(entry, 'pending', loadingText);
+            entry.btn.textContent = `${plugin.label}: on`;
             try {
+                await entry.layer.setDataDay?.(dataDay);
+                if (generation !== entry.generation) return;
                 await entry.layer.setEnabled(true);
+                if (generation !== entry.generation) return;
                 entry.enabled = true;
-                entry.btn.textContent = `${plugin.label}: on`;
                 renderCustomStatus(entry);
             } catch (error) {
+                if (generation !== entry.generation) return;
                 entry.enabled = false;
+                entry.wanted = false;
                 entry.btn.textContent = `${plugin.label}: off`;
                 setStatus(entry, 'error', `${plugin.label}: unavailable (${error.message})`);
             }
@@ -245,7 +288,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
 
         entry.controller?.abort?.();
         entry.controller = new AbortController();
-        setStatus(entry, 'pending', `${plugin.label}: loading...`);
+        setStatus(entry, 'pending', loadingText);
         try {
             const url = resolveUrl ? resolveUrl(plugin) : plugin.source.url;
             const raw = plugin.fetch
@@ -254,6 +297,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
                     if (!r.ok) throw new Error(`HTTP ${r.status}`);
                     return r.json();
                 });
+            if (generation !== entry.generation) return;
             const items = plugin.normalize ? plugin.normalize(raw) : raw;
             entry.renderer.render(items);
             const obj = entry.renderer.getPoints?.();
@@ -268,14 +312,16 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             };
             renderPointsStatus(entry);
         } catch (error) {
-            if (error?.name === 'AbortError') return;
+            if (error?.name === 'AbortError' || generation !== entry.generation) return;
             entry.enabled = false;
+            entry.wanted = false;
             entry.btn.textContent = `${plugin.label}: off`;
             setStatus(entry, 'error', `${plugin.label}: unavailable (${error.message})`);
         }
     }
 
     function disable(entry) {
+        entry.generation += 1;
         entry.controller?.abort?.();
         if (entry.layer) {
             entry.layer.setEnabled(false);
@@ -283,6 +329,9 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             entry.renderer.clear();
         }
         entry.enabled = false;
+        entry.wanted = false;
+        entry.timeHidden = false;
+        delete entry.btn.dataset.timeUnavailable;
         entry.points = null;
         entry.btn.textContent = `${entry.plugin.label}: off`;
         setStatus(entry, 'off', `${entry.plugin.label}: off`);
@@ -290,6 +339,9 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
 
     function register(plugin) {
         if (!plugin?.id || entries.has(plugin.id)) return;
+        if (typeof plugin.timeCapability?.resolve !== 'function') {
+            throw new TypeError(`Layer plugin "${plugin.id}" must declare a timeCapability (LOT 5).`);
+        }
         const btn = document.createElement('button');
         btn.id = `${plugin.id}LayerBtn`;
         btn.textContent = `${plugin.label}: off`;
@@ -307,14 +359,36 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             plugin,
             btn,
             statusEl,
-            enabled: false,
+            enabled: false,   // visible and loaded
+            wanted: false,    // the user's choice; kept while hidden for time
+            timeHidden: false,
+            generation: 0,    // bumped on every enable/disable/day change
             controller: null,
             renderer: isCustom ? null : makeRenderer(plugin.render),
             layer: isCustom ? plugin.createLayer({ THREE, earthGroup, lonLatToVec3 }) : null
         };
-        btn.addEventListener('click', () => (entry.enabled ? disable(entry) : enable(entry)));
+        btn.addEventListener('click', () => (entry.wanted ? disable(entry) : enable(entry)));
         entries.set(plugin.id, entry);
         return entry;
+    }
+
+    /**
+     * The scene's UTC day changed (null = Live). Layers the user turned on are
+     * re-evaluated: a date-selectable layer loads the new day, a layer without
+     * data for it is hidden, and hidden layers come back in Live.
+     */
+    function setDataDay(day) {
+        if (day === dataDay) return;
+        dataDay = day || null;
+        for (const entry of entries.values()) {
+            if (!entry.wanted) continue;
+            const resolved = timeResolution(entry);
+            if (!resolved.available) {
+                hideForTime(entry, resolved);
+                continue;
+            }
+            if (entry.timeHidden || entry.plugin.timeCapability.dateSelectable) enable(entry);
+        }
     }
 
     function update(t) {
@@ -362,5 +436,8 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
         container?.remove();
     }
 
-    return { register, update, dispose, getPointObjects, selectPoint };
+    return { register, update, dispose, getPointObjects, selectPoint, setDataDay, entryState: (id) => {
+        const entry = entries.get(id);
+        return entry ? { enabled: entry.enabled, wanted: entry.wanted, timeHidden: entry.timeHidden, status: entry.statusEl.textContent, state: entry.statusEl.dataset.state } : null;
+    } };
 }

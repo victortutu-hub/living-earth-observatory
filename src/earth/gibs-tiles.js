@@ -28,6 +28,15 @@ export const GIBS_LAYERS = Object.freeze({
         temporal: false,
         attribution: 'NASA GIBS / Blue Marble Next Generation',
     }),
+    // MODIS Terra NDSI Snow Cover: transparent daily PNG (LOT 5, was WMS).
+    snowCover: Object.freeze({
+        id: 'MODIS_Terra_NDSI_Snow_Cover',
+        matrixSet: '500m',
+        extension: 'png',
+        maxZoom: 7,
+        temporal: true,
+        attribution: 'NASA GIBS / MODIS Terra NDSI Snow Cover',
+    }),
     nightLights: Object.freeze({
         id: 'VIIRS_Black_Marble',
         matrixSet: '500m',
@@ -360,6 +369,7 @@ export async function composeGibsEquirectangularMosaic({
     createCanvas = defaultCreateCanvas,
     signal = null,
     doc = pageDocument(),
+    alpha = false, // true for transparent overlays (snow mask)
 }) {
     if (typeof loadImage !== 'function') throw new TypeError('composeGibsEquirectangularMosaic requires loadImage(url).');
     if (z > layer.maxZoom) throw new RangeError(`${layer.id} supports levels through z=${layer.maxZoom}.`);
@@ -367,7 +377,7 @@ export async function composeGibsEquirectangularMosaic({
     const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
     const canvas = createCanvas(coverage.width, coverage.height);
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d', { alpha });
     if (!ctx) throw new Error('Unable to create GIBS mosaic canvas.');
 
     const queue = new GibsTileQueue({
@@ -391,7 +401,7 @@ export async function composeGibsEquirectangularMosaic({
     let output = canvas;
     if (outputSize && (outputSize.width !== coverage.width || outputSize.height !== coverage.height)) {
         output = createCanvas(outputSize.width, outputSize.height);
-        const outputCtx = output.getContext('2d', { alpha: false });
+        const outputCtx = output.getContext('2d', { alpha });
         if (!outputCtx) throw new Error('Unable to create GIBS output canvas.');
         outputCtx.imageSmoothingEnabled = true;
         outputCtx.imageSmoothingQuality = 'high';

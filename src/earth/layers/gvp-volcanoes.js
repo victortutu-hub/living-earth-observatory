@@ -11,6 +11,8 @@
 // GeoServer-ul GVP nu trimite Access-Control-Allow-Origin, deci mergem prin
 // proxy-ul propriu (source=gvp), la fel ca GDACS/FIRMS. Baza de proxy se rezolva
 // identic cu restul aplicatiei.
+import { EARTH_TIME_CAPABILITIES } from '../temporal-provenance.js';
+
 function readProxyBase() {
     const params = new URLSearchParams(location.search);
     return params.get('proxyBase') || window.NASA_PROXY_BASE || 'http://127.0.0.1:8787';
@@ -33,6 +35,8 @@ export const gvpVolcanoesPlugin = {
     label: 'GVP volcanoes',
     sourceKey: 'gvp', // provenance from source-registry ('observed')
     temporal: { temporalType: 'historical-catalog', sceneTimeCompatibility: 'static', cacheState: 'unknown' },
+    // The catalog as published today (last eruption years may postdate a past day).
+    timeCapability: EARTH_TIME_CAPABILITIES.gvp,
     attribution: 'Smithsonian Institution - Global Volcanism Program (GVP)',
     license: 'Smithsonian GVP terms; attribution retained.',
     source: { url: 'proxy:gvp', requiresProxy: true, apiKey: null },

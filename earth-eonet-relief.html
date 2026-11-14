@@ -228,6 +228,23 @@
         color: #ffd2a0;
         border-color: rgba(255, 190, 120, 0.28);
     }
+    /* LOT 5: a layer turned on but without data for the chosen day */
+    .layer-plugin-status[data-state="unavailable"],
+    #liveLayerStatus[data-state="unavailable"],
+    #firmsLayerStatus[data-state="unavailable"],
+    #windLayerStatus[data-state="unavailable"],
+    #oceanLayerStatus[data-state="unavailable"],
+    #issStatus[data-state="unavailable"],
+    #dataSourceStatus[data-state="unavailable"] {
+        color: #b8c7d6;
+        border-style: dashed;
+        border-color: rgba(184, 199, 214, 0.34);
+    }
+    button[data-time-unavailable="true"] {
+        outline: 1px dashed rgba(184, 199, 214, 0.6);
+        outline-offset: -3px;
+        opacity: 0.72;
+    }
     .layer-plugin-status[data-state="error"] {
         color: #ff9c9c;
         border-color: rgba(255, 130, 130, 0.3);
@@ -694,7 +711,7 @@
     </section>
     <section id="timeScrubPanel" class="panel" aria-label="Historical time" data-mode="live">
         <div class="solar-title">Time</div>
-        <div class="toolbar-range" title="Scrub the Sun and Moon to a historical UTC date and time. Astronomy only for now — GIBS imagery layers do not respond to this yet.">
+        <div class="toolbar-range" title="Scrub to a historical UTC date and time. The Sun and Moon follow the time; EONET, USGS and Snow &amp; ice load that UTC day; layers without history are hidden.">
             <label for="timeScrubSlider">
                 <span id="timeScrubLabel">Live</span>
             </label>

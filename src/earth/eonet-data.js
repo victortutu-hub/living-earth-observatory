@@ -1,7 +1,41 @@
 import { isPublicProxyDisabledRuntime, proxyRequiredMessage } from './public-runtime.js';
 import { normalizeEventGeometry } from './event-utils.js';
 import { fetchEarthEonet } from './earth-data-runtime.js';
-import { composeSourceStatus, fetchStateFromRuntime } from './temporal-provenance.js';
+import {
+    EARTH_TIME_CAPABILITIES,
+    composeHistoricalStatus,
+    composeSourceStatus,
+    fetchStateFromRuntime,
+    formatLoadingDay,
+    windowInstants,
+} from './temporal-provenance.js';
+
+/**
+ * EONET request URL. Live: the status/days filters (today's behaviour). A
+ * historical day: status=all with start/end, the window ending on that day.
+ */
+export function buildEonetUrl(apiUrl, { status = 'open', days = '20', category = 'all', window = null } = {}, { limit = 250 } = {}) {
+    const params = window
+        ? new URLSearchParams({ status: 'all', start: window.start, end: window.end, limit: String(limit) })
+        : new URLSearchParams({ status, days, limit: String(limit) });
+    if (category && category !== 'all') params.set('category', category);
+    return `${apiUrl}?${params.toString()}`;
+}
+
+/**
+ * Keeps only the geometry recorded inside the window: an event that continued
+ * after the chosen day must not show where it was later. Events without any
+ * geometry in the window are dropped.
+ */
+export function clipEventToWindow(event, window) {
+    if (!window) return event;
+    const { startMs, endMs } = windowInstants(window);
+    const geometry = (event.geometry || []).filter(geom => {
+        const time = Date.parse(geom?.date);
+        return Number.isFinite(time) && time >= startMs && time <= endMs;
+    });
+    return geometry.length ? { ...event, geometry } : null;
+}
 
 /** Transport label for a requestRuntime meta; a live network response is never "cached". */
 export function eonetTransportLabel(meta) {
@@ -22,10 +56,16 @@ export function createEonetDataSource({
     supplementalProviders = [],
     fallbackProviders = [],
     staleThresholdMs = 48 * 3600000,
-    onSourceStateChange = () => {}
+    onSourceStateChange = () => {},
+    getDataDay = () => null,
+    capability = EARTH_TIME_CAPABILITIES.eonet,
+    gdacsCapability = EARTH_TIME_CAPABILITIES.gdacs,
+    fetchEonet = fetchEarthEonet,
 }) {
     const activeControllers = new Set();
     let disposed = false;
+    let nasaController = null;
+    let nasaGeneration = 0;
 
     function withTransport(message, meta) {
         const label = eonetTransportLabel(meta);
@@ -44,35 +84,46 @@ export function createEonetDataSource({
             days: document.getElementById('daysFilter')?.value || '20',
             category: document.getElementById('categoryFilter')?.value || 'all',
             status: document.getElementById('statusFilter')?.value || 'open',
-            dataSource: document.getElementById('dataSourceFilter')?.value || 'eonet'
+            dataSource: document.getElementById('dataSourceFilter')?.value || 'eonet',
+            dataDay: getDataDay() || null
         };
     }
 
+    /** The EONET window of a filter set (null in Live). */
+    function windowFor(filters) {
+        if (!filters?.dataDay) return null;
+        const resolved = capability.resolve(filters.dataDay);
+        return resolved.available ? resolved.window : null;
+    }
+
     function buildUrl(filters = readFilters()) {
-        const params = new URLSearchParams({
-            status: filters.status,
-            days: filters.days,
-            limit: String(limit)
-        });
-        if (filters.category && filters.category !== 'all') params.set('category', filters.category);
-        return `${apiUrl}?${params.toString()}`;
+        return buildEonetUrl(apiUrl, { ...filters, window: windowFor(filters) }, { limit });
     }
 
     async function fetchNasaEvents(filters = readFilters(), { forceRefresh = false } = {}) {
         if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
+        // One EONET request in flight: a newer load (another day) cancels it.
+        nasaController?.abort();
         const controller = new AbortController();
+        nasaController = controller;
         activeControllers.add(controller);
+        const generation = ++nasaGeneration;
+        const window = windowFor(filters);
         try {
-            const result = await fetchEarthEonet(buildUrl(filters), {
+            const result = await fetchEonet(buildUrl(filters), {
                 ...filters,
+                window,
                 limit,
                 signal: controller.signal,
                 timeout: timeoutMs,
                 forceRefresh
             });
+            if (generation !== nasaGeneration) throw new DOMException('Superseded EONET request', 'AbortError');
             const data = result.data;
             const events = (data.events || [])
                 .map(normalizeEventGeometry)
+                .map(event => clipEventToWindow(event, window))
+                .filter(Boolean)
                 .filter(latestGeometry)
                 .map(event => ({
                     ...event,
@@ -83,10 +134,81 @@ export function createEonetDataSource({
                     sourceConfidence: 'NASA near real-time event metadata'
                 }));
             Object.defineProperty(events, 'transportMeta', { value: result.meta, enumerable: false });
+            Object.defineProperty(events, 'window', { value: window, enumerable: false });
             return events;
         } finally {
             activeControllers.delete(controller);
+            if (nasaController === controller) nasaController = null;
         }
+    }
+
+    // A historical day: EONET for the window; GDACS (live-only) is never used
+    // as a fallback for the past; FIRMS/USGS decide for themselves.
+    async function fetchHistoricalEvents(filters, { forceRefresh = false } = {}) {
+        const sourceMode = filters.dataSource || 'eonet';
+        const day = filters.dataDay;
+        const resolved = capability.resolve(day);
+        if (sourceMode === 'gdacs') {
+            const supplementalEvents = await fetchSupplementalEvents(filters);
+            onSourceStateChange({
+                mode: sourceMode,
+                activeProvider: 'GDACS',
+                state: 'unavailable',
+                message: `Data source: GDACS only — ${gdacsCapability.unavailableMessage(day)}`,
+                title: ''
+            });
+            return dedupeEvents(supplementalEvents).filter(latestGeometry);
+        }
+        if (!resolved.available) {
+            const supplementalEvents = await fetchSupplementalEvents(filters);
+            onSourceStateChange({
+                mode: sourceMode,
+                activeProvider: 'NASA EONET',
+                state: 'unavailable',
+                message: `Data source: NASA EONET — ${capability.unavailableMessage(day, resolved.reason)}`,
+                title: ''
+            });
+            return dedupeEvents(supplementalEvents).filter(latestGeometry);
+        }
+        onSourceStateChange({
+            mode: sourceMode,
+            activeProvider: 'NASA EONET',
+            state: 'refreshing',
+            message: formatLoadingDay('Data source: NASA EONET', day),
+            title: ''
+        });
+        const [nasaResult, supplementalEvents] = await Promise.all([
+            fetchNasaEvents(filters, { forceRefresh }).then(value => ({ value }), error => ({ error })),
+            fetchSupplementalEvents(filters)
+        ]);
+        if (nasaResult.error?.name === 'AbortError') throw nasaResult.error;
+        const nasaEvents = nasaResult.value || [];
+        const events = dedupeEvents([...nasaEvents, ...supplementalEvents]).filter(latestGeometry);
+        if (nasaResult.error) {
+            onSourceStateChange({
+                mode: sourceMode,
+                activeProvider: 'NASA EONET',
+                state: 'error',
+                message: `Data source: NASA EONET failed for ${resolved.window.start}..${resolved.window.end} - ${nasaResult.error.message}`,
+                title: ''
+            });
+            if (!events.length) throw nasaResult.error;
+            return events;
+        }
+        const historical = composeHistoricalStatus({
+            sourceKey: 'eonet',
+            source: 'NASA EONET',
+            window: resolved.window,
+            count: nasaEvents.length,
+        });
+        onSourceStateChange({
+            mode: sourceMode,
+            activeProvider: 'NASA EONET',
+            state: 'on',
+            message: `Data source: ${historical.message}`,
+            title: historical.title
+        });
+        return events;
     }
 
     async function fetchSupplementalEvents(filters) {
@@ -141,6 +263,7 @@ export function createEonetDataSource({
     async function fetchEvents(filters = readFilters(), { forceRefresh = false } = {}) {
         if (disposed) throw new DOMException('EONET data source disposed', 'AbortError');
         const sourceMode = filters.dataSource || 'eonet';
+        if (filters.dataDay) return fetchHistoricalEvents(filters, { forceRefresh });
 
         if (sourceMode === 'gdacs') {
             if (isPublicProxyDisabledRuntime()) {
@@ -179,6 +302,8 @@ export function createEonetDataSource({
         const nasaResult = await Promise.allSettled([fetchNasaEvents(filters, { forceRefresh })]);
         const nasaEvents = nasaResult[0].status === 'fulfilled' ? nasaResult[0].value : [];
         const nasaError = nasaResult[0].status === 'rejected' ? nasaResult[0].reason : null;
+        // Superseded by a newer load: that load reports the status, not this one.
+        if (nasaError?.name === 'AbortError') throw nasaError;
         const nasaTransport = nasaEvents.transportMeta || null;
         const supplementalEvents = await fetchSupplementalEvents(filters);
 
@@ -266,6 +391,8 @@ export function createEonetDataSource({
         disposed = true;
         for (const controller of activeControllers) controller.abort();
         activeControllers.clear();
+        nasaController = null;
+        nasaGeneration += 1;
         supplementalProviders.forEach(provider => provider.dispose?.());
         fallbackProviders.forEach(provider => provider.dispose?.());
     }

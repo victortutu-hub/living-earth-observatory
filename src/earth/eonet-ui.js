@@ -1,3 +1,4 @@
+import { EARTH_TIME_CAPABILITIES } from './temporal-provenance.js';
 function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -161,7 +162,8 @@ export function createEonetUi({
     function updateStats(events) {
         byId('totalEvents').textContent = events.length;
         byId('activeCategories').textContent = new Set(events.map(eventCategory)).size;
-        byId('daysWindow').textContent = byId('daysFilter').value;
+        // A historical day (LOT 5) shows its EONET window, not the Live days filter.
+        byId('daysWindow').textContent = state.dataDay ? String(EARTH_TIME_CAPABILITIES.eonet.windowDays) : byId('daysFilter').value;
     }
 
     function renderMissingGeometry(event) {

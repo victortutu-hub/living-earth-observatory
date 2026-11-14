@@ -122,7 +122,8 @@ export function createControlPanel({ state }) {
         const status = byId('dataSourceStatus');
         if (!status) return;
         status.dataset.state = statusState;
-        status.textContent = message.includes('latest available data') ? message : `${message} · latest available data`;
+        // A historical day (state.dataDay, LOT 5) names its own window instead.
+        status.textContent = state.dataDay || message.includes('latest available data') ? message : `${message} · latest available data`;
         status.title = title;
     }
 
@@ -149,8 +150,31 @@ export function createControlPanel({ state }) {
         status.title = title;
     }
 
-    function updateSeismicLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'USGS quakes: 24h layer off', title = '' } = {}) {
+    // LOT 5: on a historical day EONET uses status=all and a fixed window, so
+    // the Live 'days' and 'status' filters do not apply and are disabled.
+    function setDataDayUi(day) {
+        for (const id of ['daysFilter', 'statusFilter']) {
+            const select = byId(id);
+            if (!select) continue;
+            if (select.dataset.liveTitle === undefined) select.dataset.liveTitle = select.title || '';
+            select.disabled = Boolean(day);
+            select.title = day
+                ? 'Historical day: EONET shows all events of the 7-day window ending on that day.'
+                : select.dataset.liveTitle;
+        }
+    }
+
+    // LOT 5: a layer the user turned on but that has no data for the chosen
+    // day stays "on" and is marked; its status says "Not available for <day>".
+    function markTimeUnavailable(button, unavailable) {
+        if (!button) return;
+        if (unavailable) button.dataset.timeUnavailable = 'true';
+        else delete button.dataset.timeUnavailable;
+    }
+
+    function updateSeismicLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'USGS quakes: 24h layer off', title = '', timeUnavailable = false } = {}) {
         const button = byId('seismicLayerBtn');
+        markTimeUnavailable(button, timeUnavailable);
         const status = byId('liveLayerStatus');
         if (button) button.textContent = `USGS quakes: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
@@ -159,8 +183,9 @@ export function createControlPanel({ state }) {
         status.title = title;
     }
 
-    function updateFirmsLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'NASA FIRMS: off', title = '' } = {}) {
+    function updateFirmsLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'NASA FIRMS: off', title = '', timeUnavailable = false } = {}) {
         const button = byId('firmsLayerBtn');
+        markTimeUnavailable(button, timeUnavailable);
         const status = byId('firmsLayerStatus');
         if (button) button.textContent = `NASA FIRMS fires: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
@@ -169,8 +194,9 @@ export function createControlPanel({ state }) {
         status.title = title;
     }
 
-    function updateWindLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Wind: off', title = '' } = {}) {
+    function updateWindLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Wind: off', title = '', timeUnavailable = false } = {}) {
         const button = byId('windLayerBtn');
+        markTimeUnavailable(button, timeUnavailable);
         const status = byId('windLayerStatus');
         if (button) button.textContent = `Wind particles: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
@@ -179,8 +205,9 @@ export function createControlPanel({ state }) {
         status.title = title;
     }
 
-    function updateOceanLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Ocean currents: off', title = '' } = {}) {
+    function updateOceanLayerStatus({ enabled = false, loading = false, state: statusState = 'off', message = 'Ocean currents: off', title = '', timeUnavailable = false } = {}) {
         const button = byId('oceanLayerBtn');
+        markTimeUnavailable(button, timeUnavailable);
         const status = byId('oceanLayerStatus');
         if (button) button.textContent = `Ocean currents: ${enabled ? 'on' : 'off'}`;
         if (!status) return;
@@ -191,6 +218,7 @@ export function createControlPanel({ state }) {
 
     function updateIssLayerUi({ enabled = state.issLayer, tracking = false } = {}) {
         const button = byId('issLayerBtn');
+        markTimeUnavailable(button, Boolean(enabled && state.dataDay && document.getElementById('issStatus')?.dataset.state === 'unavailable'));
         const trackButton = byId('trackIssBtn');
         if (button) button.textContent = `ISS: ${enabled ? 'on' : 'off'}`;
         if (trackButton) {
@@ -493,6 +521,7 @@ export function createControlPanel({ state }) {
         updateNightLightsStatus,
         updateSurfaceStatus,
         updateSeismicLayerStatus,
+        setDataDayUi,
         updateFirmsLayerStatus,
         updateWindLayerStatus,
         updateOceanLayerStatus,

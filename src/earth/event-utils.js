@@ -72,7 +72,12 @@ export function normalizeEventGeometry(event) {
     };
 }
 
-export function createEventUtils({ THREE, categoryColors, fallbackColor, futureDateToleranceMs }) {
+// timeReference(): { nowMs, historical }. Live: the browser clock. A historical
+// day (LOT 5): the end of that UTC day, so recency and badges describe the
+// events relative to the chosen day, and nothing is badged "live" in the past.
+const LIVE_TIME_REFERENCE = () => ({ nowMs: Date.now(), historical: false });
+
+export function createEventUtils({ THREE, categoryColors, fallbackColor, futureDateToleranceMs, timeReference = LIVE_TIME_REFERENCE }) {
     function latestGeometry(event) {
         const geoms = event.geometry || [];
         for (let i = geoms.length - 1; i >= 0; i--) {
@@ -110,12 +115,12 @@ export function createEventUtils({ THREE, categoryColors, fallbackColor, futureD
     function eventAgeDays(event) {
         const date = eventDate(event);
         if (!date) return Infinity;
-        return (Date.now() - date.getTime()) / 86400000;
+        return (timeReference().nowMs - date.getTime()) / 86400000;
     }
 
     function eventHasFutureDate(event) {
         const date = eventDate(event);
-        return Boolean(date && date.getTime() - Date.now() > futureDateToleranceMs);
+        return Boolean(date && date.getTime() - timeReference().nowMs > futureDateToleranceMs);
     }
 
     function eventRecency(event) {
@@ -163,6 +168,7 @@ export function createEventUtils({ THREE, categoryColors, fallbackColor, futureD
     function recentBadge(event) {
         const age = eventAgeDays(event);
         if (eventHasFutureDate(event)) return '<span class="badge recent">date anomaly</span>';
+        if (timeReference().historical) return ''; // no 'live'/'recent' badge for a past day
         if (event.sources?.some(source => source.id === 'USGS')) {
             if (age <= 2 / 24) return '<span class="badge live">live</span>';
             if (age <= 1) return '<span class="badge recent">today</span>';

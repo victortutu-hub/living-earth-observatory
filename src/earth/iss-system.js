@@ -39,6 +39,13 @@ function formatIssSpeed(velocityEci) {
 function updateIssStatus(state) {
     const status = document.getElementById('issStatus');
     if (!status) return;
+    // LOT 5: a historical day hides the ISS (a TLE is valid only near its epoch).
+    if (state.timeUnavailable) {
+        status.dataset.state = 'unavailable';
+        status.textContent = `ISS: ${state.timeUnavailable}`;
+        status.title = 'SGP4 propagation of the current TLE far from its epoch would place the ISS wrongly.';
+        return;
+    }
     if (!state.enabled) {
         status.dataset.state = 'off';
         status.textContent = 'ISS: off';
@@ -524,7 +531,14 @@ export function createIssSystem({
         return setEnabled(!state.enabled);
     }
 
+    /** message: "Not available for <day> — …" for a historical day, null in Live. */
+    function setTimeUnavailable(message) {
+        state.timeUnavailable = message || null;
+        updateIssStatus(state);
+    }
+
     return {
+        setTimeUnavailable,
         iss,
         issHalo,
         issLabel,

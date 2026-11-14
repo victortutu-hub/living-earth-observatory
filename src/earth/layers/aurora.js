@@ -11,12 +11,14 @@
 // geometria ovalului si perdeaua sunt reprezentari procedurale ale lor.
 
 import { createNoaaAuroraLayer } from '../noaa-aurora-layer.js';
+import { EARTH_TIME_CAPABILITIES } from '../temporal-provenance.js';
 
 export const auroraPlugin = {
     id: 'aurora',
     label: 'Aurora',
     sourceKey: 'ovation',
     temporal: { temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only', cacheState: 'unknown' },
+    timeCapability: EARTH_TIME_CAPABILITIES.aurora, // OVATION publishes only the latest map
     attribution: 'NOAA SWPC - OVATION aurora model',
     license: 'NOAA public domain; attribution retained.',
     source: { url: 'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json', requiresProxy: false, apiKey: null },

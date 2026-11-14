@@ -3,6 +3,7 @@ import { createAppStartup } from './app-startup.js';
 import { createDemoReelTimeline } from './reel-timeline.js';
 import { createSocialPresetSystem } from './preset-system.js';
 import { createFramePerformanceSampler } from './performance-sampler.js';
+import { EARTH_TIME_CAPABILITIES } from './temporal-provenance.js';
 
 export function createEarthAppRuntime({
     state,
@@ -253,14 +254,94 @@ export function createEarthAppRuntime({
         updateTerminatorGuideUi?.();
     }
 
+    // ---------------------------------------------------------------------
+    // LOT 5: the data day (UTC, null = Live). Layers that cannot show a past
+    // day (EARTH_TIME_CAPABILITIES) are hidden with a "not available" status;
+    // the user's on/off choice (state.*) is kept, so they return in Live.
+    // ---------------------------------------------------------------------
+    let dataDay = null;
+    let dataDayGeneration = 0;
+
+    function timeBlocked(capabilityKey) {
+        return Boolean(dataDay) && !EARTH_TIME_CAPABILITIES[capabilityKey].resolve(dataDay).available;
+    }
+
+    function unavailableStatus(label, capabilityKey) {
+        const capability = EARTH_TIME_CAPABILITIES[capabilityKey];
+        const reason = capability.resolve(dataDay).reason;
+        return { enabled: true, loading: false, state: 'unavailable', timeUnavailable: true, message: `${label}: ${capability.unavailableMessage(dataDay, reason)}`, title: capability.note || '' };
+    }
+
+    function windStatus() {
+        return state.windParticles && timeBlocked('wind') ? unavailableStatus('Wind', 'wind') : windParticles?.getStatus?.();
+    }
+
+    function oceanStatus() {
+        return state.oceanCurrents && timeBlocked('oceanCurrents') ? unavailableStatus('Ocean currents', 'oceanCurrents') : oceanCurrents?.getStatus?.();
+    }
+
+    async function applyIssTime() {
+        if (!state.issLayer) {
+            issSystem?.setTimeUnavailable?.(null);
+            return;
+        }
+        if (timeBlocked('iss')) {
+            stopIssTracking?.();
+            issSystem?.setTimeUnavailable?.(EARTH_TIME_CAPABILITIES.iss.unavailableMessage(dataDay));
+            await issSystem?.setEnabled?.(false);
+        } else {
+            issSystem?.setTimeUnavailable?.(null);
+            await issSystem?.setEnabled?.(true);
+        }
+        updateIssLayerUi?.({ enabled: state.issLayer });
+    }
+
+    async function applyDataDay(day) {
+        if (disposed) return;
+        dataDay = day || null;
+        state.dataDay = dataDay;
+        const generation = ++dataDayGeneration;
+        controlPanel.setDataDayUi?.(dataDay);
+        layerRegistry?.setDataDay?.(dataDay);
+
+        if (state.windParticles) await windParticles?.setEnabled?.(!timeBlocked('wind'));
+        if (disposed || generation !== dataDayGeneration) return;
+        if (state.windParticles) controlPanel.updateWindLayerStatus?.(windStatus());
+        if (state.oceanCurrents) await oceanCurrents?.setEnabled?.(!timeBlocked('oceanCurrents'));
+        if (disposed || generation !== dataDayGeneration) return;
+        if (state.oceanCurrents) controlPanel.updateOceanLayerStatus?.(oceanStatus());
+        await applyIssTime();
+        if (disposed || generation !== dataDayGeneration) return;
+
+        // Events (EONET + USGS + FIRMS, GDACS in Live): the old status is
+        // replaced by "loading <day>…" at once, then by the new window.
+        const loading = loadEvents({ silent: true });
+        liveDataLayers.refreshUsgsStatus?.();
+        liveDataLayers.refreshFirmsStatus?.();
+        try {
+            await loading;
+        } catch (_) {
+            // Reported on the data-source status line.
+        }
+        if (disposed || generation !== dataDayGeneration) return;
+        liveDataLayers.refreshUsgsStatus?.();
+        liveDataLayers.refreshFirmsStatus?.();
+    }
+
     async function toggleIssLayer() {
         state.issLayer = !state.issLayer;
         if (!state.issLayer) stopIssTracking?.();
+        if (state.issLayer && timeBlocked('iss')) {
+            await applyIssTime();
+            return;
+        }
+        issSystem?.setTimeUnavailable?.(null);
         await issSystem?.setEnabled?.(state.issLayer);
         updateIssLayerUi?.({ enabled: state.issLayer });
     }
 
     async function trackIss() {
+        if (timeBlocked('iss')) return;
         if (!state.issLayer) {
             state.issLayer = true;
             await issSystem?.setEnabled?.(true);
@@ -279,23 +360,23 @@ export function createEarthAppRuntime({
     function refreshFieldStatuses(t) {
         if (lastFieldStatusRefresh !== null && t - lastFieldStatusRefresh < 30) return;
         lastFieldStatusRefresh = t;
-        if (state.windParticles) controlPanel.updateWindLayerStatus?.(windParticles?.getStatus?.());
-        if (state.oceanCurrents) controlPanel.updateOceanLayerStatus?.(oceanCurrents?.getStatus?.());
+        if (state.windParticles) controlPanel.updateWindLayerStatus?.(windStatus());
+        if (state.oceanCurrents) controlPanel.updateOceanLayerStatus?.(oceanStatus());
         controlPanel.refreshDataSourceStatus?.();
     }
 
     async function toggleWindLayer() {
         const next = !state.windParticles;
         state.windParticles = next;
-        await windParticles?.setEnabled?.(next);
-        controlPanel.updateWindLayerStatus?.(windParticles?.getStatus?.());
+        await windParticles?.setEnabled?.(next && !timeBlocked('wind'));
+        controlPanel.updateWindLayerStatus?.(windStatus());
     }
 
     async function toggleOceanLayer() {
         const next = !state.oceanCurrents;
         state.oceanCurrents = next;
-        await oceanCurrents?.setEnabled?.(next);
-        controlPanel.updateOceanLayerStatus?.(oceanCurrents?.getStatus?.());
+        await oceanCurrents?.setEnabled?.(next && !timeBlocked('oceanCurrents'));
+        controlPanel.updateOceanLayerStatus?.(oceanStatus());
     }
 
     function toggleAirglowLayer() {
@@ -567,6 +648,7 @@ export function createEarthAppRuntime({
     function dispose() {
         if (disposed) return;
         disposed = true;
+        dataDayGeneration += 1;
         stopAnimation();
         demoReel.dispose?.();
         appLifecycle.dispose();
@@ -584,6 +666,7 @@ export function createEarthAppRuntime({
         startAutoCaptureH264,
         demoReel,
         appLifecycle,
+        applyDataDay,
         performanceSnapshot: performanceSampler.snapshot
     };
 }

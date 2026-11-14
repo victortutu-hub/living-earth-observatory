@@ -367,6 +367,7 @@ export function createEarthAppServices({
             state.dataSourceMessage = status.message || 'Data source: NASA EONET default';
             updateDataSourceStatus?.(status);
         },
+        getDataDay: () => timeState.dataDay(),
         addMarkers,
         focusOnLonLat,
         setSelectedCinematic,
@@ -569,10 +570,15 @@ export function createEarthAppServices({
         setTerminatorGuideVisible
     });
 
+    // LOT 5: data layers follow the UTC day of the scene time (debounced, once
+    // per day change); astronomy keeps following every change of time.
+    const unsubscribeDataDay = timeState.subscribeDataDay(day => appRuntime.applyDataDay(day));
+
     let disposed = false;
     function dispose() {
         if (disposed) return;
         disposed = true;
+        unsubscribeDataDay();
         eonetAutoRefresh.dispose();
         eonetApp.dispose?.();
         appRuntime.dispose();

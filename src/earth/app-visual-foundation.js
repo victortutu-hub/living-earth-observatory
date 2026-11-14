@@ -38,9 +38,14 @@ export function createAppVisualFoundation({
     } = bootstrap;
 
     const { lonLatToVec3 } = createGeoUtils(THREE);
-    const eventUtils = createEventUtils({ THREE, categoryColors, fallbackColor, futureDateToleranceMs });
-
     const timeState = createEarthTimeState();
+    // Event recency is relative to the end of the chosen UTC day in the past.
+    const timeReference = () => {
+        const day = timeState.dataDay();
+        return day ? { nowMs: Date.parse(`${day}T23:59:59.999Z`), historical: true } : { nowMs: Date.now(), historical: false };
+    };
+    const eventUtils = createEventUtils({ THREE, categoryColors, fallbackColor, futureDateToleranceMs, timeReference });
+
     const getDate = () => timeState.now();
     const solarRuntime = createSolarRuntime({ THREE, scene, sunLight, lonLatToVec3, getDate });
     const coolFill = solarRuntime.coolFill;

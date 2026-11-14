@@ -26,7 +26,9 @@ describe('Earth temporal provenance contract', () => {
     it('classifies static, procedural, and latest-only layers truthfully', () => {
         expect(EARTH_TEMPORAL_LAYERS.blueMarble).toMatchObject({ temporalType: 'static-reference', sceneTimeCompatibility: 'static' });
         expect(EARTH_TEMPORAL_LAYERS.clouds).toMatchObject({ temporalType: 'procedural', sceneTimeCompatibility: 'static' });
-        expect(EARTH_TEMPORAL_LAYERS.eonet).toMatchObject({ temporalType: 'observed', sceneTimeCompatibility: 'latest-only' });
+        // LOT 5: EONET follows the chosen day; FIRMS still has only the latest data.
+        expect(EARTH_TEMPORAL_LAYERS.eonet).toMatchObject({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' });
+        expect(EARTH_TEMPORAL_LAYERS.firms).toMatchObject({ temporalType: 'observed', sceneTimeCompatibility: 'latest-only' });
     });
 
     it('surfaces stale and fallback state without calling it live', () => {

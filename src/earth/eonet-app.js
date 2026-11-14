@@ -18,6 +18,7 @@ export function createEonetApp({
     supplementalProviders,
     fallbackProviders,
     onSourceStateChange,
+    getDataDay,
     updateStats,
     addMarkers,
     renderMissingGeometry,
@@ -52,7 +53,8 @@ export function createEonetApp({
         eventCategory,
         supplementalProviders,
         fallbackProviders,
-        onSourceStateChange
+        onSourceStateChange,
+        getDataDay
     });
 
     workflow = createEonetWorkflow({

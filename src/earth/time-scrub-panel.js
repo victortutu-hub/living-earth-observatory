@@ -1,10 +1,8 @@
-// Sprint 1.4 (Faza 1) — global UTC time scrub. Wired directly to the
-// existing createEarthTimeState() store, which already drives solar/lunar
-// position reactively (see app-visual-foundation.js). GIBS imagery layers
-// (daily clouds, night lights) are not temporal-aware yet — clouds are
-// disabled pending validation and night lights are fixed to 2012/2016 — so
-// this control is scoped honestly to astronomy for now, not sold as full
-// data-layer time travel.
+// Sprint 1.4 (Faza 1) — global UTC time scrub, wired to createEarthTimeState().
+// Astronomy follows the full scene time. Since LOT 5 the data layers follow
+// its UTC day (earthTimeState.subscribeDataDay): EONET, USGS and Snow & ice
+// load that day; layers without history are hidden with a "not available"
+// status and come back in Live.
 const DAY_MS = 86_400_000;
 
 export function createTimeScrubPanel({
@@ -37,7 +35,7 @@ export function createTimeScrubPanel({
     let disposed = false;
 
     const liveLabel = 'Live astronomy · latest available data';
-    const historicalNotice = 'Scene time affects astronomy. Data layers retain independent timestamps.';
+    const historicalNotice = 'Astronomy follows the scene time. EONET, USGS and Snow & ice show this UTC day; layers without history are hidden.';
     let notice = panel?.querySelector?.('[data-temporal-notice]');
     if (panel && !notice) {
         notice = document.createElement('div');
