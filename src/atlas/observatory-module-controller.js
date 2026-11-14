@@ -10,7 +10,30 @@ function delay(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-export function initObservatoryModuleController({ getPortalRenderer } = {}) {
+/**
+ * Deep link (LOT 7): what a location hash asks for, without side effects.
+ *   { action: 'enter', observatory }      a mountable observatory (route + adapter)
+ *   { action: 'focus-card', observatory } a known observatory that cannot mount here
+ *   { action: 'none' }                    empty, malformed, a section anchor or unknown
+ * `canMount(id)` is the same check enter() uses.
+ */
+export function resolveObservatoryHash(hash, { getObservatory, canMount }) {
+  let id = '';
+  try {
+    id = decodeURIComponent(String(hash || '').replace(/^#/, '')).trim();
+  } catch (_) {
+    return { action: 'none' };
+  }
+  const observatory = id ? getObservatory(id) : null;
+  if (!observatory) return { action: 'none' };
+  if (canMount(id)) return { action: 'enter', observatory };
+  return { action: 'focus-card', observatory };
+}
+
+export function initObservatoryModuleController({
+  getPortalRenderer,
+  adapters = [createLivingEarthAtlasModule(), createLivingProteinAtlasModule()],
+} = {}) {
   const stage = document.getElementById('observatoryStage');
   const mount = document.getElementById('observatoryMount');
   const returnButton = document.getElementById('observatoryReturn');
@@ -19,8 +42,13 @@ export function initObservatoryModuleController({ getPortalRenderer } = {}) {
 
   const moduleHost = createObservatoryModuleHost({
     registry: platformRegistry,
-    adapters: [createLivingEarthAtlasModule(), createLivingProteinAtlasModule()],
+    adapters,
   });
+  // One source for "can this observatory be mounted here": it has a public
+  // route and one of the adapters given to the host. Used by enter() and by
+  // the deep link.
+  const mountableIds = new Set(adapters.map((adapter) => adapter?.id).filter(Boolean));
+  const canMount = (id) => mountableIds.has(id) && Boolean(platformRegistry.getObservatory(id)?.route);
   let activeId = null;
   let closingPromise = null;
 
@@ -52,7 +80,13 @@ export function initObservatoryModuleController({ getPortalRenderer } = {}) {
   }
 
   async function enter(observatory) {
-    if (!observatory?.id || !moduleHost.snapshot(observatory.id).available) return false;
+    // Refused before any history entry or stage change: a planned observatory
+    // (no route) or one without an adapter would otherwise mount an empty stage.
+    if (!observatory?.id || !canMount(observatory.id)) {
+      console.warn(`[Luminomorphism] ${observatory?.title || observatory?.id || 'Observatory'} cannot be mounted here (no route or no module adapter).`);
+      return false;
+    }
+    if (!moduleHost.snapshot(observatory.id).available) return false;
     if (activeId) return true;
     activeId = observatory.id;
     stage.hidden = false;
@@ -119,6 +153,32 @@ export function initObservatoryModuleController({ getPortalRenderer } = {}) {
   const routeLinks = [...document.querySelectorAll('a[href]')]
     .filter((link) => Boolean(resolveLinkedObservatory(link)));
   routeLinks.forEach((link) => link.addEventListener('click', onAtlasRouteClick));
+
+  // Deep link, read once at load (the Atlas cards are already rendered).
+  function openFromHash() {
+    const link = resolveObservatoryHash(window.location.hash, {
+      getObservatory: (id) => platformRegistry.getObservatory(id),
+      canMount,
+    });
+    if (link.action === 'enter') {
+      // The current entry becomes the home page, so Back / Return leave the
+      // observatory with a clean URL and a reload of #id mounts it again.
+      // A reload keeps history.state, which may still carry the mounted key:
+      // the home entry must not, or Back would not close the observatory.
+      const home = new URL(window.location.href);
+      home.hash = '';
+      const { [HISTORY_KEY]: _mounted, ...homeState } = history.state || {};
+      history.replaceState(homeState, '', home.href);
+      void enter(link.observatory);
+    } else if (link.action === 'focus-card') {
+      // Not mountable (e.g. planned): stay home, bring its card into view.
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const card = [...document.querySelectorAll('[data-observatory-id]')]
+        .find((element) => element.dataset.observatoryId === link.observatory.id);
+      card?.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    }
+  }
+  openFromHash();
 
   return Object.freeze({
     moduleHost,
