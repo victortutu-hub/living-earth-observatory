@@ -29,6 +29,9 @@ LEO-documentation-*.md
 glosar-leo.md
 Living Earth Observatory_ Technical Dee...pdf
 
+# Editor settings
+.vscode/
+
 # Local/demo scratch files
 earth-eonet-relief-demo.html
 live-earth-data-v2_Claude.html

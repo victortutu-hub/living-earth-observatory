@@ -38,7 +38,8 @@ function classList() {
 
 const saved = { window: globalThis.window, document: globalThis.document, history: globalThis.history };
 
-function installBrowser(url, { reduced = true, state = null } = {}) {
+function installBrowser(url, { reduced = true, state = null, hidden = false } = {}) {
+    const docListeners = new Map();
     const entries = [{ state, url }];
     let index = 0;
     const popListeners = new Set();
@@ -85,11 +86,18 @@ function installBrowser(url, { reduced = true, state = null } = {}) {
         body: { classList: classList() },
         getElementById: (id) => byId[id] || null,
         querySelectorAll: (selector) => (selector === '[data-observatory-id]' ? cards : []),
-        addEventListener() {},
-        removeEventListener() {},
+        hidden,
+        addEventListener(type, fn) { if (!docListeners.has(type)) docListeners.set(type, new Set()); docListeners.get(type).add(fn); },
+        removeEventListener(type, fn) { docListeners.get(type)?.delete(fn); },
         dispatchEvent: () => true,
     };
-    return { calls, stage, mount, cards, location, history };
+    // Simulates the page becoming hidden/visible (visibilitychange).
+    const setHidden = (value) => {
+        globalThis.document.hidden = value;
+        [...(docListeners.get('visibilitychange') || [])].forEach((fn) => fn({ type: 'visibilitychange' }));
+    };
+    const listenerCount = (type) => docListeners.get(type)?.size || 0;
+    return { calls, stage, mount, cards, location, history, setHidden, listenerCount };
 }
 
 function fakeAdapter(id, { fail = false } = {}) {
@@ -153,6 +161,37 @@ describe('observatory module controller: deep link and enter() guard', () => {
         const card = env.cards.find((c) => c.dataset.observatoryId === 'living-himalaya');
         expect(card.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
         await controller.dispose();
+    });
+
+    it('/#living-himalaya in a background tab scrolls only when the page first becomes visible', async () => {
+        const env = installBrowser('https://lumi.test/index.html#living-himalaya', { reduced: false, hidden: true });
+        const controller = initObservatoryModuleController({ adapters: [fakeAdapter('living-earth'), fakeAdapter('living-protein')] });
+        await flush();
+        const card = env.cards.find((c) => c.dataset.observatoryId === 'living-himalaya');
+        expect(card.scrollIntoView).not.toHaveBeenCalled();
+        expect(env.listenerCount('visibilitychange')).toBe(1);
+        env.setHidden(true); // still hidden: keep waiting
+        expect(card.scrollIntoView).not.toHaveBeenCalled();
+        env.setHidden(false); // first time visible: scroll once, listener removed
+        expect(card.scrollIntoView).toHaveBeenCalledTimes(1);
+        expect(card.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'smooth' });
+        expect(env.listenerCount('visibilitychange')).toBe(0);
+        env.setHidden(true);
+        env.setHidden(false);
+        expect(card.scrollIntoView).toHaveBeenCalledTimes(1);
+        expect(env.calls.push).toEqual([]);
+        await controller.dispose();
+    });
+
+    it('dispose() while still hidden removes the pending visibility listener', async () => {
+        const env = installBrowser('https://lumi.test/index.html#living-himalaya', { hidden: true });
+        const controller = initObservatoryModuleController({ adapters: [fakeAdapter('living-earth')] });
+        await flush();
+        expect(env.listenerCount('visibilitychange')).toBe(1);
+        await controller.dispose();
+        expect(env.listenerCount('visibilitychange')).toBe(0);
+        env.setHidden(false);
+        expect(env.cards.find((c) => c.dataset.observatoryId === 'living-himalaya').scrollIntoView).not.toHaveBeenCalled();
     });
 
     it('reduced motion scrolls to the card without animation', async () => {

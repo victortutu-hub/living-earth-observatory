@@ -172,12 +172,28 @@ export function initObservatoryModuleController({
       void enter(link.observatory);
     } else if (link.action === 'focus-card') {
       // Not mountable (e.g. planned): stay home, bring its card into view.
-      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      const card = [...document.querySelectorAll('[data-observatory-id]')]
-        .find((element) => element.dataset.observatoryId === link.observatory.id);
-      card?.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+      // A tab opened in the background does not scroll reliably, so the
+      // scroll waits for the first time the page becomes visible.
+      const focusCard = () => {
+        const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const card = [...document.querySelectorAll('[data-observatory-id]')]
+          .find((element) => element.dataset.observatoryId === link.observatory.id);
+        card?.scrollIntoView?.({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+      };
+      if (document.hidden) {
+        pendingFocusListener = () => {
+          if (document.hidden) return;
+          document.removeEventListener('visibilitychange', pendingFocusListener);
+          pendingFocusListener = null;
+          focusCard();
+        };
+        document.addEventListener('visibilitychange', pendingFocusListener);
+      } else {
+        focusCard();
+      }
     }
   }
+  let pendingFocusListener = null;
   openFromHash();
 
   return Object.freeze({
@@ -190,6 +206,8 @@ export function initObservatoryModuleController({
       window.removeEventListener('popstate', onPopState);
       document.removeEventListener('click', onAtlasRouteClick);
       routeLinks.forEach((link) => link.removeEventListener('click', onAtlasRouteClick));
+      if (pendingFocusListener) document.removeEventListener('visibilitychange', pendingFocusListener);
+      pendingFocusListener = null;
       if (activeId) await close();
     },
   });
