@@ -110,7 +110,7 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 
 - NASA EONET: near-real-time natural event metadata.
 - GDACS: EU JRC / UN OCHA global disaster alerts, used as fallback or GDACS-only mode.
-- NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional through the local proxy and `FIRMS_MAP_KEY`.
+- NASA FIRMS: MODIS active-fire hotspots through the proxy and `FIRMS_MAP_KEY` (kept server-side); live detections and past days (MODIS NRT or SP, back to 1 Nov 2000).
 - NASA GIBS: daily cloud snapshot (not minute-by-minute live clouds) and VIIRS Black Marble annual night lights (2016).
 - USGS: earthquake feed, normalized into local `earthquakes` events.
 - NOAA SWPC OVATION: aurora forecast, used to drive polar oval intensity.

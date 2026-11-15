@@ -32,8 +32,8 @@ policies:
 
 - NASA EONET: natural event metadata.
 - NASA GIBS: daily cloud imagery/snapshots.
-- NASA FIRMS: MODIS/VIIRS wildfire hotspot data, accessed through a local proxy
-  with a user-provided `FIRMS_MAP_KEY`.
+- NASA FIRMS: MODIS active-fire hotspot data, accessed through the proxy
+  with a server-side `FIRMS_MAP_KEY`.
 - GDACS: EU JRC / UN OCHA global disaster alerts.
 - USGS: earthquake feeds.
 - NOAA SWPC OVATION: aurora forecast data.

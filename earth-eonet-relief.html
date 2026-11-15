@@ -756,7 +756,7 @@
         <div id="cloudSourceStatus" data-state="paused">Clouds: NASA GIBS daily snapshot temporarily paused; stable procedural layer active</div>
         <button id="seismicLayerBtn" title="USGS earthquakes for the selected time window. Separate source, integrated into Earthquakes.">USGS quakes: off</button>
         <div id="liveLayerStatus" data-state="off">USGS quakes: off</div>
-        <button id="firmsLayerBtn" title="NASA FIRMS MODIS/VIIRS near-real-time wildfire hotspots. Public demo keeps this off unless a local proxy or proxyBase is configured.">NASA FIRMS fires: off</button>
+        <button id="firmsLayerBtn" title="NASA FIRMS MODIS active-fire hotspots via the observatory proxy. Live: latest near-real-time detections. Past days: MODIS NRT (provisional) or MODIS SP (standard processing, published with a delay), back to 1 Nov 2000. Shows the top 220 by fire radiative power.">NASA FIRMS fires: off</button>
         <div id="firmsLayerStatus" data-state="off">NASA FIRMS: off</div>
         <button id="windLayerBtn" title="Wind streamline particles from the Open-Meteo model forecast field (current time step), advected on the GPU. The particle representation itself is an interpretive visualization convention, not a direct measurement of individual air parcels.">Wind particles: off</button>
         <div id="windLayerStatus" data-state="off">Wind: off</div>
@@ -880,7 +880,7 @@
         <ul>
             <li>NASA EONET: near real-time natural event metadata.</li>
             <li>GDACS: EU JRC / UN OCHA global disaster alerts. In the public demo it is explicit proxy-only fallback; locally it can be used as smart fallback or GDACS-only source.</li>
-            <li>NASA FIRMS: MODIS/VIIRS wildfire hotspots, optional supplemental fire layer requiring the local proxy and FIRMS_MAP_KEY.</li>
+            <li>NASA FIRMS: MODIS active-fire hotspots through the observatory proxy (FIRMS MAP_KEY kept server-side). Live: latest near-real-time detections; past days: MODIS NRT (provisional) or MODIS SP (standard processing), back to 1 Nov 2000.</li>
             <li>NASA GIBS: daily cloud snapshot layer and VIIRS Black Marble annual night lights (2016).</li>
             <li>NOAA SWPC OVATION: aurora oval forecast intensity.</li>
             <li>USGS: earthquake feed integrated into Earthquakes.</li>
