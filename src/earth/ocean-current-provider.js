@@ -65,6 +65,16 @@ function marineUrl(lats, lons) {
 // si masca de uscat in B. Singura implementare a conversiei pentru curenti:
 // o folosesc si campul live (current.*, km/h), si zilele istorice SMOC (LOT 11,
 // deja in m/s de la proxy). null = uscat (fara date).
+/**
+ * The one land/ocean test of both paths (live and past days): a cell is ocean
+ * when speed AND direction are present numbers; null / undefined (land at
+ * Open-Meteo Marine) is land. A real 0 (still water) stays ocean.
+ */
+export function isOceanSample(speed, direction) {
+    return speed !== null && speed !== undefined && direction !== null && direction !== undefined
+        && Number.isFinite(Number(speed)) && Number.isFinite(Number(direction));
+}
+
 export function encodeOceanSamples(sample, width, height, maxSpeedMs) {
     const data = new Array(width * height * 4);
     let index = 0;
@@ -73,8 +83,7 @@ export function encodeOceanSamples(sample, width, height, maxSpeedMs) {
             const point = sample(index);
             const speedMs = point?.speed;
             const directionDeg = point?.direction;
-            const isOcean = speedMs !== null && speedMs !== undefined && directionDeg !== null && directionDeg !== undefined
-                && Number.isFinite(Number(speedMs)) && Number.isFinite(Number(directionDeg));
+            const isOcean = isOceanSample(speedMs, directionDeg);
             let u = 0;
             let v = 0;
             if (isOcean) {
@@ -98,17 +107,14 @@ export function encodeOceanSamples(sample, width, height, maxSpeedMs) {
 
 /**
  * Live Open-Meteo Marine batch (current.ocean_current_velocity in km/h).
- * Kept byte-identical to the pre-LOT 11 encoder: a value is valid when
- * Number(value) is finite. NOTE (reported, not changed here): Number(null)
- * is 0, so land points (null) count as ocean with zero speed in the live
- * mask; past days (LOT 11) treat null as land.
+ * LOT 12: land (null) is classified by isOceanSample, like past days; before,
+ * Number(null) === 0 made land cells count as ocean with zero speed.
  */
 export function encodeGrid(payload, width, height, maxSpeedMs) {
     return encodeOceanSamples((index) => {
         const speedKmh = payload[index]?.current?.ocean_current_velocity;
         const direction = payload[index]?.current?.ocean_current_direction;
-        const valid = Number.isFinite(Number(speedKmh)) && Number.isFinite(Number(direction));
-        return valid ? { speed: Number(speedKmh) / 3.6, direction: Number(direction) } : { speed: null, direction: null };
+        return isOceanSample(speedKmh, direction) ? { speed: Number(speedKmh) / 3.6, direction: Number(direction) } : { speed: null, direction: null };
     }, width, height, maxSpeedMs);
 }
 

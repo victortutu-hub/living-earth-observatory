@@ -223,8 +223,17 @@ describe('u/v conversion is the same as before LOT 11', () => {
             : i % 11 === 0 ? {} : kind === 'wind' ? { wind_speed_10m: r() * 50, wind_direction_10m: r() * 360 } : { ocean_current_velocity: r() * 12, ocean_current_direction: r() * 360 } }));
         const w = live('wind');
         expect(wind.encodeGrid(w, 36, 17, 40).data).toEqual(legacyWind(w, 36, 17, 40));
+        // LOT 12: ocean cells stay byte-identical; land (null / missing) now has mask 0.
         const o = live('ocean');
-        expect(ocean.encodeGrid(o, 36, 17, 3).data).toEqual(legacyOcean(o, 36, 17, 3));
+        const now = ocean.encodeGrid(o, 36, 17, 3).data;
+        const before = legacyOcean(o, 36, 17, 3);
+        o.forEach((p, i) => {
+            const land = p.current.ocean_current_velocity == null;
+            const px = now.slice(i * 4, i * 4 + 4);
+            const old = before.slice(i * 4, i * 4 + 4);
+            if (land) expect(px).toEqual([old[0], old[1], 0, 255]);
+            else expect(px).toEqual(old);
+        });
     });
 
     it('a past hour goes through the same conversion as a live field with the same values', () => {
@@ -275,5 +284,38 @@ describe('regressions found in the browser check', () => {
         controller.select({ day: '2025-11-15', hour: 3 }, { retryError: true });
         await flush();
         expect(fetchDay).toHaveBeenCalledTimes(2);
+    });
+});
+
+
+describe('LOT 12: live ocean-current land mask', () => {
+    it('null / missing -> land (mask 0); a real 0 on the ocean stays ocean; ocean bytes unchanged', () => {
+        const live = [
+            { current: { ocean_current_velocity: null, ocean_current_direction: null } },     // land
+            { current: {} },                                                                // missing -> land
+            { current: { ocean_current_velocity: 0, ocean_current_direction: 0 } },           // still water -> ocean
+            { current: { ocean_current_velocity: 3.6, ocean_current_direction: 90 } },        // 1 m/s east
+            { current: { ocean_current_velocity: 1.8, ocean_current_direction: null } },      // half missing -> land
+            { current: { ocean_current_velocity: 7.2, ocean_current_direction: 180 } },       // 2 m/s south
+        ];
+        const data = ocean.encodeGrid(live, 6, 1, 3).data;
+        const masks = [0, 1, 2, 3, 4, 5].map((i) => data[i * 4 + 2]);
+        expect(masks).toEqual([0, 0, 255, 255, 0, 255]);
+        // Ocean pixels: same bytes as the encoder before LOT 12.
+        for (const i of [2, 3, 5]) {
+            const speed = live[i].current.ocean_current_velocity / 3.6;
+            const rad = live[i].current.ocean_current_direction * Math.PI / 180;
+            const enc = (x) => Math.round(Math.max(0, Math.min(1, x / 3 * 0.5 + 0.5)) * 255);
+            expect(data.slice(i * 4, i * 4 + 4)).toEqual([enc(speed * Math.sin(rad)), enc(speed * Math.cos(rad)), 255, 255]);
+        }
+        expect(ocean.isOceanSample(0, 0)).toBe(true);
+        expect(ocean.isOceanSample(null, 10)).toBe(false);
+        expect(ocean.isOceanSample(undefined, undefined)).toBe(false);
+    });
+
+    it('past days use the same classifier (land where the proxy sends null)', () => {
+        const samples = [{ speed: null, direction: null }, { speed: 0, direction: 0 }, { speed: 1, direction: 90 }];
+        const data = ocean.encodeOceanSamples((i) => samples[i], 3, 1, 3).data;
+        expect([data[2], data[6], data[10]]).toEqual([0, 255, 255]);
     });
 });
