@@ -254,6 +254,7 @@ export const EARTH_TIME_CAPABILITIES = Object.freeze({
     blueMarble: createTimeCapability({ kind: 'static' }),
     blackMarble: createTimeCapability({ kind: 'static', note: 'Fixed 2016 annual composite, labelled with its year.' }),
     etopo: createTimeCapability({ kind: 'static' }),
+    himalayaPeaks: createTimeCapability({ kind: 'static', note: 'Surveyed summit list; it does not change with the scene day.' }),
     clouds: createTimeCapability({ kind: 'static', note: 'Procedural cloud layer.' }),
     dailyClouds: createTimeCapability({ kind: 'live-only', note: 'NASA GIBS daily VIIRS clouds; paused in the public control.' }),
     snowIce: createTimeCapability({ kind: 'daily', range: { start: '2000-02-24', end: 'latest' }, lagDays: 1, gaps: MODIS_TERRA_SNOW_GAPS }),

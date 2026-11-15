@@ -4,26 +4,38 @@ import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
 import { validateObservatoryRegistry } from '../src/core/observatory/module-contract.js';
 import { platformRegistry } from '../src/core/platform-registry.js';
 
-describe('Living Himalaya is planned, not launched', () => {
+describe('Living Himalaya is in development (Himalaya LOT 1), not a hero portal', () => {
     const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
 
-    it('is a planned regional planetary record with no route and no portal', () => {
+    it('is a development regional planetary record with a route and no portal', () => {
         expect(himalaya).toMatchObject({
             title: 'Living Himalaya',
             subtitle: 'Observatory',
             family: 'planetary',
             scale: 'regional',
             scaleAxis: 'physical',
-            status: 'planned',
-            route: null,
+            status: 'development',
+            route: './living-himalaya.html',
             featured: false,
         });
         expect(himalaya.gateway).toBeUndefined();
-        expect(himalaya.description).toMatch(/^A planned regional observatory/);
+        expect(himalaya.description).toMatch(/^A regional observatory in development/);
         expect(himalaya.representations).toEqual(['observed', 'reconstructed', 'prediction', 'fallback']);
-        // No integration is declared before it exists.
-        expect(himalaya.sources).toEqual([]);
-        expect(himalaya.roadmap).toMatchObject({ progress: 0, stage: 'Frozen until Gate 2' });
+        // Only what exists is declared: the peak reference list.
+        expect(himalaya.sources).toEqual(['himalayaPeaks']);
+        expect(himalaya.roadmap.stage).not.toMatch(/Frozen/);
+        expect(himalaya.roadmap.progress).toBeGreaterThan(0);
+    });
+
+    it('a development route raises no future-route warning; planned/research still do', () => {
+        expect(platformRegistry.moduleContract.warnings.filter((entry) => entry.code === 'future-route')).toEqual([]);
+        const base = { family: 'planetary', scale: 'planetary', scaleAxis: 'physical', representations: ['observed'], sources: [], roadmap: {} };
+        const report = validateObservatoryRegistry([
+            { ...base, id: 'd', title: 'Dev', status: 'development', route: './d.html' },
+            { ...base, id: 'p', title: 'Planned', status: 'planned', route: './p.html' },
+            { ...base, id: 'r', title: 'Research', status: 'research', route: './r.html' },
+        ], { taxonomy: PLATFORM_TAXONOMY });
+        expect(report.warnings.filter((entry) => entry.code === 'future-route').map((entry) => entry.moduleId)).toEqual(['p', 'r']);
     });
 
     it('uses a regional scale placed between ecological and planetary', () => {
@@ -41,7 +53,7 @@ describe('Living Himalaya is planned, not launched', () => {
         const portals = OBSERVATORY_REGISTRY.filter((item) => item.gateway).map((item) => item.id);
         expect(portals).toEqual(['living-earth', 'living-protein']);
         const routed = OBSERVATORY_REGISTRY.filter((item) => item.route).map((item) => item.id);
-        expect(routed).toEqual(['living-earth', 'living-protein']);
+        expect(routed).toEqual(['living-earth', 'living-protein', 'living-himalaya']);
     });
 });
 

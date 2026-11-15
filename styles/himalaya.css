@@ -1,0 +1,62 @@
+:root {
+  --bg: #03060d;
+  --panel: rgba(6, 12, 22, 0.86);
+  --line: rgba(103, 232, 249, 0.16);
+  --text: #eef8ff;
+  --muted: #9bb0c4;
+  --cyan: #67e8f9;
+  --amber: #fde68a;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+body { overflow: hidden; }
+#himalayaStage { position: fixed; inset: 0; width: 100%; height: 100%; outline: none; display: block; }
+#himalayaLabels { position: fixed; inset: 0; pointer-events: none; }
+.himalaya-label-layer { position: absolute; inset: 0; pointer-events: none; }
+
+.himalaya-header { position: fixed; z-index: 2; top: 22px; left: 26px; right: 26px; display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; pointer-events: none; }
+.himalaya-brand span { font-size: 10px; letter-spacing: 0.19em; text-transform: uppercase; color: var(--cyan); }
+.himalaya-brand h1 { margin: 8px 0 0; font-size: clamp(20px, 2.8vw, 34px); font-weight: 300; letter-spacing: 0.08em; }
+.himalaya-brand p { margin: 8px 0 0; color: var(--muted); max-width: 560px; font-size: 13px; line-height: 1.55; }
+.himalaya-return { pointer-events: auto; flex: 0 0 auto; color: var(--text); text-decoration: none; border: 1px solid var(--line); padding: 11px 14px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(4, 9, 17, 0.62); }
+.himalaya-return:hover, .himalaya-return:focus-visible { border-color: var(--cyan); outline: none; }
+/* Inside the Atlas the host page owns Return (history-aware). */
+body.is-atlas-embedded .himalaya-return { display: none; }
+/* Leave room for the host page's Return button (top-left). */
+body.is-atlas-embedded .himalaya-header { top: 70px; }
+body.is-atlas-embedded .himalaya-list-panel { top: 214px; max-height: calc(100vh - 284px); }
+
+.himalaya-list-panel, .himalaya-panel { position: fixed; z-index: 2; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(16px); }
+.himalaya-list-panel { top: 170px; left: 26px; width: 250px; max-height: calc(100vh - 240px); overflow: auto; padding: 14px 12px; }
+.himalaya-list-panel h2 { margin: 0 4px 10px; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.himalaya-peak-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.himalaya-peak-button { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 7px 8px; border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
+.himalaya-peak-button:hover, .himalaya-peak-button:focus-visible { border-color: var(--line); outline: none; }
+.himalaya-peak-button[aria-pressed="true"] { border-color: rgba(253, 230, 138, 0.5); color: var(--amber); }
+.himalaya-peak-elev { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.himalaya-panel { right: 26px; bottom: 62px; width: min(400px, calc(100vw - 52px)); max-height: calc(100vh - 220px); overflow: auto; padding: 18px 20px; }
+.himalaya-panel h2 { margin: 0 0 12px; font-size: 17px; font-weight: 500; }
+.himalaya-panel-hint { margin: 0; color: var(--muted); font-size: 12px; }
+.himalaya-panel-rows { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 7px 12px; font-size: 12px; line-height: 1.45; }
+.himalaya-panel-rows dt { color: var(--muted); }
+.himalaya-panel-rows dd { margin: 0; overflow-wrap: anywhere; }
+.himalaya-panel-rows dd.is-pending { color: #6f8396; font-style: italic; }
+
+.himalaya-notice { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; padding: 14px 18px; background: var(--panel); border: 1px solid rgba(253, 230, 138, 0.4); font-size: 13px; max-width: min(460px, calc(100vw - 32px)); }
+
+.himalaya-provenance { position: fixed; z-index: 3; left: 0; right: 0; bottom: 0; padding: 10px 26px; background: rgba(3, 6, 13, 0.9); border-top: 1px solid var(--line); color: #cfe9f5; font-size: 11px; letter-spacing: 0.06em; }
+
+.himalaya-peak-label { pointer-events: auto; border: 1px solid rgba(103, 232, 249, 0.28); background: rgba(3, 8, 16, 0.72); color: #dff7ff; font: inherit; font-size: 11px; padding: 3px 7px; white-space: nowrap; cursor: pointer; transform: translateY(-50%); }
+.himalaya-peak-label:hover, .himalaya-peak-label:focus-visible { border-color: var(--cyan); outline: none; }
+.himalaya-peak-label.is-active { border-color: var(--amber); color: var(--amber); }
+.himalaya-grid-label { color: rgba(155, 176, 196, 0.6); font-size: 10px; letter-spacing: 0.05em; pointer-events: none; }
+
+@media (max-width: 760px) {
+  .himalaya-brand p { display: none; }
+  .himalaya-list-panel { top: auto; bottom: 46px; left: 12px; right: 12px; width: auto; max-height: 28vh; }
+  .himalaya-panel { top: 120px; bottom: auto; left: 12px; right: 12px; width: auto; max-height: 34vh; }
+  .himalaya-header { left: 12px; right: 12px; top: 14px; }
+  .himalaya-provenance { padding: 8px 12px; }
+}

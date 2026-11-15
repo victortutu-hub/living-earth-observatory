@@ -520,6 +520,12 @@
         overflow-wrap: anywhere;
         white-space: pre-line;
     }
+    /* One optional action under the details (e.g. Enter Living Himalaya); the
+       panel itself stays click-through. */
+    #details .details-action {
+        pointer-events: auto;
+        margin-top: 10px;
+    }
     #loading {
         position: absolute;
         inset: 0;

@@ -82,7 +82,9 @@ export function validateObservatoryModule(moduleDefinition, {
   if (module.status === 'live' && !hasText(module.route)) {
     errors.push(issue('error', 'missing-live-route', 'A live module must declare an active route.', 'route'));
   }
-  if (module.status !== 'live' && module.route) {
+  // `development` may expose a route (an observatory being built in the open);
+  // planned / research records keep the warning.
+  if (module.status !== 'live' && module.status !== 'development' && module.route) {
     warnings.push(issue('warning', 'future-route', 'A non-live module declares a route; keep it disabled until the observatory is ready.', 'route'));
   }
   if (module.gateway?.enabled && module.status !== 'live') {

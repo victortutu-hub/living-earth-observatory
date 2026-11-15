@@ -14,6 +14,8 @@ import { createTimeScrubPanel } from './time-scrub-panel.js';
 import { createLiveDataLayers } from './live-data-layers.js';
 import { createLayerRegistry } from './layer-plugin-registry.js';
 import { gvpVolcanoesPlugin } from './layers/gvp-volcanoes.js';
+import { himalayaPeaksPlugin } from './layers/himalaya-peaks.js';
+import { HIMALAYA_REGION_CENTER } from '../config/himalaya-peaks.js';
 import { auroraPlugin } from './layers/aurora.js';
 import { snowIcePlugin } from './layers/snow-ice.js';
 import { lookDefaults } from './app-state.js';
@@ -401,7 +403,7 @@ export function createEarthAppServices({
         lonLatToVec3,
         onSelectFeature: (item) => {
             deselectAll();
-            eventUi.renderDetails(item.title || 'Layer feature', item.detail || []);
+            eventUi.renderDetails(item.title || 'Layer feature', item.detail || [], item.action || null);
             if (Number.isFinite(item.lon) && Number.isFinite(item.lat)) {
                 focusOnLonLat(item.lon, item.lat);
             }
@@ -410,6 +412,15 @@ export function createEarthAppServices({
     layerRegistry.register(gvpVolcanoesPlugin);
     layerRegistry.register(auroraPlugin);
     layerRegistry.register(snowIcePlugin);
+    layerRegistry.register(himalayaPeaksPlugin);
+
+    // focus=himalaya (returning from Living Himalaya): centre on the region and
+    // turn the peaks layer on. Any other focus value is ignored.
+    function applyUrlFocus() {
+        if (new URLSearchParams(window.location.search).get('focus') !== 'himalaya') return;
+        void layerRegistry.enableLayer('himalayaPeaks');
+        focusOnLonLat(HIMALAYA_REGION_CENTER.lon, HIMALAYA_REGION_CENTER.lat, 3.9);
+    }
 
     function showIssDetails() {
         deselectAll();
@@ -573,7 +584,8 @@ export function createEarthAppServices({
         updateCameraControls,
         updateCameraDrift,
         surfaceVisualLock,
-        setTerminatorGuideVisible
+        setTerminatorGuideVisible,
+        applyUrlFocus
     });
 
     // LOT 5: data layers follow the UTC day of the scene time (debounced, once

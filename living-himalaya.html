@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Living Himalaya Observatory</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 52 26 18l9 14 6-8 17 28Z' fill='none' stroke='%2367E8F9' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <meta name="description" content="A regional observatory in development: the 14 summits above 8000 m from a cited reference list. Real terrain comes in the next lot.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot1">
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
+</head>
+<body>
+  <canvas id="himalayaStage" aria-label="Summits above 8000 m on a latitude/longitude grid (no terrain yet)"></canvas>
+  <div id="himalayaLabels"></div>
+  <header class="himalaya-header">
+    <div class="himalaya-brand">
+      <span>Luminomorphism / Regional Scale · In development</span>
+      <h1>Living Himalaya Observatory</h1>
+      <p>The 14 summits above 8000 m, placed on a latitude/longitude grid. Marker height is the surveyed elevation ×10; there is no terrain yet.</p>
+    </div>
+    <a class="himalaya-return" href="./earth-eonet-relief.html?focus=himalaya">Return to Living Earth</a>
+  </header>
+  <nav class="himalaya-list-panel" aria-label="Summits">
+    <h2>Summits</h2>
+    <ol id="himalayaPeakList" class="himalaya-peak-list"></ol>
+  </nav>
+  <aside id="himalayaPanel" class="himalaya-panel" aria-live="polite"></aside>
+  <p id="himalayaNotice" class="himalaya-notice" role="status" hidden></p>
+  <footer id="himalayaProvenance" class="himalaya-provenance" role="note"></footer>
+  <script type="module">
+    import { platformRegistry } from './src/core/platform-registry.js';
+    import { createObservatoryModuleHost } from './src/core/observatory/module-host.js';
+    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot1';
+
+    const moduleHost = createObservatoryModuleHost({
+      registry: platformRegistry,
+      adapters: [livingHimalayaModule],
+    });
+    window.LUMINOMORPHISM_HIMALAYA = Object.freeze({ moduleHost });
+    moduleHost.start('living-himalaya').catch((error) => {
+      console.error('[Living Himalaya] Module host failed to start.', error);
+    });
+    window.addEventListener('pagehide', () => moduleHost.destroy('living-himalaya', 'pagehide'), { once: true });
+  </script>
+</body>
+</html>

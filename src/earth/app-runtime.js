@@ -95,7 +95,8 @@ export function createEarthAppRuntime({
     updateCameraControls,
     updateCameraDrift,
     surfaceVisualLock,
-    setTerminatorGuideVisible
+    setTerminatorGuideVisible,
+    applyUrlFocus = null
 }) {
     let animationFrameId = null;
     let running = false;
@@ -676,6 +677,8 @@ export function createEarthAppRuntime({
         }
         const loadPromise = appStartup.start();
         surfaceVisualLock?.apply?.();
+        // After the motion preset (which turns auto-rotate on) so the focus holds.
+        applyUrlFocus?.();
         if (state.firmsWildfires) {
             loadPromise?.finally?.(() => liveDataLayers.refreshFirmsStatus?.());
         }

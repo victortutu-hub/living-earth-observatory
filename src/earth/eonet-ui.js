@@ -24,7 +24,8 @@ export function createEonetUi({
 }) {
     const byId = id => document.getElementById(id);
 
-    function renderDetails(titleText, lines) {
+    // `action` (optional): { label, run } shown as one button under the lines.
+    function renderDetails(titleText, lines, action = null) {
         const panel = byId('details');
         const title = document.createElement('h2');
         const body = document.createElement('p');
@@ -38,7 +39,16 @@ export function createEonetUi({
             }
             body.append(line.value);
         });
-        panel.replaceChildren(title, body);
+        const children = [title, body];
+        if (action && typeof action.run === 'function') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'details-action';
+            button.textContent = action.label;
+            button.addEventListener('click', () => action.run());
+            children.push(button);
+        }
+        panel.replaceChildren(...children);
     }
 
     function createChip(color) {

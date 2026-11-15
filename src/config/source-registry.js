@@ -9,6 +9,9 @@ export const PROVENANCE_TYPES = Object.freeze([
   'prediction',
   'interpretive',
   'fallback',
+  // Compiled records from accounts (e.g. expedition reports), not
+  // measurements; never presented as observed.
+  'reported',
 ]);
 
 // Short badge text shown in the UI for each provenance value.
@@ -20,6 +23,7 @@ export const PROVENANCE_LABELS = Object.freeze({
   prediction: 'Model prediction', // covers forecasts (OVATION, Open-Meteo) and AlphaFold
   interpretive: 'Interpretive',
   fallback: 'Fallback',
+  reported: 'Reported',
 });
 
 function defineSource(definition) {
@@ -295,6 +299,21 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     visuals: ['Volcano markers', 'Eruption recency colour'],
     observatories: ['living-earth'],
   }),
+  himalayaPeaks: defineSource({
+    title: 'Himalaya eight-thousanders (reference list)',
+    provenance: 'observed',
+    provenanceNote: 'Surveyed heights and summit coordinates, compiled from cited references (official survey heights; summit positions cross-checked between Wikidata P625 and OpenStreetMap natural=peak). DEM elevation, when added, is a separate reconstructed source',
+    authority: 'Compiled by Luminomorphism from cited survey references, Wikidata and OpenStreetMap',
+    endpoint: 'Local frozen list src/config/himalaya-peaks.js (no runtime request)',
+    type: 'Summit name, range, latitude/longitude and official elevation in metres for the 14 peaks above 8000 m',
+    process: 'Place one marker per summit; elevation values are shown as published, with alternates and ambiguities listed per peak.',
+    scope: 'Local list used by the Earth Observatory peaks layer and the Living Himalaya observatory.',
+    access: { kind: 'local-asset', label: 'Bundled reference list', requiresProxy: false },
+    license: 'Facts compiled from cited references; Wikidata CC0, OpenStreetMap ODbL (coordinate cross-check).',
+    privacyClass: 'local-asset',
+    visuals: ['Summit markers', 'Peak labels', 'Peak details'],
+    observatories: ['living-earth', 'living-himalaya'],
+  }),
   airglow: defineSource({
     title: 'Airglow layer',
     provenance: 'interpretive',
@@ -382,6 +401,7 @@ export const INITIAL_SOURCE_STATUS = Object.freeze({
   openMeteoEra5: { value: 'OBSERVATORY', state: 'declared', updated: null },
   openMeteoMarineArchive: { value: 'OBSERVATORY', state: 'declared', updated: null },
   gvp: { value: 'OBSERVATORY', state: 'declared', updated: null },
+  himalayaPeaks: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   airglow: { value: 'PROCEDURAL', state: 'declared', updated: null },
   zodiacal: { value: 'PROCEDURAL', state: 'declared', updated: null },
   noctilucent: { value: 'PROCEDURAL', state: 'declared', updated: null },

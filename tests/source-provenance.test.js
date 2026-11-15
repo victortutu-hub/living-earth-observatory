@@ -32,7 +32,7 @@ const EXPECTED = {
 
 describe('canonical provenance vocabulary (AGENTS.md)', () => {
   it('exports exactly the AGENTS.md vocabulary with a label for each value', () => {
-    expect(PROVENANCE_TYPES).toEqual(['observed', 'reconstructed', 'physical-model', 'simulation', 'prediction', 'interpretive', 'fallback']);
+    expect(PROVENANCE_TYPES).toEqual(['observed', 'reconstructed', 'physical-model', 'simulation', 'prediction', 'interpretive', 'fallback', 'reported']);
     expect(Object.keys(PROVENANCE_LABELS).sort()).toEqual([...PROVENANCE_TYPES].sort());
     expect(PROVENANCE_LABELS.prediction).toBe('Model prediction');
   });

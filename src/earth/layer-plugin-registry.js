@@ -307,7 +307,8 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
             const envelope = raw && typeof raw === 'object' && 'proxyStatus' in raw ? raw : null;
             entry.points = {
                 count: items.length,
-                fetchedAt: envelope?.proxyFetchedAt || new Date().toISOString(),
+                // A bundled list (plugin.local) is not fetched: no "fetched" age.
+                fetchedAt: plugin.local ? null : (envelope?.proxyFetchedAt || new Date().toISOString()),
                 fetchState: envelope ? fetchStateFromProxyStatus(envelope.proxyStatus) : 'live',
             };
             renderPointsStatus(entry);
@@ -436,7 +437,14 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
         container?.remove();
     }
 
-    return { register, update, dispose, getPointObjects, selectPoint, setDataDay, entryState: (id) => {
+    // Turn a layer on as if its button were pressed (no-op when already on).
+    function enableLayer(id) {
+        const entry = entries.get(id);
+        if (!entry || entry.wanted) return Promise.resolve();
+        return enable(entry);
+    }
+
+    return { register, update, dispose, getPointObjects, selectPoint, setDataDay, enableLayer, entryState: (id) => {
         const entry = entries.get(id);
         return entry ? { enabled: entry.enabled, wanted: entry.wanted, timeHidden: entry.timeHidden, status: entry.statusEl.textContent, state: entry.statusEl.dataset.state } : null;
     } };

@@ -11,13 +11,14 @@ const ROADMAP = Object.freeze({
   brain: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Atlas and neuron-scale MVP' }),
   cosmos: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Local stellar neighborhood, not a universe simulator' }),
   network: Object.freeze({ progress: 0, stage: 'Planned', next: 'Static topology and curated measurement story' }),
-  himalaya: Object.freeze({ progress: 0, stage: 'Frozen until Gate 2', next: 'Summit descent prototype once Gate 2 and its preconditions close' }),
+  // Unfrozen 2026-11-15 (Gate 2 closed). Lot 1: peak list, Earth markers, enter/return, scene without terrain.
+  himalaya: Object.freeze({ progress: 10, stage: 'In development: peaks and navigation', next: 'Real terrain around the summits (Lot 2)' }),
 });
 
 // `parent` (optional): id of an existing top-level observatory this one belongs
 // to. Children are entered from their parent, never from the gateway hero; the
 // registry contract allows one level only (see validateObservatoryRegistry).
-function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'physical', conceptualScale = null, status, accent, secondaryAccent, description, features, representations, provenanceTag, roadmap, parent = null }) {
+function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'physical', conceptualScale = null, status, accent, secondaryAccent, description, features, representations, provenanceTag, roadmap, parent = null, route = null, sources = [] }) {
   return Object.freeze({
     ...(parent ? { parent } : {}),
     id,
@@ -28,7 +29,7 @@ function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'ph
     scaleAxis,
     conceptualScale,
     status,
-    route: null,
+    route,
     featured: false,
     accent,
     secondaryAccent,
@@ -36,7 +37,7 @@ function futureObservatory({ id, title, subtitle, family, scale, scaleAxis = 'ph
     description,
     features: Object.freeze(features),
     representations: Object.freeze(representations),
-    sources: Object.freeze([]),
+    sources: Object.freeze([...sources]),
     roadmap,
   });
 }
@@ -66,6 +67,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     sources: Object.freeze([
       'eonet', 'gibs', 'usgs', 'firms', 'gdacs', 'ovation', 'etopo', 'astronomy', 'celestrak',
       'openMeteo', 'openMeteoMarine', 'openMeteoEra5', 'openMeteoMarineArchive', 'gvp', 'airglow', 'zodiacal', 'noctilucent',
+      'himalayaPeaks',
     ]),
     roadmap: ROADMAP.earth,
     gateway: Object.freeze({
@@ -153,10 +155,11 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     features: ['Current fields', 'Temperature stories', 'Biogeochemical context'], representations: ['observed', 'reconstructed', 'physical-model', 'fallback'],
   }),
   futureObservatory({
-    id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'planned',
+    id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'development',
     parent: 'living-earth', // entered from the Earth globe, not from the hero
+    route: './living-himalaya.html', sources: ['himalayaPeaks'],
     accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
-    description: 'A planned regional observatory: click a summit or expedition marker to descend to ~1.2 km above it, with real terrain and the latest cloud-free Sentinel-2 scene.',
+    description: 'A regional observatory in development, entered from a summit marker on the Earth globe. Today: the 14 eight-thousanders from a cited reference list; real terrain and the latest cloud-free Sentinel-2 scene come next.',
     features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Opt-in expedition tracks'],
     representations: ['observed', 'reconstructed', 'prediction', 'fallback'],
   }),

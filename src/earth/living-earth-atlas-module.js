@@ -38,6 +38,9 @@ function waitForEarthHost(frame, signal) {
 export function createLivingEarthAtlasModule({ route = './earth-eonet-relief.html' } = {}) {
   return Object.freeze({
     id: 'living-earth',
+    // 'himalaya': centre on the region and show the Himalaya peaks layer
+    // (returning from Living Himalaya).
+    acceptsFocus: (focus) => focus === 'himalaya',
 
     async start(context, options = {}) {
       const mount = options.mount;
@@ -49,6 +52,7 @@ export function createLivingEarthAtlasModule({ route = './earth-eonet-relief.htm
       const source = new URL(route, window.location.href);
       source.searchParams.set('portal', 'atlas');
       source.searchParams.set('embedded', 'atlas');
+      if (options.focus === 'himalaya') source.searchParams.set('focus', 'himalaya');
       frame.className = 'atlas-observatory-frame';
       frame.title = 'Living Earth Observatory';
       frame.allow = 'fullscreen';

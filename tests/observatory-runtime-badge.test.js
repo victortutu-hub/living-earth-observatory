@@ -8,11 +8,18 @@ const byId = (id) => OBSERVATORY_REGISTRY.find((item) => item.id === id);
 
 describe('runtime badge: planned observatories are not "offline"', () => {
     it('shows the registry status for records without a route', () => {
-        expect(observatoryRuntimeBadge(byId('living-himalaya'), null, statusLabel('planned')))
+        expect(observatoryRuntimeBadge(byId('network-pulse'), null, statusLabel('planned')))
             .toEqual({ text: 'PLANNED', state: 'declared', runtimeBound: false });
         expect(observatoryRuntimeBadge(byId('living-ocean'), { value: 'OFFLINE', state: 'offline' }, statusLabel('research')))
             .toEqual({ text: 'RESEARCH', state: 'declared', runtimeBound: false });
         expect(observatoryRuntimeBadge(byId('living-sun'), null, statusLabel('development')).text).toBe('IN DEVELOPMENT');
+    });
+
+    it('a routed development record (Living Himalaya) shows its status, not a runtime state', () => {
+        expect(byId('living-himalaya').route).toBe('./living-himalaya.html');
+        expect(observatoryRuntimeBadge(byId('living-himalaya'), { value: 'OFFLINE', state: 'offline' }, statusLabel('development')))
+            .toEqual({ text: 'IN DEVELOPMENT', state: 'declared', runtimeBound: false });
+        expect(observatoryRuntimeBadge(byId('living-himalaya'), null, statusLabel('development')).text).toBe('IN DEVELOPMENT');
     });
 
     it('keeps real runtime states for routed observatories, OFFLINE included', () => {
@@ -36,8 +43,8 @@ describe('runtime store tracks routed observatories only', () => {
     });
 
     it('has records for the routed observatories only', () => {
-        expect(Object.keys(observatoryRuntime.snapshot()).sort()).toEqual(['living-earth', 'living-protein']);
-        expect(observatoryRuntime.get('living-himalaya')).toBeNull();
+        expect(Object.keys(observatoryRuntime.snapshot()).sort()).toEqual(['living-earth', 'living-himalaya', 'living-protein']);
+        expect(observatoryRuntime.get('network-pulse')).toBeNull();
     });
 
     it('ignores a runtime write for a record without a route (e.g. an old diagnostic replay)', () => {

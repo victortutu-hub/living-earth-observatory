@@ -89,8 +89,16 @@ export function createSceneInteraction({
             raycaster.setFromCamera(pointer, camera);
             const prevThreshold = raycaster.params.Points.threshold;
             raycaster.params.Points.threshold = 0.06;
-            const pointHit = raycaster.intersectObjects(pointPickables, false)[0];
+            const pointHits = raycaster.intersectObjects(pointPickables, false);
             raycaster.params.Points.threshold = prevThreshold;
+            // Dense clusters (e.g. Everest / Lhotse / Makalu): among hits on the
+            // near side (within 0.5 units of the closest one, so a point on the
+            // far side of the globe never wins), take the one nearest to the
+            // cursor ray rather than the one nearest to the camera.
+            const nearest = pointHits[0]?.distance ?? Infinity;
+            const pointHit = pointHits
+                .filter((hit) => hit.distance <= nearest + 0.5)
+                .sort((a, b) => (a.distanceToRay ?? 0) - (b.distanceToRay ?? 0))[0];
             if (pointHit?.object && Number.isInteger(pointHit.index)) {
                 onSelectPointPickable?.(pointHit.object, pointHit.index);
                 return;

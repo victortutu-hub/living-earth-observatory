@@ -67,8 +67,8 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
         coordinate.textContent = getScopeCoordinate(item);
         // Runtime badge only for routed observatories; the status chip above
         // already states PLANNED / RESEARCH / IN DEVELOPMENT for the rest.
-        if (hasRuntime(item)) {
-          const badge = observatoryRuntimeBadge(item, observatoryRuntime.get(item.id));
+        const badge = hasRuntime(item) ? observatoryRuntimeBadge(item, observatoryRuntime.get(item.id)) : null;
+        if (badge?.runtimeBound) {
           const runtimeStatus = createElement('span','obs-runtime-status',badge.text);
           runtimeStatus.dataset.observatoryRuntime = item.id;
           runtimeStatus.dataset.state = badge.state;
