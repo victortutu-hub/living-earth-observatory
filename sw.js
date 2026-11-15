@@ -7,7 +7,13 @@
 const SHELL_CACHE = 'lea-shell-v1';
 const GIBS_CACHE = 'lea-tiles-v2';
 const LIVE_CACHE = 'lea-live-v1';
+// Living Himalaya: Terrarium elevation tiles (cache-first, LRU-trimmed to
+// 100 MB) and the GLO-30 terrain patches, whose file names carry a content
+// hash and therefore never change (cache-first, no revalidation).
+const TERRAIN_CACHE = 'lea-terrain-v1';
+const HIMALAYA_ASSET_CACHE = 'lea-himalaya-v1';
 const GIBS_CACHE_LIMIT_BYTES = 200 * 1024 * 1024;
+const TERRAIN_CACHE_LIMIT_BYTES = 100 * 1024 * 1024;
 const CACHE_MARKER_TIME = 'x-lea-cached-at';
 const CACHE_MARKER_SIZE = 'x-lea-cache-bytes';
 
@@ -18,6 +24,14 @@ const shellUrls = [
 
 function isGibs(url) {
     return url.hostname === 'gibs.earthdata.nasa.gov';
+}
+
+function isTerrariumTile(url) {
+    return url.hostname === 's3.amazonaws.com' && url.pathname.startsWith('/elevation-tiles-prod/terrarium/');
+}
+
+function isHashedHimalayaPatch(url) {
+    return url.origin === self.location.origin && /\/assets\/himalaya\/glo30-[a-z0-9-]+-[0-9a-f]{10}\.ktx2$/.test(url.pathname);
 }
 
 function isLiveData(url) {
@@ -58,7 +72,7 @@ async function touchCachedResponse(cache, request, response) {
     return response;
 }
 
-async function enforceGibsLimit(cache) {
+async function enforceCacheLimit(cache, limitBytes) {
     const keys = await cache.keys();
     const entries = await Promise.all(keys.map(async key => {
         const response = await cache.match(key);
@@ -70,7 +84,7 @@ async function enforceGibsLimit(cache) {
     }));
     let used = entries.reduce((total, entry) => total + entry.bytes, 0);
     for (const entry of entries.sort((a, b) => a.timestamp - b.timestamp)) {
-        if (used <= GIBS_CACHE_LIMIT_BYTES) break;
+        if (used <= limitBytes) break;
         await cache.delete(entry.key);
         used -= entry.bytes;
     }
@@ -90,10 +104,38 @@ async function cacheFirstGibs(request) {
         // Request carries no such header, so it stays a preflight-free CORS GET.
         const response = await fetch(request.url, { mode: 'cors', credentials: 'omit' });
         await cacheResponse(cache, request, response);
-        await enforceGibsLimit(cache);
+        await enforceCacheLimit(cache, GIBS_CACHE_LIMIT_BYTES);
         return response;
     } catch {
         return new Response('NASA GIBS imagery is unavailable and is not cached.', { status: 503 });
+    }
+}
+
+async function cacheFirstTerrain(request) {
+    const cache = await caches.open(TERRAIN_CACHE);
+    const cached = await cache.match(request.url);
+    if (cached) return touchCachedResponse(cache, request.url, cached);
+    try {
+        // A fresh preflight-free CORS GET (same reasoning as for GIBS above).
+        const response = await fetch(request.url, { mode: 'cors', credentials: 'omit' });
+        await cacheResponse(cache, request.url, response);
+        await enforceCacheLimit(cache, TERRAIN_CACHE_LIMIT_BYTES);
+        return response;
+    } catch {
+        return new Response('Terrain tile unavailable and not cached.', { status: 503 });
+    }
+}
+
+async function cacheFirstImmutable(request) {
+    const cache = await caches.open(HIMALAYA_ASSET_CACHE);
+    const cached = await cache.match(request.url);
+    if (cached) return cached;
+    try {
+        const response = await fetch(request.url, { credentials: 'same-origin' });
+        await cacheResponse(cache, request.url, response);
+        return response;
+    } catch {
+        return new Response('Terrain patch unavailable and not cached.', { status: 503 });
     }
 }
 
@@ -147,7 +189,7 @@ self.addEventListener('activate', event => {
     event.waitUntil((async () => {
         const names = await caches.keys();
         await Promise.all(names
-            .filter(name => name.startsWith('lea-') && ![SHELL_CACHE, GIBS_CACHE, LIVE_CACHE].includes(name))
+            .filter(name => name.startsWith('lea-') && ![SHELL_CACHE, GIBS_CACHE, LIVE_CACHE, TERRAIN_CACHE, HIMALAYA_ASSET_CACHE].includes(name))
             .map(name => caches.delete(name)));
         await self.clients.claim();
     })());
@@ -159,6 +201,10 @@ self.addEventListener('fetch', event => {
     const url = new URL(request.url);
     if (isGibs(url)) {
         event.respondWith(cacheFirstGibs(request));
+    } else if (isTerrariumTile(url)) {
+        event.respondWith(cacheFirstTerrain(request));
+    } else if (isHashedHimalayaPatch(url)) {
+        event.respondWith(cacheFirstImmutable(request));
     } else if (isLiveData(url)) {
         event.respondWith(staleWhileRevalidate(request, event));
     } else if (isSameOriginShellRequest(request, url)) {

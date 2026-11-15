@@ -12,7 +12,8 @@ import {
     OBSERVATORY_ENTER_MESSAGE,
     resolveObservatoryHash,
 } from '../src/atlas/observatory-module-controller.js';
-import { resolveInitialFocus, PROVENANCE_BAR_TEXT, FUTURE_FIELDS } from '../src/himalaya/himalaya-app.js';
+import { resolveInitialFocus, FUTURE_FIELDS } from '../src/himalaya/himalaya-app.js';
+import { composeProvenanceBar } from '../src/himalaya/himalaya-provenance.js';
 import { enterHimalaya, himalayaPeaksPlugin } from '../src/earth/layers/himalaya-peaks.js';
 
 describe('frozen list of the 14 eight-thousanders', () => {
@@ -109,9 +110,10 @@ describe('Living Himalaya page helpers', () => {
         expect(resolveInitialFocus('')).toBeNull();
     });
 
-    it('keeps the permanent provenance bar text and the future fields', () => {
-        expect(PROVENANCE_BAR_TEXT).toBe('Peaks: reference list (sources cited) | Terrain: not loaded (next lot)');
-        expect(FUTURE_FIELDS).toEqual(['Terrain', 'Weather', 'Image', 'History']);
+    it('keeps the permanent provenance bar (Lot 2: terrain + Sun segments) and the future fields', () => {
+        // Lot 1 showed "Terrain: not loaded (next lot)"; since Lot 2 the terrain is real.
+        expect(composeProvenanceBar().startsWith('Peaks: reference list (sources cited) | Terrain: ')).toBe(true);
+        expect(FUTURE_FIELDS).toEqual(['Weather', 'Image', 'History']);
     });
 });
 

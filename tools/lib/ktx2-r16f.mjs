@@ -1,12 +1,17 @@
-// Minimal KTX 2.0 writer/reader for one format only: VK_FORMAT_R16_SFLOAT
-// (single-channel half float, linear data) with Zstandard supercompression and
-// precomputed mip levels. Enough for three.js KTX2Loader (r185), which reads
-// uncompressed R16_SFLOAT natively (DataTexture, HalfFloatType) and decodes
-// Zstd itself; no Basis transcoder and no toktx are involved.
+// Minimal KTX 2.0 writer/reader for two single-channel 16-bit formats with
+// Zstandard supercompression:
+//   * VK_FORMAT_R16_SFLOAT (half float, linear data) with precomputed mip
+//     levels. Enough for three.js KTX2Loader (r185), which reads uncompressed
+//     R16_SFLOAT natively (DataTexture, HalfFloatType) and decodes Zstd itself;
+//     no Basis transcoder and no toktx are involved.
+//   * VK_FORMAT_R16_UNORM (unsigned 16-bit, linear data; Living Himalaya
+//     terrain patches). KTX2Loader r185 does NOT read this format: the patches
+//     are decoded by src/himalaya/ktx2-r16-reader.js (Zstd via three's zstddec).
 // Spec: https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html
 import zlib from 'node:zlib';
 
 export const VK_FORMAT_R16_SFLOAT = 76;
+export const VK_FORMAT_R16_UNORM = 70;
 const KTX2_IDENTIFIER = Buffer.from([0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a]);
 const SUPERCOMPRESSION_ZSTD = 2;
 const HEADER_BYTES = 80;
@@ -14,9 +19,25 @@ const LEVEL_INDEX_BYTES = 24;
 
 const align4 = (n) => (n + 3) & ~3;
 
-// Basic Data Format Descriptor for R16_SFLOAT: RGBSDA model, BT.709 primaries,
-// LINEAR transfer, one 16-bit signed float sample on the red channel.
-function dataFormatDescriptor() {
+// Basic Data Format Descriptor: RGBSDA model, BT.709 primaries, LINEAR
+// transfer, one 16-bit sample on the red channel (signed float for
+// R16_SFLOAT, unsigned normalized integer for R16_UNORM).
+function dataFormatDescriptor(vkFormat = VK_FORMAT_R16_SFLOAT) {
+    if (vkFormat === VK_FORMAT_R16_UNORM) {
+        const dfd = Buffer.alloc(44);
+        dfd.writeUInt32LE(44, 0);
+        dfd.writeUInt32LE(0, 4);
+        dfd.writeUInt16LE(2, 8);
+        dfd.writeUInt16LE(40, 10);
+        dfd[12] = 1; dfd[13] = 1; dfd[14] = 1; dfd[15] = 0;
+        dfd[20] = 2;
+        dfd.writeUInt16LE(0, 28);
+        dfd[30] = 15;
+        dfd[31] = 0; // channel RED, unsigned, not float
+        dfd.writeUInt32LE(0, 36); // sampleLower
+        dfd.writeUInt32LE(65535, 40); // sampleUpper
+        return dfd;
+    }
     const dfd = Buffer.alloc(44);
     dfd.writeUInt32LE(44, 0); // dfdTotalSize
     dfd.writeUInt32LE(0, 4); // vendorId 0 (Khronos), descriptorType 0 (basic)
@@ -54,6 +75,15 @@ function keyValueData(keyValues) {
  * level 0 first, rows in the order the texture should be uploaded.
  */
 export function encodeKtx2R16F({ levels, keyValues = {}, zstdLevel = 19 }) {
+    return encodeKtx2R16({ vkFormat: VK_FORMAT_R16_SFLOAT, levels, keyValues, zstdLevel });
+}
+
+/**
+ * Same container for VK_FORMAT_R16_SFLOAT or VK_FORMAT_R16_UNORM; `data` holds
+ * the raw 16-bit values (half-float bits or unsigned integers).
+ */
+export function encodeKtx2R16({ vkFormat, levels, keyValues = {}, zstdLevel = 19, writer = null }) {
+    if (vkFormat !== VK_FORMAT_R16_SFLOAT && vkFormat !== VK_FORMAT_R16_UNORM) throw new Error(`unsupported vkFormat ${vkFormat}`);
     if (!levels?.length) throw new Error('at least one level is required');
     const { width, height } = levels[0];
     levels.forEach((level, i) => {
@@ -70,8 +100,13 @@ export function encodeKtx2R16F({ levels, keyValues = {}, zstdLevel = 19 }) {
             data: zlib.zstdCompressSync(raw, { params: { [zlib.constants.ZSTD_c_compressionLevel]: zstdLevel } }),
         };
     });
-    const dfd = dataFormatDescriptor();
-    const kvd = keyValueData({ KTXwriter: 'Luminomorphism tools/build-relief.mjs (R16_SFLOAT + Zstd)', ...keyValues });
+    const dfd = dataFormatDescriptor(vkFormat);
+    const kvd = keyValueData({
+        KTXwriter: writer || (vkFormat === VK_FORMAT_R16_UNORM
+            ? 'Luminomorphism tools/build-himalaya-patches.mjs (R16_UNORM + Zstd)'
+            : 'Luminomorphism tools/build-relief.mjs (R16_SFLOAT + Zstd)'),
+        ...keyValues,
+    });
     const dfdOffset = HEADER_BYTES + LEVEL_INDEX_BYTES * levels.length;
     const kvdOffset = dfdOffset + dfd.length;
     let dataOffset = align4(kvdOffset + kvd.length);
@@ -83,7 +118,7 @@ export function encodeKtx2R16F({ levels, keyValues = {}, zstdLevel = 19 }) {
     }
     const out = Buffer.alloc(dataOffset);
     KTX2_IDENTIFIER.copy(out, 0);
-    out.writeUInt32LE(VK_FORMAT_R16_SFLOAT, 12);
+    out.writeUInt32LE(vkFormat, 12);
     out.writeUInt32LE(2, 16); // typeSize
     out.writeUInt32LE(width, 20);
     out.writeUInt32LE(height, 24);

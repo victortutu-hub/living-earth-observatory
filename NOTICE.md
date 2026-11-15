@@ -61,6 +61,26 @@ system. Always consult the original providers for authoritative data.
   texture at runtime. NASA data are public domain; attribution to NASA is
   retained.
 
+## Living Himalaya Terrain
+
+- `assets/himalaya/glo30-<peak>-<hash>.ktx2` (metadata in
+  `src/config/himalaya-terrain-patches.js`): 20 × 20 km height grids at
+  1 arc-second around the 14 summits above 8000 m, cut from the Copernicus DEM
+  GLO-30 Public (2021 release, AWS Open Data bucket `copernicus-dem-30m`) and
+  quantized to 0.25 m (KTX2 R16_UNORM + Zstd) by
+  `tools/build-himalaya-patches.mjs`. Required notice for adapted data:
+  “produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus
+  Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European
+  Union and ESA; all rights reserved”. The share of pixels that the GLO-30
+  Filling Mask flags as filled from other DEMs (ASTER, SRTM, GMTED2010, AW3D30
+  and others; Product Handbook I6.1, Table 7) is stored per patch and shown in
+  the observatory.
+- Overview and alternative detail: AWS Open Data “Terrain Tiles” (Terrarium
+  encoding, Tilezen joerd), fetched at runtime. Attribution: Mapzen; United
+  States 3DEP (formerly NED) and global GMTED2010 and SRTM terrain data courtesy
+  of the U.S. Geological Survey; Global ETOPO1 terrain data U.S. National
+  Oceanic and Atmospheric Administration.
+
 ## Bundled Earth Surface Texture
 
 - `assets/blue-marble-ng-4096x2048.jpg`: NASA Blue Marble: Next Generation

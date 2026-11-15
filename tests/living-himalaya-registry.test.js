@@ -22,7 +22,7 @@ describe('Living Himalaya is in development (Himalaya LOT 1), not a hero portal'
         expect(himalaya.description).toMatch(/^A regional observatory in development/);
         expect(himalaya.representations).toEqual(['observed', 'reconstructed', 'prediction', 'fallback']);
         // Only what exists is declared: the peak reference list.
-        expect(himalaya.sources).toEqual(['himalayaPeaks']);
+        expect(himalaya.sources).toEqual(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy']);
         expect(himalaya.roadmap.stage).not.toMatch(/Frozen/);
         expect(himalaya.roadmap.progress).toBeGreaterThan(0);
     });
