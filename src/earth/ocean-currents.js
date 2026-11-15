@@ -6,7 +6,8 @@
 //    e mai mare ca sa ramana vizibila curgerea;
 //  - paleta distincta (teal-verde), ca sa nu se confunde cu vantul.
 import { createFieldParticles } from './field-particles.js';
-import { fetchOceanCurrentTexture } from './ocean-current-provider.js';
+import { buildOceanDayTexture, fetchOceanCurrentTexture } from './ocean-current-provider.js';
+import { fetchFieldDay } from './field-day-history.js';
 
 export function createOceanCurrents({ THREE, renderer, earthGroup, gridSize = 128 }) {
     return createFieldParticles({
@@ -15,6 +16,14 @@ export function createOceanCurrents({ THREE, renderer, earthGroup, gridSize = 12
         earthGroup,
         gridSize,
         fetchField: fetchOceanCurrentTexture,
+        // LOT 11: a past UTC day = SMOC total surface current through the proxy (currents-day).
+        fetchFieldDay: (options) => fetchFieldDay('currents', options),
+        buildDayTexture: buildOceanDayTexture,
+        history: {
+            provenanceKey: 'openMeteoMarineArchive',
+            text: 'SMOC (Open-Meteo Marine) · total surface current (includes tides and wave-driven drift)',
+            notes: 'Ocean currents: Copernicus Marine Service / Météo-France (SMOC). Weather data by Open-Meteo.com (CC BY 4.0).',
+        },
         label: 'Ocean currents',
         sourceLabel: 'Open-Meteo Marine',
         provenanceKey: 'openMeteoMarine',

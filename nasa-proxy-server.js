@@ -434,18 +434,223 @@ function firmsDayCachePolicy(day, source, nowMs, defaults = FIRMS_DAY_DEFAULTS) 
         : { ttlMs: defaults.olderNrtTtlMs, cacheControl: 'public, max-age=86400' };
 }
 
-/** Bucket global pentru apelurile spre FIRMS (fereastra glisanta). */
+/**
+ * Bucket global pe o fereastra glisanta (firms-day: cost 1 pe cerere;
+ * Open-Meteo: cost ponderat, ex. 612 apeluri pentru o grila de 612 puncte).
+ */
 function createUpstreamBudget({ limit, windowMs, now = Date.now }) {
-    const stamps = [];
+    const entries = []; // { t, cost }
+    const prune = t => { while (entries.length && t - entries[0].t >= windowMs) entries.shift(); };
+    const used = () => entries.reduce((sum, entry) => sum + entry.cost, 0);
+    // Secunde pana cand se elibereaza destul loc pentru `cost`.
+    function waitFor(cost, t) {
+        let freed = limit - used();
+        for (const entry of entries) {
+            if (freed >= cost) break;
+            freed += entry.cost;
+            if (freed >= cost) return Math.max(1, Math.ceil((entry.t + windowMs - t) / 1000));
+        }
+        return Math.max(1, Math.ceil(windowMs / 1000));
+    }
     return {
-        take() {
+        canTake(cost = 1) {
             const t = now();
-            while (stamps.length && t - stamps[0] >= windowMs) stamps.shift();
-            if (stamps.length >= limit) {
-                return { ok: false, retryAfterS: Math.max(1, Math.ceil((stamps[0] + windowMs - t) / 1000)) };
-            }
-            stamps.push(t);
+            prune(t);
+            return used() + cost <= limit ? { ok: true } : { ok: false, retryAfterS: waitFor(cost, t) };
+        },
+        take(cost = 1) {
+            const t = now();
+            prune(t);
+            if (used() + cost > limit) return { ok: false, retryAfterS: waitFor(cost, t) };
+            entries.push({ t, cost });
             return { ok: true };
+        },
+    };
+}
+
+// ---------------------------------------------------------------------
+// Vant si curenti istorici (LOT 11): /nasa-proxy?source=wind-day&date=...
+// si source=currents-day&date=... O zi UTC intreaga (24 de ore) pe grila
+// live (10 grade, 17 x 36 = 612 puncte), o singura cerere Open-Meteo pe zi
+// si strat. Vant: ERA5 (reanaliza); curenti: SMOC (Open-Meteo Marine).
+// Cota Open-Meteo e pe IP-ul serverului: toate cererile trec printr-o coada
+// seriala spatiata + buget ponderat in apeluri.
+// ---------------------------------------------------------------------
+
+const FIELD_GRID = Object.freeze({ latMin: -80, latMax: 80, lonMin: -180, lonMax: 170, step: 10 });
+
+/** Aceeasi ordine ca src/earth/*-provider.js: lat crescator (exterior), lon crescator (interior). */
+function fieldGridPoints(grid = FIELD_GRID) {
+    const lats = [];
+    const lons = [];
+    for (let lat = grid.latMin; lat <= grid.latMax; lat += grid.step) lats.push(lat);
+    for (let lon = grid.lonMin; lon <= grid.lonMax; lon += grid.step) lons.push(lon);
+    const latitude = [];
+    const longitude = [];
+    for (const lat of lats) for (const lon of lons) { latitude.push(lat); longitude.push(lon); }
+    return { width: lons.length, height: lats.length, count: latitude.length, latitude, longitude };
+}
+
+const FIELD_DAY_LAYERS = Object.freeze({
+    wind: Object.freeze({
+        source: 'ERA5', model: 'era5', minDay: '1940-01-01', publishLagDays: 5,
+        speedVariable: 'wind_speed_10m', directionVariable: 'wind_direction_10m',
+        directionConvention: 'from', speedFactor: 1, // wind_speed_unit=ms
+    }),
+    currents: Object.freeze({
+        source: 'SMOC', model: 'smoc', minDay: '2022-01-01', publishLagDays: 0,
+        speedVariable: 'ocean_current_velocity', directionVariable: 'ocean_current_direction',
+        directionConvention: 'towards', speedFactor: 1 / 3.6, // km/h -> m/s
+    }),
+});
+
+const FIELD_DAY_DEFAULTS = Object.freeze({
+    immutableAfterDays: 100,       // ERA5 final / arhiva stabila
+    recentTtlMs: DAY_MS,           // ERA5T se poate corecta
+    notPublishedTtlMs: 6 * 60 * 60 * 1000,
+    memoryEntries: 8,              // per strat
+    diskMaxFiles: 400,
+    diskMaxBytes: 100 * 1024 * 1024,
+    spacingMs: 61 * 1000,          // o cerere de 612 puncte ~ limita pe minut
+    maxPending: 3,                 // cereri in asteptare (inca nepornite)
+    hourBudget: 3000,              // apeluri Open-Meteo pe ora (ponderat)
+    dayBudget: 8000,               // apeluri Open-Meteo pe zi (ponderat)
+    timers: null,                  // { setTimeout, clearTimeout } injectabil in teste
+});
+
+/** URL-ul Open-Meteo pentru o zi intreaga a unui strat (fara nimic de la client). */
+function fieldDayUpstreamUrl(layer, day, grid = FIELD_GRID) {
+    const spec = FIELD_DAY_LAYERS[layer];
+    const points = fieldGridPoints(grid);
+    const params = new URLSearchParams({
+        latitude: points.latitude.join(','),
+        longitude: points.longitude.join(','),
+        hourly: `${spec.speedVariable},${spec.directionVariable}`,
+        start_date: day,
+        end_date: day,
+        timezone: 'GMT',
+    });
+    if (layer === 'wind') {
+        params.set('wind_speed_unit', 'ms');
+        params.set('models', 'era5');
+        return `https://archive-api.open-meteo.com/v1/archive?${params}`;
+    }
+    return `https://marine-api.open-meteo.com/v1/marine?${params}`;
+}
+
+/** Validare: doar `source` si `date`, zi reala, nu in viitor, in acoperire; ERA5: dupa intarzierea de publicare. */
+function parseFieldDayRequest(layer, searchParams, nowMs) {
+    const spec = FIELD_DAY_LAYERS[layer];
+    const request = parseFirmsDayRequest(searchParams, nowMs, { minDay: spec.minDay });
+    if (!request.ok) return request;
+    const latestPublished = isoDayUtc(nowMs - spec.publishLagDays * DAY_MS);
+    if (request.day > latestPublished) return { ok: false, status: 404, error: 'not-yet-published' };
+    return request;
+}
+
+const round2 = value => Math.round(value * 100) / 100;
+
+/**
+ * Raspuns Open-Meteo (array de 612 puncte, 24 de ore) -> payload compact:
+ * viteza in m/s (0.01), directie in grade (1), null pentru lipsa (uscat la
+ * curenti). Directie -> u/v NU se face aici: ramane doar in client.
+ *   { kind: 'ok', payload } | { kind: 'not-published' } | { kind: 'invalid' }
+ */
+function normalizeFieldDay(layer, day, bodyText, grid = FIELD_GRID) {
+    const spec = FIELD_DAY_LAYERS[layer];
+    const points = fieldGridPoints(grid);
+    let parsed;
+    try { parsed = JSON.parse(bodyText); } catch { return { kind: 'invalid' }; }
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    if (list.length !== points.count) return { kind: 'invalid' };
+    const times = list[0]?.hourly?.time;
+    if (!Array.isArray(times) || times.length !== 24) return { kind: 'invalid' };
+    const speed = new Array(24 * points.count);
+    const direction = new Array(24 * points.count);
+    let present = 0;
+    for (let i = 0; i < points.count; i++) {
+        const hourly = list[i]?.hourly || {};
+        for (let h = 0; h < 24; h++) {
+            const s = hourly[spec.speedVariable]?.[h];
+            const d = hourly[spec.directionVariable]?.[h];
+            const ok = s !== null && s !== undefined && d !== null && d !== undefined && Number.isFinite(Number(s)) && Number.isFinite(Number(d));
+            speed[h * points.count + i] = ok ? round2(Number(s) * spec.speedFactor) : null;
+            direction[h * points.count + i] = ok ? Math.round(Number(d)) % 360 : null;
+            if (ok) present += 1;
+        }
+    }
+    if (present === 0) return { kind: 'not-published' };
+    return {
+        kind: 'ok',
+        payload: {
+            day,
+            layer,
+            source: spec.source,
+            model: spec.model,
+            grid: { width: points.width, height: points.height, latMin: grid.latMin, lonMin: grid.lonMin, step: grid.step },
+            times,
+            speedUnit: 'm/s',
+            directionConvention: spec.directionConvention,
+            speed,
+            direction,
+        },
+    };
+}
+
+/** >= 100 de zile: imuabil; mai nou: 24 h, max-age=86400. */
+function fieldDayCachePolicy(day, nowMs, defaults = FIELD_DAY_DEFAULTS) {
+    const ageDays = (Date.parse(`${isoDayUtc(nowMs)}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / DAY_MS;
+    return ageDays >= defaults.immutableAfterDays
+        ? { ttlMs: Infinity, cacheControl: 'public, max-age=604800, immutable' }
+        : { ttlMs: defaults.recentTtlMs, cacheControl: 'public, max-age=86400' };
+}
+
+/**
+ * Coada seriala cu spatiere minima intre PORNIRILE sarcinilor (cota pe minut
+ * a Open-Meteo). enqueue(task) -> { startsAt, position, promise }.
+ * Timerele sunt ale cozii si se curata la dispose().
+ */
+function createSpacedQueue({ spacingMs, now = Date.now, timers = null }) {
+    const setTimer = timers?.setTimeout || setTimeout;
+    const clearTimer = timers?.clearTimeout || clearTimeout;
+    let tail = -Infinity;       // pornirea planificata a ultimei sarcini
+    const pending = new Set();  // sarcini planificate, inca nepornite
+    let disposed = false;
+    return {
+        nextStart() { return Math.max(now(), tail + spacingMs); },
+        pendingCount() { return pending.size; },
+        firstPendingStart() {
+            let first = Infinity;
+            for (const job of pending) first = Math.min(first, job.startsAt);
+            return first;
+        },
+        enqueue(task) {
+            const startsAt = Math.max(now(), tail + spacingMs);
+            tail = startsAt;
+            const job = { startsAt, position: pending.size + 1, timer: null };
+            job.promise = new Promise((resolve) => {
+                const run = () => {
+                    pending.delete(job);
+                    job.timer = null;
+                    if (disposed) { resolve({ kind: 'error', error: 'proxy shutting down' }); return; }
+                    Promise.resolve().then(task).then(resolve, (error) => resolve({ kind: 'error', error: error?.message || 'upstream failure' }));
+                };
+                job.run = run;
+                const delay = startsAt - now();
+                if (delay <= 0) { run(); return; }
+                pending.add(job);
+                job.timer = setTimer(run, delay);
+                job.timer?.unref?.();
+            });
+            return job;
+        },
+        dispose() {
+            disposed = true;
+            for (const job of [...pending]) {
+                if (job.timer) clearTimer(job.timer);
+                job.run(); // rezolva cu "proxy shutting down", nu ramane agatata
+            }
+            pending.clear();
         },
     };
 }
@@ -844,6 +1049,7 @@ function createProxyServer({
     maxUpstreamBytes = MAX_UPSTREAM_BYTES,
     firmsMapKey = FIRMS_MAP_KEY,
     firmsDay: firmsDayOptions = {},
+    fieldDay: fieldDayOptions = {},
 } = {}) {
     const upstream = {
         cacheDirectory,
@@ -935,7 +1141,113 @@ function createProxyServer({
         activeConversions = Math.max(0, activeConversions - 1);
     };
 
-    return http.createServer(async (req, res) => {
+    // wind-day / currents-day (LOT 11): o coada seriala comuna pentru TOATE
+    // cererile Open-Meteo ale proxy-ului, buget ponderat (orar + zilnic),
+    // LRU per strat, deduplicare pe zi, cache negativ pentru zile nepublicate.
+    const fieldDayConfig = { ...FIELD_DAY_DEFAULTS, ...fieldDayOptions };
+    const fieldPoints = fieldGridPoints();
+    const fieldQueue = createSpacedQueue({ spacingMs: fieldDayConfig.spacingMs, now, timers: fieldDayConfig.timers });
+    const fieldHourBudget = createUpstreamBudget({ limit: fieldDayConfig.hourBudget, windowMs: 60 * 60 * 1000, now });
+    const fieldDayBudget = createUpstreamBudget({ limit: fieldDayConfig.dayBudget, windowMs: DAY_MS, now });
+    const fieldMemory = { wind: createMemoryLru(fieldDayConfig.memoryEntries), currents: createMemoryLru(fieldDayConfig.memoryEntries) };
+    const fieldInflight = new Map();   // `${layer}:${day}` -> job
+    const fieldNegative = new Map();   // `${layer}:${day}` -> { until, error }
+
+    // Admitere: loc in coada si buget pentru cererea noua plus cele in asteptare.
+    function admitFieldJob() {
+        if (fieldQueue.pendingCount() >= fieldDayConfig.maxPending) {
+            const firstStart = fieldQueue.firstPendingStart();
+            const waitMs = (Number.isFinite(firstStart) ? firstStart - now() : 0) + fieldDayConfig.spacingMs;
+            return { error: 'queue-full', retryAfterS: Math.max(1, Math.ceil(waitMs / 1000)) };
+        }
+        const cost = fieldPoints.count * (fieldQueue.pendingCount() + 1);
+        for (const budget of [fieldHourBudget, fieldDayBudget]) {
+            const check = budget.canTake(cost);
+            if (!check.ok) return { error: 'rate-limited', retryAfterS: check.retryAfterS };
+        }
+        return null;
+    }
+
+    function scheduleFieldJob(layer, day, key, filePath) {
+        const upstreamUrl = fieldDayUpstreamUrl(layer, day);
+        const job = fieldQueue.enqueue(async () => {
+            for (const budget of [fieldHourBudget, fieldDayBudget]) {
+                if (!budget.canTake(fieldPoints.count).ok) return { kind: 'error', error: 'rate-limited' };
+            }
+            fieldHourBudget.take(fieldPoints.count);
+            fieldDayBudget.take(fieldPoints.count);
+            const result = await fetchUpstreamImpl(upstreamUrl, { get: upstreamGet, maxBytes: maxUpstreamBytes });
+            if (!result.ok) return { kind: 'error', error: result.error || 'upstream failure' };
+            const normalized = normalizeFieldDay(layer, day, result.body);
+            if (normalized.kind === 'not-published') {
+                fieldNegative.set(key, { until: now() + fieldDayConfig.notPublishedTtlMs, error: 'not-yet-published' });
+                return normalized;
+            }
+            if (normalized.kind !== 'ok') return { kind: 'error', error: 'normalize failed' };
+            const payload = {
+                proxySource: `${layer}-day`,
+                proxyStatus: 'live',
+                proxyFetchedAt: new Date(now()).toISOString(),
+                data: normalized.payload,
+            };
+            writeCache(filePath, payload);
+            fieldMemory[layer].set(key, payload);
+            pruneCacheDirectory(cacheDirectory, `${layer}_day_`, { maxFiles: fieldDayConfig.diskMaxFiles, maxBytes: fieldDayConfig.diskMaxBytes });
+            return { kind: 'ok', payload };
+        });
+        job.promise.finally(() => { if (fieldInflight.get(key) === job) fieldInflight.delete(key); });
+        fieldInflight.set(key, job);
+        return job;
+    }
+
+    async function handleFieldDay(layer, url, res) {
+        const noStore = { 'Cache-Control': 'no-store' };
+        const send = (status, body, headers = noStore) => sendJson(res, status, { proxySource: `${layer}-day`, ...body }, headers);
+        const request = parseFieldDayRequest(layer, url.searchParams, now());
+        if (!request.ok) return send(request.status, { proxyStatus: 'error', proxyError: request.error });
+        const { day } = request;
+        const key = `${layer}:${day}`;
+        const filePath = cachePath(`${layer}-day`, day, cacheDirectory);
+        const policy = fieldDayCachePolicy(day, now(), fieldDayConfig);
+        const cached = fieldMemory[layer].get(key) || readCache(filePath);
+        const ageMs = now() - Date.parse(cached?.proxyFetchedAt || '');
+        if (cached && Number.isFinite(ageMs) && ageMs >= 0 && ageMs < policy.ttlMs) {
+            fieldMemory[layer].set(key, cached);
+            const { proxyError: _old, ...fresh } = cached;
+            return send(200, { ...fresh, proxyStatus: 'cache-fresh' }, { 'Cache-Control': policy.cacheControl });
+        }
+        const negative = fieldNegative.get(key);
+        if (negative && negative.until > now()) return send(404, { proxyStatus: 'error', proxyError: negative.error });
+
+        let job = fieldInflight.get(key);
+        if (!job) {
+            const refused = admitFieldJob();
+            if (refused) {
+                if (cached) return send(200, { ...cached, proxyStatus: 'stale-cache', proxyError: refused.error });
+                return send(429, { proxyStatus: 'error', proxyError: refused.error, retryAfterS: refused.retryAfterS },
+                    { ...noStore, 'Retry-After': String(refused.retryAfterS) });
+            }
+            job = scheduleFieldJob(layer, day, key, filePath);
+        }
+        // Inca in coada: raspuns imediat (nu tinem conexiunea minute in sir).
+        if (job.startsAt > now()) {
+            if (cached) return send(200, { ...cached, proxyStatus: 'stale-cache', proxyError: 'refresh-queued' });
+            const retryAfterS = Math.max(1, Math.ceil((job.startsAt - now()) / 1000) + 3);
+            return send(202, { proxyStatus: 'queued', retryAfterS, queuePosition: job.position },
+                { ...noStore, 'Retry-After': String(retryAfterS) });
+        }
+        const outcome = await job.promise;
+        if (outcome.kind === 'ok') return send(200, outcome.payload, { 'Cache-Control': policy.cacheControl });
+        if (outcome.kind === 'not-published') return send(404, { proxyStatus: 'error', proxyError: 'not-yet-published' });
+        if (cached) return send(200, { ...cached, proxyStatus: 'stale-cache', proxyError: outcome.error });
+        if (outcome.error === 'rate-limited') {
+            const retryAfterS = Math.max(fieldHourBudget.canTake(fieldPoints.count).retryAfterS || 0, fieldDayBudget.canTake(fieldPoints.count).retryAfterS || 0, 1);
+            return send(429, { proxyStatus: 'error', proxyError: 'rate-limited', retryAfterS }, { ...noStore, 'Retry-After': String(retryAfterS) });
+        }
+        return send(502, { proxyStatus: 'error', proxyError: outcome.error || 'upstream failure' });
+    }
+
+    const server = http.createServer(async (req, res) => {
     const origin = req.headers.origin || '';
     const originAllowed = allowedOrigins.includes(origin);
     if (originAllowed) {
@@ -1061,6 +1373,11 @@ function createProxyServer({
         return;
     }
 
+    if (source === 'wind-day' || source === 'currents-day') {
+        await handleFieldDay(source === 'wind-day' ? 'wind' : 'currents', url, res);
+        return;
+    }
+
     if (source === 'firms-day') {
         await handleFirmsDay(url, res);
         return;
@@ -1083,8 +1400,11 @@ function createProxyServer({
     }
 
     res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms|firms-day|gvp." }));
+    res.end(JSON.stringify({ proxyStatus: 'error', proxyError: "Unknown or missing 'source' parameter. Use source=eonet|gdacs|firms|firms-day|wind-day|currents-day|gvp." }));
     });
+    // Timerele cozii Open-Meteo apartin serverului: se curata la inchidere.
+    server.on('close', () => fieldQueue.dispose());
+    return server;
 }
 
 // Pornire implicita, NU conditionata de require.main: LiteSpeed (lsnode.js) si
@@ -1123,4 +1443,14 @@ module.exports = {
     firmsDayCachePolicy,
     createUpstreamBudget,
     pruneCacheDirectory,
+    // wind-day / currents-day (LOT 11), pure helpers exported for tests
+    FIELD_GRID,
+    FIELD_DAY_LAYERS,
+    FIELD_DAY_DEFAULTS,
+    fieldGridPoints,
+    fieldDayUpstreamUrl,
+    parseFieldDayRequest,
+    normalizeFieldDay,
+    fieldDayCachePolicy,
+    createSpacedQueue,
 };

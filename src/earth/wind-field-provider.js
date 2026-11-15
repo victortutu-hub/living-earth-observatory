@@ -25,6 +25,7 @@ const LON_MAX = 170; // 180 ar duplica meridianul cu -180
 const CACHE_KEY = 'lea-wind-field-v1';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minute: campul de vant se schimba orar
 import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS, parseOpenMeteoTime } from './temporal-provenance.js';
+import { hourSamples } from './field-day-history.js';
 
 // Model valid time of the batch: Open-Meteo `current.time` (same for all points).
 function modelValidTime(payload) {
@@ -58,21 +59,23 @@ function windUrl(lats, lons) {
     return `https://api.open-meteo.com/v1/forecast?${params}`;
 }
 
-// Encodeaza payload-ul in R/G = u,v normalizati la [0,255] pe maxSpeedMs.
-// Returneaza un obiect JSON-serializabil (data e Array simplu), ca sa poata fi
-// pus direct in sessionStorage. maxSpeedMs e un plafon de encodare, nu o limita
-// fizica - viteze mai mari se clampeaza vizual, nu se pierd date reale.
-function encodeGrid(payload, width, height, maxSpeedMs) {
+// Encodeaza esantioanele {speed m/s, direction grade "dinspre"} in R/G = u,v
+// normalizati la [0,255] pe maxSpeedMs. Singura implementare a conversiei
+// directie -> u/v pentru vant: o folosesc si campul live (current.*), si
+// zilele istorice ERA5 (LOT 11). Returneaza un obiect JSON-serializabil (data
+// e Array simplu), ca sa poata fi pus direct in sessionStorage. maxSpeedMs e
+// un plafon de encodare, nu o limita fizica.
+export function encodeWindSamples(sample, width, height, maxSpeedMs) {
     const data = new Array(width * height * 4);
     let index = 0;
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
-            const point = payload[index];
-            const speed = Number(point?.current?.wind_speed_10m);
-            const directionDeg = Number(point?.current?.wind_direction_10m);
+            const point = sample(index);
+            const speed = Number(point?.speed);
+            const directionDeg = Number(point?.direction);
             let u = 0;
             let v = 0;
-            if (Number.isFinite(speed) && Number.isFinite(directionDeg)) {
+            if (point?.speed != null && point?.direction != null && Number.isFinite(speed) && Number.isFinite(directionDeg)) {
                 const rad = directionDeg * Math.PI / 180;
                 u = -speed * Math.sin(rad);
                 v = -speed * Math.cos(rad);
@@ -88,6 +91,14 @@ function encodeGrid(payload, width, height, maxSpeedMs) {
         }
     }
     return { width, height, maxSpeedMs, gridPoints: width * height, data };
+}
+
+/** Live Open-Meteo batch (current.wind_speed_10m / wind_direction_10m). */
+export function encodeGrid(payload, width, height, maxSpeedMs) {
+    return encodeWindSamples((index) => ({
+        speed: payload[index]?.current?.wind_speed_10m,
+        direction: payload[index]?.current?.wind_direction_10m,
+    }), width, height, maxSpeedMs);
 }
 
 function readCache() {
@@ -149,6 +160,20 @@ function buildTexture(THREE, grid, { cached, cacheState }) {
         temporal: createTemporalDescriptor({ ...EARTH_TEMPORAL_LAYERS.wind, sourceTime: grid.dataTime || null, loadedAt: grid.t || new Date(), cacheState }),
         source: 'Open-Meteo current wind_speed_10m / wind_direction_10m, 10 degree global grid',
     };
+    return texture;
+}
+
+/**
+ * LOT 11: one hour of a past day (ERA5 through the proxy, payload from
+ * field-day-history.js) -> the same texture the live field produces.
+ */
+export function buildWindDayTexture(THREE, payload, hour, { maxSpeedMs = 40 } = {}) {
+    const samples = hourSamples(payload, hour);
+    const grid = encodeWindSamples(samples.sample, payload.grid.width, payload.grid.height, maxSpeedMs);
+    const dataTime = samples.time ? parseOpenMeteoTime(samples.time, 0) : null;
+    const texture = buildTexture(THREE, { ...grid, dataTime }, { cached: false, cacheState: 'fresh' });
+    texture.userData.source = 'ERA5 reanalysis (Open-Meteo Historical Weather API), 10 degree global grid';
+    texture.userData.historical = { day: payload.day, hour: samples.hour };
     return texture;
 }
 

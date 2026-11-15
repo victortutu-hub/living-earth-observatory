@@ -15,7 +15,9 @@
 // proveniența vine din source-registry prin `provenanceKey` (ex. 'openMeteo' ->
 // 'prediction'). Reprezentarea ca streamlines e o conventie de vizualizare.
 import { GPUComputationRenderer } from 'three/addons/misc/GPUComputationRenderer.js';
-import { composeSourceStatus } from './temporal-provenance.js';
+import { composeSourceStatus, formatUtcDay } from './temporal-provenance.js';
+import { describeSourceProvenance } from '../config/source-registry.js';
+import { createFieldDayController, disposeFieldTexture, swapFieldTexture } from './field-day-history.js';
 
 const TRAIL_WIDTH = 2048;
 const TRAIL_HEIGHT = 1024;
@@ -159,6 +161,14 @@ export function createFieldParticles({
     headAlpha = 0.6,
     pointSize = 2.0,
     displayOpacity = 0.85,
+    // LOT 11 (optional): past days through the proxy.
+    //   fetchFieldDay({ day, signal, forceRefresh }) -> { status, payload | retryAfterS }
+    //   buildDayTexture(THREE, payload, hour) -> texture (same encoding as live)
+    //   history: { provenanceKey, text, notes }
+    fetchFieldDay = null,
+    buildDayTexture = null,
+    history = null,
+    timers = null,
 }) {
     let disposed = false;
     let enabled = false;
@@ -166,6 +176,8 @@ export function createFieldParticles({
     let lastError = null;
     let ready = false;
     let fieldMeta = null;
+    let mode = 'live';       // 'live' | 'day'
+    let liveGeneration = 0;
 
     let gpuCompute = null;
     let positionVariable = null;
@@ -297,30 +309,103 @@ export function createFieldParticles({
         if (error !== null) throw new Error(error);
     }
 
-    async function load() {
+    // First field: builds the compute + trail pipeline. Later fields (another
+    // day / hour, back to Live): swap uFieldMap and free the previous texture
+    // and its land mask, so changing the field leaks nothing.
+    function applyFieldTexture(fieldTexture) {
+        if (disposed) {
+            disposeFieldTexture(fieldTexture);
+            return;
+        }
+        if (!ready) {
+            setupCompute(fieldTexture);
+            buildTrailPipeline(fieldTexture);
+            ready = true;
+        } else {
+            swapFieldTexture({ computeUniforms: positionVariable.material.uniforms, pointUniforms: pointMaterial.uniforms }, fieldTexture);
+        }
+        fieldMeta = fieldTexture.userData;
+        group.visible = enabled;
+    }
+
+    const dayController = fetchFieldDay && buildDayTexture ? createFieldDayController({
+        fetchDay: fetchFieldDay,
+        buildTexture: (payload, hour) => buildDayTexture(THREE, payload, hour),
+        applyTexture: applyFieldTexture,
+        hide: () => { group.visible = false; },
+        timers,
+    }) : null;
+
+    async function loadLive() {
         if (disposed) return;
+        const current = ++liveGeneration;
         loading = true;
         lastError = null;
         try {
             const fieldTexture = await fetchField({ THREE });
-            if (disposed) return;
-            fieldMeta = fieldTexture.userData;
-            setupCompute(fieldTexture);
-            buildTrailPipeline(fieldTexture);
-            ready = true;
-            group.visible = enabled;
+            if (disposed || current !== liveGeneration || mode !== 'live') {
+                disposeFieldTexture(fieldTexture);
+                return;
+            }
+            applyFieldTexture(fieldTexture);
         } catch (error) {
-            lastError = error;
+            if (current === liveGeneration) lastError = error;
         } finally {
-            loading = false;
+            if (current === liveGeneration) loading = false;
         }
     }
+
+    /**
+     * LOT 11: day null = Live (today's path); a UTC day + hour = that day's
+     * field (loaded once, the hour is picked locally).
+     */
+    function setTimeSelection({ day = null, hour = 0 } = {}) {
+        if (disposed) return;
+        if (!day || !dayController) {
+            const wasDay = mode === 'day';
+            mode = 'live';
+            dayController?.select({ day: null });
+            if (enabled && (wasDay || !ready) && !loading) {
+                group.visible = false;
+                loadLive();
+            }
+            return;
+        }
+        const wasLive = mode !== 'day';
+        mode = 'day';
+        liveGeneration += 1; // a live load still in flight must not apply
+        loading = false;
+        if (!enabled) {
+            dayController.select({ day: null });
+            pendingSelection = { day, hour };
+            return;
+        }
+        dayController.select({ day, hour });
+        if (wasLive) dayController.reshow();
+    }
+
+    let pendingSelection = null;
 
     async function setEnabled(value) {
         if (disposed) return;
         enabled = Boolean(value);
-        if (ready) group.visible = enabled;
-        if (enabled && !ready && !loading) await load();
+        if (!enabled) {
+            group.visible = false;
+            if (mode === 'day' && dayController) {
+                pendingSelection = dayController.selection.day ? dayController.selection : pendingSelection;
+                dayController.select({ day: null }); // stops a request / queued retry
+            }
+            return;
+        }
+        if (mode === 'day' && dayController) {
+            const selection = pendingSelection || dayController.selection;
+            pendingSelection = null;
+            dayController.select(selection, { retryError: true });
+            dayController.reshow();
+            return;
+        }
+        if (ready) group.visible = true;
+        if (!ready && !loading) await loadLive();
     }
 
     function update(t) {
@@ -354,7 +439,43 @@ export function createFieldParticles({
         displayMaterial.map = trailRead.texture;
     }
 
+    // Status on a historical day (LOT 11).
+    function dayStatus() {
+        const state = dayController.state();
+        const day = state.day || pendingSelection?.day;
+        const dayText = day ? formatUtcDay(day) : '';
+        if (!state.day || state.kind === 'idle' || state.kind === 'loading') {
+            return { enabled, loading: true, state: 'refreshing', message: `${label}: loading ${dayText}…` };
+        }
+        if (state.kind === 'queued') {
+            return { enabled, loading: true, state: 'refreshing', message: `${label}: queued at the data source… (${dayText})`, title: 'The observatory proxy spaces Open-Meteo requests (free-tier rate limit); this day will load shortly.' };
+        }
+        if (state.kind === 'error') {
+            const error = state.error;
+            if (error.kind === 'not-published') {
+                return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `${label}: Not available for ${dayText} — not yet published by the source` };
+            }
+            if (error.kind === 'rate-limited') {
+                return { enabled, loading: false, state: 'error', message: `${label}: temporarily unavailable — try again in ${Math.max(1, Math.ceil(error.retryAfterS / 60))} min` };
+            }
+            if (error.kind === 'proxy-required') return { enabled, loading: false, state: 'off', message: error.text };
+            return { enabled, loading: false, state: 'error', message: `${label}: unavailable for ${dayText} (${error.text})` };
+        }
+        const provenance = describeSourceProvenance(history?.provenanceKey);
+        const hour = String(state.hour ?? 0).padStart(2, '0');
+        const parts = [provenance?.label, history?.text, `${dayText} ${hour}:00 UTC`].filter(Boolean);
+        if (state.proxyStatus === 'stale-cache') parts.push('stale copy');
+        return {
+            enabled,
+            loading: false,
+            state: 'on',
+            message: parts.join(' · '),
+            title: [provenance?.title, history?.notes, `Hour picked from the scene time (rounded, UTC); ${fieldMeta?.gridPoints || ''} grid points.`].filter(Boolean).join('\n'),
+        };
+    }
+
     function getStatus() {
+        if (mode === 'day' && dayController && enabled) return dayStatus();
         if (loading) return { enabled, loading, state: 'refreshing', message: `${label}: loading...` };
         if (lastError) return { enabled, loading, state: 'error', message: `${label}: ${lastError.message || 'network error'}` };
         if (!enabled) return { enabled, loading, state: 'off', message: `${label}: off` };
@@ -374,6 +495,9 @@ export function createFieldParticles({
     function dispose() {
         if (disposed) return;
         disposed = true;
+        dayController?.dispose();
+        liveGeneration += 1;
+        disposeFieldTexture(positionVariable?.material?.uniforms?.uFieldMap?.value);
         gpuCompute?.dispose?.();
         trailRead?.dispose?.();
         trailWrite?.dispose?.();
@@ -386,5 +510,5 @@ export function createFieldParticles({
         earthGroup.remove(group);
     }
 
-    return { setEnabled, update, getStatus, dispose };
+    return { setEnabled, setTimeSelection, update, getStatus, dispose };
 }

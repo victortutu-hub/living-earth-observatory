@@ -4,6 +4,7 @@ import { createDemoReelTimeline } from './reel-timeline.js';
 import { createSocialPresetSystem } from './preset-system.js';
 import { createFramePerformanceSampler } from './performance-sampler.js';
 import { EARTH_TIME_CAPABILITIES } from './temporal-provenance.js';
+import { sceneHourOf } from './field-day-history.js';
 
 export function createEarthAppRuntime({
     state,
@@ -17,6 +18,7 @@ export function createEarthAppRuntime({
     timer,
     controlPanel,
     solarRuntime,
+    timeState,
     moonSystem,
     moonMarkers,
     issSystem,
@@ -296,6 +298,37 @@ export function createEarthAppRuntime({
         updateIssLayerUi?.({ enabled: state.issLayer });
     }
 
+    // LOT 11: wind / ocean currents load the chosen UTC day (ERA5 / SMOC via
+    // the proxy) instead of hiding; the scene hour is picked locally.
+    function sceneHour() {
+        return sceneHourOf(timeState?.now?.() || new Date());
+    }
+
+    async function applyFieldTime(particles, capabilityKey, wanted) {
+        if (!particles) return;
+        if (!wanted || timeBlocked(capabilityKey)) {
+            await particles.setEnabled?.(false);
+            return;
+        }
+        particles.setTimeSelection?.({ day: dataDay, hour: sceneHour() });
+        await particles.setEnabled?.(true);
+    }
+
+    // Every change of scene time: a new hour of the SAME loaded day is local
+    // (no request); a new day waits for applyDataDay (debounced).
+    function applySceneTime(snapshot) {
+        if (disposed || !snapshot?.historical || !dataDay || snapshot.dataDay !== dataDay) return;
+        const hour = sceneHourOf(snapshot.date);
+        if (state.windParticles && !timeBlocked('wind')) {
+            windParticles?.setTimeSelection?.({ day: dataDay, hour });
+            controlPanel.updateWindLayerStatus?.(windStatus());
+        }
+        if (state.oceanCurrents && !timeBlocked('oceanCurrents')) {
+            oceanCurrents?.setTimeSelection?.({ day: dataDay, hour });
+            controlPanel.updateOceanLayerStatus?.(oceanStatus());
+        }
+    }
+
     async function applyDataDay(day) {
         if (disposed) return;
         dataDay = day || null;
@@ -304,10 +337,10 @@ export function createEarthAppRuntime({
         controlPanel.setDataDayUi?.(dataDay);
         layerRegistry?.setDataDay?.(dataDay);
 
-        if (state.windParticles) await windParticles?.setEnabled?.(!timeBlocked('wind'));
+        if (state.windParticles) await applyFieldTime(windParticles, 'wind', true);
         if (disposed || generation !== dataDayGeneration) return;
         if (state.windParticles) controlPanel.updateWindLayerStatus?.(windStatus());
-        if (state.oceanCurrents) await oceanCurrents?.setEnabled?.(!timeBlocked('oceanCurrents'));
+        if (state.oceanCurrents) await applyFieldTime(oceanCurrents, 'oceanCurrents', true);
         if (disposed || generation !== dataDayGeneration) return;
         if (state.oceanCurrents) controlPanel.updateOceanLayerStatus?.(oceanStatus());
         await applyIssTime();
@@ -358,7 +391,10 @@ export function createEarthAppRuntime({
     // animatie existenta.
     let lastFieldStatusRefresh = null;
     function refreshFieldStatuses(t) {
-        if (lastFieldStatusRefresh !== null && t - lastFieldStatusRefresh < 30) return;
+        // Every second while a field is loading / queued, else every 30 s.
+        if (lastFieldStatusRefresh !== null && t - lastFieldStatusRefresh < 1) return;
+        const busy = [state.windParticles && windStatus(), state.oceanCurrents && oceanStatus()].some(status => status?.state === 'refreshing');
+        if (lastFieldStatusRefresh !== null && t - lastFieldStatusRefresh < (busy ? 1 : 30)) return;
         lastFieldStatusRefresh = t;
         if (state.windParticles) controlPanel.updateWindLayerStatus?.(windStatus());
         if (state.oceanCurrents) controlPanel.updateOceanLayerStatus?.(oceanStatus());
@@ -368,14 +404,14 @@ export function createEarthAppRuntime({
     async function toggleWindLayer() {
         const next = !state.windParticles;
         state.windParticles = next;
-        await windParticles?.setEnabled?.(next && !timeBlocked('wind'));
+        await applyFieldTime(windParticles, 'wind', next);
         controlPanel.updateWindLayerStatus?.(windStatus());
     }
 
     async function toggleOceanLayer() {
         const next = !state.oceanCurrents;
         state.oceanCurrents = next;
-        await oceanCurrents?.setEnabled?.(next && !timeBlocked('oceanCurrents'));
+        await applyFieldTime(oceanCurrents, 'oceanCurrents', next);
         controlPanel.updateOceanLayerStatus?.(oceanStatus());
     }
 
@@ -667,6 +703,7 @@ export function createEarthAppRuntime({
         demoReel,
         appLifecycle,
         applyDataDay,
+        applySceneTime,
         performanceSnapshot: performanceSampler.snapshot
     };
 }

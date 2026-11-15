@@ -35,7 +35,7 @@ export function createTimeScrubPanel({
     let disposed = false;
 
     const liveLabel = 'Live astronomy · latest available data';
-    const historicalNotice = 'Astronomy follows the scene time. EONET, USGS and Snow & ice show this UTC day; layers without history are hidden.';
+    const historicalNotice = 'Astronomy follows the scene time. EONET, USGS, FIRMS, Snow & ice, wind (ERA5) and ocean currents (SMOC) show this UTC day; layers without history are hidden.';
     let notice = panel?.querySelector?.('[data-temporal-notice]');
     if (panel && !notice) {
         notice = document.createElement('div');

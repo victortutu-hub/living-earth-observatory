@@ -178,6 +178,36 @@ export function fetchEarthFirmsDay(url, {
     }));
 }
 
+/** requestRuntime key for one historical day of a field layer (LOT 11). */
+export function fieldDayCacheKey(layer, day) {
+    return `earth:${layer}:day:${day}`;
+}
+
+/**
+ * One UTC day of wind (ERA5) or ocean currents (SMOC) through the proxy's
+ * wind-day / currents-day routes. No retries: the proxy queues Open-Meteo
+ * calls and answers 202 "queued" (the caller retries with forceRefresh).
+ */
+export function fetchEarthFieldDay(layer, url, {
+    day,
+    signal = null,
+    timeout = 20_000,
+    forceRefresh = false,
+} = {}) {
+    const policy = windowCachePolicy({ start: day, end: day }, { ttl: 30 * MINUTE, staleTtl: DAY });
+    const sourceId = layer === 'wind' ? 'openMeteoEra5' : 'openMeteoMarineArchive';
+    return run(sourceId, () => dataBroker.fetchJsonResource(fieldDayCacheKey(layer, day), url, {
+        ttl: policy.ttl,
+        staleTtl: policy.staleTtl,
+        timeout,
+        retries: 0,
+        signal,
+        forceRefresh,
+        sourceTimeSelector: () => (day ? `${day}T00:00:00.000Z` : null),
+        fetchOptions: { mode: 'cors' },
+    }));
+}
+
 export function fetchEarthOvation(url, {
     signal = null,
     forceRefresh = false,

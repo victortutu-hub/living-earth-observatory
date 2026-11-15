@@ -712,7 +712,7 @@
     </section>
     <section id="timeScrubPanel" class="panel" aria-label="Historical time" data-mode="live">
         <div class="solar-title">Time</div>
-        <div class="toolbar-range" title="Scrub to a historical UTC date and time. The Sun and Moon follow the time; EONET, USGS and Snow &amp; ice load that UTC day; layers without history are hidden.">
+        <div class="toolbar-range" title="Scrub to a historical UTC date and time. The Sun and Moon follow the time; EONET, USGS, FIRMS, Snow &amp; ice, wind (ERA5) and ocean currents (SMOC) load that UTC day (wind and currents at the scene hour); layers without history are hidden.">
             <label for="timeScrubSlider">
                 <span id="timeScrubLabel">Live</span>
             </label>
@@ -758,9 +758,9 @@
         <div id="liveLayerStatus" data-state="off">USGS quakes: off</div>
         <button id="firmsLayerBtn" title="NASA FIRMS MODIS active-fire hotspots via the observatory proxy. Live: latest near-real-time detections. Past days: MODIS NRT (provisional) or MODIS SP (standard processing, published with a delay), back to 1 Nov 2000. Shows the top 220 by fire radiative power.">NASA FIRMS fires: off</button>
         <div id="firmsLayerStatus" data-state="off">NASA FIRMS: off</div>
-        <button id="windLayerBtn" title="Wind streamline particles from the Open-Meteo model forecast field (current time step), advected on the GPU. The particle representation itself is an interpretive visualization convention, not a direct measurement of individual air parcels.">Wind particles: off</button>
+        <button id="windLayerBtn" title="Wind streamline particles from the Open-Meteo model forecast field (current time step), advected on the GPU. Past days: ERA5 reanalysis at the scene hour (UTC), from 1940, published with a delay of about 5 days. The particle representation itself is an interpretive visualization convention, not a direct measurement of individual air parcels. Weather data by Open-Meteo.com (CC BY 4.0). Contains modified Copernicus Climate Change Service information (ERA5).">Wind particles: off</button>
         <div id="windLayerStatus" data-state="off">Wind: off</div>
-        <button id="oceanLayerBtn" title="Ocean-current streamline particles from the Open-Meteo Marine model forecast field (current time step), advected on the GPU with a land mask so currents stay off continents. The particle representation is an interpretive visualization convention, not a direct measurement of individual water parcels.">Ocean currents: off</button>
+        <button id="oceanLayerBtn" title="Ocean-current streamline particles from the Open-Meteo Marine model forecast field (current time step), advected on the GPU with a land mask so currents stay off continents. Past days: SMOC total surface current (includes tides and wave-driven drift) at the scene hour (UTC), from 2022. The particle representation is an interpretive visualization convention, not a direct measurement of individual water parcels. Ocean currents: Copernicus Marine Service / Météo-France (SMOC). Weather data by Open-Meteo.com (CC BY 4.0).">Ocean currents: off</button>
         <div id="oceanLayerStatus" data-state="off">Ocean currents: off</div>
         <!-- Aurora migrata la registry-ul de layere (butonul se auto-genereaza in #layerPluginBar). -->
         <div id="moonStatus" data-state="pending">Moon: calculating Astronomy Engine position...</div>
@@ -883,6 +883,9 @@
             <li>NASA FIRMS: MODIS active-fire hotspots through the observatory proxy (FIRMS MAP_KEY kept server-side). Live: latest near-real-time detections; past days: MODIS NRT (provisional) or MODIS SP (standard processing), back to 1 Nov 2000.</li>
             <li>NASA GIBS: daily cloud snapshot layer and VIIRS Black Marble annual night lights (2016).</li>
             <li>NOAA SWPC OVATION: aurora oval forecast intensity.</li>
+            <li>Open-Meteo: wind and ocean-current fields (live: model forecast; past days through the observatory proxy). Weather data by Open-Meteo.com (CC BY 4.0).</li>
+            <li>ERA5 (past wind): contains modified Copernicus Climate Change Service information (ERA5).</li>
+            <li>Ocean currents (past days): Copernicus Marine Service / Météo-France (SMOC), total surface current including tides and wave-driven drift.</li>
             <li>USGS: earthquake feed integrated into Earthquakes.</li>
             <li>Smithsonian GVP: Global Volcanism Program Holocene volcano list (WFS GeoJSON), served through the local proxy as the site's CORS gateway; toggleable layer, colored by last-eruption recency.</li>
             <li>NOAA ETOPO 2022 (60″ ice surface, area-averaged 1/6°, linear metres, vertical exaggeration ×10) relief; water mask NASA MODIS MOD44W via GIBS; lake surfaces rendered at 0 m (ETOPO has no lake levels).</li>

@@ -61,8 +61,8 @@ export const EARTH_TEMPORAL_LAYERS = Object.freeze({
     firms: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
     gdacs: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
     aurora: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
-    wind: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
-    oceanCurrents: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'latest-only' }),
+    wind: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'date-selectable' }),
+    oceanCurrents: createTemporalDescriptor({ temporalType: 'observed-derived', sceneTimeCompatibility: 'date-selectable' }),
     gvp: createTemporalDescriptor({ temporalType: 'historical-catalog', sceneTimeCompatibility: 'static' }),
     iss: createTemporalDescriptor({ temporalType: 'physical-model', sceneTimeCompatibility: 'yes' }),
 });
@@ -246,8 +246,7 @@ const MODIS_TERRA_SNOW_GAPS = [
 /**
  * One declaration per Earth layer (a test checks that none is missing). A
  * capability describes what this app does today, not what the upstream could
- * do: Open-Meteo has history for wind and currents, but no historical request
- * exists yet, so both are live-only.
+ * do (since LOT 11 wind and currents have history through the proxy).
  */
 export const EARTH_TIME_CAPABILITIES = Object.freeze({
     sun: createTimeCapability({ kind: 'scene-model' }),
@@ -265,8 +264,10 @@ export const EARTH_TIME_CAPABILITIES = Object.freeze({
     firms: createTimeCapability({ kind: 'daily', range: { start: '2000-11-01', end: 'latest' }, lagDays: 1 }),
     gdacs: createTimeCapability({ kind: 'live-only' }),
     aurora: createTimeCapability({ kind: 'live-only' }),
-    wind: createTimeCapability({ kind: 'live-only' }),
-    oceanCurrents: createTimeCapability({ kind: 'live-only' }),
+    // LOT 11: a past UTC day through the proxy (wind-day / currents-day); the
+    // whole day is loaded once and the scene hour is picked locally.
+    wind: createTimeCapability({ kind: 'daily', range: { start: '1940-01-01', end: 'latest' }, lagDays: 6, note: 'ERA5 reanalysis, published with a delay of about 5 days.' }),
+    oceanCurrents: createTimeCapability({ kind: 'daily', range: { start: '2022-01-01', end: 'latest' }, lagDays: 1, note: 'SMOC total surface current (Open-Meteo Marine), from 2022.' }),
     gvp: createTimeCapability({ kind: 'live-only', sourceLabel: 'current-catalog source', note: 'Catalog as published today; last eruption dates may be later than the chosen day.' }),
     iss: createTimeCapability({ kind: 'live-only', sourceLabel: 'live-only source (TLE valid only near its epoch)' }),
     airglow: createTimeCapability({ kind: 'static', note: 'Procedural.' }),

@@ -99,9 +99,9 @@ describe('time capability model', () => {
         expect(snowIcePlugin.timeCapability).toBe(EARTH_TIME_CAPABILITIES.snowIce);
     });
 
-    it('date-selectable layers: the Gate 1 set (EONET, USGS, Snow & ice) plus FIRMS (LOT 9)', () => {
+    it('date-selectable layers: the Gate 1 set (EONET, USGS, Snow & ice), FIRMS (LOT 9), wind and currents (LOT 11)', () => {
         const selectable = Object.entries(EARTH_TIME_CAPABILITIES).filter(([, c]) => c.dateSelectable).map(([k]) => k).sort();
-        expect(selectable).toEqual(['eonet', 'firms', 'snowIce', 'usgs']);
+        expect(selectable).toEqual(['eonet', 'firms', 'oceanCurrents', 'snowIce', 'usgs', 'wind']);
     });
 
     it('historical status shows the window and count, no relative age', () => {

@@ -28,6 +28,7 @@ const LON_MAX = 170;
 const CACHE_KEY = 'lea-ocean-current-v1';
 const CACHE_TTL_MS = 30 * 60 * 1000; // curentii se schimba lent; 30 min e ok
 import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS, parseOpenMeteoTime } from './temporal-provenance.js';
+import { hourSamples } from './field-day-history.js';
 
 // Model valid time of the batch: Open-Meteo `current.time` (same for all points).
 function modelValidTime(payload) {
@@ -60,19 +61,24 @@ function marineUrl(lats, lons) {
     return `https://marine-api.open-meteo.com/v1/marine?${params}`;
 }
 
-function encodeGrid(payload, width, height, maxSpeedMs) {
+// Encodeaza esantioanele {speed m/s, direction grade "incotro"} in R/G = u,v
+// si masca de uscat in B. Singura implementare a conversiei pentru curenti:
+// o folosesc si campul live (current.*, km/h), si zilele istorice SMOC (LOT 11,
+// deja in m/s de la proxy). null = uscat (fara date).
+export function encodeOceanSamples(sample, width, height, maxSpeedMs) {
     const data = new Array(width * height * 4);
     let index = 0;
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
-            const point = payload[index];
-            const speedKmh = point?.current?.ocean_current_velocity;
-            const directionDeg = point?.current?.ocean_current_direction;
-            const isOcean = Number.isFinite(Number(speedKmh)) && Number.isFinite(Number(directionDeg));
+            const point = sample(index);
+            const speedMs = point?.speed;
+            const directionDeg = point?.direction;
+            const isOcean = speedMs !== null && speedMs !== undefined && directionDeg !== null && directionDeg !== undefined
+                && Number.isFinite(Number(speedMs)) && Number.isFinite(Number(directionDeg));
             let u = 0;
             let v = 0;
             if (isOcean) {
-                const speed = Number(speedKmh) / 3.6; // km/h -> m/s
+                const speed = Number(speedMs);
                 const rad = Number(directionDeg) * Math.PI / 180;
                 u = speed * Math.sin(rad);
                 v = speed * Math.cos(rad);
@@ -88,6 +94,36 @@ function encodeGrid(payload, width, height, maxSpeedMs) {
         }
     }
     return { width, height, maxSpeedMs, gridPoints: width * height, data };
+}
+
+/**
+ * Live Open-Meteo Marine batch (current.ocean_current_velocity in km/h).
+ * Kept byte-identical to the pre-LOT 11 encoder: a value is valid when
+ * Number(value) is finite. NOTE (reported, not changed here): Number(null)
+ * is 0, so land points (null) count as ocean with zero speed in the live
+ * mask; past days (LOT 11) treat null as land.
+ */
+export function encodeGrid(payload, width, height, maxSpeedMs) {
+    return encodeOceanSamples((index) => {
+        const speedKmh = payload[index]?.current?.ocean_current_velocity;
+        const direction = payload[index]?.current?.ocean_current_direction;
+        const valid = Number.isFinite(Number(speedKmh)) && Number.isFinite(Number(direction));
+        return valid ? { speed: Number(speedKmh) / 3.6, direction: Number(direction) } : { speed: null, direction: null };
+    }, width, height, maxSpeedMs);
+}
+
+/**
+ * LOT 11: one hour of a past day (SMOC through the proxy, m/s) -> the same
+ * texture (u/v + land mask) the live field produces.
+ */
+export function buildOceanDayTexture(THREE, payload, hour, { maxSpeedMs = 3 } = {}) {
+    const samples = hourSamples(payload, hour);
+    const grid = encodeOceanSamples(samples.sample, payload.grid.width, payload.grid.height, maxSpeedMs);
+    const dataTime = samples.time ? parseOpenMeteoTime(samples.time, 0) : null;
+    const texture = buildTexture(THREE, { ...grid, dataTime }, { cached: false, cacheState: 'fresh' });
+    texture.userData.source = 'SMOC total surface current (Open-Meteo Marine), 10 degree global grid';
+    texture.userData.historical = { day: payload.day, hour: samples.hour };
+    return texture;
 }
 
 function readCache() {

@@ -579,12 +579,15 @@ export function createEarthAppServices({
     // LOT 5: data layers follow the UTC day of the scene time (debounced, once
     // per day change); astronomy keeps following every change of time.
     const unsubscribeDataDay = timeState.subscribeDataDay(day => appRuntime.applyDataDay(day));
+    // LOT 11: the scene hour of the loaded day drives wind / currents locally.
+    const unsubscribeSceneTime = timeState.subscribe(snapshot => appRuntime.applySceneTime(snapshot));
 
     let disposed = false;
     function dispose() {
         if (disposed) return;
         disposed = true;
         unsubscribeDataDay();
+        unsubscribeSceneTime();
         eonetAutoRefresh.dispose();
         eonetApp.dispose?.();
         appRuntime.dispose();
