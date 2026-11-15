@@ -39,6 +39,8 @@ policies:
 - NOAA SWPC OVATION: aurora forecast data.
 - NOAA/ETOPO-derived relief assets: Earth relief and bathymetry sources.
 - Public TLE/SGP4 sources: ISS orbital tracking inputs.
+- Open-Meteo (Living Himalaya summit weather): "Weather data by Open-Meteo.com"
+  (CC BY 4.0); model NOAA NCEP GFS 0.25° on pressure levels (Model prediction).
 
 The app is an artistic/scientific visualization, not an operational emergency
 system. Always consult the original providers for authoritative data.

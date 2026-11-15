@@ -15,6 +15,7 @@ import { projectLonLat, heightKm, localBasis, VERTICAL_EXAGGERATION } from './pr
 import { createTerrainOverview, installClip } from './terrain-overview.js';
 import { buildPatchGeometry, decodePatch, patchCornersXZ, FULL_LOD_DISTANCE_KM } from './terrain-patch.js';
 import { sunDirectionScene } from './sun-position.js';
+import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
 
 export { projectLonLat, VERTICAL_EXAGGERATION };
@@ -105,6 +106,12 @@ export function createHimalayaScene({
   const sky = new THREE.HemisphereLight(0x9cc7ff, 0x1a1c22, 0.32);
   scene.add(sky);
   let sunState = null;
+  // The real Moon (Lot 3): cool directional light, no cast shadows,
+  // brightness exaggerated for visibility (declared in the UI).
+  const moonLight = new THREE.DirectionalLight(0xb8cdf5, 0);
+  moonLight.castShadow = false;
+  scene.add(moonLight, moonLight.target);
+  let moonState = null;
 
   // --- terrain materials (shared clip uniforms)
   const clipUniforms = { uClipQuad: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] }, uClipOn: { value: 0 } };
@@ -365,6 +372,19 @@ export function createHimalayaScene({
     if (changed) requestShadowUpdate('sun');
   }
 
+  function setMoon(moon) {
+    if (!moon) { moonState = null; moonLight.intensity = 0; return; }
+    const basis = localBasis(moon.lon, moon.lat, center);
+    const d = sunDirectionScene(moon.azimuthDeg, moon.altitudeDeg, basis);
+    const direction = new THREE.Vector3(d.x, d.y, d.z).normalize();
+    moonState = { ...moon, direction };
+    moonLight.intensity = moonlightIntensity(moon);
+    moonLight.target.position.copy(sun.target.position);
+    moonLight.target.updateMatrixWorld();
+    moonLight.position.copy(sun.target.position).addScaledVector(direction, 120);
+    moonLight.updateMatrixWorld();
+  }
+
   // --- render loop and resize
   function resize() {
     const width = canvas.clientWidth || window.innerWidth;
@@ -494,6 +514,7 @@ export function createHimalayaScene({
       }
     },
     setSun,
+    setMoon,
     /** Debug/verification: place the camera directly ([x,y,z] km). */
     setView: (target, position) => setView(new THREE.Vector3(...target), new THREE.Vector3(...position)),
     terrariumSummit: (id) => terrariumSummits.get(id) || null,
@@ -560,6 +581,7 @@ export function createHimalayaScene({
         overview: overview.stats(),
         overviewIdle: overview.idle(),
         sun: sunState ? { azimuthDeg: +sunState.azimuthDeg.toFixed(2), altitudeDeg: +sunState.altitudeDeg.toFixed(2), source: sunState.source, direction: sunState.direction.toArray().map((v) => +v.toFixed(4)), intensity: +sun.intensity.toFixed(3) } : null,
+        moon: moonState ? { azimuthDeg: +moonState.azimuthDeg.toFixed(2), altitudeDeg: +moonState.altitudeDeg.toFixed(2), phaseFraction: +moonState.phaseFraction.toFixed(3), intensity: +moonLight.intensity.toFixed(3), castShadow: moonLight.castShadow } : null,
         shadow: { mapSize: SHADOW_MAP_SIZE, autoUpdate: renderer.shadowMap.autoUpdate, updates: shadowUpdates, lastReason: lastShadowRequest },
         gpu: { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, bufferBytes: gpuBufferBytes(), shadowMapBytes: SHADOW_MAP_SIZE * SHADOW_MAP_SIZE * 4 },
         verticalExaggeration: VERTICAL_EXAGGERATION,

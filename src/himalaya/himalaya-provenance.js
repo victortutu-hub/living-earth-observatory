@@ -21,13 +21,14 @@ export function sunLabel(sun, date) {
     : `Sun: approximate model (physical-model, simplified; astronomy-engine unavailable), ${formatUtc(date)}`;
 }
 
-export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date() } = {}) {
+export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null } = {}) {
   return [
     'Peaks: reference list (sources cited)',
     `Terrain: ${TERRAIN_LABELS[terrainMode] || TERRAIN_LABELS.glo30}`,
     `Overview: ${OVERVIEW_LABEL}`,
     sunLabel(sun, date),
-  ].join(' | ');
+    weather,
+  ].filter(Boolean).join(' | ');
 }
 
 function formatPercent(value) {
@@ -62,10 +63,16 @@ export const ATTRIBUTIONS = Object.freeze([
     note: 'AWS Open Data “Terrain Tiles” (elevation-tiles-prod, Terrarium encoding), built by Tilezen joerd; attribution as listed in joerd docs/attribution.md for this region.',
   }),
   Object.freeze({
+    id: 'openMeteo',
+    title: 'Summit weather',
+    text: 'Weather data by Open-Meteo.com (CC BY 4.0). Model: NOAA NCEP GFS 0.25° (gfs_global), pressure levels 200–500 hPa.',
+    note: 'Model prediction, interpolated to the official summit elevation by geopotential height; pressure-level values describe the free atmosphere at that height, not summit surface conditions.',
+  }),
+  Object.freeze({
     id: 'astronomy',
-    title: 'Sun position',
+    title: 'Sun and Moon position',
     text: 'Astronomy Engine by CosineKitty (MIT License), computed locally.',
-    note: 'Fallback when the module is unavailable: an approximate model (declination fit, mean solar time), labelled as such.',
+    note: 'Sun fallback when the module is unavailable: an approximate model (declination fit, mean solar time), labelled as such. Moonlight only with Astronomy Engine; its brightness is exaggerated for visibility (not photometric).',
   }),
   Object.freeze({
     id: 'peaks',

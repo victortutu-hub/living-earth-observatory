@@ -1,6 +1,7 @@
-// Living Himalaya LOT 2: peak list, peak panel (bottom sheet below 760 px),
-// terrain-detail switch (GLO-30 <-> Terrarium), Sun time slider, permanent
-// provenance bar and the terrain scene. Started and destroyed by the module
+// Living Himalaya LOT 2-3: peak list, peak panel (bottom sheet below 760 px),
+// terrain-detail switch (GLO-30 <-> Terrarium), Sun time slider, summit
+// weather (Open-Meteo GFS pressure levels), night message and moonlight,
+// permanent provenance bar and the terrain scene. Started and destroyed by the module
 // host (living-himalaya-module.js); after destroy nothing restarts (async
 // work checks the signal, timers and listeners are owned and removed).
 import { HIMALAYA_PEAKS, HIMALAYA_REGION_CENTER, getHimalayaPeak } from '../config/himalaya-peaks.js';
@@ -14,8 +15,11 @@ import {
 import {
   computeSun, dateAtUtcMinutes, formatClock, localMeanSolarMinutes, utcMinutesOfDay,
 } from './sun-position.js';
+import { summitWeatherRows, weatherBarSegment } from './summit-weather.js';
+import { createWeatherClient } from './weather-client.js';
+import { computeMoon, nightMessage } from './moon-position.js';
 
-export const FUTURE_FIELDS = Object.freeze(['Weather', 'Image', 'History']);
+export const FUTURE_FIELDS = Object.freeze(['Image', 'History']);
 export const TIME_STEP_MINUTES = 10;
 
 /** Initial focus from ?focus=<peak id>; anything else -> null (overview). */
@@ -78,6 +82,9 @@ export function startHimalayaApp({
   const sunReadout = document.getElementById('himalayaSunReadout');
   const terrainInputs = [...document.querySelectorAll('input[name="himalayaTerrain"]')];
   const sources = document.getElementById('himalayaSources');
+  const night = document.getElementById('himalayaNight');
+  const nightText = document.getElementById('himalayaNightText');
+  const nightMoon = document.getElementById('himalayaNightMoon');
   document.body.classList.toggle('is-atlas-embedded', embedded);
 
   const listeners = new AbortController();
@@ -94,6 +101,15 @@ export function startHimalayaApp({
   let terrainMode = 'glo30';
   let astronomy = null;
   let sunInfo = null;
+  let moonInfo = null;
+  let weatherState = null;
+  const weather = createWeatherClient({
+    onChange: (state) => {
+      if (!alive()) return;
+      weatherState = state;
+      if (state.peakId === activeId) { renderPanel(); updateProvenance(); }
+    },
+  });
   const time = { mode: 'now', minutes: utcMinutesOfDay(now()) };
 
   // --- sources & attribution
@@ -108,7 +124,9 @@ export function startHimalayaApp({
   }
 
   function updateProvenance() {
-    provenance.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date: currentDate() });
+    const date = currentDate();
+    const weatherForPeak = weatherState && weatherState.peakId === activeId ? weatherState : null;
+    provenance.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date) });
     const patch = activeId ? getTerrainPatch(activeId) : null;
     provenance.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
   }
@@ -140,7 +158,15 @@ export function startHimalayaApp({
     add('Position check', `Wikidata ${peak.coordinates.wikidata} / OSM ${peak.coordinates.osm}: ${peak.coordinates.differenceM} m apart`);
     if (peak.note) add('Note', peak.note);
     FUTURE_FIELDS.forEach((field) => add(field, 'not available yet', 'pending'));
-    details.replaceChildren(element('h2', null, peak.name), rows);
+    const weatherRows = element('dl', 'himalaya-panel-rows himalaya-weather-rows');
+    const weatherForPeak = weatherState && weatherState.peakId === peak.id ? weatherState : null;
+    summitWeatherRows({ peak, state: weatherForPeak, date: currentDate() }).forEach(([label, value, state]) => {
+      weatherRows.append(element('dt', null, label), element('dd', state ? `is-${state}` : null, value));
+    });
+    const weatherSection = element('section', 'himalaya-weather');
+    weatherSection.setAttribute('aria-label', 'Summit weather');
+    weatherSection.append(element('h3', null, 'Summit weather'), weatherRows);
+    details.replaceChildren(element('h2', null, peak.name), rows, weatherSection);
   }
 
   function updateSun() {
@@ -162,6 +188,16 @@ export function startHimalayaApp({
       + `${result.source === 'approximate' ? ' — approximate' : ''}`;
     sunReadout.dataset.source = result.source;
     timeNow.setAttribute('aria-pressed', String(time.mode === 'now'));
+    // The real Moon, and the night message for the selected summit and time.
+    const moon = computeMoon({ date, lat, lon, heightM, Astronomy: astronomy });
+    moonInfo = moon ? { ...moon, lat, lon } : null;
+    scene?.setMoon(result.altitudeDeg <= 0 && moonInfo && moonInfo.altitudeDeg > 0 ? moonInfo : null);
+    const message = peak ? nightMessage({ peakName: peak.name, sun: result, moon, isNow: time.mode === 'now' }) : null;
+    night.hidden = !message;
+    nightText.textContent = message?.text || '';
+    nightMoon.textContent = message?.moon || '';
+    nightMoon.hidden = !message?.moon;
+    if (peak) renderPanel();
     updateProvenance();
   }
 
@@ -176,6 +212,8 @@ export function startHimalayaApp({
     list.querySelector(`button[data-peak-id="${id}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     scene?.focusPeak(id, { instant });
     sheet.reveal();
+    weatherState = null;
+    weather.load(peak);
     renderPanel();
     updateSun();
   }
@@ -251,14 +289,17 @@ export function startHimalayaApp({
   window.__livingHimalayaDebug = Object.freeze({
     snapshot: () => ({
       activeId, initialFocus: initial, reducedMotion: reducedMotion(), terrainMode,
-      time: { ...time, date: currentDate().toISOString() }, sun: sunInfo, sheet: sheet.state,
+      time: { ...time, date: currentDate().toISOString() }, sun: sunInfo, moon: moonInfo, sheet: sheet.state,
+      weather: weatherState ? { peakId: weatherState.peakId, status: weatherState.status, fromCache: weatherState.fromCache || false, cacheAgeMs: weatherState.cacheAgeMs ?? null, error: weatherState.error || null } : null,
+      weatherRows: activeId ? Object.fromEntries(summitWeatherRows({ peak: getHimalayaPeak(activeId), state: weatherState && weatherState.peakId === activeId ? weatherState : null, date: currentDate() }).map(([k, v]) => [k, v])) : null,
+      night: night.hidden ? null : { text: nightText.textContent, moon: nightMoon.hidden ? null : nightMoon.textContent },
       provenance: provenance.textContent, scene: scene?.snapshot() || null,
     }),
     select: (id) => select(id),
     setTerrainMode,
     setTimeMinutes: (minutes) => { time.mode = 'manual'; time.minutes = minutes; updateSun(); },
     setNow: () => { time.mode = 'now'; updateSun(); },
-    overview: (options) => { activeId = null; scene?.overview(options); renderPanel(); updateSun(); },
+    overview: (options) => { activeId = null; weather.clear(); weatherState = null; scene?.overview(options); renderPanel(); updateSun(); },
     measureShadowCost: (samples) => scene?.measureShadowCost(samples) || null,
     measureShadowCostGpu: (samples) => scene?.measureShadowCostGpu(samples) || null,
     view: (target, position) => scene?.setView(target, position),
@@ -267,6 +308,7 @@ export function startHimalayaApp({
   return () => {
     listeners.abort();
     clearInterval(ticker);
+    weather.dispose();
     sheet.dispose();
     terrainRuntime.abortAll?.();
     scene?.dispose();

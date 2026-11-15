@@ -343,7 +343,7 @@ describe('provenance wording', () => {
     expect(terrainRowText('glo30', everest, 'ready')).toContain('Copernicus GLO-30 (reconstructed), 1 arc-second');
     expect(terrainRowText('glo30', everest, 'error')).toContain('unavailable');
     expect(terrainRowText('terrarium', everest, null)).toContain('Terrarium');
-    expect(FUTURE_FIELDS).toEqual(['Weather', 'Image', 'History']);
+    expect(FUTURE_FIELDS).toEqual(['Image', 'History']);
   });
 
   it('lists the exact attributions (Copernicus official notice, joerd/USGS/NOAA/Mapzen)', () => {

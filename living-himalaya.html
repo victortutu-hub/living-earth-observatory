@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot2">
+  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot3">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
@@ -55,11 +55,15 @@
     </div>
   </aside>
   <p id="himalayaNotice" class="himalaya-notice" role="status" hidden></p>
+  <div id="himalayaNight" class="himalaya-night" role="status" aria-live="polite" hidden>
+    <p id="himalayaNightText" class="himalaya-night-text"></p>
+    <p id="himalayaNightMoon" class="himalaya-night-moon" hidden></p>
+  </div>
   <footer id="himalayaProvenance" class="himalaya-provenance" role="note"></footer>
   <script type="module">
     import { platformRegistry } from './src/core/platform-registry.js';
     import { createObservatoryModuleHost } from './src/core/observatory/module-host.js';
-    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot2';
+    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot3';
 
     const moduleHost = createObservatoryModuleHost({
       registry: platformRegistry,
