@@ -14,7 +14,8 @@ import { fetchEarthFirmsDay } from './earth-data-runtime.js';
  * of the app: the day is outside the MODIS NRT/SP products.
  */
 export function classifyDayError(error) {
-    const status = error?.status;
+    // requestRuntime wraps the HTTP error (RuntimeRequestError.cause).
+    const status = error?.status ?? error?.cause?.status;
     const code = error?.proxyError;
     if (status === 404 || code === 'no-coverage') return { kind: 'no-coverage', text: 'no FIRMS product covers this day' };
     if (status === 429 || code === 'rate-limited') return { kind: 'rate-limited', text: 'FIRMS request budget used, try again later' };

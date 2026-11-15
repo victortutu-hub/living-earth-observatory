@@ -197,3 +197,13 @@ describe('workflow keeps FIRMS events that arrived before the EONET load of the 
         workflow.dispose();
     });
 });
+
+describe('FIRMS day errors wrapped by requestRuntime (cause)', () => {
+    it('404 / 429 inside RuntimeRequestError.cause keep their meaning', () => {
+        const wrapped = (status) => Object.assign(new Error('Resource unavailable'), { cause: Object.assign(new Error(`HTTP ${status}`), { status }) });
+        expect(classifyDayError(wrapped(404)).kind).toBe('no-coverage');
+        expect(classifyDayError(wrapped(429)).kind).toBe('rate-limited');
+        expect(classifyDayError(wrapped(503)).kind).toBe('availability');
+        expect(classifyDayError(new TypeError('Failed to fetch')).kind).toBe('unreachable');
+    });
+});
