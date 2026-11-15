@@ -16,10 +16,29 @@ import {
   computeSun, dateAtUtcMinutes, formatClock, localMeanSolarMinutes, utcMinutesOfDay,
 } from './sun-position.js';
 import { summitWeatherRows, weatherBarSegment } from './summit-weather.js';
-import { createWeatherClient } from './weather-client.js';
+import { createSessionStorageCache, createWeatherClient } from './weather-client.js';
+import { createAttemptLedger, createGuardedRuntime } from './request-guard.js';
 import { computeMoon, nightMessage } from './moon-position.js';
+import { createSentinelClient } from './sentinel-client.js';
+import {
+  LEVEL_20M, LEVEL_40M, STRETCH_LABEL, imageBarSegment, lightingLabel, selectionSummary, sentinelAttribution, shouldLoad20m,
+} from './sentinel-scene.js';
+import { createLru } from './terrarium.js';
 
-export const FUTURE_FIELDS = Object.freeze(['Image', 'History']);
+export const FUTURE_FIELDS = Object.freeze(['History']);
+export const IMAGE_MODES = Object.freeze(['satellite', 'lit']);
+
+/** Why Satellite is (not) shown; null when it is. */
+export function satelliteReason({ userMode, terrainMode, sat, activeId }) {
+  if (userMode !== 'satellite') return 'Lit terrain selected';
+  if (!activeId) return 'select a summit for the Sentinel-2 image';
+  if (terrainMode !== 'glo30') return 'Terrarium terrain detail: Satellite needs the GLO-30 patch — showing Lit terrain';
+  if (!sat || sat.peakId !== activeId || sat.status === 'selecting') return 'looking for a clear Sentinel-2 scene…';
+  if (sat.status === 'no-clear') return 'no clear scene in the last 30 days — showing Lit terrain';
+  if (sat.status === 'error') return `Sentinel-2 unavailable (${sat.error}) — showing Lit terrain`;
+  if (!sat.level) return 'loading the Sentinel-2 image (40 m)…';
+  return null;
+}
 export const TIME_STEP_MINUTES = 10;
 
 /** Initial focus from ?focus=<peak id>; anything else -> null (overview). */
@@ -83,6 +102,9 @@ export function startHimalayaApp({
   const terrainInputs = [...document.querySelectorAll('input[name="himalayaTerrain"]')];
   const sources = document.getElementById('himalayaSources');
   const night = document.getElementById('himalayaNight');
+  const imageInputs = [...document.querySelectorAll('input[name="himalayaImage"]')];
+  const imageNote = document.getElementById('himalayaImageNote');
+  const imageBest = document.getElementById('himalayaImageBest');
   const nightText = document.getElementById('himalayaNightText');
   const nightMoon = document.getElementById('himalayaNightMoon');
   document.body.classList.toggle('is-atlas-embedded', embedded);
@@ -95,7 +117,11 @@ export function startHimalayaApp({
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const reducedMotion = () => reducedMotionQuery.matches;
   const sheet = createBottomSheet({ panel, toggle: sheetToggle, signal: listeners.signal });
-  const terrainRuntime = createRequestRuntime({ cache: NON_PERSISTENT_CACHE });
+  // One page-wide retry policy (request-guard.js): backoff 2 s / 4 s, at most
+  // 3 failed attempts per resource per visit, then a final honest state.
+  const attempts = createAttemptLedger();
+  const guarded = (runtime) => createGuardedRuntime({ runtime, ledger: attempts });
+  const terrainRuntime = guarded(createRequestRuntime({ cache: NON_PERSISTENT_CACHE }));
   let scene = null;
   let activeId = null;
   let terrainMode = 'glo30';
@@ -103,7 +129,14 @@ export function startHimalayaApp({
   let sunInfo = null;
   let moonInfo = null;
   let weatherState = null;
+  // --- Sentinel-2 Satellite mode (Lot 4)
+  let userImageMode = 'satellite';
+  let sat = null; // { peakId, status, selection, pass, level, error, upgrading }
+  let satController = null;
+  const sentinel = createSentinelClient({ runtime: guarded(createRequestRuntime({ cache: NON_PERSISTENT_CACHE })) });
+  const imageCache = createLru(2, (peakId) => scene?.clearSatelliteImage(peakId));
   const weather = createWeatherClient({
+    runtime: guarded(createRequestRuntime({ cache: createSessionStorageCache() })),
     onChange: (state) => {
       if (!alive()) return;
       weatherState = state;
@@ -112,12 +145,20 @@ export function startHimalayaApp({
   });
   const time = { mode: 'now', minutes: utcMinutesOfDay(now()) };
 
-  // --- sources & attribution
-  sources.replaceChildren(...ATTRIBUTIONS.map((entry) => {
-    const item = element('li');
-    item.append(element('strong', null, entry.title), element('span', 'himalaya-source-text', entry.text), element('span', 'himalaya-source-note', entry.note));
-    return item;
-  }));
+  // --- sources & attribution (the Sentinel-2 notice carries the year of the scene shown)
+  function renderSources(sceneYear = null) {
+    const sentinelEntry = {
+      title: 'Sentinel-2 image (Satellite mode)',
+      text: sceneYear ? sentinelAttribution(sceneYear) : 'Contains modified Copernicus Sentinel data [year of the scene shown]',
+      note: 'Sentinel-2 L2A (atmospherically corrected with Sen2Cor), Cloud-Optimized GeoTIFFs found through Earth Search (Element 84) on AWS Open Data; bands B4/B3/B2 with one fixed stretch for every scene, reprojected from UTM onto the GLO-30 patch.',
+    };
+    sources.replaceChildren(...[...ATTRIBUTIONS, sentinelEntry].map((entry) => {
+      const item = element('li');
+      item.append(element('strong', null, entry.title), element('span', 'himalaya-source-text', entry.text), element('span', 'himalaya-source-note', entry.note));
+      return item;
+    }));
+  }
+  renderSources();
 
   function currentDate() {
     return time.mode === 'now' ? now() : dateAtUtcMinutes(now(), time.minutes);
@@ -126,7 +167,8 @@ export function startHimalayaApp({
   function updateProvenance() {
     const date = currentDate();
     const weatherForPeak = weatherState && weatherState.peakId === activeId ? weatherState : null;
-    provenance.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date) });
+    const imageSegment = satelliteShown() ? imageBarSegment(sat.pass) : 'Image: none (Lit terrain)';
+    provenance.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment });
     const patch = activeId ? getTerrainPatch(activeId) : null;
     provenance.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
   }
@@ -154,6 +196,12 @@ export function startHimalayaApp({
     }
     add('DEM elevation', demRowText(terrainMode, patch, scene?.terrariumSummit(peak.id)) || 'DEM elevation (model): loading…', 'model');
     add('Terrain', terrainRowText(terrainMode, patch, scene?.patchState(peak.id)));
+    const satForPeak = sat && sat.peakId === peak.id ? sat : null;
+    if (satForPeak?.selection) add('Image', selectionSummary(satForPeak.selection));
+    if (satelliteShown()) {
+      add('Image shown', `${imageBarSegment(sat.pass).replace(/^Image: /, '')} · ${sat.level === LEVEL_20M ? '20 m' : `40 m${sat.upgradeFailed ? ' (20 m image unavailable — 40 m kept)' : ' (20 m below 15 km from the summit)'}`} · ${lightingLabel(sat.pass)}`);
+      add('Colour', STRETCH_LABEL);
+    } else add('Image shown', `none — ${satelliteReason({ userMode: userImageMode, terrainMode, sat, activeId: peak.id })}`, 'pending');
     add('Summit', `${peak.lat.toFixed(4)}° N, ${peak.lon.toFixed(4)}° E`);
     add('Position check', `Wikidata ${peak.coordinates.wikidata} / OSM ${peak.coordinates.osm}: ${peak.coordinates.differenceM} m apart`);
     if (peak.note) add('Note', peak.note);
@@ -194,7 +242,7 @@ export function startHimalayaApp({
     scene?.setMoon(result.altitudeDeg <= 0 && moonInfo && moonInfo.altitudeDeg > 0 ? moonInfo : null);
     const message = peak ? nightMessage({ peakName: peak.name, sun: result, moon, isNow: time.mode === 'now' }) : null;
     night.hidden = !message;
-    nightText.textContent = message?.text || '';
+    nightText.textContent = message ? `${message.text}${satelliteShown() ? ' (image: daylight as captured)' : ''}` : '';
     nightMoon.textContent = message?.moon || '';
     nightMoon.hidden = !message?.moon;
     if (peak) renderPanel();
@@ -214,8 +262,92 @@ export function startHimalayaApp({
     sheet.reveal();
     weatherState = null;
     weather.load(peak);
+    loadSatellite(peak);
     renderPanel();
     updateSun();
+  }
+
+  function satelliteShown() {
+    return Boolean(scene?.satelliteShown?.()) && !satelliteReason({ userMode: userImageMode, terrainMode, sat, activeId });
+  }
+
+  function applyImageMode() {
+    if (!alive()) return;
+    const reason = satelliteReason({ userMode: userImageMode, terrainMode, sat, activeId });
+    scene?.setImageMode(reason ? 'lit' : 'satellite');
+    imageInputs.forEach((input) => { input.checked = input.value === userImageMode; });
+    imageNote.textContent = reason ? `Showing Lit terrain: ${reason}.` : `Satellite: ${lightingLabel(sat.pass)}. Sun, Moon and shadows are not applied to the image.${sat.upgradeFailed ? ' 20 m image unavailable — 40 m kept.' : ''}`;
+    imageBest.hidden = !(sat && sat.peakId === activeId && sat.status === 'no-clear' && sat.selection?.best);
+    if (!imageBest.hidden) imageBest.textContent = `Show the best available (${sat.selection.best.datetime.slice(0, 10)}, local cloud ${Math.round(sat.selection.best.localCloudPct ?? 0)}%)`;
+    renderSources(satelliteShown() ? sat.pass.datetime.slice(0, 4) : null);
+  }
+
+  function showImage(peakId, image) {
+    scene?.setSatelliteImage(peakId, image);
+  }
+
+  async function loadLevel(peak, levelIndex, signal) {
+    const cached = imageCache.get(peak.id);
+    if (cached?.passId === sat.pass.datatake && cached.images[levelIndex]) return cached.images[levelIndex];
+    const image = await sentinel.image(peak, getTerrainPatch(peak.id), sat.pass, levelIndex, signal);
+    const entry = cached?.passId === sat.pass.datatake ? cached : { passId: sat.pass.datatake, images: {} };
+    entry.images[levelIndex] = image;
+    imageCache.set(peak.id, entry, { isPinned: (key) => key === activeId });
+    return image;
+  }
+
+  async function loadSatellite(peak, { useBest = false } = {}) {
+    satController?.abort(new DOMException('Summit changed', 'AbortError'));
+    satController = new AbortController();
+    const { signal } = satController;
+    const meta = getTerrainPatch(peak.id);
+    if (!meta) { sat = { peakId: peak.id, status: 'error', error: 'no GLO-30 patch' }; applyImageMode(); return; }
+    sat = { peakId: peak.id, status: 'selecting' };
+    applyImageMode();
+    try {
+      const selection = await sentinel.select(peak, meta, signal);
+      if (signal.aborted) return;
+      const pass = selection.status === 'clear' ? selection.pass : useBest ? selection.best : null;
+      sat = { peakId: peak.id, status: pass ? 'loading' : 'no-clear', selection, pass, level: null, showingBest: Boolean(useBest && pass) };
+      applyImageMode(); renderPanel(); updateProvenance();
+      if (!pass) return;
+      const cached = imageCache.get(peak.id);
+      const best = cached?.passId === pass.datatake ? cached.images[LEVEL_20M] || cached.images[LEVEL_40M] : null;
+      const image = best || await loadLevel(peak, LEVEL_40M, signal);
+      if (signal.aborted) return;
+      showImage(peak.id, image);
+      sat.level = image.level; sat.status = 'ready'; sat.lastImage = { size: [image.width, image.height], stats: image.stats, reflectance: image.reflectanceSamples, tiles: image.tiles };
+    } catch (error) {
+      if (signal.aborted) return;
+      sat = { ...(sat || {}), peakId: peak.id, status: 'error', error: error?.message || String(error) };
+      console.warn('[Living Himalaya] Sentinel-2 unavailable.', error?.message || error);
+    }
+    applyImageMode(); renderPanel(); updateProvenance(); updateSun();
+  }
+
+  // 40 m -> 20 m once the camera is closer than the patch LOD threshold (one pass active).
+  const upgradeTimer = setInterval(async () => {
+    if (!alive() || !sat || sat.status !== 'ready' || sat.level !== LEVEL_40M || sat.upgrading || sat.upgradeFailed || sat.peakId !== activeId) return;
+    if (!shouldLoad20m(scene?.summitDistanceKm())) return;
+    const mine = sat; const signal = satController.signal;
+    mine.upgrading = true;
+    try {
+      const peak = getHimalayaPeak(mine.peakId);
+      const image = await loadLevel(peak, LEVEL_20M, signal);
+      if (signal.aborted || sat !== mine) return;
+      showImage(peak.id, image);
+      mine.level = LEVEL_20M; mine.lastImage = { size: [image.width, image.height], stats: image.stats, reflectance: image.reflectanceSamples, tiles: image.tiles };
+      applyImageMode(); renderPanel(); updateProvenance();
+    } catch (error) {
+      // One attempt per pass: a failure keeps 40 m and is not retried by the timer.
+      if (!signal.aborted) { mine.upgradeFailed = true; console.warn('[Living Himalaya] Sentinel-2 20 m unavailable; keeping 40 m.', error?.message || error); applyImageMode(); renderPanel(); }
+    } finally { mine.upgrading = false; }
+  }, 400);
+
+  function setImageMode(mode) {
+    if (!IMAGE_MODES.includes(mode) || !alive()) return;
+    userImageMode = mode;
+    applyImageMode(); renderPanel(); updateProvenance(); updateSun();
   }
 
   function setTerrainMode(mode) {
@@ -223,6 +355,7 @@ export function startHimalayaApp({
     terrainMode = mode;
     terrainInputs.forEach((input) => { input.checked = input.value === mode; });
     scene?.setTerrainMode(mode);
+    applyImageMode();
     renderPanel();
     updateProvenance();
   }
@@ -239,6 +372,8 @@ export function startHimalayaApp({
     return item;
   }));
   terrainInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setTerrainMode(input.value); }));
+  imageInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setImageMode(input.value); }));
+  on(imageBest, 'click', () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); });
   on(timeSlider, 'input', () => {
     time.mode = 'manual';
     time.minutes = Number(timeSlider.value);
@@ -293,6 +428,12 @@ export function startHimalayaApp({
       weather: weatherState ? { peakId: weatherState.peakId, status: weatherState.status, fromCache: weatherState.fromCache || false, cacheAgeMs: weatherState.cacheAgeMs ?? null, error: weatherState.error || null } : null,
       weatherRows: activeId ? Object.fromEntries(summitWeatherRows({ peak: getHimalayaPeak(activeId), state: weatherState && weatherState.peakId === activeId ? weatherState : null, date: currentDate() }).map(([k, v]) => [k, v])) : null,
       night: night.hidden ? null : { text: nightText.textContent, moon: nightMoon.hidden ? null : nightMoon.textContent },
+      satellite: sat ? { peakId: sat.peakId, status: sat.status, level: sat.level ?? null, error: sat.error || null, selection: sat.selection ? { status: sat.selection.status, fromCache: sat.selection.fromCache, passes: sat.selection.passes, evaluated: sat.selection.evaluated, pass: sat.selection.pass && { datetime: sat.selection.pass.datetime, scene: sat.selection.pass.sceneCloudPct, local: sat.selection.pass.localCloudPct, tiles: sat.selection.pass.tiles.map((t) => `${t.tile}:${t.localCloudPct == null ? 'n/a' : t.localCloudPct.toFixed(1)}`) }, best: sat.selection.best && { datetime: sat.selection.best.datetime, scene: sat.selection.best.sceneCloudPct, local: sat.selection.best.localCloudPct } } : null, lastImage: sat.lastImage || null, shown: satelliteShown(), reason: satelliteReason({ userMode: userImageMode, terrainMode, sat, activeId }) } : null,
+      sentinelRequests: sentinel.requests,
+      failedAttempts: attempts.snapshot(),
+      summitDistanceKm: scene?.summitDistanceKm?.() ?? null,
+      upgradeFailed: Boolean(sat?.upgradeFailed),
+      imageNote: imageNote.textContent,
       provenance: provenance.textContent, scene: scene?.snapshot() || null,
     }),
     select: (id) => select(id),
@@ -303,11 +444,15 @@ export function startHimalayaApp({
     measureShadowCost: (samples) => scene?.measureShadowCost(samples) || null,
     measureShadowCostGpu: (samples) => scene?.measureShadowCostGpu(samples) || null,
     view: (target, position) => scene?.setView(target, position),
+    setImageMode,
+    showBestAvailable: () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); },
   });
 
   return () => {
     listeners.abort();
     clearInterval(ticker);
+    clearInterval(upgradeTimer);
+    satController?.abort(new DOMException('Living Himalaya disposed', 'AbortError'));
     weather.dispose();
     sheet.dispose();
     terrainRuntime.abortAll?.();

@@ -12,7 +12,7 @@ const ROADMAP = Object.freeze({
   cosmos: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Local stellar neighborhood, not a universe simulator' }),
   network: Object.freeze({ progress: 0, stage: 'Planned', next: 'Static topology and curated measurement story' }),
   // Unfrozen 2026-11-15 (Gate 2 closed). Lot 1: peak list, Earth markers, enter/return, scene without terrain.
-  himalaya: Object.freeze({ progress: 35, stage: 'In development: terrain, sunlight and summit weather', next: 'Per-field provenance in the summit panel (Lot 4)' }),
+  himalaya: Object.freeze({ progress: 50, stage: 'In development: terrain, Sentinel-2 image, sunlight and summit weather', next: 'Per-field provenance in the summit panel' }),
 });
 
 // `parent` (optional): id of an existing top-level observatory this one belongs
@@ -157,7 +157,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
   futureObservatory({
     id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'development',
     parent: 'living-earth', // entered from the Earth globe, not from the hero
-    route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels'],
+    route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a'],
     accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
     description: 'A regional observatory in development, entered from a summit marker on the Earth globe. Today: the 14 eight-thousanders from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun; the latest cloud-free Sentinel-2 scene comes later.',
     features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Opt-in expedition tracks'],

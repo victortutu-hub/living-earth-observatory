@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot3">
+  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot4">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
@@ -19,7 +19,7 @@
     <div class="himalaya-brand">
       <span>Luminomorphism / Regional Scale · In development</span>
       <h1>Living Himalaya Observatory</h1>
-      <p>The 14 summits above 8000 m on real terrain: Copernicus GLO-30 (1″) around the selected summit, Terrarium tiles for the overview. Lit terrain, real Sun, vertical exaggeration 1.0.</p>
+      <p>The 14 summits above 8000 m on real terrain: Copernicus GLO-30 (1″) around the selected summit with the latest clear Sentinel-2 image, Terrarium tiles for the overview. Real Sun, vertical exaggeration 1.0.</p>
     </div>
     <a class="himalaya-return" href="./earth-eonet-relief.html?focus=himalaya" aria-label="Return to Living Earth">Return<span class="himalaya-return-long"> to Living Earth</span></a>
   </header>
@@ -39,7 +39,14 @@
           <label><input type="radio" name="himalayaTerrain" value="glo30" checked> GLO-30 (1″)</label>
           <label><input type="radio" name="himalayaTerrain" value="terrarium"> Terrarium</label>
         </fieldset>
-        <p class="himalaya-mode-note">Mode: Lit terrain (uniform albedo, no imagery) · vertical exaggeration 1.0</p>
+        <fieldset class="himalaya-terrain-switch himalaya-image-switch">
+          <legend>Image</legend>
+          <label><input type="radio" name="himalayaImage" value="satellite" checked> Satellite (Sentinel-2)</label>
+          <label><input type="radio" name="himalayaImage" value="lit"> Lit terrain</label>
+        </fieldset>
+        <p id="himalayaImageNote" class="himalaya-mode-note" aria-live="polite"></p>
+        <button id="himalayaImageBest" class="himalaya-time-now himalaya-image-best" type="button" hidden></button>
+        <p class="himalaya-mode-note">Lit terrain: uniform albedo lit by the computed Sun · vertical exaggeration 1.0</p>
         <label class="himalaya-time" for="himalayaTime">Sun time on the current UTC day</label>
         <input id="himalayaTime" type="range" min="0" max="1430" step="10" value="720">
         <div class="himalaya-time-row">
@@ -63,7 +70,7 @@
   <script type="module">
     import { platformRegistry } from './src/core/platform-registry.js';
     import { createObservatoryModuleHost } from './src/core/observatory/module-host.js';
-    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot3';
+    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot4';
 
     const moduleHost = createObservatoryModuleHost({
       registry: platformRegistry,

@@ -11,7 +11,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { projectLonLat, heightKm, localBasis, VERTICAL_EXAGGERATION } from './projection.js';
+import { projectLonLat, unprojectXZ, heightKm, localBasis, VERTICAL_EXAGGERATION } from './projection.js';
+import { utmForward } from './utm.js';
 import { createTerrainOverview, installClip } from './terrain-overview.js';
 import { buildPatchGeometry, decodePatch, patchCornersXZ, FULL_LOD_DISTANCE_KM } from './terrain-patch.js';
 import { sunDirectionScene } from './sun-position.js';
@@ -237,9 +238,77 @@ export function createHimalayaScene({
   });
   let fade = null;
   let shadowUpdates = 0;
+  let shadowSkipped = 0;
   let lastShadowRequest = null;
 
+  // --- Sentinel-2 "Satellite" mode (Lot 4): unlit draped image on the GLO-30
+  // patch; no Sun, Moon or shadows on it (lighting as captured).
+  let imageMode = 'lit';
+  const satellite = new Map(); // peakId -> { texture, material, utm, uvKey, width, height, level }
+
+  function satelliteFor(entry) {
+    return entry && imageMode === 'satellite' ? satellite.get(entry.id) || null : null;
+  }
+  function materialFor(entry) {
+    return satelliteFor(entry)?.material || patchMaterial;
+  }
+  /**
+   * Per-vertex UV: grid lat/lon -> UTM (Krüger) -> image extent. UTM is
+   * evaluated on every 8th row/column and interpolated bilinearly in between
+   * (error far below 1 mm over 240 m); skirt vertices use their position.
+   */
+  function ensureUv(entry, sat) {
+    if (entry.uvKey === sat.uvKey) return;
+    const started = performance.now();
+    const position = entry.geometry.getAttribute('position');
+    const uv = new Float32Array(position.count * 2);
+    const { zone, e0, n0, widthM, heightM } = sat.utm;
+    const meta = getPatchMeta(entry.id);
+    const { rows, cols } = meta;
+    const step = 8;
+    const rowsC = []; for (let j = 0; j < rows; j += step) rowsC.push(j); if (rowsC.at(-1) !== rows - 1) rowsC.push(rows - 1);
+    const colsC = []; for (let i = 0; i < cols; i += step) colsC.push(i); if (colsC.at(-1) !== cols - 1) colsC.push(cols - 1);
+    const E = new Float64Array(rowsC.length * colsC.length); const N = new Float64Array(E.length);
+    rowsC.forEach((j, a) => colsC.forEach((i, b) => {
+      const u = utmForward((meta.latTopArcsec - j) / 3600, (meta.lonLeftArcsec + i) / 3600, zone);
+      E[a * colsC.length + b] = u.e; N[a * colsC.length + b] = u.n;
+    }));
+    let a = 0;
+    for (let j = 0; j < rows; j++) {
+      while (a < rowsC.length - 2 && rowsC[a + 1] <= j) a++;
+      const ty = (j - rowsC[a]) / (rowsC[a + 1] - rowsC[a]);
+      let b = 0;
+      for (let i = 0; i < cols; i++) {
+        while (b < colsC.length - 2 && colsC[b + 1] <= i) b++;
+        const tx = (i - colsC[b]) / (colsC[b + 1] - colsC[b]);
+        const q = a * colsC.length + b; const q2 = q + colsC.length;
+        const e = (E[q] * (1 - tx) + E[q + 1] * tx) * (1 - ty) + (E[q2] * (1 - tx) + E[q2 + 1] * tx) * ty;
+        const n = (N[q] * (1 - tx) + N[q + 1] * tx) * (1 - ty) + (N[q2] * (1 - tx) + N[q2 + 1] * tx) * ty;
+        const k = j * cols + i;
+        uv[k * 2] = (e - e0) / widthM;
+        uv[k * 2 + 1] = (n0 - n) / heightM; // texture row 0 = north, flipY = false
+      }
+    }
+    for (let k = rows * cols; k < position.count; k++) {
+      const ll = unprojectXZ(position.getX(k), position.getZ(k), center);
+      const u = utmForward(ll.lat, ll.lon, zone);
+      uv[k * 2] = (u.e - e0) / widthM;
+      uv[k * 2 + 1] = (n0 - u.n) / heightM;
+    }
+    entry.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    entry.uvKey = sat.uvKey;
+    entry.uvMs = Math.round(performance.now() - started);
+  }
+  function applyPatchMaterial(entry) {
+    if (!entry) return;
+    const sat = satelliteFor(entry);
+    if (sat) ensureUv(entry, sat);
+    entry.mesh.material = sat ? sat.material : patchMaterial;
+  }
+
   function requestShadowUpdate(reason) {
+    const active = activePatchId ? patches.peek(activePatchId) : null;
+    if (satelliteFor(active)) { shadowSkipped += 1; return; } // Satellite: no cast shadows
     renderer.shadowMap.needsUpdate = true;
     lastShadowRequest = reason;
   }
@@ -258,14 +327,16 @@ export function createHimalayaScene({
     const entry = id ? patches.get(id) : null;
     if (!entry || terrainMode !== 'glo30') { setClip(null); fade = null; return; }
     aimSunAt(entry.center);
+    applyPatchMaterial(entry);
+    const material = entry.mesh.material;
     if (reducedMotion()) {
-      patchMaterial.transparent = false; patchMaterial.opacity = 1; patchMaterial.needsUpdate = true;
+      material.transparent = false; material.opacity = 1; material.needsUpdate = true;
       setClip(entry);
       fade = null;
     } else {
-      patchMaterial.transparent = true; patchMaterial.opacity = 0; patchMaterial.needsUpdate = true;
+      material.transparent = true; material.opacity = 0; material.needsUpdate = true;
       setClip(null);
-      fade = { start: performance.now(), entry };
+      fade = { start: performance.now(), entry, material };
     }
     requestShadowUpdate('patch');
   }
@@ -430,9 +501,9 @@ export function createHimalayaScene({
     // Patch fade and LOD.
     if (fade) {
       const t = Math.min(1, (now - fade.start) / PATCH_FADE_MS);
-      patchMaterial.opacity = t;
+      fade.material.opacity = t;
       if (t >= 1) {
-        patchMaterial.transparent = false; patchMaterial.needsUpdate = true;
+        fade.material.transparent = false; fade.material.needsUpdate = true;
         setClip(fade.entry);
         fade = null;
       }
@@ -515,6 +586,55 @@ export function createHimalayaScene({
     },
     setSun,
     setMoon,
+    /** Sentinel-2 mosaic for a summit: { rgba, width, height, level, res, utm: { zone, e0, n0, widthM, heightM } }. */
+    setSatelliteImage(peakId, image) {
+      const previous = satellite.get(peakId);
+      previous?.texture.dispose();
+      previous?.material.dispose();
+      const texture = new THREE.DataTexture(image.rgba, image.width, image.height, THREE.RGBAFormat, THREE.UnsignedByteType);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.generateMipmaps = true;
+      texture.minFilter = THREE.LinearMipmapLinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texture.needsUpdate = true;
+      const material = new THREE.MeshBasicMaterial({ map: texture });
+      const { zone, e0, n0, widthM, heightM } = image.utm;
+      satellite.set(peakId, { texture, material, utm: image.utm, uvKey: `${zone}:${e0}:${n0}:${widthM}:${heightM}`, width: image.width, height: image.height, level: image.level, res: image.res });
+      const entry = patches.peek(peakId);
+      if (entry && peakId === activePatchId) applyPatchMaterial(entry);
+    },
+    clearSatelliteImage(peakId) {
+      const sat = satellite.get(peakId);
+      if (!sat) return;
+      satellite.delete(peakId);
+      const entry = patches.peek(peakId);
+      if (entry && entry.mesh.material === sat.material) entry.mesh.material = patchMaterial;
+      sat.texture.dispose();
+      sat.material.dispose();
+    },
+    /** 'satellite' | 'lit'; shadows are recomputed only when entering Lit terrain. */
+    setImageMode(mode) {
+      if (mode !== 'satellite' && mode !== 'lit') return;
+      const changed = mode !== imageMode;
+      imageMode = mode;
+      const entry = activePatchId && terrainMode === 'glo30' ? patches.peek(activePatchId) : null;
+      applyPatchMaterial(entry);
+      if (changed && mode === 'lit') requestShadowUpdate('mode');
+    },
+    satelliteShown: () => {
+      const entry = activePatchId && terrainMode === 'glo30' ? patches.peek(activePatchId) : null;
+      return Boolean(entry && entry.mesh.visible && satelliteFor(entry) && entry.mesh.material === satelliteFor(entry).material);
+    },
+    /** Camera distance (km) to the focused summit (official elevation). */
+    summitDistanceKm: () => {
+      const marker = activeId ? markers.get(activeId) : null;
+      return marker ? camera.position.distanceTo(marker.top) : null;
+    },
+    patchDistanceKm: () => {
+      const entry = activePatchId ? patches.peek(activePatchId) : null;
+      return entry ? camera.position.distanceTo(entry.center) : null;
+    },
     /** Debug/verification: place the camera directly ([x,y,z] km). */
     setView: (target, position) => setView(new THREE.Vector3(...target), new THREE.Vector3(...position)),
     terrariumSummit: (id) => terrariumSummits.get(id) || null,
@@ -581,6 +701,12 @@ export function createHimalayaScene({
         overview: overview.stats(),
         overviewIdle: overview.idle(),
         sun: sunState ? { azimuthDeg: +sunState.azimuthDeg.toFixed(2), altitudeDeg: +sunState.altitudeDeg.toFixed(2), source: sunState.source, direction: sunState.direction.toArray().map((v) => +v.toFixed(4)), intensity: +sun.intensity.toFixed(3) } : null,
+        image: (() => {
+          const entry = activePatchId ? patches.peek(activePatchId) : null;
+          const sat = activePatchId ? satellite.get(activePatchId) : null;
+          return { mode: imageMode, available: Boolean(sat), level: sat?.level ?? null, res: sat?.res ?? null, size: sat ? [sat.width, sat.height] : null,
+            material: entry ? entry.mesh.material.type : null, uvMs: entry?.uvMs ?? null, shadowSkipped, satelliteImages: [...satellite.keys()] };
+        })(),
         moon: moonState ? { azimuthDeg: +moonState.azimuthDeg.toFixed(2), altitudeDeg: +moonState.altitudeDeg.toFixed(2), phaseFraction: +moonState.phaseFraction.toFixed(3), intensity: +moonLight.intensity.toFixed(3), castShadow: moonLight.castShadow } : null,
         shadow: { mapSize: SHADOW_MAP_SIZE, autoUpdate: renderer.shadowMap.autoUpdate, updates: shadowUpdates, lastReason: lastShadowRequest },
         gpu: { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, bufferBytes: gpuBufferBytes(), shadowMapBytes: SHADOW_MAP_SIZE * SHADOW_MAP_SIZE * 4 },
@@ -598,6 +724,8 @@ export function createHimalayaScene({
       controls.dispose();
       overview.dispose();
       patches.clear();
+      for (const sat of satellite.values()) { sat.texture.dispose(); sat.material.dispose(); }
+      satellite.clear();
       disposables.forEach((resource) => resource.dispose());
       sun.shadow.map?.dispose();
       labelRenderer.domElement.remove();

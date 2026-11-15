@@ -7,6 +7,9 @@ import { projectLonLat, heightKm } from './projection.js';
 import { readKtx2R16Unorm, dequantizeHeights } from './ktx2-r16-reader.js';
 
 export const SKIRT_DEPTH_KM = 0.6;
+// Camera distance (km) to the patch centre under which the FULL index set is
+// used; Lot 4 uses the same threshold to switch Sentinel-2 from 40 m to 20 m.
+export const FULL_LOD_DISTANCE_KM = 32;
 
 /** Row/column indices for a stride, always ending on the last one. */
 export function strideIndices(count, stride) {

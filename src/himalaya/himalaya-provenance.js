@@ -21,13 +21,14 @@ export function sunLabel(sun, date) {
     : `Sun: approximate model (physical-model, simplified; astronomy-engine unavailable), ${formatUtc(date)}`;
 }
 
-export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null } = {}) {
+export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null, image = null } = {}) {
   return [
     'Peaks: reference list (sources cited)',
     `Terrain: ${TERRAIN_LABELS[terrainMode] || TERRAIN_LABELS.glo30}`,
     `Overview: ${OVERVIEW_LABEL}`,
     sunLabel(sun, date),
     weather,
+    image,
   ].filter(Boolean).join(' | ');
 }
 

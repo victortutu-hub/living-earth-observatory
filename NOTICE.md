@@ -41,6 +41,10 @@ policies:
 - Public TLE/SGP4 sources: ISS orbital tracking inputs.
 - Open-Meteo (Living Himalaya summit weather): "Weather data by Open-Meteo.com"
   (CC BY 4.0); model NOAA NCEP GFS 0.25° on pressure levels (Model prediction).
+- Copernicus Sentinel-2 L2A (Living Himalaya "Satellite" mode): read at runtime
+  from the AWS Open Data `sentinel-cogs` COGs found through Earth Search
+  (Element 84); bands B4/B3/B2 reprojected and with a fixed stretch, so the
+  notice is "Contains modified Copernicus Sentinel data <year of the scene>".
 
 The app is an artistic/scientific visualization, not an operational emergency
 system. Always consult the original providers for authoritative data.

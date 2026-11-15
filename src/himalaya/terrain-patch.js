@@ -6,8 +6,7 @@
 import * as THREE from 'three';
 import { buildPatchArrays } from './patch-grid.js';
 
-export { decodePatch, patchCornersXZ, strideIndices } from './patch-grid.js';
-export const FULL_LOD_DISTANCE_KM = 32;
+export { decodePatch, patchCornersXZ, strideIndices, FULL_LOD_DISTANCE_KM } from './patch-grid.js';
 
 export function buildPatchGeometry(meta, heights, center) {
   const { positions, normals, full, coarse, vertexCount } = buildPatchArrays(meta, heights, center);
