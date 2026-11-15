@@ -13,6 +13,9 @@ _deploy_cpanel/
 .agents/
 tmp/
 
+# Large local evidence (e.g. reels for gate evidence); hashes are recorded in the roadmap
+evidence/
+
 # Generated snapshots and packages
 Back Up/
 exports/

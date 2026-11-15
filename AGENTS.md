@@ -11,7 +11,9 @@ evidence take precedence over aspirational roadmaps or stale documentation.
 ## Scientific representation
 
 Never silently conflate `observed`, `reconstructed`, `physical-model`,
-`simulation`, `prediction`, `interpretive`, and `fallback`.
+`simulation`, `prediction`, `interpretive`, `fallback`, and `reported`.
+`reported` marks compiled records from accounts (for example expedition
+reports), not measurements; it is never presented as observed.
 A visual must not claim observed/live status without traceable provenance.
 Fallback data and procedural substitutes must remain explicitly identifiable;
 procedural interpretation must not be presented as observation.

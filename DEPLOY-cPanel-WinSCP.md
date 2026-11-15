@@ -44,7 +44,7 @@ cPanel sau prin WinSCP Synchronize.
 
   ```bash
   git -c core.autocrlf=false archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
-    src styles index.html earth-eonet-relief.html living-protein.html sw.js
+    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js
   ```
 
   Plus un manifest `<sha256>  <cale>`, calculat din conținutul arhivei.
@@ -59,7 +59,7 @@ cPanel sau prin WinSCP Synchronize.
   HEAD. E sigur doar dacă working tree-ul e identic cu HEAD pe căile site-ului:
 
   ```bash
-  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html sw.js
+  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js
   ```
 
   Comanda trebuie să nu afișeze nimic. Altfel faci commit sau stash înainte, ori
@@ -80,19 +80,20 @@ import map-ul din HTML (CDN) și nu intră în verificare.
 ### Regula 3 — întâi staging pe server, apoi producția
 
 1. **Backup în afara site-ului:** în cPanel → File Manager, copiază `src/`,
-   `styles/`, cele 3 HTML-uri și `sw.js` în
+   `styles/`, cele 4 HTML-uri și `sw.js` în
    `/home/luminomorphism/deploy-backups/<lot>-<AAAALLZZ>/`. Nu pune backup-ul
    în `public_html`.
 2. Creează `public_html/_staging-<lot>/` și copiază în el `assets/` și
    `vendor/` (paginile le referă relativ).
 3. Urcă arhiva în `_staging-<lot>/` și dezarhiveaz-o acolo.
 4. Deschide `https://luminomorphism.ro/_staging-<lot>/earth-eonet-relief.html`,
-   apoi `/_staging-<lot>/index.html` și `/_staging-<lot>/living-protein.html`.
+   apoi `/_staging-<lot>/index.html`, `/_staging-<lot>/living-protein.html` și
+   `/_staging-<lot>/living-himalaya.html` (din Himalaya Lot 1).
    Pentru fiecare pagină, în DevTools verifici:
    - niciun `404` în Network;
    - niciun modul încărcat de două ori (același fișier cu `?v=` diferite);
    - canvasul randează, iar datele se încarcă.
-5. **Doar dacă trec toate trei:** dezarhivezi aceeași arhivă peste
+5. **Doar dacă trec toate patru:** dezarhivezi aceeași arhivă peste
    `public_html`.
 
 ### Regula 4 — data fișierelor după dezarhivare
@@ -197,7 +198,7 @@ lipește exact:
 ```
 
 Ce face: urcă tot site-ul (`index.html`, `earth-eonet-relief.html`,
-`living-protein.html`, `sw.js`, `src/`, `assets/`, `styles/`, `vendor/`),
+`living-protein.html`, `living-himalaya.html`, `sw.js`, `src/`, `assets/`, `styles/`, `vendor/`),
 dar **NU** urcă `.env` (are secrete!), folderul `.git`, documentația,
 arhivele zip, folderele de dev și `nasa-proxy-server.js`.
 
