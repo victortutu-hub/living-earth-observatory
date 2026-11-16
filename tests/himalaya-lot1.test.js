@@ -158,7 +158,7 @@ describe('acceptObservatoryMessage: strict checks', () => {
     const good = { origin: 'https://lumi.test', source: frameWindow, data: { type: OBSERVATORY_ENTER_MESSAGE, id: 'living-himalaya', focus: 'everest' } };
 
     it('accepts the exact request from the active frame', () => {
-        expect(acceptObservatoryMessage(good, base)).toEqual({ id: 'living-himalaya', focus: 'everest' });
+        expect(acceptObservatoryMessage(good, base)).toEqual({ id: 'living-himalaya', focus: 'everest', time: null }); // Lot 5: optional time, absent here
     });
 
     it.each([
@@ -437,5 +437,62 @@ describe('controller: Earth -> Himalaya -> Earth', () => {
         env.post(enterMessage('everest'), { source: frameWindow });
         await flush();
         expect(adapters.himalaya.start).not.toHaveBeenCalled();
+    });
+});
+
+describe('Lot 5: scene time from Living Earth (controller path)', () => {
+    afterEach(() => {
+        globalThis.window = saved.window;
+        globalThis.document = saved.document;
+        globalThis.history = saved.history;
+        vi.restoreAllMocks();
+    });
+    const tenDaysAgo = () => new Date(Date.now() - 10 * 86400000).toISOString();
+
+    it('a valid time goes to the adapter options and to history.state, never into the hash', async () => {
+        const env = installBrowser('https://lumi.test/index.html');
+        const adapters = himalayaAdapters();
+        const controller = initObservatoryModuleController({ adapters: adapters.list });
+        await controller.enter(platformRegistry.getObservatory('living-earth'));
+        const time = tenDaysAgo();
+        env.post({ ...enterMessage('everest'), time });
+        await flush();
+        expect(adapters.himalaya.start).toHaveBeenCalledTimes(1);
+        expect(adapters.himalaya.start.mock.calls[0][1]).toMatchObject({ focus: 'everest', time });
+        expect(env.location.hash).toBe('#living-himalaya/everest');
+        expect(env.history.state.__lumiTime).toBe(time);
+        // Back to Earth: the Earth entry carries no time.
+        env.history.back();
+        await flush();
+        expect(env.history.state.__lumiTime).toBeUndefined();
+        await controller.dispose();
+    });
+
+    it('refuses messages with an extra key, a null time or an invalid time', async () => {
+        const env = installBrowser('https://lumi.test/index.html');
+        const adapters = himalayaAdapters();
+        const controller = initObservatoryModuleController({ adapters: adapters.list });
+        await controller.enter(platformRegistry.getObservatory('living-earth'));
+        env.post({ ...enterMessage('everest'), time: tenDaysAgo(), extra: 1 });
+        env.post({ ...enterMessage('everest'), time: null });
+        env.post({ ...enterMessage('everest'), time: '2026-11-06' });
+        env.post({ ...enterMessage('everest'), time: new Date(Date.now() + 3600000).toISOString() });
+        await flush();
+        expect(adapters.himalaya.start).not.toHaveBeenCalled();
+        await controller.dispose();
+    });
+
+    it('a reload does not restore the time: the child opens on now, with a note', async () => {
+        const time = tenDaysAgo();
+        const env = installBrowser('https://lumi.test/index.html#living-himalaya/everest', { state: { __lumiMountedObservatory: 'living-himalaya', __lumiTime: time } });
+        const adapters = himalayaAdapters();
+        const controller = initObservatoryModuleController({ adapters: adapters.list });
+        await flush();
+        expect(adapters.himalaya.start).toHaveBeenCalledTimes(1);
+        const options = adapters.himalaya.start.mock.calls[0][1];
+        expect(options.time ?? null).toBeNull();
+        expect(options.timeNote).toBe('not-restored');
+        expect(env.history.state.__lumiTime).toBeUndefined();
+        await controller.dispose();
     });
 });

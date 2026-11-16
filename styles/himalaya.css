@@ -119,3 +119,32 @@ body.is-atlas-embedded .himalaya-list-panel { top: 214px; max-height: calc(100vh
 @media (prefers-reduced-motion: reduce) {
   .himalaya-panel.is-sheet .himalaya-panel-body { transition: none; }
 }
+
+/* Lot 5: collapsible desktop panels (button on each panel + "H") and the one-line provenance bar */
+.himalaya-collapse { display: none; }
+.himalaya-provenance { display: flex; gap: 12px; align-items: flex-start; }
+.himalaya-provenance-text { flex: 1 1 auto; min-width: 0; }
+.himalaya-provenance-toggle { flex: 0 0 auto; border: 1px solid var(--line); background: transparent; color: var(--muted); font: inherit; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; cursor: pointer; }
+.himalaya-provenance-toggle:hover, .himalaya-provenance-toggle:focus-visible { border-color: var(--cyan); color: var(--text); outline: none; }
+@media (min-width: 761px) {
+  .himalaya-provenance-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .himalaya-provenance.is-expanded .himalaya-provenance-text { white-space: normal; }
+  .himalaya-collapse { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: rgba(4, 9, 17, 0.7); color: var(--muted); font: inherit; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; cursor: pointer; }
+  .himalaya-collapse:hover, .himalaya-collapse:focus-visible { border-color: var(--cyan); color: var(--text); outline: none; }
+  .himalaya-collapse::before { content: 'Hide'; }
+  .himalaya-collapse-label { display: none; }
+  .himalaya-list-panel .himalaya-collapse { position: absolute; top: 10px; right: 10px; }
+  .himalaya-list-panel { position: fixed; }
+  .himalaya-collapse-details { position: sticky; top: 0; float: right; z-index: 1; margin: -4px -8px 0 8px; }
+  /* Collapsed: a narrow labelled tab on the edge. */
+  .himalaya-list-panel.is-collapsed, .himalaya-panel.is-collapsed { width: 36px; height: 128px; max-height: none; padding: 0; overflow: hidden; }
+  .himalaya-list-panel.is-collapsed > :not(.himalaya-collapse), .himalaya-panel.is-collapsed > :not(.himalaya-collapse) { display: none; }
+  .is-collapsed > .himalaya-collapse { position: static; float: none; margin: 0; width: 100%; height: 100%; border: 0; justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg); color: var(--text); letter-spacing: 0.16em; }
+  .is-collapsed > .himalaya-collapse::before { content: none; }
+  .is-collapsed .himalaya-collapse-label { display: inline; }
+  body.panels-collapsed .himalaya-brand p { display: none; }
+}
+@media (max-width: 760px) {
+  /* Mobile unchanged: the provenance bar wraps on several lines, no toggle. */
+  .himalaya-provenance-toggle { display: none; }
+}

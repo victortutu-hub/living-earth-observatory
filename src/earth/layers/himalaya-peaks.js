@@ -31,14 +31,28 @@ function buildDetail(peak) {
  * host page mounts it (strictly checked postMessage); standalone, the page is
  * opened directly.
  */
-export function enterHimalaya(peakId, { win = window } = {}) {
+// Scene time of the Earth timeline (Himalaya LOT 5): set by app-services to
+// timeState.snapshot. The time travels only when the timeline is NOT on Live.
+let sceneTimeProvider = null;
+export function setHimalayaSceneTimeProvider(provider) {
+    sceneTimeProvider = typeof provider === 'function' ? provider : null;
+}
+export function historicalSceneTime(provider = sceneTimeProvider) {
+    const snapshot = provider?.();
+    return snapshot?.historical && snapshot.date instanceof Date ? snapshot.date.toISOString() : null;
+}
+
+export function enterHimalaya(peakId, { win = window, time = historicalSceneTime() } = {}) {
     const embedded = win.parent && win.parent !== win;
     if (embedded) {
-        win.parent.postMessage({ type: OBSERVATORY_ENTER_MESSAGE, id: 'living-himalaya', focus: peakId }, win.location.origin);
+        const message = { type: OBSERVATORY_ENTER_MESSAGE, id: 'living-himalaya', focus: peakId };
+        if (time) message.time = time;
+        win.parent.postMessage(message, win.location.origin);
         return 'message';
     }
     const target = new URL('./living-himalaya.html', win.location.href);
     target.searchParams.set('focus', peakId);
+    if (time) target.searchParams.set('time', time);
     win.location.assign(target.href);
     return 'navigate';
 }

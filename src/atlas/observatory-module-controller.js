@@ -1,5 +1,5 @@
 import { createObservatoryModuleHost } from '../core/observatory/module-host.js';
-import { OBSERVATORY_ENTER_MESSAGE } from '../core/observatory/observatory-messages.js';
+import { ENTER_MESSAGE_OPTIONAL_KEYS, ENTER_MESSAGE_REQUIRED_KEYS, OBSERVATORY_ENTER_MESSAGE, validateObservatoryTime } from '../core/observatory/observatory-messages.js';
 import { platformRegistry } from '../core/platform-registry.js';
 import { createLivingEarthAtlasModule } from '../earth/living-earth-atlas-module.js';
 import { createLivingProteinAtlasModule } from '../protein/living-protein-atlas-module.js';
@@ -10,7 +10,7 @@ const HISTORY_KEY = '__lumiMountedObservatory';
 // Return can then go back one entry instead of replacing it.
 const FROM_PARENT_KEY = '__lumiFromParent';
 export { OBSERVATORY_ENTER_MESSAGE };
-const ENTER_MESSAGE_KEYS = Object.freeze(['focus', 'id', 'type']);
+const TIME_KEY = '__lumiTime';
 const EXIT_DURATION_MS = 520;
 
 function delay(ms) {
@@ -59,18 +59,25 @@ export function observatoryHash(id, focus = null) {
  *   - id is a child of the active observatory and canMount(id);
  *   - focus is valid for that child (isValidFocus).
  */
-export function acceptObservatoryMessage(event, { origin, activeSource, activeId, getObservatory, canMount, isValidFocus }) {
+export function acceptObservatoryMessage(event, { origin, activeSource, activeId, getObservatory, canMount, isValidFocus, now = new Date() }) {
   if (!event || event.origin !== origin) return null;
   if (!activeSource || event.source !== activeSource) return null;
   const data = event.data;
   if (!data || typeof data !== 'object' || Array.isArray(data) || Object.getPrototypeOf(data) !== Object.prototype) return null;
-  const keys = Object.keys(data).sort();
-  if (keys.length !== ENTER_MESSAGE_KEYS.length || keys.some((key, index) => key !== ENTER_MESSAGE_KEYS[index])) return null;
+  const keys = Object.keys(data);
+  const allowed = [...ENTER_MESSAGE_REQUIRED_KEYS, ...ENTER_MESSAGE_OPTIONAL_KEYS];
+  if (keys.some((key) => !allowed.includes(key))) return null;
+  if (ENTER_MESSAGE_REQUIRED_KEYS.some((key) => !keys.includes(key))) return null;
   const { type, id, focus } = data;
   if (type !== OBSERVATORY_ENTER_MESSAGE || typeof id !== 'string' || typeof focus !== 'string') return null;
   if (!activeId || getObservatory(id)?.parent !== activeId) return null;
   if (!canMount(id) || !isValidFocus(id, focus)) return null;
-  return { id, focus };
+  let time = null;
+  if (keys.includes('time')) {
+    time = validateObservatoryTime(data.time, now);
+    if (!time) return null; // present but invalid (including null): the whole message is refused
+  }
+  return { id, focus, time };
 }
 
 export function initObservatoryModuleController({
@@ -128,7 +135,7 @@ export function initObservatoryModuleController({
     return closingPromise;
   }
 
-  async function enter(observatory, { focus = null, historyMode = 'push', fromParent = false } = {}) {
+  async function enter(observatory, { focus = null, time = null, timeNote = null, historyMode = 'push', fromParent = false } = {}) {
     // Refused before any history entry or stage change: a planned observatory
     // (no route) or one without an adapter would otherwise mount an empty stage.
     if (!observatory?.id || !canMount(observatory.id)) {
@@ -144,10 +151,11 @@ export function initObservatoryModuleController({
     getPortalRenderer?.()?.setSuspended?.(true);
     setStatus(`Initializing ${observatory.title} Observatory`);
     const validFocus = isValidFocus(activeId, focus) ? focus : null;
-    writeHistory(historyMode, activeId, validFocus, fromParent);
+    const validTime = validateObservatoryTime(time);
+    writeHistory(historyMode, activeId, validFocus, fromParent, validTime);
 
     try {
-      await moduleHost.start(activeId, { mount, focus: validFocus });
+      await moduleHost.start(activeId, { mount, focus: validFocus, time: validTime, timeNote });
       stage.classList.add('is-visible');
       setStatus('');
       document.getElementById('loadingScreen')?.classList.add('hidden');
@@ -160,10 +168,12 @@ export function initObservatoryModuleController({
     }
   }
 
-  function writeHistory(mode, id, focus, fromParent) {
+  // The scene time travels in history.state (never in the hash): Back/Forward
+  // keep it, a reload or a shared link opens the child on "now".
+  function writeHistory(mode, id, focus, fromParent, time = null) {
     if (mode === 'none') return;
-    const { [FROM_PARENT_KEY]: _from, ...base } = history.state || {};
-    const state = { ...base, [HISTORY_KEY]: id, ...(fromParent ? { [FROM_PARENT_KEY]: true } : {}) };
+    const { [FROM_PARENT_KEY]: _from, [TIME_KEY]: _time, ...base } = history.state || {};
+    const state = { ...base, [HISTORY_KEY]: id, ...(fromParent ? { [FROM_PARENT_KEY]: true } : {}), ...(time ? { [TIME_KEY]: time } : {}) };
     if (mode === 'replace') history.replaceState(state, '', observatoryHash(id, focus));
     else history.pushState(state, '', observatoryHash(id, focus));
   }
@@ -173,26 +183,27 @@ export function initObservatoryModuleController({
    * history: 'push' (one new entry), 'replace' (the current entry) or 'none'
    * (popstate already moved the history). It never creates other entries.
    */
-  async function switchTo(id, { focus = null, history: historyMode = 'replace', fromParent = false } = {}) {
+  async function switchTo(id, { focus = null, time = null, history: historyMode = 'replace', fromParent = false } = {}) {
     const observatory = platformRegistry.getObservatory(id);
     if (!observatory || !canMount(id)) {
       console.warn(`[Luminomorphism] ${observatory?.title || id} cannot be mounted here (no route or no module adapter).`);
       return false;
     }
-    if (!activeId) return enter(observatory, { focus, historyMode, fromParent });
+    if (!activeId) return enter(observatory, { focus, time, historyMode, fromParent });
     if (activeId === id) return true;
     const validFocus = isValidFocus(id, focus) ? focus : null;
+    const validTime = validateObservatoryTime(time);
     const token = ++switchToken;
     const previousId = activeId;
     activeId = id;
-    writeHistory(historyMode, id, validFocus, fromParent);
+    writeHistory(historyMode, id, validFocus, fromParent, validTime);
     setStatus(`Initializing ${observatory.title} Observatory`);
     stage.classList.remove('is-visible');
     await moduleHost.destroy(previousId, 'atlas-observatory-switch');
     if (token !== switchToken) return false;
     mount.replaceChildren();
     try {
-      await moduleHost.start(id, { mount, focus: validFocus });
+      await moduleHost.start(id, { mount, focus: validFocus, time: validTime });
       if (token !== switchToken) return false;
       stage.classList.add('is-visible');
       setStatus('');
@@ -233,7 +244,7 @@ export function initObservatoryModuleController({
       canMount,
       isValidFocus,
     });
-    void switchTo(target, { focus: link.observatory?.id === target ? link.focus : null, history: 'none' });
+    void switchTo(target, { focus: link.observatory?.id === target ? link.focus : null, time: history.state?.[TIME_KEY] || null, history: 'none' });
   }
 
   function onMessage(event) {
@@ -253,7 +264,7 @@ export function initObservatoryModuleController({
     if (history.state?.[HISTORY_KEY] === activeId && isValidFocus(activeId, parentFocus)) {
       history.replaceState(history.state, '', observatoryHash(activeId, parentFocus));
     }
-    void switchTo(request.id, { focus: request.focus, history: 'push', fromParent: true });
+    void switchTo(request.id, { focus: request.focus, time: request.time, history: 'push', fromParent: true });
   }
 
   function resolveLinkedObservatory(link) {
@@ -306,9 +317,11 @@ export function initObservatoryModuleController({
       // the home entry must not, or Back would not close the observatory.
       const home = new URL(window.location.href);
       home.hash = '';
-      const { [HISTORY_KEY]: _mounted, ...homeState } = history.state || {};
+      const { [HISTORY_KEY]: _mounted, [TIME_KEY]: droppedTime, ...homeState } = history.state || {};
       history.replaceState(homeState, '', home.href);
-      void enter(link.observatory, { focus: link.focus });
+      // A reload does not restore a parent's scene time: the child opens on
+      // "now" and says so.
+      void enter(link.observatory, { focus: link.focus, timeNote: droppedTime ? 'not-restored' : null });
     } else if (link.action === 'focus-card') {
       // Not mountable (e.g. planned): stay home, bring its card into view.
       // A tab opened in the background does not scroll reliably, so the

@@ -9,14 +9,26 @@ import { buildPatchArrays } from './patch-grid.js';
 export { decodePatch, patchCornersXZ, strideIndices, FULL_LOD_DISTANCE_KM } from './patch-grid.js';
 
 export function buildPatchGeometry(meta, heights, center) {
-  const { positions, normals, full, coarse, vertexCount } = buildPatchArrays(meta, heights, center);
+  const { positions, normals, full, coarse, vertexCount, fullSurfaceCount, coarseSurfaceCount, wallBottomKm } = buildPatchArrays(meta, heights, center);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
   const fullIndex = new THREE.BufferAttribute(full, 1);
   const coarseIndex = new THREE.BufferAttribute(coarse, 1);
+  const groups = {
+    full: { surface: fullSurfaceCount, total: full.length },
+    coarse: { surface: coarseSurfaceCount, total: coarse.length },
+  };
   geometry.setIndex(coarseIndex);
+  setPatchGroups(geometry, groups.coarse);
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
-  return { geometry, fullIndex, coarseIndex, vertexCount, fullTriangles: full.length / 3, coarseTriangles: coarse.length / 3 };
+  return { geometry, fullIndex, coarseIndex, groups, vertexCount, wallBottomKm, fullTriangles: full.length / 3, coarseTriangles: coarse.length / 3 };
+}
+
+/** Material groups: 0 = terrain surface, 1 = neutral walls. */
+export function setPatchGroups(geometry, { surface, total }) {
+  geometry.clearGroups();
+  geometry.addGroup(0, surface, 0);
+  geometry.addGroup(surface, total - surface, 1);
 }

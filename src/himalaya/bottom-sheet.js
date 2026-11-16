@@ -20,7 +20,7 @@ export function sheetLabel(state) {
 /**
  * @param {{panel:HTMLElement, toggle:HTMLButtonElement, media?:MediaQueryList, signal?:AbortSignal}} options
  */
-export function createBottomSheet({ panel, toggle, media = window.matchMedia(SHEET_MEDIA_QUERY), signal = null }) {
+export function createBottomSheet({ panel, toggle, media = window.matchMedia(SHEET_MEDIA_QUERY), signal = null, onChange = () => {} }) {
   let state = 'collapsed';
   function apply() {
     const active = media.matches;
@@ -30,6 +30,7 @@ export function createBottomSheet({ panel, toggle, media = window.matchMedia(SHE
     toggle.setAttribute('aria-expanded', active ? sheetAriaExpanded(state) : 'true');
     toggle.setAttribute('aria-label', sheetLabel(state));
     toggle.dataset.state = state;
+    onChange(state);
   }
   const onToggle = () => { state = nextSheetState(state); apply(); };
   const onMedia = () => apply();

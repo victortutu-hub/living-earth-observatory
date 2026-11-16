@@ -21,6 +21,11 @@ export const EXACT_LEVEL_TOLERANCE_M = 0.5;
 export const FREE_ATMOSPHERE_NOTE = 'Pressure-level values describe the free atmosphere at that height, not summit surface conditions';
 const RAD = Math.PI / 180;
 
+/** Weather is today's model run only: true when `date` is on today's UTC day. */
+export function isWeatherDay(date, now = new Date()) {
+  return date.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+}
+
 export function forecastUrl(peak) {
   const hourly = PRESSURE_LEVELS_HPA.flatMap((p) => WEATHER_VARIABLES.map((v) => `${v}_${p}hPa`)).join(',');
   const params = new URLSearchParams({
@@ -152,6 +157,7 @@ const n1 = (v) => (Math.round(v * 10) / 10).toLocaleString('en-US', { minimumFra
  * fromCache, cacheAgeMs } (see weather-client.js); `date` = slider time.
  */
 export function summitWeatherRows({ peak, state, date }) {
+  if (state?.status === 'other-day') return [['Summit weather', 'Summit weather: only available for today', 'pending']];
   if (!state || state.status === 'loading') return [['Summit weather', 'loading…', 'pending']];
   if (state.status === 'unavailable') {
     return [['Summit weather', 'Summit weather: temporarily unavailable', 'pending']];
@@ -191,6 +197,7 @@ export function weatherBarSegment(state, date) {
   const head = `Weather: Open-Meteo ${WEATHER_MODEL.label} (Model prediction)`;
   if (!state) return `${head}, select a summit`;
   if (state.status === 'loading') return `${head}, loading`;
+  if (state.status === 'other-day') return `${head}, only available for today`;
   if (state.status === 'unavailable') return `${head}, temporarily unavailable`;
   const index = nearestHourIndex(state.forecast.hourly?.time || [], date);
   if (index < 0) return `${head}, no hour for the selected time`;

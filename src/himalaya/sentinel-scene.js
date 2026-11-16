@@ -280,9 +280,17 @@ export function sentinelAttribution(year) {
   return `Contains modified Copernicus Sentinel data ${year}`;
 }
 
-export function selectionSummary(selection) {
+/** Selection text; with `upTo` (ISO, historical time from Living Earth) the window is the 30 days before it. */
+export function selectionSummary(selection, { upTo = null } = {}) {
   if (!selection) return null;
-  if (selection.status === 'clear') return `Clear scene: ${utc(selection.pass.datetime)}, cloud ${pct(selection.pass.sceneCloudPct)} (scene) / ${pct(selection.pass.localCloudPct)} (summit window). ${SCL_NOTE}.`;
-  if (selection.best) return `No clear scene in the last ${SEARCH_DAYS} days. Best available: ${utc(selection.best.datetime)}, cloud ${pct(selection.best.sceneCloudPct)} (scene) / ${pct(selection.best.localCloudPct)} (summit window). ${SCL_NOTE}.`;
-  return `No clear scene in the last ${SEARCH_DAYS} days, and no scene covering the patch.`;
+  const head = upTo ? `Latest clear scene up to ${utc(upTo)}` : 'Clear scene';
+  const window = upTo ? `in the ${SEARCH_DAYS} days up to ${utc(upTo)}` : `in the last ${SEARCH_DAYS} days`;
+  if (selection.status === 'clear') return `${head}: ${utc(selection.pass.datetime)}, cloud ${pct(selection.pass.sceneCloudPct)} (scene) / ${pct(selection.pass.localCloudPct)} (summit window). ${SCL_NOTE}.`;
+  if (selection.best) return `No clear scene ${window}. Best available: ${utc(selection.best.datetime)}, cloud ${pct(selection.best.sceneCloudPct)} (scene) / ${pct(selection.best.localCloudPct)} (summit window). ${SCL_NOTE}.`;
+  return `No clear scene ${window}, and no scene covering the patch.`;
+}
+
+/** Session cache key of a selection: per summit and per date (UTC day of the "up to" time). */
+export function selectionCacheKey(peakId, asOf) {
+  return `lumi-himalaya:s2-selection:${peakId}:${asOf.toISOString().slice(0, 10)}`;
 }

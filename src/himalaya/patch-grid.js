@@ -6,7 +6,15 @@
 import { projectLonLat, heightKm } from './projection.js';
 import { readKtx2R16Unorm, dequantizeHeights } from './ktx2-r16-reader.js';
 
-export const SKIRT_DEPTH_KM = 0.6;
+// Patch walls (Lot 5): the vertical skirt reaches a fixed height below the
+// lowest sample of the patch (minM - 2.5 km), so no gap can open between the
+// patch border and a smoother / lower Terrarium overview (measured worst case
+// over the 14 patches: 1.6 km at a 10 km overview spacing). Drawn with a
+// neutral matte material, like the side of a relief model.
+export const WALL_BELOW_MIN_M = 2500;
+export function wallBottomKm(meta) {
+  return Math.max(0, meta.minM - WALL_BELOW_MIN_M) / 1000;
+}
 // Camera distance (km) to the patch centre under which the FULL index set is
 // used; Lot 4 uses the same threshold to switch Sentinel-2 from 40 m to 20 m.
 export const FULL_LOD_DISTANCE_KM = 32;
@@ -19,7 +27,7 @@ export function strideIndices(count, stride) {
   return out;
 }
 
-/** Triangle indices over the selected rows/cols plus the skirt walls. */
+/** Triangle indices over the selected rows/cols (first) plus the skirt walls (after `surfaceCount`). */
 export function gridIndices(cols, rowList, colList, skirtBase, borderLoop) {
   const cells = (rowList.length - 1) * (colList.length - 1);
   const out = new Uint32Array(cells * 6 + borderLoop.length * 12);
@@ -60,6 +68,9 @@ export function buildPatchArrays(meta, heights, center) {
   const n = rows * cols;
   const fullRows = strideIndices(rows, 1); const fullCols = strideIndices(cols, 1);
   const fullLoop = borderLoopFor(rows, cols, fullRows, fullCols, new Map());
+  let minM = meta.minM;
+  if (!Number.isFinite(minM)) { minM = Infinity; for (let k = 0; k < heights.length; k++) if (heights[k] < minM) minM = heights[k]; }
+  const bottom = wallBottomKm({ minM });
   const loopIndex = new Map(fullLoop.map((entry, k) => [entry.vertex, k]));
   fullLoop.forEach((entry, k) => { entry.loopIndex = k; });
   const positions = new Float32Array((n + fullLoop.length) * 3);
@@ -90,13 +101,17 @@ export function buildPatchArrays(meta, heights, center) {
   }
   fullLoop.forEach((entry, k) => {
     const src = entry.vertex * 3; const dst = (n + k) * 3;
-    positions[dst] = positions[src]; positions[dst + 1] = positions[src + 1] - SKIRT_DEPTH_KM; positions[dst + 2] = positions[src + 2];
+    positions[dst] = positions[src]; positions[dst + 1] = Math.min(positions[src + 1], bottom); positions[dst + 2] = positions[src + 2];
     normals[dst] = normals[src]; normals[dst + 1] = normals[src + 1]; normals[dst + 2] = normals[src + 2];
   });
   const full = gridIndices(cols, fullRows, fullCols, n, fullLoop);
   const coarseRows = strideIndices(rows, 2); const coarseCols = strideIndices(cols, 2);
   const coarse = gridIndices(cols, coarseRows, coarseCols, n, borderLoopFor(rows, cols, coarseRows, coarseCols, loopIndex));
-  return { positions, normals, full, coarse, vertexCount: n + fullLoop.length };
+  return {
+    positions, normals, full, coarse, vertexCount: n + fullLoop.length, wallBottomKm: bottom,
+    fullSurfaceCount: (fullRows.length - 1) * (fullCols.length - 1) * 6,
+    coarseSurfaceCount: (coarseRows.length - 1) * (coarseCols.length - 1) * 6,
+  };
 }
 
 /**

@@ -9,13 +9,15 @@ import { getTerrainPatch } from '../config/himalaya-terrain-patches.js';
 import { createRequestRuntime } from '../core/runtime/request-runtime.js';
 import { loadAstronomyEngine } from '../earth/astronomy-runtime.js';
 import { createBottomSheet } from './bottom-sheet.js';
+import { isPanelHotkey, readPanelState, toggleAll, viewOffsetY, writePanelState } from './ui-panels.js';
+import { validateObservatoryTime } from '../core/observatory/observatory-messages.js';
 import {
   ATTRIBUTIONS, TERRAIN_MODES, composeProvenanceBar, demElevationText, glo30FillNote,
 } from './himalaya-provenance.js';
 import {
   computeSun, dateAtUtcMinutes, formatClock, localMeanSolarMinutes, utcMinutesOfDay,
 } from './sun-position.js';
-import { summitWeatherRows, weatherBarSegment } from './summit-weather.js';
+import { isWeatherDay, summitWeatherRows, weatherBarSegment } from './summit-weather.js';
 import { createSessionStorageCache, createWeatherClient } from './weather-client.js';
 import { createAttemptLedger, createGuardedRuntime } from './request-guard.js';
 import { computeMoon, nightMessage } from './moon-position.js';
@@ -42,6 +44,11 @@ export function satelliteReason({ userMode, terrainMode, sat, activeId }) {
 export const TIME_STEP_MINUTES = 10;
 
 /** Initial focus from ?focus=<peak id>; anything else -> null (overview). */
+/** Scene time handed over by Living Earth (?time=, historical only), validated by the shared validator; null otherwise. */
+export function resolveInitialTime(search, now = new Date()) {
+  return validateObservatoryTime(new URLSearchParams(search || '').get('time'), now);
+}
+
 export function resolveInitialFocus(search) {
   const value = new URLSearchParams(search || '').get('focus');
   return value && getHimalayaPeak(value) ? value : null;
@@ -96,6 +103,13 @@ export function startHimalayaApp({
   const provenance = document.getElementById('himalayaProvenance');
   const notice = document.getElementById('himalayaNotice');
   const timeSlider = document.getElementById('himalayaTime');
+  const timeLabel = document.getElementById('himalayaTimeLabel');
+  const timeSource = document.getElementById('himalayaTimeSource');
+  const provenanceText = document.getElementById('himalayaProvenanceText');
+  const provenanceToggle = document.getElementById('himalayaProvenanceToggle');
+  const listPanel = document.getElementById('himalayaListPanel');
+  const listCollapse = document.getElementById('himalayaListCollapse');
+  const detailsCollapse = document.getElementById('himalayaDetailsCollapse');
   const timeNow = document.getElementById('himalayaTimeNow');
   const timeReadout = document.getElementById('himalayaTimeReadout');
   const sunReadout = document.getElementById('himalayaSunReadout');
@@ -116,7 +130,7 @@ export function startHimalayaApp({
 
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   const reducedMotion = () => reducedMotionQuery.matches;
-  const sheet = createBottomSheet({ panel, toggle: sheetToggle, signal: listeners.signal });
+  const sheet = createBottomSheet({ panel, toggle: sheetToggle, signal: listeners.signal, onChange: () => queueMicrotask(() => { if (alive()) updateFraming(); }) });
   // One page-wide retry policy (request-guard.js): backoff 2 s / 4 s, at most
   // 3 failed attempts per resource per visit, then a final honest state.
   const attempts = createAttemptLedger();
@@ -143,7 +157,14 @@ export function startHimalayaApp({
       if (state.peakId === activeId) { renderPanel(); updateProvenance(); }
     },
   });
-  const time = { mode: 'now', minutes: utcMinutesOfDay(now()) };
+  // Time: 'now' (live) or 'manual' on a UTC day (baseDay: null = today). A
+  // historical time handed over by Living Earth fixes the day and the minutes.
+  const searchParams = new URLSearchParams(search || '');
+  const timeFromEarth = resolveInitialTime(search, now());
+  const time = timeFromEarth
+    ? { mode: 'manual', minutes: utcMinutesOfDay(new Date(timeFromEarth)), baseDay: new Date(timeFromEarth), fromEarth: timeFromEarth }
+    : { mode: 'now', minutes: utcMinutesOfDay(now()), baseDay: null, fromEarth: null };
+  const timeNotRestored = !timeFromEarth && searchParams.get('timeNote') === 'not-restored';
 
   // --- sources & attribution (the Sentinel-2 notice carries the year of the scene shown)
   function renderSources(sceneYear = null) {
@@ -161,16 +182,16 @@ export function startHimalayaApp({
   renderSources();
 
   function currentDate() {
-    return time.mode === 'now' ? now() : dateAtUtcMinutes(now(), time.minutes);
+    return time.mode === 'now' ? now() : dateAtUtcMinutes(time.baseDay || now(), time.minutes);
   }
 
   function updateProvenance() {
     const date = currentDate();
     const weatherForPeak = weatherState && weatherState.peakId === activeId ? weatherState : null;
     const imageSegment = satelliteShown() ? imageBarSegment(sat.pass) : 'Image: none (Lit terrain)';
-    provenance.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment });
+    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment });
     const patch = activeId ? getTerrainPatch(activeId) : null;
-    provenance.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
+    provenanceText.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
   }
 
   function renderPanel() {
@@ -197,7 +218,7 @@ export function startHimalayaApp({
     add('DEM elevation', demRowText(terrainMode, patch, scene?.terrariumSummit(peak.id)) || 'DEM elevation (model): loading…', 'model');
     add('Terrain', terrainRowText(terrainMode, patch, scene?.patchState(peak.id)));
     const satForPeak = sat && sat.peakId === peak.id ? sat : null;
-    if (satForPeak?.selection) add('Image', selectionSummary(satForPeak.selection));
+    if (satForPeak?.selection) add('Image', selectionSummary(satForPeak.selection, { upTo: time.fromEarth }));
     if (satelliteShown()) {
       add('Image shown', `${imageBarSegment(sat.pass).replace(/^Image: /, '')} · ${sat.level === LEVEL_20M ? '20 m' : `40 m${sat.upgradeFailed ? ' (20 m image unavailable — 40 m kept)' : ' (20 m below 15 km from the summit)'}`} · ${lightingLabel(sat.pass)}`);
       add('Colour', STRETCH_LABEL);
@@ -236,6 +257,11 @@ export function startHimalayaApp({
       + `${result.source === 'approximate' ? ' — approximate' : ''}`;
     sunReadout.dataset.source = result.source;
     timeNow.setAttribute('aria-pressed', String(time.mode === 'now'));
+    timeLabel.textContent = time.baseDay ? `Sun time on ${time.baseDay.toISOString().slice(0, 10)} (UTC)` : 'Sun time on the current UTC day';
+    timeSource.hidden = !(time.fromEarth || timeNotRestored);
+    timeSource.textContent = time.fromEarth
+      ? `Time from Living Earth: ${time.fromEarth.slice(0, 10)} ${time.fromEarth.slice(11, 16)} UTC (historical). “Now” returns to live.`
+      : timeNotRestored ? 'The time from Living Earth is not restored after a reload — showing now.' : '';
     // The real Moon, and the night message for the selected summit and time.
     const moon = computeMoon({ date, lat, lon, heightM, Astronomy: astronomy });
     moonInfo = moon ? { ...moon, lat, lon } : null;
@@ -260,8 +286,7 @@ export function startHimalayaApp({
     list.querySelector(`button[data-peak-id="${id}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     scene?.focusPeak(id, { instant });
     sheet.reveal();
-    weatherState = null;
-    weather.load(peak);
+    loadWeather(peak);
     loadSatellite(peak);
     renderPanel();
     updateSun();
@@ -305,7 +330,7 @@ export function startHimalayaApp({
     sat = { peakId: peak.id, status: 'selecting' };
     applyImageMode();
     try {
-      const selection = await sentinel.select(peak, meta, signal);
+      const selection = await sentinel.select(peak, meta, signal, { asOf: time.fromEarth ? new Date(time.fromEarth) : null });
       if (signal.aborted) return;
       const pass = selection.status === 'clear' ? selection.pass : useBest ? selection.best : null;
       sat = { peakId: peak.id, status: pass ? 'loading' : 'no-clear', selection, pass, level: null, showingBest: Boolean(useBest && pass) };
@@ -374,13 +399,75 @@ export function startHimalayaApp({
   terrainInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setTerrainMode(input.value); }));
   imageInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setImageMode(input.value); }));
   on(imageBest, 'click', () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); });
+  // "Now": back to live; a time from Living Earth is dropped, the weather and
+  // the Sentinel-2 selection follow "now" again (the slider never re-selects).
+  function goLive() {
+    const wasHistorical = Boolean(time.fromEarth);
+    time.mode = 'now'; time.baseDay = null; time.fromEarth = null;
+    const peak = activeId ? getHimalayaPeak(activeId) : null;
+    if (peak && weatherState?.status === 'other-day') loadWeather(peak);
+    if (peak && wasHistorical) loadSatellite(peak);
+    updateSun();
+  }
+
+  function loadWeather(peak) {
+    if (!isWeatherDay(currentDate(), now())) {
+      weather.clear();
+      weatherState = { peakId: peak.id, status: 'other-day' };
+      return;
+    }
+    weatherState = null;
+    weather.load(peak);
+  }
+
   on(timeSlider, 'input', () => {
     time.mode = 'manual';
     time.minutes = Number(timeSlider.value);
     updateSun();
   });
-  on(timeNow, 'click', () => { time.mode = 'now'; updateSun(); });
+  on(timeNow, 'click', () => goLive());
   const ticker = setInterval(() => { if (time.mode === 'now') updateSun(); }, 60_000);
+
+  // --- collapsible desktop panels (button on each panel + "H"), provenance bar (one line / expanded)
+  const desktop = window.matchMedia('(min-width: 761px)');
+  let panelState = readPanelState(window.sessionStorage);
+  function setPanels(next) {
+    panelState = { ...next };
+    listPanel.classList.toggle('is-collapsed', panelState.list);
+    panel.classList.toggle('is-collapsed', panelState.details);
+    document.body.classList.toggle('panels-collapsed', panelState.list && panelState.details);
+    listCollapse.setAttribute('aria-expanded', String(!panelState.list));
+    listCollapse.title = panelState.list ? 'Show the summit list (H)' : 'Hide the summit list (H)';
+    detailsCollapse.setAttribute('aria-expanded', String(!panelState.details));
+    detailsCollapse.title = panelState.details ? 'Show the details panel (H)' : 'Hide the details panel (H)';
+    provenance.classList.toggle('is-expanded', panelState.provenance);
+    provenanceToggle.setAttribute('aria-expanded', String(panelState.provenance));
+    provenanceToggle.textContent = panelState.provenance ? 'Less' : 'More';
+    writePanelState(window.sessionStorage, panelState);
+  }
+  on(listCollapse, 'click', () => setPanels({ ...panelState, list: !panelState.list }));
+  on(detailsCollapse, 'click', () => setPanels({ ...panelState, details: !panelState.details }));
+  on(provenanceToggle, 'click', () => setPanels({ ...panelState, provenance: !panelState.provenance }));
+  on(window, 'keydown', (event) => {
+    if (!desktop.matches || !isPanelHotkey(event)) return;
+    event.preventDefault();
+    setPanels(toggleAll(panelState));
+  });
+  setPanels(panelState);
+
+  // --- mobile framing: summit in the middle of the band above the bottom sheet
+  function updateFraming() {
+    if (!scene) return;
+    if (desktop.matches) { scene.setViewOffsetY(0); return; }
+    const height = window.innerHeight;
+    const top = list.getBoundingClientRect().bottom;
+    const bottom = panel.getBoundingClientRect().top;
+    scene.setViewOffsetY(viewOffsetY({ height, top, bottom }));
+  }
+  const framingObserver = new ResizeObserver(() => updateFraming());
+  framingObserver.observe(panel);
+  on(window, 'resize', () => updateFraming());
+  listeners.signal.addEventListener('abort', () => framingObserver.disconnect(), { once: true });
   listeners.signal.addEventListener('abort', () => clearInterval(ticker), { once: true });
   // The panel / bottom sheet sits above the provenance bar, whatever its height.
   const provenanceObserver = new ResizeObserver(() => {
@@ -411,6 +498,7 @@ export function startHimalayaApp({
     notice.textContent = `3D view unavailable (${error.message}). The peak list and details still work.`;
   }
 
+  updateFraming();
   const initial = resolveInitialFocus(search);
   if (initial) select(initial, { instant: false });
   else { renderPanel(); updateSun(); }
@@ -434,16 +522,20 @@ export function startHimalayaApp({
       summitDistanceKm: scene?.summitDistanceKm?.() ?? null,
       upgradeFailed: Boolean(sat?.upgradeFailed),
       imageNote: imageNote.textContent,
-      provenance: provenance.textContent, scene: scene?.snapshot() || null,
+      provenance: provenanceText.textContent, provenanceExpanded: panelState.provenance, panels: { ...panelState }, viewOffsetY: scene?.viewOffsetY?.() ?? 0,
+      timeFromEarth: time.fromEarth, timeNote: timeSource.hidden ? null : timeSource.textContent, scene: scene?.snapshot() || null,
     }),
     select: (id) => select(id),
     setTerrainMode,
     setTimeMinutes: (minutes) => { time.mode = 'manual'; time.minutes = minutes; updateSun(); },
-    setNow: () => { time.mode = 'now'; updateSun(); },
+    setNow: () => goLive(),
+    panels: () => ({ ...panelState }),
+    togglePanels: () => setPanels(toggleAll(panelState)),
     overview: (options) => { activeId = null; weather.clear(); weatherState = null; scene?.overview(options); renderPanel(); updateSun(); },
     measureShadowCost: (samples) => scene?.measureShadowCost(samples) || null,
     measureShadowCostGpu: (samples) => scene?.measureShadowCostGpu(samples) || null,
     view: (target, position) => scene?.setView(target, position),
+    debugOverviewClip: (enabled) => scene?.debugOverviewClip(enabled),
     setImageMode,
     showBestAvailable: () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); },
   });

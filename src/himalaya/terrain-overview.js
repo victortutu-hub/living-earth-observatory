@@ -19,30 +19,36 @@ const SEGMENTS = 64;
 const REFINE_FACTOR = Object.freeze({ 6: 1.25, 8: 1.0 });
 const SKIRT_KM = Object.freeze({ 6: 3, 8: 1.5, 9: 1 });
 
-/** Installs the "discard inside the patch quad" clip on a standard material. */
+/**
+ * Patch clip (Lot 5): overview vertices inside the patch quad are LOWERED to
+ * `uClipFloor` (the patch wall bottom) instead of being discarded. The
+ * overview under the patch then sits below it and below its walls; the
+ * triangles that cross the quad edge become terrain-coloured slopes, so no
+ * view can look "under" the overview next to the patch (black gaps of Lot 4,
+ * where a smoother Terrarium surface was higher than the GLO-30 edge).
+ */
 export function installClip(material, uniforms) {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uClipQuad = uniforms.uClipQuad;
     shader.uniforms.uClipOn = uniforms.uClipOn;
+    shader.uniforms.uClipFloor = uniforms.uClipFloor;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vClipXZ;')
-      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvClipXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
-    shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-varying vec2 vClipXZ;
 uniform vec2 uClipQuad[4];
 uniform float uClipOn;
+uniform float uClipFloor;
 float clipEdge(vec2 a, vec2 b, vec2 p) { return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); }`)
-      .replace('void main() {', `void main() {
-  if (uClipOn > 0.5) {
-    float e0 = clipEdge(uClipQuad[0], uClipQuad[1], vClipXZ);
-    float e1 = clipEdge(uClipQuad[1], uClipQuad[2], vClipXZ);
-    float e2 = clipEdge(uClipQuad[2], uClipQuad[3], vClipXZ);
-    float e3 = clipEdge(uClipQuad[3], uClipQuad[0], vClipXZ);
-    if ((e0 > 0.0 && e1 > 0.0 && e2 > 0.0 && e3 > 0.0) || (e0 < 0.0 && e1 < 0.0 && e2 < 0.0 && e3 < 0.0)) discard;
-  }`);
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+if (uClipOn > 0.5) {
+  vec2 clipXZ = (modelMatrix * vec4(transformed, 1.0)).xz;
+  float e0 = clipEdge(uClipQuad[0], uClipQuad[1], clipXZ);
+  float e1 = clipEdge(uClipQuad[1], uClipQuad[2], clipXZ);
+  float e2 = clipEdge(uClipQuad[2], uClipQuad[3], clipXZ);
+  float e3 = clipEdge(uClipQuad[3], uClipQuad[0], clipXZ);
+  if ((e0 > 0.0 && e1 > 0.0 && e2 > 0.0 && e3 > 0.0) || (e0 < 0.0 && e1 < 0.0 && e2 < 0.0 && e3 < 0.0)) transformed.y = min(transformed.y, uClipFloor);
+}`);
   };
-  material.customProgramCacheKey = () => 'himalaya-clip';
+  material.customProgramCacheKey = () => 'himalaya-clip-floor';
 }
 
 /** Blob -> heights via createImageBitmap with no colour conversion. */

@@ -8,7 +8,7 @@ import { createRequestRuntime } from '../core/runtime/request-runtime.js';
 import { HeaderTooShortError, inflateZlib, parseCogHeader, readWindow } from './cog-reader.js';
 import { utmForward, utmZone } from './utm.js';
 import {
-  LEVEL_40M, STAC_SEARCH_URL, composeMosaic, groupPasses, imageGrid, parseStacItems, sclCloudShare,
+  LEVEL_40M, STAC_SEARCH_URL, composeMosaic, selectionCacheKey, groupPasses, imageGrid, parseStacItems, sclCloudShare,
   selectPass, sourceWindow, stacSearchBody, stretchLut,
 } from './sentinel-scene.js';
 
@@ -66,15 +66,15 @@ export function createSentinelClient({
     return headers.get(url);
   }
 
-  function readCached(peakId) {
+  function readCached(key) {
     try {
-      const raw = storage?.getItem(`lumi-himalaya:s2-selection:${peakId}`);
+      const raw = storage?.getItem(key);
       const record = raw ? JSON.parse(raw) : null;
       return record && now().getTime() - record.storedAt <= SELECTION_TTL_MS ? record : null;
     } catch (_) { return null; }
   }
-  function writeCached(peakId, value) {
-    try { storage?.setItem(`lumi-himalaya:s2-selection:${peakId}`, JSON.stringify({ storedAt: now().getTime(), value })); } catch (_) { /* quota: no cache */ }
+  function writeCached(key, value) {
+    try { storage?.setItem(key, JSON.stringify({ storedAt: now().getTime(), value })); } catch (_) { /* quota: no cache */ }
   }
 
   /** Local SCL cloud share (40 m SCL level) of a pass over the patch, plus per tile. */
@@ -112,21 +112,26 @@ export function createSentinelClient({
   return Object.freeze({
     get requests() { return requests; },
 
-    /** { status: 'clear' | 'none', pass | best, fromCache } for the summit. */
-    async select(peak, meta, signal) {
-      const cached = readCached(peak.id);
+    /**
+     * { status: 'clear' | 'none', pass | best, fromCache } for the summit; the
+     * search window is the 30 days up to `asOf` (default: now).
+     */
+    async select(peak, meta, signal, { asOf = null } = {}) {
+      const upTo = asOf || now();
+      const cacheKey = selectionCacheKey(peak.id, upTo);
+      const cached = readCached(cacheKey);
       if (cached) return { ...cached.value, fromCache: true, cacheAgeMs: now().getTime() - cached.storedAt };
       const outline = patchOutline(meta);
       const zone = utmZone(peak.lon);
       const stac = await runtime.fetchResource({
-        key: `s2-stac:${peak.id}:${now().toISOString().slice(0, 13)}`, url: STAC_SEARCH_URL, responseType: 'json', ttl: 0, staleTtl: 0, retries: 1, timeout: 30_000, signal,
-        fetchOptions: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stacSearchBody(outline.ring, now())) },
+        key: `s2-stac:${peak.id}:${upTo.toISOString().slice(0, 13)}`, url: STAC_SEARCH_URL, responseType: 'json', ttl: 0, staleTtl: 0, retries: 1, timeout: 30_000, signal,
+        fetchOptions: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stacSearchBody(outline.ring, upTo)) },
       });
       requests += 1;
       const passes = groupPasses(parseStacItems(stac.data), zone, outline.samples);
       const result = await selectPass(passes, (pass) => localCloud(pass, outline, zone, signal));
-      const value = { status: result.status, zone, pass: stripPass(result.pass || null), best: stripPass(result.best || null), passes: passes.length, evaluated: result.evaluated };
-      writeCached(peak.id, value);
+      const value = { status: result.status, zone, upTo: upTo.toISOString(), pass: stripPass(result.pass || null), best: stripPass(result.best || null), passes: passes.length, evaluated: result.evaluated };
+      writeCached(cacheKey, value);
       return { ...value, fromCache: false };
     },
 

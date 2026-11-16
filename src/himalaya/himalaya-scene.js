@@ -14,7 +14,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { projectLonLat, unprojectXZ, heightKm, localBasis, VERTICAL_EXAGGERATION } from './projection.js';
 import { utmForward } from './utm.js';
 import { createTerrainOverview, installClip } from './terrain-overview.js';
-import { buildPatchGeometry, decodePatch, patchCornersXZ, FULL_LOD_DISTANCE_KM } from './terrain-patch.js';
+import { buildPatchGeometry, decodePatch, patchCornersXZ, setPatchGroups, FULL_LOD_DISTANCE_KM } from './terrain-patch.js';
 import { sunDirectionScene } from './sun-position.js';
 import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
@@ -115,12 +115,15 @@ export function createHimalayaScene({
   let moonState = null;
 
   // --- terrain materials (shared clip uniforms)
-  const clipUniforms = { uClipQuad: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] }, uClipOn: { value: 0 } };
+  const clipUniforms = { uClipQuad: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] }, uClipOn: { value: 0 }, uClipFloor: { value: 0 } };
   // Front faces only (DoubleSide z-fights along ridge silhouettes); the skirts
   // are emitted with both windings instead, so seams close from either side.
   const overviewMaterial = track(new THREE.MeshStandardMaterial({ color: TERRAIN_ALBEDO, roughness: 0.96, metalness: 0 }));
   installClip(overviewMaterial, clipUniforms);
   const patchMaterial = track(new THREE.MeshStandardMaterial({ color: TERRAIN_ALBEDO, roughness: 0.96, metalness: 0 }));
+  // Patch walls (Lot 5): neutral, matte, unlit and clearly not terrain — the
+  // same in Satellite and Lit terrain (no image is stretched down the walls).
+  const wallMaterial = track(new THREE.MeshBasicMaterial({ color: 0x3d4651 }));
 
   // --- Terrarium summit samples (highest zoom wins), for the DEM row in Terrarium mode
   const terrariumSummits = new Map();
@@ -303,7 +306,7 @@ export function createHimalayaScene({
     if (!entry) return;
     const sat = satelliteFor(entry);
     if (sat) ensureUv(entry, sat);
-    entry.mesh.material = sat ? sat.material : patchMaterial;
+    entry.mesh.material = [sat ? sat.material : patchMaterial, wallMaterial];
   }
 
   function requestShadowUpdate(reason) {
@@ -313,9 +316,11 @@ export function createHimalayaScene({
     lastShadowRequest = reason;
   }
 
+  let clipDebugOff = false;
   function setClip(entry) {
-    if (!entry) { clipUniforms.uClipOn.value = 0; return; }
+    if (!entry || clipDebugOff) { clipUniforms.uClipOn.value = 0; return; }
     entry.corners.forEach((p, k) => clipUniforms.uClipQuad.value[k].set(p.x, p.z));
+    clipUniforms.uClipFloor.value = entry.wallBottomKm - 0.05; // just under the patch walls
     clipUniforms.uClipOn.value = 1;
   }
 
@@ -328,15 +333,15 @@ export function createHimalayaScene({
     if (!entry || terrainMode !== 'glo30') { setClip(null); fade = null; return; }
     aimSunAt(entry.center);
     applyPatchMaterial(entry);
-    const material = entry.mesh.material;
+    const materials = entry.mesh.material;
     if (reducedMotion()) {
-      material.transparent = false; material.opacity = 1; material.needsUpdate = true;
+      materials.forEach((m) => { m.transparent = false; m.opacity = 1; m.needsUpdate = true; });
       setClip(entry);
       fade = null;
     } else {
-      material.transparent = true; material.opacity = 0; material.needsUpdate = true;
+      materials.forEach((m) => { m.transparent = true; m.opacity = 0; m.needsUpdate = true; });
       setClip(null);
-      fade = { start: performance.now(), entry, material };
+      fade = { start: performance.now(), entry, materials };
     }
     requestShadowUpdate('patch');
   }
@@ -355,7 +360,7 @@ export function createHimalayaScene({
       const { heights } = decodePatch(new Uint8Array(bytes), meta, zstd);
       const built = buildPatchGeometry(meta, heights, center);
       if (disposed) { built.geometry.dispose(); return; }
-      const mesh = new THREE.Mesh(built.geometry, patchMaterial);
+      const mesh = new THREE.Mesh(built.geometry, [patchMaterial, wallMaterial]);
       mesh.name = `glo30-${id}`;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -363,7 +368,7 @@ export function createHimalayaScene({
       mesh.matrixAutoUpdate = false;
       scene.add(mesh);
       const p = projectLonLat(meta.lonLeftArcsec / 3600 + (meta.cols - 1) / 7200, meta.latTopArcsec / 3600 - (meta.rows - 1) / 7200, center);
-      const entry = { id, mesh, geometry: built.geometry, fullIndex: built.fullIndex, coarseIndex: built.coarseIndex, lod: 'coarse',
+      const entry = { id, mesh, geometry: built.geometry, fullIndex: built.fullIndex, coarseIndex: built.coarseIndex, groups: built.groups, wallBottomKm: built.wallBottomKm, lod: 'coarse',
         corners: patchCornersXZ(meta, center), center: new THREE.Vector3(p.x, heightKm((meta.minM + meta.maxM) / 2), p.z),
         triangles: { full: built.fullTriangles, coarse: built.coarseTriangles }, vertices: built.vertexCount,
         buildMs: Math.round(performance.now() - started) };
@@ -456,6 +461,13 @@ export function createHimalayaScene({
     moonLight.updateMatrixWorld();
   }
 
+  // --- mobile framing (Lot 5): principal point moved to the visible band
+  let viewOffset = 0;
+  function applyViewOffset(width, height) {
+    if (Math.abs(viewOffset) >= 0.5) camera.setViewOffset(width, height, 0, viewOffset, width, height);
+    else camera.clearViewOffset();
+  }
+
   // --- render loop and resize
   function resize() {
     const width = canvas.clientWidth || window.innerWidth;
@@ -463,6 +475,7 @@ export function createHimalayaScene({
     renderer.setSize(width, height, false);
     labelRenderer.setSize(width, height);
     camera.aspect = width / Math.max(1, height);
+    applyViewOffset(width, height);
     camera.updateProjectionMatrix();
     overviewDirty = true;
   }
@@ -501,9 +514,9 @@ export function createHimalayaScene({
     // Patch fade and LOD.
     if (fade) {
       const t = Math.min(1, (now - fade.start) / PATCH_FADE_MS);
-      fade.material.opacity = t;
+      fade.materials.forEach((m) => { m.opacity = t; });
       if (t >= 1) {
-        fade.material.transparent = false; fade.material.needsUpdate = true;
+        fade.materials.forEach((m) => { m.transparent = false; m.needsUpdate = true; });
         setClip(fade.entry);
         fade = null;
       }
@@ -513,6 +526,7 @@ export function createHimalayaScene({
       const lod = camera.position.distanceTo(active.center) < FULL_LOD_DISTANCE_KM ? 'full' : 'coarse';
       if (lod !== active.lod) {
         active.geometry.setIndex(lod === 'full' ? active.fullIndex : active.coarseIndex);
+        setPatchGroups(active.geometry, active.groups[lod]);
         active.lod = lod;
         requestShadowUpdate('lod');
       }
@@ -609,7 +623,7 @@ export function createHimalayaScene({
       if (!sat) return;
       satellite.delete(peakId);
       const entry = patches.peek(peakId);
-      if (entry && entry.mesh.material === sat.material) entry.mesh.material = patchMaterial;
+      if (entry && entry.mesh.material[0] === sat.material) entry.mesh.material = [patchMaterial, wallMaterial];
       sat.texture.dispose();
       sat.material.dispose();
     },
@@ -624,8 +638,18 @@ export function createHimalayaScene({
     },
     satelliteShown: () => {
       const entry = activePatchId && terrainMode === 'glo30' ? patches.peek(activePatchId) : null;
-      return Boolean(entry && entry.mesh.visible && satelliteFor(entry) && entry.mesh.material === satelliteFor(entry).material);
+      return Boolean(entry && entry.mesh.visible && satelliteFor(entry) && entry.mesh.material[0] === satelliteFor(entry).material);
     },
+    /** Vertical principal-point shift in CSS px (see ui-panels.js viewOffsetY); 0 clears it. */
+    setViewOffsetY(offset) {
+      viewOffset = Number.isFinite(offset) ? offset : 0;
+      applyViewOffset(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight);
+      camera.updateProjectionMatrix();
+      overviewDirty = true;
+    },
+    viewOffsetY: () => viewOffset,
+    /** Diagnostics: draw the overview under the patch again (true = normal clip). */
+    debugOverviewClip(enabled) { clipDebugOff = !enabled; const entry = activePatchId ? patches.peek(activePatchId) : null; setClip(enabled && entry?.mesh.visible ? entry : null); },
     /** Camera distance (km) to the focused summit (official elevation). */
     summitDistanceKm: () => {
       const marker = activeId ? markers.get(activeId) : null;
@@ -705,7 +729,7 @@ export function createHimalayaScene({
           const entry = activePatchId ? patches.peek(activePatchId) : null;
           const sat = activePatchId ? satellite.get(activePatchId) : null;
           return { mode: imageMode, available: Boolean(sat), level: sat?.level ?? null, res: sat?.res ?? null, size: sat ? [sat.width, sat.height] : null,
-            material: entry ? entry.mesh.material.type : null, uvMs: entry?.uvMs ?? null, shadowSkipped, satelliteImages: [...satellite.keys()] };
+            material: entry ? entry.mesh.material[0].type : null, wallMaterial: entry ? entry.mesh.material[1].type : null, wallBottomKm: entry?.wallBottomKm ?? null, uvMs: entry?.uvMs ?? null, shadowSkipped, satelliteImages: [...satellite.keys()] };
         })(),
         moon: moonState ? { azimuthDeg: +moonState.azimuthDeg.toFixed(2), altitudeDeg: +moonState.altitudeDeg.toFixed(2), phaseFraction: +moonState.phaseFraction.toFixed(3), intensity: +moonLight.intensity.toFixed(3), castShadow: moonLight.castShadow } : null,
         shadow: { mapSize: SHADOW_MAP_SIZE, autoUpdate: renderer.shadowMap.autoUpdate, updates: shadowUpdates, lastReason: lastShadowRequest },

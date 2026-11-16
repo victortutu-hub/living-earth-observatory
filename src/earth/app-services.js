@@ -14,7 +14,7 @@ import { createTimeScrubPanel } from './time-scrub-panel.js';
 import { createLiveDataLayers } from './live-data-layers.js';
 import { createLayerRegistry } from './layer-plugin-registry.js';
 import { gvpVolcanoesPlugin } from './layers/gvp-volcanoes.js';
-import { himalayaPeaksPlugin } from './layers/himalaya-peaks.js';
+import { himalayaPeaksPlugin, setHimalayaSceneTimeProvider } from './layers/himalaya-peaks.js';
 import { HIMALAYA_REGION_CENTER } from '../config/himalaya-peaks.js';
 import { auroraPlugin } from './layers/aurora.js';
 import { snowIcePlugin } from './layers/snow-ice.js';
@@ -413,6 +413,7 @@ export function createEarthAppServices({
     layerRegistry.register(auroraPlugin);
     layerRegistry.register(snowIcePlugin);
     layerRegistry.register(himalayaPeaksPlugin);
+    setHimalayaSceneTimeProvider(() => timeState.snapshot());
 
     // focus=himalaya (returning from Living Himalaya): centre on the region and
     // turn the peaks layer on. Any other focus value is ignored.
@@ -600,6 +601,7 @@ export function createEarthAppServices({
         disposed = true;
         unsubscribeDataDay();
         unsubscribeSceneTime();
+        setHimalayaSceneTimeProvider(null);
         eonetAutoRefresh.dispose();
         eonetApp.dispose?.();
         appRuntime.dispose();

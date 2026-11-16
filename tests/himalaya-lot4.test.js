@@ -245,7 +245,7 @@ describe('progression, cache, abort, modes and labels', () => {
     const storage = { getItem: (k) => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) };
     let clock = new Date('2026-11-15T10:00:00Z');
     const cached = { status: 'clear', zone: 45, pass: { datatake: 'T07' }, best: null };
-    map.set('lumi-himalaya:s2-selection:everest', JSON.stringify({ storedAt: clock.getTime() - 10 * 60_000, value: cached }));
+    map.set('lumi-himalaya:s2-selection:everest:2026-11-15', JSON.stringify({ storedAt: clock.getTime() - 10 * 60_000, value: cached }));
     const runtime = { fetchResource: vi.fn((opts) => new Promise((_, reject) => opts.signal.addEventListener('abort', () => reject(opts.signal.reason), { once: true }))) };
     const client = createSentinelClient({ runtime, storage, now: () => clock });
     const hit = await client.select(peak, meta, new AbortController().signal);

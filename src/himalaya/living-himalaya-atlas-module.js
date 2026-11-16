@@ -1,4 +1,5 @@
 import { HIMALAYA_PEAK_IDS } from '../config/himalaya-peaks.js';
+import { validateObservatoryTime } from '../core/observatory/observatory-messages.js';
 
 const HIMALAYA_READY_TIMEOUT_MS = 30_000;
 
@@ -59,6 +60,9 @@ export function createLivingHimalayaAtlasModule({ route = './living-himalaya.htm
       source.searchParams.set('portal', 'atlas');
       source.searchParams.set('embedded', 'atlas');
       if (options.focus && HIMALAYA_PEAK_IDS.includes(options.focus)) source.searchParams.set('focus', options.focus);
+      const time = validateObservatoryTime(options.time);
+      if (time) source.searchParams.set('time', time);
+      else if (options.timeNote === 'not-restored') source.searchParams.set('timeNote', 'not-restored');
       frame.className = 'atlas-observatory-frame';
       frame.title = 'Living Himalaya Observatory';
       frame.allow = 'fullscreen';
