@@ -81,7 +81,9 @@ describe('Earth layer "Himalaya peaks"', () => {
         const fetchSpy = vi.spyOn(globalThis, 'fetch');
         const items = himalayaPeaksPlugin.normalize(await himalayaPeaksPlugin.fetch());
         expect(fetchSpy).not.toHaveBeenCalled();
-        expect(items).toHaveLength(14);
+        // Lot 7: the layer also carries the 6 selected Nepal peaks (second style); the 14 stay.
+        expect(items.filter((item) => item.group === 'eight-thousanders')).toHaveLength(14);
+        expect(items).toHaveLength(20);
         expect(items[0].action.label).toMatch(/Enter Living Himalaya/);
         expect(typeof items[0].action.run).toBe('function');
         fetchSpy.mockRestore();

@@ -236,7 +236,7 @@ export function createLayerRegistry({ THREE, earthGroup, lonLatToVec3, resolveUr
         const { plugin, points } = entry;
         const status = composeSourceStatus({
             sourceKey: plugin.sourceKey,
-            message: `${plugin.label}: ${points.count} (${plugin.attribution})`,
+            message: `${plugin.label}: ${typeof plugin.countLabel === 'function' ? plugin.countLabel(points.count) : points.count} (${plugin.attribution})`,
             fetchedAt: points.fetchedAt,
             fetchState: points.fetchState,
         });

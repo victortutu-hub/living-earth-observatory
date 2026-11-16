@@ -1,6 +1,6 @@
 // Living Himalaya LOT 2: provenance wording (permanent bar, terrain notes,
 // sources & attribution panel). Pure functions, covered by tests.
-import { GLO30_ACCESSED, GLO30_ATTRIBUTION } from '../config/himalaya-terrain-patches.js';
+import { GLO30_ACCESSED, GLO30_ATTRIBUTION, GLO30_SELECTED_ACCESSED } from '../config/himalaya-terrain-patches.js';
 import { HIMALAYA_HISTORY_CREDIT } from '../config/himalaya-history.js';
 
 export const TERRAIN_MODES = Object.freeze(['glo30', 'terrarium']);
@@ -9,6 +9,10 @@ export const TERRAIN_LABELS = Object.freeze({
   terrarium: 'Terrarium / AWS Terrain Tiles (reconstructed)',
 });
 export const OVERVIEW_LABEL = 'Terrarium / AWS Terrain Tiles (reconstructed)';
+/** GLO-30 bar label with the access date of the patch shown (LOT 7: per patch). */
+export function glo30Label(accessed = GLO30_ACCESSED) {
+  return `Copernicus GLO-30 (reconstructed), 1 arc-second, accessed ${accessed || GLO30_ACCESSED}`;
+}
 
 export function formatUtc(date) {
   const iso = date.toISOString();
@@ -22,10 +26,10 @@ export function sunLabel(sun, date) {
     : `Sun: approximate model (physical-model, simplified; astronomy-engine unavailable), ${formatUtc(date)}`;
 }
 
-export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null, image = null } = {}) {
+export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null, image = null, glo30Accessed = null } = {}) {
   return [
     'Peaks: reference list (sources cited)',
-    `Terrain: ${TERRAIN_LABELS[terrainMode] || TERRAIN_LABELS.glo30}`,
+    `Terrain: ${terrainMode === 'terrarium' ? TERRAIN_LABELS.terrarium : glo30Label(glo30Accessed || GLO30_ACCESSED)}`,
     `Overview: ${OVERVIEW_LABEL}`,
     sunLabel(sun, date),
     weather,
@@ -56,7 +60,7 @@ export const ATTRIBUTIONS = Object.freeze([
     id: 'glo30',
     title: 'Copernicus DEM GLO-30 (terrain patches)',
     text: GLO30_ATTRIBUTION,
-    note: `GLO-30 Public, 2021 release, read from the AWS Open Data bucket copernicus-dem-30m on ${GLO30_ACCESSED}; cut to 20 × 20 km and quantized to 0.25 m. Fill shares from the GLO-30 Filling Mask (FLM).`,
+    note: `GLO-30 Public, 2021 release, read from the AWS Open Data bucket copernicus-dem-30m on ${GLO30_ACCESSED} (the 14 eight-thousanders) and ${GLO30_SELECTED_ACCESSED} (the selected Nepal peaks; Yalung Kang uses the Kangchenjunga patch); cut to 20 × 20 km and quantized to 0.25 m. Fill shares from the GLO-30 Filling Mask (FLM).`,
   }),
   Object.freeze({
     id: 'terrarium',
@@ -80,12 +84,12 @@ export const ATTRIBUTIONS = Object.freeze([
     id: 'himalayanDatabase',
     title: 'Summit history (aggregates)',
     text: HIMALAYA_HISTORY_CREDIT,
-    note: 'Per-peak counts only (successful expeditions, member summits, first ascent year and season, total deaths, season totals), used with the written permission of The Himalayan Database. Reported: compiled from expedition accounts, not measurements. Peaks outside its coverage show “Not covered by the Himalayan Database”.',
+    note: 'Per-peak counts only (successful expeditions, member summits, first ascent year and season, total deaths, season totals), used with the written permission of The Himalayan Database. Reported: compiled from expedition accounts, not measurements. Peaks outside its coverage show “Not covered by the Himalayan Database”; the selected Nepal peaks show “Not available for this peak” (the permission covers the 14 eight-thousanders only).',
   }),
   Object.freeze({
     id: 'peaks',
     title: 'Summits',
     text: 'Surveyed heights and summit coordinates compiled from cited references (Wikidata CC0, OpenStreetMap ODbL for the coordinate cross-check).',
-    note: 'Official elevations are shown apart from DEM model elevations.',
+    note: 'Official elevations are shown apart from DEM model elevations. The 14 eight-thousanders were cross-checked on 2026-11-15, the 6 selected Nepal peaks on 2026-11-16 (same rule; alternates and ambiguities listed per peak).',
   }),
 ]);

@@ -1,4 +1,4 @@
-import { HIMALAYA_PEAK_IDS } from '../config/himalaya-peaks.js';
+import { HIMALAYA_ALL_PEAK_IDS } from '../config/himalaya-peaks.js';
 import { validateObservatoryTime } from '../core/observatory/observatory-messages.js';
 
 const HIMALAYA_READY_TIMEOUT_MS = 30_000;
@@ -47,7 +47,7 @@ export function createLivingHimalayaAtlasModule({ route = './living-himalaya.htm
   return Object.freeze({
     id: 'living-himalaya',
     parentFocus: 'himalaya',
-    acceptsFocus: (focus) => HIMALAYA_PEAK_IDS.includes(focus),
+    acceptsFocus: (focus) => HIMALAYA_ALL_PEAK_IDS.includes(focus),
 
     async start(context, options = {}) {
       const mount = options.mount;
@@ -59,7 +59,7 @@ export function createLivingHimalayaAtlasModule({ route = './living-himalaya.htm
       const source = new URL(route, window.location.href);
       source.searchParams.set('portal', 'atlas');
       source.searchParams.set('embedded', 'atlas');
-      if (options.focus && HIMALAYA_PEAK_IDS.includes(options.focus)) source.searchParams.set('focus', options.focus);
+      if (options.focus && HIMALAYA_ALL_PEAK_IDS.includes(options.focus)) source.searchParams.set('focus', options.focus);
       const time = validateObservatoryTime(options.time);
       if (time) source.searchParams.set('time', time);
       else if (options.timeNote === 'not-restored') source.searchParams.set('timeNote', 'not-restored');

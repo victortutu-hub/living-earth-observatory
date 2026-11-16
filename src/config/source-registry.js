@@ -350,7 +350,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     provenanceNote: 'Surveyed heights and summit coordinates, compiled from cited references (official survey heights; summit positions cross-checked between Wikidata P625 and OpenStreetMap natural=peak). DEM elevation, when added, is a separate reconstructed source',
     authority: 'Compiled by Luminomorphism from cited survey references, Wikidata and OpenStreetMap',
     endpoint: 'Local frozen list src/config/himalaya-peaks.js (no runtime request)',
-    type: 'Summit name, range, latitude/longitude and official elevation in metres for the 14 peaks above 8000 m',
+    type: 'Summit name, range, latitude/longitude and official elevation in metres for the 14 peaks above 8000 m and 6 selected Nepal peaks (Ama Dablam, Annapurna II, Langtang Lirung, Nuptse, Pumori, Yalung Kang)',
     process: 'Place one marker per summit; elevation values are shown as published, with alternates and ambiguities listed per peak.',
     scope: 'Local list used by the Earth Observatory peaks layer and the Living Himalaya observatory.',
     access: { kind: 'local-asset', label: 'Bundled reference list', requiresProxy: false },
@@ -362,7 +362,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
   himalayaTerrainGlo30: defineSource({
     title: 'Copernicus DEM GLO-30 (Himalaya terrain patches)',
     provenance: 'reconstructed',
-    provenanceNote: 'Digital surface model (TanDEM-X WorldDEM, edited; voids filled from other DEMs, share per patch from the GLO-30 Filling Mask), 1 arc-second, 20 × 20 km around each of the 14 summits, quantized to 0.25 m; DEM elevation is a model value, not a survey height',
+    provenanceNote: 'Digital surface model (TanDEM-X WorldDEM, edited; voids filled from other DEMs, share per patch from the GLO-30 Filling Mask), 1 arc-second, 20 × 20 km around each of the 14 summits and 5 selected Nepal peaks (Yalung Kang shares the Kangchenjunga patch), quantized to 0.25 m; DEM elevation is a model value, not a survey height',
     authority: 'Copernicus Programme (European Union, ESA); WorldDEM © DLR e.V. and © Airbus Defence and Space GmbH',
     endpoint: 'Local assets assets/himalaya/glo30-<peak>-<hash>.ktx2 built offline by tools/build-himalaya-patches.mjs from the AWS Open Data bucket copernicus-dem-30m (GLO-30 Public, 2021 release)',
     type: 'KTX2 R16_UNORM + Zstd height grid (offset/scale in the metadata), one per summit, with fill statistics',

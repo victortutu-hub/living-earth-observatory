@@ -5,21 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Living Himalaya Observatory</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 52 26 18l9 14 6-8 17 28Z' fill='none' stroke='%2367E8F9' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E" />
-  <meta name="description" content="A regional observatory in development: the 14 summits above 8000 m on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun.">
+  <meta name="description" content="A regional observatory in development: the 14 summits above 8000 m and 6 selected Nepal peaks on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot5">
+  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot7">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
-  <canvas id="himalayaStage" aria-label="Terrain of the Himalaya and Karakoram with the summits above 8000 m, lit by the Sun (vertical exaggeration 1.0)"></canvas>
+  <canvas id="himalayaStage" aria-label="Terrain of the Himalaya and Karakoram with the summits above 8000 m and 6 selected Nepal peaks, lit by the Sun (vertical exaggeration 1.0)"></canvas>
   <div id="himalayaLabels"></div>
   <header class="himalaya-header">
     <div class="himalaya-brand">
       <span>Luminomorphism / Regional Scale · In development</span>
       <h1>Living Himalaya Observatory</h1>
-      <p>The 14 summits above 8000 m on real terrain: Copernicus GLO-30 (1″) around the selected summit with the latest clear Sentinel-2 image, Terrarium tiles for the overview. Real Sun, vertical exaggeration 1.0.</p>
+      <p>The 14 summits above 8000 m and 6 selected Nepal peaks on real terrain: Copernicus GLO-30 (1″) around the selected summit with the latest clear Sentinel-2 image, Terrarium tiles for the overview. Real Sun, vertical exaggeration 1.0.</p>
     </div>
     <a class="himalaya-return" href="./earth-eonet-relief.html?focus=himalaya" aria-label="Return to Living Earth">Return<span class="himalaya-return-long"> to Living Earth</span></a>
   </header>
@@ -76,7 +76,7 @@
   <script type="module">
     import { platformRegistry } from './src/core/platform-registry.js';
     import { createObservatoryModuleHost } from './src/core/observatory/module-host.js';
-    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot5';
+    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot7';
 
     const moduleHost = createObservatoryModuleHost({
       registry: platformRegistry,

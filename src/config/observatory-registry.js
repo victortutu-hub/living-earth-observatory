@@ -159,7 +159,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     parent: 'living-earth', // entered from the Earth globe, not from the hero
     route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase'],
     accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
-    description: 'A regional observatory in development, entered from a summit marker on the Earth globe. Today: the 14 eight-thousanders from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun, with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported).',
+    description: 'A regional observatory in development, entered from a summit marker on the Earth globe. Today: the 14 eight-thousanders and 6 selected Nepal peaks from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun, with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported; the 14 only).',
     features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Summit history (reported)', 'Opt-in expedition tracks'],
     representations: ['observed', 'reconstructed', 'prediction', 'reported', 'fallback'],
   }),

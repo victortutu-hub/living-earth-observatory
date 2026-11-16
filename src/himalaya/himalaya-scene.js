@@ -5,6 +5,9 @@
 //     (terrain-patch.js), 2048² shadow map recomputed only when the Sun, the
 //     patch or its LOD changes (shadowMap.autoUpdate = false).
 //   * Summit markers at the official elevation, labels (CSS2D), OrbitControls.
+//     LOT 7: selected Nepal peaks get a second, smaller marker style; their
+//     labels appear within SELECTED_LABEL_MAX_KM of the camera (or when
+//     active). A peak may share the patch of another (patchKey).
 // Projection: azimuthal equidistant (projection.js); 1 unit = 1 km; vertical
 // exaggeration 1.0 everywhere. Async work (tiles, patches, decoder) is owned
 // by the scene and cancelled/ignored after dispose.
@@ -27,6 +30,8 @@ export const MAX_PATCHES_IN_MEMORY = 2;
 const TERRAIN_ALBEDO = 0xc3ccd3;
 const SHADOW_HALF_KM = 16;
 const OVERVIEW_VIEW = Object.freeze({ target: [0, 0, 120], position: [0, 2350, 2050] });
+export const SELECTED_LABEL_MAX_KM = 160;
+const SELECTED_HEAD_SCALE = 0.72;
 
 /** Marker height = official elevation (km), exaggeration 1.0. */
 export function markerHeightKm(elevationM) {
@@ -60,11 +65,12 @@ function loadZstd() {
  * @param {(url:string, key:string, signal:AbortSignal)=>Promise<Blob>} o.fetchTile
  * @param {(url:string, key:string, signal:AbortSignal)=>Promise<ArrayBuffer>} o.fetchPatch
  * @param {(id:string)=>object|null} o.getPatchMeta
+ * @param {(id:string)=>string} [o.getPatchKey] id under which a peak's patch mesh (and image) is held
  * @param {(event:object)=>void} [o.onTerrainEvent]
  */
 export function createHimalayaScene({
   canvas, labelHost, peaks, center, onSelect, reducedMotion,
-  fetchTile, fetchPatch, getPatchMeta, onTerrainEvent = () => {},
+  fetchTile, fetchPatch, getPatchMeta, getPatchKey = (id) => id, onTerrainEvent = () => {},
 }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
   if (!renderer.capabilities.isWebGL2) {
@@ -185,25 +191,28 @@ export function createHimalayaScene({
   const headGeometry = track(new THREE.SphereGeometry(1, 16, 10));
   const headMaterial = track(new THREE.MeshBasicMaterial({ color: 0x9fe8ff, depthTest: false, transparent: true, opacity: 0.95 }));
   const activeMaterial = track(new THREE.MeshBasicMaterial({ color: 0xfde68a, depthTest: false, transparent: true, opacity: 0.95 }));
+  const selectedHeadMaterial = track(new THREE.MeshBasicMaterial({ color: 0xc4b5fd, depthTest: false, transparent: true, opacity: 0.95 }));
   const markers = new Map();
   for (const peak of peaks) {
     const p = projectLonLat(peak.lon, peak.lat, center);
     const top = new THREE.Vector3(p.x, markerHeightKm(peak.elevationM), p.z);
-    const head = new THREE.Mesh(headGeometry, headMaterial);
+    const selectedStyle = peak.group === 'selected-nepal';
+    const restMaterial = selectedStyle ? selectedHeadMaterial : headMaterial;
+    const head = new THREE.Mesh(headGeometry, restMaterial);
     head.position.copy(top);
     head.renderOrder = 6;
     head.userData.peakId = peak.id;
     scene.add(head);
     const label = document.createElement('button');
     label.type = 'button';
-    label.className = 'himalaya-peak-label';
+    label.className = `himalaya-peak-label${selectedStyle ? ' is-selected-peak' : ''}`;
     label.dataset.peakId = peak.id;
     label.textContent = `${peak.name} · ${peak.elevationM.toLocaleString('en-US')} m`;
     label.addEventListener('click', () => onSelect(peak.id));
     const labelObject = new CSS2DObject(label);
     labelObject.position.copy(top);
     scene.add(labelObject);
-    markers.set(peak.id, { peak, head, label, labelObject, top });
+    markers.set(peak.id, { peak, head, label, labelObject, top, restMaterial, selectedStyle });
   }
 
   // --- screen-space picking of marker heads (16 px)
@@ -414,7 +423,7 @@ export function createHimalayaScene({
   function setActive(id) {
     if (activeId && markers.has(activeId)) {
       const previous = markers.get(activeId);
-      previous.head.material = headMaterial;
+      previous.head.material = previous.restMaterial;
       previous.label.classList.remove('is-active');
     }
     activeId = markers.has(id) ? id : null;
@@ -533,8 +542,10 @@ export function createHimalayaScene({
     }
     // Marker heads keep a roughly constant on-screen size.
     for (const marker of markers.values()) {
-      const s = Math.max(0.02, camera.position.distanceTo(marker.top) * 0.0065);
+      const d = camera.position.distanceTo(marker.top);
+      const s = Math.max(0.02, d * 0.0065) * (marker.selectedStyle ? SELECTED_HEAD_SCALE : 1);
       marker.head.scale.setScalar(s);
+      if (marker.selectedStyle) marker.labelObject.visible = marker.peak.id === activeId || d <= SELECTED_LABEL_MAX_KM;
     }
     gridMaterial.opacity = THREE.MathUtils.clamp((distance - 150) / 900, 0, 1) * 0.22;
     grid.visible = gridMaterial.opacity > 0.005;
@@ -572,12 +583,13 @@ export function createHimalayaScene({
       const view = peakView(id);
       if (!view) return false;
       setActive(id);
-      activePatchId = id;
+      const key = getPatchKey(id);
+      activePatchId = key;
       if (instant) setView(view.target, view.position);
       else flyTo(view.target, view.position);
       if (terrainMode === 'glo30') {
-        if (patches.has(id)) showPatch(id);
-        else { showPatch(null); loadPatch(id); }
+        if (patches.has(key)) showPatch(key);
+        else { showPatch(null); loadPatch(key); }
       }
       return true;
     },
@@ -601,7 +613,8 @@ export function createHimalayaScene({
     setSun,
     setMoon,
     /** Sentinel-2 mosaic for a summit: { rgba, width, height, level, res, utm: { zone, e0, n0, widthM, heightM } }. */
-    setSatelliteImage(peakId, image) {
+    setSatelliteImage(peakIdIn, image) {
+      const peakId = getPatchKey(peakIdIn);
       const previous = satellite.get(peakId);
       previous?.texture.dispose();
       previous?.material.dispose();
@@ -618,7 +631,8 @@ export function createHimalayaScene({
       const entry = patches.peek(peakId);
       if (entry && peakId === activePatchId) applyPatchMaterial(entry);
     },
-    clearSatelliteImage(peakId) {
+    clearSatelliteImage(peakIdIn) {
+      const peakId = getPatchKey(peakIdIn);
       const sat = satellite.get(peakId);
       if (!sat) return;
       satellite.delete(peakId);
@@ -662,7 +676,7 @@ export function createHimalayaScene({
     /** Debug/verification: place the camera directly ([x,y,z] km). */
     setView: (target, position) => setView(new THREE.Vector3(...target), new THREE.Vector3(...position)),
     terrariumSummit: (id) => terrariumSummits.get(id) || null,
-    patchState: (id) => patchStates.get(id) || null,
+    patchState: (id) => patchStates.get(getPatchKey(id)) || null,
     isFlying: () => Boolean(flight),
     /** GPU cost of one shadow-map recomputation (ms): render with vs without the update, gl.finish() each. */
     measureShadowCost(samples = 5) {
@@ -718,7 +732,8 @@ export function createHimalayaScene({
     snapshot: () => {
       const entry = activePatchId ? patches.peek(activePatchId) : null;
       return {
-        activeId, flying: Boolean(flight), fps, terrainMode,
+        activeId, activePatchId, flying: Boolean(flight), fps, terrainMode,
+        labels: { visible: [...markers.values()].filter((m) => m.labelObject.visible).map((m) => m.peak.id), selectedStyle: [...markers.values()].filter((m) => m.selectedStyle).map((m) => m.peak.id) },
         target: controls.target.toArray(), camera: camera.position.toArray(),
         patch: entry ? { id: entry.id, visible: entry.mesh.visible, lod: entry.lod, triangles: entry.triangles, vertices: entry.vertices, buildMs: entry.buildMs, fading: Boolean(fade), clipOn: clipUniforms.uClipOn.value === 1 } : { id: activePatchId, state: activePatchId ? patchStates.get(activePatchId) || null : null, error: activePatchId ? patchErrors.get(activePatchId) || null : null },
         patchesInMemory: patches.keys(),

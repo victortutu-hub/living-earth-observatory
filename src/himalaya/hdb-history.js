@@ -4,16 +4,20 @@
 // Only the scope approved in writing (16 Nov 2026) is shown: successful
 // expeditions, member summits, first ascent year + season, deaths (total),
 // season totals. No link to the database website until it is confirmed.
+// LOT 7: the selected Nepal peaks are outside the agreement (it covers the
+// 14 only): no Himalayan Database code or value is read or shown for them.
 import { HIMALAYA_HISTORY_COVERAGE, HIMALAYA_HISTORY_CREDIT } from '../config/himalaya-history.js';
+import { isSelectedPeak } from '../config/himalaya-peaks.js';
 
 export const HISTORY_LABEL = 'Reported (compiled from expedition accounts, not measurements)';
 export const NOT_COVERED = 'Not covered by the Himalayan Database';
+export const NOT_AVAILABLE = 'Not available for this peak';
 export const DISPUTED_NOTE = 'Disputed ascents (unverified, contested or of a controversial style) are counted as successes, as in the database; claimed (not recognised) ascents are not.';
 const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter', 'unknown'];
 const SEASON_NAME = ['unknown season', 'spring', 'summer', 'autumn', 'winter'];
 
 export function isCovered(peakId) {
-  return Boolean(HIMALAYA_HISTORY_COVERAGE[peakId]);
+  return !isSelectedPeak(peakId) && Object.hasOwn(HIMALAYA_HISTORY_COVERAGE, peakId) && Boolean(HIMALAYA_HISTORY_COVERAGE[peakId]);
 }
 
 const n = (v) => Number(v).toLocaleString('en-US');
@@ -21,6 +25,7 @@ const plural = (v, one, many) => `${n(v)} ${Number(v) === 1 ? one : many}`;
 
 /** Rows [label, value, state?] for the History section of one summit. */
 export function historyRows(peakId, data, status = 'ready') {
+  if (isSelectedPeak(peakId)) return [['History', NOT_AVAILABLE, 'pending']];
   if (!isCovered(peakId)) return [['History', NOT_COVERED, 'pending']];
   if (status === 'error') return [['History', 'History: temporarily unavailable', 'pending']];
   if (status === 'loading' || !data) return [['History', 'loading…', 'pending']];

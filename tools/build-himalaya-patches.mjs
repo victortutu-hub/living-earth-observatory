@@ -2,6 +2,15 @@
 // patches (20 x 20 km around each summit). Run locally, never on the server:
 //
 //   node tools/build-himalaya-patches.mjs [--log tmp/himalaya/lot2-etapa1-requests.json]
+//       [--budget N] [--accessed YYYY-MM-DD] [--accessed-eight-thousanders YYYY-MM-DD]
+//       [--report tmp/himalaya/lot2-build-report.json]
+//
+// LOT 7: also the selected Nepal peaks (HIMALAYA_SELECTED_PEAKS). A peak with
+// `patchOf` gets no patch of its own: its DEM summit value and summit fill
+// share are computed on its own point inside the patch it shares. The access
+// date is per group: the 14 keep the date of their existing build (so their
+// rebuilt assets are byte-identical, from the raw-response cache), the
+// selected peaks use --accessed (default: today).
 //
 // Network (all enumerated in the request log; the build aborts above --budget):
 //   * per needed DEM tile: one header read (Range 0-65535) + merged Range reads
@@ -44,7 +53,7 @@ const BUDGET = Number(arg('--budget', 200));
 const CACHE_DIR = path.join(ROOT, 'tmp/himalaya/glo30-cache');
 const ASSET_DIR = path.join(ROOT, 'assets/himalaya');
 const CONFIG_OUT = path.join(ROOT, 'src/config/himalaya-terrain-patches.js');
-const REPORT_OUT = path.join(ROOT, 'tmp/himalaya/lot2-build-report.json');
+const REPORT_OUT = path.resolve(ROOT, arg('--report', 'tmp/himalaya/lot2-build-report.json'));
 const BUCKET = 'https://copernicus-dem-30m.s3.amazonaws.com';
 const HALF_KM = 10;
 const SCALE_M = 0.25;
@@ -53,7 +62,13 @@ const FILL_SUMMIT_RADIUS_M = 1000;
 const ACCESSED = arg('--accessed', new Date().toISOString().slice(0, 10));
 const FLM_SOURCES = Object.freeze({ 3: 'ASTER', 4: 'SRTM90', 5: 'SRTM30', 6: 'GMTED2010', 7: 'SRTM30plus', 8: 'TerraSAR-X radargrammetric DEM', 9: 'AW3D30', 100: 'Norway DEM', 101: 'DSM05 Spain', 102: 'Norway DEM v2' });
 
-const { HIMALAYA_PEAKS } = await import(pathToFileURL(path.join(ROOT, 'src/config/himalaya-peaks.js')).href);
+const { HIMALAYA_PEAKS, HIMALAYA_SELECTED_PEAKS } = await import(pathToFileURL(path.join(ROOT, 'src/config/himalaya-peaks.js')).href);
+const previousConfig = fs.existsSync(CONFIG_OUT) ? await import(pathToFileURL(CONFIG_OUT).href) : {};
+const ACCESSED_14 = arg('--accessed-eight-thousanders', previousConfig.GLO30_ACCESSED || ACCESSED);
+const accessedFor = (peak) => (peak.group === 'selected-nepal' ? ACCESSED : ACCESSED_14);
+const OWN_PATCH_PEAKS = [...HIMALAYA_PEAKS, ...HIMALAYA_SELECTED_PEAKS.filter((p) => !p.patchOf)];
+const SHARED_PATCH_PEAKS = HIMALAYA_SELECTED_PEAKS.filter((p) => p.patchOf);
+for (const p of SHARED_PATCH_PEAKS) if (!OWN_PATCH_PEAKS.some((o) => o.id === p.patchOf)) throw new Error(`${p.id}: patchOf ${p.patchOf} has no patch`);
 
 // ---------------------------------------------------------------- requests
 fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -212,7 +227,7 @@ function locate(latArcsec, lonArcsec) {
   return { la, lo, r: (la + 1) * 3600 - latArcsec, c: lonArcsec - lo * 3600 };
 }
 
-const grids = new Map(HIMALAYA_PEAKS.map((p) => [p.id, patchGrid(p)]));
+const grids = new Map(OWN_PATCH_PEAKS.map((p) => [p.id, patchGrid(p)]));
 // Needed blocks per tile.
 const need = new Map();
 for (const g of grids.values()) {
@@ -293,7 +308,7 @@ const distanceM = (lat1, lon1, lat2, lon2) => {
 fs.mkdirSync(ASSET_DIR, { recursive: true });
 const patches = {};
 const assets = [];
-for (const peak of HIMALAYA_PEAKS) {
+for (const peak of OWN_PATCH_PEAKS) {
   const g = grids.get(peak.id);
   const heights = new Float32Array(g.rows * g.cols);
   let min = Infinity; let max = -Infinity; let voids = 0; let filled = 0;
@@ -346,7 +361,7 @@ for (const peak of HIMALAYA_PEAKS) {
     'LUMI.fillPercent': String(fillPercent),
     'LUMI.fillSummitPercent': String(fillSummitPercent),
     'LUMI.fillSources': JSON.stringify(fillSources),
-    'LUMI.source': `Copernicus GLO-30 Public (2021 release, AWS Open Data), tiles ${tiles.join(' ')}, accessed ${ACCESSED}`,
+    'LUMI.source': `Copernicus GLO-30 Public (2021 release, AWS Open Data), tiles ${tiles.join(' ')}, accessed ${accessedFor(peak)}`,
     'LUMI.attribution': 'produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved',
   };
   const ktx = encodeKtx2R16({ vkFormat: VK_FORMAT_R16_UNORM, levels: [{ width: g.cols, height: g.rows, data: q }], keyValues });
@@ -354,7 +369,9 @@ for (const peak of HIMALAYA_PEAKS) {
   if (back.vkFormat !== VK_FORMAT_R16_UNORM || back.levels[0].data.some((v, k) => v !== q[k])) throw new Error(`${peak.id}: KTX2 round trip failed`);
   const sha256 = crypto.createHash('sha256').update(ktx).digest('hex');
   const fileName = `glo30-${peak.id}-${sha256.slice(0, 10)}.ktx2`;
-  for (const old of fs.readdirSync(ASSET_DIR)) if (old.startsWith(`glo30-${peak.id}-`) && old !== fileName) fs.unlinkSync(path.join(ASSET_DIR, old));
+  // Exact id match: 'annapurna' must not remove 'annapurna-2' (LOT 7).
+  const ownAsset = new RegExp(`^glo30-${peak.id}-[0-9a-f]{10}\\.ktx2$`);
+  for (const old of fs.readdirSync(ASSET_DIR)) if (ownAsset.test(old) && old !== fileName) fs.unlinkSync(path.join(ASSET_DIR, old));
   fs.writeFileSync(path.join(ASSET_DIR, fileName), ktx);
   assets.push({ file: `assets/himalaya/${fileName}`, bytes: ktx.length, sha256 });
   patches[peak.id] = {
@@ -364,33 +381,90 @@ for (const peak of HIMALAYA_PEAKS) {
     demSummitM: +summitMax.toFixed(2), demSummitAt: summitAt.map((v) => +v.toFixed(6)), demSummitRadiusM: SUMMIT_RADIUS_M,
     fillPercent, fillSummitPercent, fillSummitRadiusM: FILL_SUMMIT_RADIUS_M, fillSources, voidPixels: voids, tiles,
     maxQuantizationErrorM: +maxError.toFixed(4),
+    ...(peak.group === 'selected-nepal' ? { accessed: accessedFor(peak) } : {}),
   };
 }
 
+// Peaks on a shared patch (LOT 7): summit values on their own point.
+const sharedPoints = {};
+for (const peak of SHARED_PATCH_PEAKS) {
+  const g = grids.get(peak.patchOf);
+  let summitMax = -Infinity; let summitAt = null; let filledNearSummit = 0; let nearSummit = 0;
+  for (let j = 0; j < g.rows; j++) {
+    const latArc = g.latTopArcsec - j;
+    for (let i = 0; i < g.cols; i++) {
+      const lonArc = g.lonLeftArcsec + i;
+      const d = distanceM(peak.lat, peak.lon, latArc / 3600, lonArc / 3600);
+      if (d > FILL_SUMMIT_RADIUS_M) continue;
+      const h = sampleDem(latArc, lonArc);
+      const f = sampleFlm(latArc, lonArc);
+      nearSummit += 1; if (f >= 3) filledNearSummit += 1;
+      if (d <= SUMMIT_RADIUS_M && Number.isFinite(h) && h > -32767 && f !== 0 && h > summitMax) { summitMax = h; summitAt = [latArc / 3600, lonArc / 3600]; }
+    }
+  }
+  if (!summitAt) throw new Error(`${peak.id}: no DEM sample near the summit in the ${peak.patchOf} patch`);
+  sharedPoints[peak.id] = {
+    patchOf: peak.patchOf, demSummitM: +summitMax.toFixed(2), demSummitAt: summitAt.map((v) => +v.toFixed(6)), demSummitRadiusM: SUMMIT_RADIUS_M,
+    fillSummitPercent: +((filledNearSummit / Math.max(1, nearSummit)) * 100).toFixed(1), fillSummitRadiusM: FILL_SUMMIT_RADIUS_M,
+    // no `accessed`: the data are those of the shared patch (its access date applies)
+  };
+}
+const isSelected = (id) => HIMALAYA_SELECTED_PEAKS.some((p) => p.id === id);
+const unchanged = HIMALAYA_PEAKS.map((p) => ({ id: p.id, sameAsBefore: previousConfig.HIMALAYA_TERRAIN_PATCHES?.[p.id]?.sha256 === patches[p.id].sha256 }));
+
 const banner = `// GENERATED by tools/build-himalaya-patches.mjs on ${ACCESSED} - do not edit by hand.
 // Copernicus GLO-30 terrain patches (20 x 20 km, 1 arc-second, RasterPixelIsPoint)
-// around the 14 summits: R16_UNORM heights, q = round((h - heightOffsetM) / heightScaleM).
+// around the 14 summits and the selected Nepal peaks (LOT 7): R16_UNORM heights,
+// q = round((h - heightOffsetM) / heightScaleM). A selected peak with patchOf
+// shares that patch; its demSummit* and fillSummit* are computed on its own point.
 // demSummitM = highest DEM sample within demSummitRadiusM of the summit coordinates
 // (a model value: DEM != survey). fillPercent = share of patch pixels that the
 // GLO-30 Filling Mask flags as filled from another source (FLM >= 3);
 // fillSummitPercent = the same within fillSummitRadiusM of the summit.
 `;
 const body = `${banner}
-export const GLO30_ACCESSED = '${ACCESSED}';
+export const GLO30_ACCESSED = '${ACCESSED_14}';
+export const GLO30_SELECTED_ACCESSED = '${ACCESSED}';
 export const GLO30_RELEASE = 'GLO-30 Public, 2021 release (AWS Open Data)';
 export const GLO30_ATTRIBUTION = 'produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved';
 
+// The 14 eight-thousanders (one patch each).
 export const HIMALAYA_TERRAIN_PATCHES = Object.freeze({
-${Object.entries(patches).map(([id, p]) => `  '${id}': Object.freeze(${JSON.stringify(p)}),`).join('\n')}
+${Object.entries(patches).filter(([id]) => !isSelected(id)).map(([id, p]) => `  '${id}': Object.freeze(${JSON.stringify(p)}),`).join('\n')}
 });
 
+// Selected Nepal peaks with a patch of their own.
+export const HIMALAYA_SELECTED_TERRAIN_PATCHES = Object.freeze({
+${Object.entries(patches).filter(([id]) => isSelected(id)).map(([id, p]) => `  '${id}': Object.freeze(${JSON.stringify(p)}),`).join('\n')}
+});
+
+// Selected peaks on a shared patch: own summit values, the patch of patchOf.
+export const HIMALAYA_SHARED_PATCH_POINTS = Object.freeze({
+${Object.entries(sharedPoints).map(([id, p]) => `  '${id}': Object.freeze(${JSON.stringify(p)}),`).join('\n')}
+});
+
+const merged = new Map();
+/** Patch metadata for any of the 20 peaks (a shared patch carries patchOf and the peak's own summit values), or null. */
 export function getTerrainPatch(id) {
-  return Object.hasOwn(HIMALAYA_TERRAIN_PATCHES, id) ? HIMALAYA_TERRAIN_PATCHES[id] : null;
+  if (Object.hasOwn(HIMALAYA_TERRAIN_PATCHES, id)) return HIMALAYA_TERRAIN_PATCHES[id];
+  if (Object.hasOwn(HIMALAYA_SELECTED_TERRAIN_PATCHES, id)) return HIMALAYA_SELECTED_TERRAIN_PATCHES[id];
+  if (!Object.hasOwn(HIMALAYA_SHARED_PATCH_POINTS, id)) return null;
+  if (!merged.has(id)) {
+    const point = HIMALAYA_SHARED_PATCH_POINTS[id];
+    merged.set(id, Object.freeze({ ...HIMALAYA_TERRAIN_PATCHES[point.patchOf], ...point }));
+  }
+  return merged.get(id);
+}
+
+/** The id under which the patch mesh of a peak is loaded (the shared patch for patchOf). */
+export function patchKeyOf(id) {
+  return Object.hasOwn(HIMALAYA_SHARED_PATCH_POINTS, id) ? HIMALAYA_SHARED_PATCH_POINTS[id].patchOf : id;
 }
 `;
 fs.writeFileSync(CONFIG_OUT, body);
-const report = { accessed: ACCESSED, networkRequestsThisRun: networkRequests, totalLoggedRequests: log.requests.length, tiles: tileReport,
-  assets, totalBytes: assets.reduce((s, a) => s + a.bytes, 0), patches };
+const report = { accessed: ACCESSED, accessedEightThousanders: ACCESSED_14, networkRequestsThisRun: networkRequests, totalLoggedRequests: log.requests.length, tiles: tileReport,
+  assets, totalBytes: assets.reduce((s, a) => s + a.bytes, 0), patches, sharedPoints, unchanged };
 fs.writeFileSync(REPORT_OUT, JSON.stringify(report, null, 1));
-console.log(JSON.stringify({ networkRequestsThisRun: networkRequests, totalLoggedRequests: log.requests.length, totalBytes: report.totalBytes,
+console.log(JSON.stringify({ networkRequestsThisRun: networkRequests, totalLoggedRequests: log.requests.length, totalBytes: report.totalBytes, sharedPoints,
+  eightThousandersUnchanged: unchanged.every((u) => u.sameAsBefore) ? 14 : unchanged.filter((u) => !u.sameAsBefore).map((u) => u.id),
   patches: Object.fromEntries(Object.entries(patches).map(([id, p]) => [id, { kb: Math.round(p.bytes / 1024), dem: p.demSummitM, fill: p.fillPercent, fillSummit: p.fillSummitPercent, voids: p.voidPixels, err: p.maxQuantizationErrorM }])) }, null, 1));

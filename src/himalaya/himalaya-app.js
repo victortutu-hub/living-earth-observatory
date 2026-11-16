@@ -4,8 +4,8 @@
 // permanent provenance bar and the terrain scene. Started and destroyed by the module
 // host (living-himalaya-module.js); after destroy nothing restarts (async
 // work checks the signal, timers and listeners are owned and removed).
-import { HIMALAYA_PEAKS, HIMALAYA_REGION_CENTER, getHimalayaPeak } from '../config/himalaya-peaks.js';
-import { getTerrainPatch } from '../config/himalaya-terrain-patches.js';
+import { HIMALAYA_ALL_PEAKS, HIMALAYA_REGION_CENTER, PEAK_GROUPS, getHimalayaPeak } from '../config/himalaya-peaks.js';
+import { getTerrainPatch, patchKeyOf } from '../config/himalaya-terrain-patches.js';
 import { createRequestRuntime } from '../core/runtime/request-runtime.js';
 import { loadAstronomyEngine } from '../earth/astronomy-runtime.js';
 import { createBottomSheet } from './bottom-sheet.js';
@@ -44,6 +44,13 @@ export function satelliteReason({ userMode, terrainMode, sat, activeId }) {
   return null;
 }
 export const TIME_STEP_MINUTES = 10;
+
+/** LOT 7: the summit list in two titled groups (14 eight-thousanders, 6 selected Nepal peaks). */
+export function peakListGroups(peaks = HIMALAYA_ALL_PEAKS) {
+  return Object.entries(PEAK_GROUPS)
+    .map(([group, title]) => ({ group, title, peaks: peaks.filter((peak) => peak.group === group) }))
+    .filter((entry) => entry.peaks.length);
+}
 
 /** Initial focus from ?focus=<peak id>; anything else -> null (overview). */
 /** Scene time handed over by Living Earth (?time=, historical only), validated by the shared validator; null otherwise. */
@@ -208,8 +215,8 @@ export function startHimalayaApp({
     const date = currentDate();
     const weatherForPeak = weatherState && weatherState.peakId === activeId ? weatherState : null;
     const imageSegment = satelliteShown() ? imageBarSegment(sat.pass) : 'Image: none (Lit terrain)';
-    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment });
     const patch = activeId ? getTerrainPatch(activeId) : null;
+    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment, glo30Accessed: patch?.accessed || null });
     provenanceText.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
   }
 
@@ -218,7 +225,7 @@ export function startHimalayaApp({
     sheetLabel.textContent = peak ? `${peak.name} · ${formatElevation(peak.elevationM)}` : 'Summits, terrain and light';
     if (!peak) {
       details.replaceChildren(
-        element('h2', null, '14 summits above 8000 m'),
+        element('h2', null, '14 summits above 8000 m and 6 selected Nepal peaks'),
         element('p', 'himalaya-panel-hint', 'Choose a summit from the list or click a marker. Terrain is lit by the Sun for the selected time; vertical exaggeration 1.0.'),
       );
       return;
@@ -413,17 +420,22 @@ export function startHimalayaApp({
     updateProvenance();
   }
 
-  list.replaceChildren(...HIMALAYA_PEAKS.map((peak) => {
-    const item = element('li');
-    const button = element('button', 'himalaya-peak-button');
-    button.type = 'button';
-    button.dataset.peakId = peak.id;
-    button.setAttribute('aria-pressed', 'false');
-    button.append(element('span', 'himalaya-peak-name', peak.name), element('span', 'himalaya-peak-elev', formatElevation(peak.elevationM)));
-    on(button, 'click', () => select(peak.id));
-    item.append(button);
-    return item;
-  }));
+  list.replaceChildren(...peakListGroups().flatMap(({ group, title, peaks }, index) => [
+    Object.assign(element('li', `himalaya-peak-group${index ? ' is-later' : ''}`, title), { id: `himalayaGroup-${group}` }),
+    ...peaks.map((peak) => {
+      const item = element('li');
+      const button = element('button', `himalaya-peak-button${group === 'selected-nepal' ? ' is-selected-peak' : ''}`);
+      button.type = 'button';
+      button.dataset.peakId = peak.id;
+      button.dataset.group = group;
+      button.setAttribute('aria-pressed', 'false');
+      button.setAttribute('aria-describedby', `himalayaGroup-${group}`);
+      button.append(element('span', 'himalaya-peak-name', peak.name), element('span', 'himalaya-peak-elev', formatElevation(peak.elevationM)));
+      on(button, 'click', () => select(peak.id));
+      item.append(button);
+      return item;
+    }),
+  ]));
   terrainInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setTerrainMode(input.value); }));
   imageInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setImageMode(input.value); }));
   on(imageBest, 'click', () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); });
@@ -507,7 +519,7 @@ export function startHimalayaApp({
   // A missing WebGL2 leaves the list and the panel working.
   try {
     scene = createScene({
-      canvas, labelHost, peaks: HIMALAYA_PEAKS, center: HIMALAYA_REGION_CENTER,
+      canvas, labelHost, peaks: HIMALAYA_ALL_PEAKS, center: HIMALAYA_REGION_CENTER,
       onSelect: (id) => select(id), reducedMotion,
       fetchTile: async (url, key, requestSignal) => (await terrainRuntime.fetchResource({
         key, url, responseType: 'blob', ttl: 0, staleTtl: 0, retries: 1, timeout: 15_000, signal: requestSignal,
@@ -516,9 +528,11 @@ export function startHimalayaApp({
         key, url: new URL(file, document.baseURI).href, responseType: 'arrayBuffer', ttl: 0, staleTtl: 0, retries: 1, timeout: 30_000, signal: requestSignal,
       })).data,
       getPatchMeta: getTerrainPatch,
+      getPatchKey: patchKeyOf,
       onTerrainEvent: (event) => {
         if (!alive()) return;
-        if (event.peakId === activeId) renderPanel();
+        // Patch events carry the patch key (Yalung Kang -> kangchenjunga); Terrarium events the peak id.
+        if (activeId && (event.peakId === activeId || event.peakId === patchKeyOf(activeId))) renderPanel();
       },
     });
   } catch (error) {
