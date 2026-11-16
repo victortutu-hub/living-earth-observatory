@@ -11,6 +11,8 @@ natural-disaster signals. **Living Protein V0.1** is the second live
 observatory: a single-molecule view built from AlphaFold structure predictions,
 per-residue model confidence, and UniProt functional annotations. Its data
 model is explicitly prediction-derived rather than experimental structure data.
+**Living Himalaya** is a regional observatory in development, entered from the
+Earth globe (see below).
 
 Public landing page:
 
@@ -28,6 +30,12 @@ Living Protein V0.1 entry point:
 
 ```text
 living-protein.html
+```
+
+Living Himalaya (development) entry point:
+
+```text
+living-himalaya.html
 ```
 
 The current version includes the `Showcase reel` preset, `Data sources` panel, 9:16 video export, synchronized single-card reel pacing, restored intro card layout, atomic state restore after Demo reel, Vertical Director, caption system, Data Rhythm Camera, Moon/Earthshine reel moment, ISS trail, and controllable subtle atmospheric phenomena. 
@@ -58,13 +66,17 @@ To avoid browser cache during development, append a query string:
 http://127.0.0.1:8765/earth-eonet-relief.html?dev=1
 ```
 
-### Local Proxy For GDACS / FIRMS / H.264
+### Local Proxy For GDACS / FIRMS / GVP / History / H.264
 
-Some upstream data sources do not expose browser-friendly CORS headers. The local proxy keeps the browser app clean while allowing server-to-server requests to GDACS, NASA FIRMS, and NASA EONET fallback endpoints.
+Some upstream data sources do not expose browser-friendly CORS headers. The local proxy keeps the browser app clean while allowing server-to-server requests.
 
 ```bash
 node nasa-proxy-server.js
 ```
+
+- Binds to `HOST`, default `127.0.0.1` (loopback only); `PORT` is a TCP port locally or a socket path under Passenger (cPanel), where no `HOST` is used.
+- Routes: `/nasa-proxy?source=eonet|gdacs|firms|gvp`, plus the historical days `source=firms-day&date=YYYY-MM-DD` (MODIS NRT or SP), `source=wind-day&date=…` (ERA5 through the Open-Meteo Archive API) and `source=currents-day&date=…` (SMOC through the Open-Meteo Marine API).
+- `POST /convert-h264` (WebM → MP4 through a local FFmpeg) is **off by default**: it is enabled only with `H264_ENABLED=1`, set locally, never on the server; otherwise the route answers `404`. Limits: `H264_MAX_CONCURRENT` (default 1; a second conversion gets `429`), `H264_TIMEOUT_MS` (default 5 minutes, then FFmpeg is killed) and `H264_MAX_INPUT_BYTES` (default 300 MB).
 
 For NASA FIRMS, copy `.env.example` to `.env` and set:
 
@@ -83,9 +95,11 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Uses GDACS as an intelligent fallback or temporary primary data source.
 - Integrates USGS earthquakes into the shared `Earthquakes` category.
 - Adds NASA FIRMS wildfire hotspots through the local proxy.
-- Supports NASA GIBS daily cloud snapshots and observed VIIRS Black Marble annual night lights (2016), with local fallbacks.
+- Shows the NASA GIBS Blue Marble surface and the observed VIIRS Black Marble annual night lights (2016), with local fallbacks. The NASA GIBS daily cloud snapshot is **temporarily paused** (`DAILY_CLOUDS_ENABLED = false` in `src/earth/cloud-system.js`); a procedural cloud layer is shown instead.
 - Loads the relief as KTX2 (R16F metres + Zstd) by default; append `?noktx2` only to exercise the raw `.r16f.bin` fallback.
-- Keeps a versioned Service Worker cache for the app shell, GIBS imagery, and live EONET/USGS data.
+- No Service Worker is active (see “Offline And Cache Behaviour”).
+- Optional layers: wind particles (Open-Meteo; `prediction` live, ERA5 `reconstructed` for past days), ocean currents (Open-Meteo Marine; `prediction` live, SMOC `physical-model` for past days), Smithsonian GVP volcanoes (`observed`, catalog as published today) and Snow & ice (NASA GIBS MODIS Terra NDSI, `observed`, daily).
+- Historical timeline (one UTC day, up to a year back) — see “Historical Timeline”.
 - Renders NOAA SWPC OVATION aurora as a restrained polar oval.
 - Synchronizes day/night lighting with the real solar position.
 - Provides `dot` and `physical` atmosphere modes.
@@ -93,6 +107,15 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Includes ISS telemetry, tracking, and a subtle data-driven orbital trail.
 - Includes Airglow, Zodiacal Light, and Noctilucent Clouds as physically grounded procedural phenomena with toggles, presets, and intensity sliders.
 - Exports still PNGs and vertical 9:16 reel videos.
+
+### Living Himalaya (development)
+
+- A regional observatory entered from a summit marker on the Earth globe: the 14 eight-thousanders and 6 selected Nepal peaks (cited reference list, `observed`; official elevations shown apart from DEM values).
+- Terrain: Copernicus DEM GLO-30, 20 × 20 km around each summit (`reconstructed`, bundled KTX2 patches), with AWS Terrain Tiles (Terrarium, `reconstructed`) for the overview.
+- Satellite mode: the latest clear Sentinel-2 L2A scene in the last 30 days (`observed`, with its date and cloud share).
+- Summit weather: Open-Meteo NOAA GFS 0.25° pressure levels interpolated to the summit height (`prediction`).
+- Sun and Moon: Astronomy Engine (`physical-model`); moonlight brightness is exaggerated for visibility and labelled.
+- History: per-peak aggregates from The Himalayan Database (`reported`: compiled from expedition accounts, not measurements), only for the peaks it covers; other peaks say so explicitly.
 
 ### Living Protein V0.1
 
@@ -106,14 +129,33 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Keeps a documented procedural fallback visible when AlphaFold DB or UniProt
   cannot be reached; remote data failure never becomes a fabricated live state.
 
+## Historical Timeline
+
+The Earth timeline selects one UTC day (up to a year back). Each layer declares
+what it can do in `src/earth/temporal-provenance.js`; a layer without history
+for that day is hidden with “Not available for <date>”, never replaced.
+
+- NASA EONET and USGS: a 7-day window ending on the chosen day (direct).
+- Snow & ice: NASA GIBS MODIS Terra NDSI for that day (direct, from 2000-02-24).
+- NASA FIRMS: that UTC day from 2000-11-01, through the proxy (`firms-day`).
+- Wind: ERA5 reanalysis (from 1940, ~5 days behind), through the proxy (`wind-day`).
+- Ocean currents: SMOC (from 2022), through the proxy (`currents-day`).
+- Live only: GDACS, NOAA OVATION aurora, GVP (current catalog), ISS.
+
 ## Data Sources
 
-- NASA EONET: near-real-time natural event metadata.
-- GDACS: EU JRC / UN OCHA global disaster alerts, used as fallback or GDACS-only mode.
-- NASA FIRMS: MODIS active-fire hotspots through the proxy and `FIRMS_MAP_KEY` (kept server-side); live detections and past days (MODIS NRT or SP, back to 1 Nov 2000).
-- NASA GIBS: daily cloud snapshot (not minute-by-minute live clouds) and VIIRS Black Marble annual night lights (2016).
-- USGS: earthquake feed, normalized into local `earthquakes` events.
-- NOAA SWPC OVATION: aurora forecast, used to drive polar oval intensity.
+Provenance labels follow `src/config/source-registry.js`.
+
+- NASA EONET: near-real-time natural event metadata (`observed`).
+- GDACS: EU JRC / UN OCHA global disaster alerts, used as fallback or GDACS-only mode (`interpretive`).
+- NASA FIRMS: MODIS active-fire hotspots through the proxy and `FIRMS_MAP_KEY` (kept server-side); live detections and past days (MODIS NRT or SP, back to 1 Nov 2000) (`observed`).
+- NASA GIBS: Blue Marble surface, VIIRS Black Marble annual night lights (2016) and MODIS Terra NDSI snow cover (`observed`). The daily cloud snapshot is temporarily paused.
+- USGS: earthquake feed, normalized into local `earthquakes` events (`observed`).
+- NOAA SWPC OVATION: aurora forecast, used to drive polar oval intensity (`prediction`).
+- Smithsonian Global Volcanism Program: volcano catalog through the proxy (`observed`).
+- Open-Meteo Forecast API: wind field (`prediction`); Open-Meteo Historical Weather API (ERA5, ECMWF / Copernicus Climate Change Service): past days of wind (`reconstructed`).
+- Open-Meteo Marine API: live ocean currents (`prediction`) and SMOC past days (Copernicus Marine Service / Météo-France, `physical-model`).
+- Living Himalaya: cited summit list (`observed`), Copernicus DEM GLO-30 and Terrarium tiles (`reconstructed`), Sentinel-2 L2A (`observed`), Open-Meteo GFS pressure levels (`prediction`), The Himalayan Database aggregates (`reported`).
 - NOAA/ETOPO 2022-derived relief assets (built by `tools/build-relief.mjs`); lake surfaces rendered at 0 m (ETOPO has no lake levels).
 - Astronomy Engine: apparent solar position, solar clock, Moon position, phase, distance, and astronomical geometry.
 - TLE/SGP4: ISS position and orbital tracking.
@@ -134,26 +176,30 @@ assets/mod44w-water-2160x1080.png
 
 ## Offline And Cache Behaviour
 
-The observatory registers `sw.js` when served over HTTP(S). It does not alter
-`file://` previews.
-
-- GIBS imagery uses `cache-first` with a 200 MB LRU cache.
-- EONET and USGS use `stale-while-revalidate`.
-- The local application shell uses `network-first` with cache fallback.
-- The EONET source status is explicit: `live / fresh`, `cached / fresh`, or
-  `cached / stale`.
-
-The offline path was manually verified in Chrome DevTools: the shell, KTX2
-textures, and NASA GIBS Black Marble reload while Network is set to Offline.
+The Service Worker is disabled. In the words of `earth-eonet-relief.html`: “It
+caused cross-origin cache/CORS regressions for NASA GIBS imagery that were hard
+to reproduce and left some browsers stuck on a stale, partially-broken build.”
+The Earth page therefore unregisters any worker still installed and deletes the
+app's `lea-*` caches on load. `sw.js` is kept in the repository but no page
+registers it, so there is no offline mode today. Data freshness is still shown
+per source (for example `live / fresh` or `cached / stale` from the in-app
+caches).
 
 ## Performance Snapshot
 
-At a `1909 x 868` canvas backing resolution on the validation browser, the
-KTX2 relief/normal upgrade reduced Spector's reported Texture2D allocation
-from 755 MiB to 168.1 MiB. The later half-resolution bloom and Black Marble
-capture reported 191.3 MiB total tracked allocation. A later near-1080p
-10-second requestAnimationFrame sample measured 59.9 median FPS and 49.0 FPS
-1% low. These are browser frame-cadence measurements, not hardware GPU timers.
+Historical measurements, each with its date:
+
+- 2026-07-26: at a `1909 x 868` canvas backing resolution, the KTX2
+  relief/normal upgrade reduced Spector's reported Texture2D allocation from
+  755 MiB to 168.1 MiB.
+- Before 2026-08-12 (exact date not recorded): the half-resolution bloom and
+  Black Marble capture reported 191.3 MiB total tracked allocation.
+- 2026-07-26: a near-1080p 10-second requestAnimationFrame sample measured
+  59.9 median FPS and 49.0 FPS 1% low.
+- 2026-11-13: Chrome headless 1920×1080, GTX 1650, default layers: 41 draw
+  calls per frame, 59.9 median FPS.
+
+These are browser frame-cadence measurements, not hardware GPU timers.
 
 ## Main Modules
 
@@ -165,7 +211,7 @@ capture reported 191.3 MiB total tracked allocation. A later near-1080p
 - `src/earth/app-runtime.js` starts lifecycle hooks, UI wiring, the animation loop, and demo reel runtime.
 - `src/earth/app-state.js` defines the initial state and default preset.
 - `src/earth/scene-runtime.js` uses `EffectComposer` with `UnrealBloomPass`, `SMAAPass`, and `OutputPass`.
-- `sw.js` applies the versioned shell, GIBS, and live-data cache policies.
+- `sw.js` holds the former shell, GIBS and live-data cache policies; it is not registered by any page (see “Offline And Cache Behaviour”).
 
 ### Planet, Light, And Atmosphere
 
@@ -181,7 +227,7 @@ capture reported 191.3 MiB total tracked allocation. A later near-1080p
 - `src/earth/eonet-ui.js` renders the event list, Today on Earth, details panel, and filters.
 - `src/earth/eonet-workflow.js` coordinates load, filter, and selection behavior.
 - `src/earth/event-scene.js`, `marker-system.js`, and `polygon-overlays.js` render markers, clusters, and polygon overlays. The stable path keeps individual meshes for EONET/highlights and uses a `Points` shader layer for dense USGS earthquake background events.
-- `src/earth/gdacs-provider.js`, `firms-wildfires.js`, and `usgs-earthquakes.js` normalize alternative sources into the shared event model.
+- `src/earth/gdacs-provider.refactored.js`, `firms-wildfires.js`, and `usgs-earthquakes.js` normalize alternative sources into the shared event model.
 
 ### Live Layers
 
@@ -221,7 +267,7 @@ On startup, the application uses:
 - `Cinematic Earth`
 - `Cinematic mood`
 - `Atmosphere: physical`
-- `Daily clouds: off`
+- `Daily clouds: temporarily paused` (NASA GIBS daily snapshot disabled; procedural clouds shown)
 - `USGS quakes: off`
 - `Aurora: off`
 
@@ -274,27 +320,26 @@ Demo reel restore preserves:
 7. Wait for the export to reach 100%.
 8. Review the downloaded `.webm` file.
 
-## Backup / Freeze
+## Backup / Snapshots
 
-The current stable baseline is:
+Development happens on `main`; the public site is `luminomorphism.ro`. Local
+snapshots are kept in `releases/` (not in Git); the most recent one is:
 
 ```text
-releases/living-earth-observatory-v2.4.2-geographic-integrity-fix-20260709
+releases/orbital-atlas-v1.0-public-20260711
 ```
 
-This snapshot includes:
+It predates the current `main` (timeline, wind, currents, Living Himalaya and
+later work are not in it). Earlier snapshots (v2.4.2–v2.4.4) remain there as
+history.
 
-- multi-source data layer: EONET, GDACS, USGS, FIRMS;
-- corrected EONET polygon coordinate normalization for GDACS-derived flood polygons delivered through NASA EONET;
-- geographic marker/card integrity for polygon centroids, including New Zealand, Australia, Finland, Ecuador, and similar flood signals;
-- local proxy with `.env` support for FIRMS and local cache;
-- Moon V2.1+ with phase, distance, libration, Earthshine, relief, and switchable textures;
-- ISS tracking and subtle visual trail;
-- Zodiacal Light, Noctilucent Clouds, and Airglow with toggle/preset/intensity controls;
-- Showcase reel, Vertical Director, captions, and Data Rhythm Camera;
-- atomic restore for Demo reel and 9:16 video export.
+Historical note (v2.4.2): NASA EONET polygon geometries used by some GDACS-linked flood events can arrive as `[lat, lon]` coordinate pairs, while point geometries remain GeoJSON-style `[lon, lat]`. The event normalization layer now handles both points and polygons before centroid calculation, so markers, Today on Earth cards, Select Event details, and camera targeting stay geographically aligned.
 
-V2.4.2 note: NASA EONET polygon geometries used by some GDACS-linked flood events can arrive as `[lat, lon]` coordinate pairs, while point geometries remain GeoJSON-style `[lon, lat]`. The event normalization layer now handles both points and polygons before centroid calculation, so markers, Today on Earth cards, Select Event details, and camera targeting stay geographically aligned.
+## Documentation Archive
+
+Earlier working documents (the pre-contest README, the platform roadmap v4,
+the post-Gate 0 draft and a research artifact) are kept in `docs/archive/`.
+The current roadmap is `living-earth-observatory-roadmap-v5.md`.
 
 ## Development Notes
 

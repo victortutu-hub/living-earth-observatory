@@ -65,8 +65,9 @@ export function resolveInitialFocus(search) {
 
 // Terrain tiles and patches go through the shared request runtime (timeouts,
 // retries, abort, diagnostics, simulated-offline control) but are NOT copied
-// into the persistent JSON/IndexedDB cache: the service worker caches them
-// (lea-terrain-v1 for Terrarium, lea-himalaya-v1 for the hashed patches).
+// into the persistent JSON/IndexedDB cache. The service worker is not
+// registered (sw.js is kept but unused), so they have no persistent cache:
+// only the in-memory LRUs of the scene (and the ordinary HTTP cache).
 const NON_PERSISTENT_CACHE = Object.freeze({
   get: async () => null,
   set: async (key, value, meta = {}) => ({ key, value, storedAt: Date.now(), ...meta }),

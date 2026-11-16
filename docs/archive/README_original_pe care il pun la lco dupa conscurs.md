@@ -285,5 +285,5 @@ This repository is source-available for viewing, evaluation, portfolio review,
 research discussion, and personal learning. It is not released under MIT or
 another permissive open-source license.
 
-See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md) for usage terms, source
+See [LICENSE](../../LICENSE) and [NOTICE.md](../../NOTICE.md) for usage terms, source
 attribution, and third-party data/asset notes.

@@ -31,11 +31,27 @@ signals. Their data remains governed by each provider's own terms and metadata
 policies:
 
 - NASA EONET: natural event metadata.
-- NASA GIBS: daily cloud imagery/snapshots.
+- NASA GIBS (WMTS): Blue Marble Next Generation surface, VIIRS Black Marble
+  annual night lights (2016) and MODIS Terra NDSI Snow Cover (daily). The
+  GIBS daily cloud snapshot is temporarily paused (not shown).
 - NASA FIRMS: MODIS active-fire hotspot data, accessed through the proxy
   with a server-side `FIRMS_MAP_KEY`.
 - GDACS: EU JRC / UN OCHA global disaster alerts.
 - USGS: earthquake feeds.
+- Smithsonian Institution – Global Volcanism Program (GVP): volcano catalog,
+  through the proxy; Smithsonian GVP terms, attribution retained.
+- Open-Meteo (Earth wind and ocean currents), "Weather data by Open-Meteo.com"
+  (CC BY 4.0):
+  - Forecast API: live wind field (model prediction);
+  - Historical Weather API (ERA5 reanalysis, past days through the proxy):
+    "Contains modified Copernicus Climate Change Service information";
+  - Marine API: ocean currents; SMOC total surface current, "Ocean currents:
+    Copernicus Marine Service / Météo-France".
+- AlphaFold DB (EMBL-EBI): predicted protein structures and per-residue pLDDT
+  for Living Protein (model predictions, not experimental structures);
+  CC BY 4.0, citation and provider attribution retained.
+- UniProt (UniProt Consortium): protein names and feature annotations for
+  Living Protein (CC BY 4.0).
 - NOAA SWPC OVATION: aurora forecast data.
 - NOAA/ETOPO-derived relief assets: Earth relief and bathymetry sources.
 - Public TLE/SGP4 sources: ISS orbital tracking inputs.
@@ -71,7 +87,8 @@ system. Always consult the original providers for authoritative data.
 
 - `assets/himalaya/glo30-<peak>-<hash>.ktx2` (metadata in
   `src/config/himalaya-terrain-patches.js`): 20 × 20 km height grids at
-  1 arc-second around the 14 summits above 8000 m, cut from the Copernicus DEM
+  1 arc-second around the 14 summits above 8000 m and 5 selected Nepal peaks
+  (Yalung Kang uses the Kangchenjunga patch), cut from the Copernicus DEM
   GLO-30 Public (2021 release, AWS Open Data bucket `copernicus-dem-30m`) and
   quantized to 0.25 m (KTX2 R16_UNORM + Zstd) by
   `tools/build-himalaya-patches.mjs`. Required notice for adapted data:
