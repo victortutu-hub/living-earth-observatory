@@ -113,7 +113,7 @@ describe('Living Himalaya page helpers', () => {
     it('keeps the permanent provenance bar (Lot 2: terrain + Sun segments) and the future fields', () => {
         // Lot 1 showed "Terrain: not loaded (next lot)"; since Lot 2 the terrain is real.
         expect(composeProvenanceBar().startsWith('Peaks: reference list (sources cited) | Terrain: ')).toBe(true);
-        expect(FUTURE_FIELDS).toEqual(['History']);
+        expect(FUTURE_FIELDS).toEqual([]);
     });
 });
 

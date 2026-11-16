@@ -267,7 +267,7 @@ describe('progression, cache, abort, modes and labels', () => {
     expect(satelliteReason({ ...base, userMode: 'lit', sat: null })).toBe('Lit terrain selected');
     expect(satelliteReason({ ...base, sat: { peakId: 'everest', status: 'loading', level: null } })).toContain('40 m');
     expect(IMAGE_MODES).toEqual(['satellite', 'lit']);
-    expect(FUTURE_FIELDS).toEqual(['History']);
+    expect(FUTURE_FIELDS).toEqual([]);
   });
 
   it('labels the image, the lighting, the selection and the attribution', () => {

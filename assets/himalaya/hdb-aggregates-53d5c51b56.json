@@ -1,0 +1,464 @@
+{
+ "schema": "luminomorphism/himalayan-database-aggregates@1",
+ "provenance": "reported",
+ "credit": "Source: The Himalayan Database © (Elizabeth Hawley / Richard Salisbury et al.), version 2.75, Autumn–Winter 2025 update, extracted 2026-11-16",
+ "source": {
+  "name": "The Himalayan Database ©",
+  "version": "2.75",
+  "update": "Autumn–Winter 2025",
+  "extracted": "2026-11-16",
+  "tables": {
+   "peaks.DBF": {
+    "sha256": "974f90a7b3b82ab6520dfe047b16d577ae8307201aa10a90e001c98058fac5ce",
+    "bytes": 391162
+   },
+   "exped.DBF": {
+    "sha256": "f89ee2aefdfa86119530f8a1c4c4e6cce80912a14b7bba792b095062157d7f23",
+    "bytes": 24373969
+   }
+  }
+ },
+ "rules": {
+  "successfulExpeditions": "SUCCESS1..4 true and not CLAIMED; DISPUTED counted (and also counted separately)",
+  "memberSummits": "sum of SMTMEMBERS over non-claimed expeditions (main peak; includes DISPUTED); ascents, not distinct people",
+  "deaths": "sum of MDEATHS + HDEATHS over all expeditions on the peak (total only)",
+  "seasons": "1 spring, 2 summer, 3 autumn, 4 winter, 0 unknown",
+  "reference": "Himalayan Database Program Guide (June 2026), Appendix B and Expeditions Field Notes"
+ },
+ "peaks": {
+  "everest": {
+   "covered": true,
+   "peakId": "EVER",
+   "firstAscent": {
+    "year": 1953,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 1535,
+    "disputedSuccessfulExpeditions": 8,
+    "memberSummits": 6654,
+    "disputedMemberSummits": 18,
+    "deaths": 344
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 1463,
+     "disputedSuccessfulExpeditions": 5,
+     "memberSummits": 6438,
+     "disputedMemberSummits": 14,
+     "deaths": 266
+    },
+    "summer": {
+     "successfulExpeditions": 3,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 6,
+     "disputedMemberSummits": 0,
+     "deaths": 1
+    },
+    "autumn": {
+     "successfulExpeditions": 64,
+     "disputedSuccessfulExpeditions": 3,
+     "memberSummits": 197,
+     "disputedMemberSummits": 4,
+     "deaths": 70
+    },
+    "winter": {
+     "successfulExpeditions": 5,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 13,
+     "disputedMemberSummits": 0,
+     "deaths": 7
+    }
+   }
+  },
+  "k2": {
+   "covered": false
+  },
+  "kangchenjunga": {
+   "covered": true,
+   "peakId": "KANG",
+   "firstAscent": {
+    "year": 1955,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 133,
+    "disputedSuccessfulExpeditions": 1,
+    "memberSummits": 421,
+    "disputedMemberSummits": 4,
+    "deaths": 54
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 120,
+     "disputedSuccessfulExpeditions": 1,
+     "memberSummits": 397,
+     "disputedMemberSummits": 4,
+     "deaths": 31
+    },
+    "summer": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 9
+    },
+    "autumn": {
+     "successfulExpeditions": 11,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 21,
+     "disputedMemberSummits": 0,
+     "deaths": 10
+    },
+    "winter": {
+     "successfulExpeditions": 2,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 3,
+     "disputedMemberSummits": 0,
+     "deaths": 4
+    }
+   }
+  },
+  "lhotse": {
+   "covered": true,
+   "peakId": "LHOT",
+   "firstAscent": {
+    "year": 1956,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 326,
+    "disputedSuccessfulExpeditions": 3,
+    "memberSummits": 851,
+    "disputedMemberSummits": 4,
+    "deaths": 25
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 302,
+     "disputedSuccessfulExpeditions": 2,
+     "memberSummits": 781,
+     "disputedMemberSummits": 2,
+     "deaths": 19
+    },
+    "summer": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "autumn": {
+     "successfulExpeditions": 23,
+     "disputedSuccessfulExpeditions": 1,
+     "memberSummits": 69,
+     "disputedMemberSummits": 2,
+     "deaths": 6
+    },
+    "winter": {
+     "successfulExpeditions": 1,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 1,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    }
+   }
+  },
+  "makalu": {
+   "covered": true,
+   "peakId": "MAKA",
+   "firstAscent": {
+    "year": 1955,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 180,
+    "disputedSuccessfulExpeditions": 4,
+    "memberSummits": 541,
+    "disputedMemberSummits": 5,
+    "deaths": 53
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 158,
+     "disputedSuccessfulExpeditions": 4,
+     "memberSummits": 486,
+     "disputedMemberSummits": 5,
+     "deaths": 37
+    },
+    "summer": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "autumn": {
+     "successfulExpeditions": 20,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 52,
+     "disputedMemberSummits": 0,
+     "deaths": 13
+    },
+    "winter": {
+     "successfulExpeditions": 2,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 3,
+     "disputedMemberSummits": 0,
+     "deaths": 3
+    }
+   }
+  },
+  "cho-oyu": {
+   "covered": true,
+   "peakId": "CHOY",
+   "firstAscent": {
+    "year": 1954,
+    "season": 3
+   },
+   "totals": {
+    "successfulExpeditions": 866,
+    "disputedSuccessfulExpeditions": 8,
+    "memberSummits": 2925,
+    "disputedMemberSummits": 11,
+    "deaths": 52
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 266,
+     "disputedSuccessfulExpeditions": 1,
+     "memberSummits": 829,
+     "disputedMemberSummits": 2,
+     "deaths": 23
+    },
+    "summer": {
+     "successfulExpeditions": 4,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 8,
+     "disputedMemberSummits": 0,
+     "deaths": 1
+    },
+    "autumn": {
+     "successfulExpeditions": 590,
+     "disputedSuccessfulExpeditions": 7,
+     "memberSummits": 2070,
+     "disputedMemberSummits": 9,
+     "deaths": 24
+    },
+    "winter": {
+     "successfulExpeditions": 6,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 18,
+     "disputedMemberSummits": 0,
+     "deaths": 4
+    }
+   }
+  },
+  "dhaulagiri": {
+   "covered": true,
+   "peakId": "DHA1",
+   "firstAscent": {
+    "year": 1960,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 185,
+    "disputedSuccessfulExpeditions": 4,
+    "memberSummits": 523,
+    "disputedMemberSummits": 5,
+    "deaths": 92
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 113,
+     "disputedSuccessfulExpeditions": 2,
+     "memberSummits": 320,
+     "disputedMemberSummits": 2,
+     "deaths": 47
+    },
+    "summer": {
+     "successfulExpeditions": 1,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 2,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "autumn": {
+     "successfulExpeditions": 66,
+     "disputedSuccessfulExpeditions": 2,
+     "memberSummits": 192,
+     "disputedMemberSummits": 3,
+     "deaths": 41
+    },
+    "winter": {
+     "successfulExpeditions": 5,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 9,
+     "disputedMemberSummits": 0,
+     "deaths": 4
+    }
+   }
+  },
+  "manaslu": {
+   "covered": true,
+   "peakId": "MANA",
+   "firstAscent": {
+    "year": 1956,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 459,
+    "disputedSuccessfulExpeditions": 1,
+    "memberSummits": 2115,
+    "disputedMemberSummits": 5,
+    "deaths": 90
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 75,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 204,
+     "disputedMemberSummits": 0,
+     "deaths": 46
+    },
+    "summer": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "autumn": {
+     "successfulExpeditions": 379,
+     "disputedSuccessfulExpeditions": 1,
+     "memberSummits": 1897,
+     "disputedMemberSummits": 5,
+     "deaths": 42
+    },
+    "winter": {
+     "successfulExpeditions": 5,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 14,
+     "disputedMemberSummits": 0,
+     "deaths": 2
+    }
+   }
+  },
+  "nanga-parbat": {
+   "covered": false
+  },
+  "annapurna": {
+   "covered": true,
+   "peakId": "ANN1",
+   "firstAscent": {
+    "year": 1950,
+    "season": 1
+   },
+   "totals": {
+    "successfulExpeditions": 105,
+    "disputedSuccessfulExpeditions": 3,
+    "memberSummits": 333,
+    "disputedMemberSummits": 4,
+    "deaths": 75
+   },
+   "bySeason": {
+    "unknown": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "spring": {
+     "successfulExpeditions": 83,
+     "disputedSuccessfulExpeditions": 2,
+     "memberSummits": 278,
+     "disputedMemberSummits": 3,
+     "deaths": 30
+    },
+    "summer": {
+     "successfulExpeditions": 0,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 0,
+     "disputedMemberSummits": 0,
+     "deaths": 0
+    },
+    "autumn": {
+     "successfulExpeditions": 20,
+     "disputedSuccessfulExpeditions": 1,
+     "memberSummits": 49,
+     "disputedMemberSummits": 1,
+     "deaths": 40
+    },
+    "winter": {
+     "successfulExpeditions": 2,
+     "disputedSuccessfulExpeditions": 0,
+     "memberSummits": 6,
+     "disputedMemberSummits": 0,
+     "deaths": 5
+    }
+   }
+  },
+  "gasherbrum-1": {
+   "covered": false
+  },
+  "broad-peak": {
+   "covered": false
+  },
+  "gasherbrum-2": {
+   "covered": false
+  },
+  "shishapangma": {
+   "covered": false
+  }
+ }
+}

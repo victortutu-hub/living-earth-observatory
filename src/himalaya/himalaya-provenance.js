@@ -1,6 +1,7 @@
 // Living Himalaya LOT 2: provenance wording (permanent bar, terrain notes,
 // sources & attribution panel). Pure functions, covered by tests.
 import { GLO30_ACCESSED, GLO30_ATTRIBUTION } from '../config/himalaya-terrain-patches.js';
+import { HIMALAYA_HISTORY_CREDIT } from '../config/himalaya-history.js';
 
 export const TERRAIN_MODES = Object.freeze(['glo30', 'terrarium']);
 export const TERRAIN_LABELS = Object.freeze({
@@ -74,6 +75,12 @@ export const ATTRIBUTIONS = Object.freeze([
     title: 'Sun and Moon position',
     text: 'Astronomy Engine by CosineKitty (MIT License), computed locally.',
     note: 'Sun fallback when the module is unavailable: an approximate model (declination fit, mean solar time), labelled as such. Moonlight only with Astronomy Engine; its brightness is exaggerated for visibility (not photometric).',
+  }),
+  Object.freeze({
+    id: 'himalayanDatabase',
+    title: 'Summit history (aggregates)',
+    text: HIMALAYA_HISTORY_CREDIT,
+    note: 'Per-peak counts only (successful expeditions, member summits, first ascent year and season, total deaths, season totals), used with the written permission of The Himalayan Database. Reported: compiled from expedition accounts, not measurements. Peaks outside its coverage show “Not covered by the Himalayan Database”.',
   }),
   Object.freeze({
     id: 'peaks',

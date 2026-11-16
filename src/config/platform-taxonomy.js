@@ -45,6 +45,7 @@ export const PLATFORM_TAXONOMY = Object.freeze({
         {id:'prediction',label:'Prediction'},
         {id:'simulation',label:'Simulation'},
         {id:'interpretive',label:'Interpretive'},
+        {id:'reported',label:'Reported'},
         {id:'fallback',label:'Fallback'}
       ])
     });

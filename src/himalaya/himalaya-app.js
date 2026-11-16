@@ -26,8 +26,10 @@ import {
   LEVEL_20M, LEVEL_40M, STRETCH_LABEL, imageBarSegment, lightingLabel, selectionSummary, sentinelAttribution, shouldLoad20m,
 } from './sentinel-scene.js';
 import { createLru } from './terrarium.js';
+import { historyRows, isCovered } from './hdb-history.js';
+import { HIMALAYA_HISTORY_ASSET } from '../config/himalaya-history.js';
 
-export const FUTURE_FIELDS = Object.freeze(['History']);
+export const FUTURE_FIELDS = Object.freeze([]);
 export const IMAGE_MODES = Object.freeze(['satellite', 'lit']);
 
 /** Why Satellite is (not) shown; null when it is. */
@@ -143,6 +145,23 @@ export function startHimalayaApp({
   let sunInfo = null;
   let moonInfo = null;
   let weatherState = null;
+  // History aggregates (one small same-origin asset, loaded once, through the guarded runtime).
+  const history = { status: 'idle', data: null };
+  function loadHistory() {
+    history.status = 'loading';
+    terrainRuntime.fetchResource({
+      key: 'himalaya-history', url: new URL(HIMALAYA_HISTORY_ASSET.file, document.baseURI).href, responseType: 'json',
+      ttl: 0, staleTtl: 0, timeout: 15_000, signal: listeners.signal,
+    }).then((result) => {
+      if (!alive()) return;
+      history.status = 'ready'; history.data = result.data;
+      renderPanel();
+    }).catch(() => {
+      if (!alive()) return;
+      history.status = 'error';
+      renderPanel();
+    });
+  }
   // --- Sentinel-2 Satellite mode (Lot 4)
   let userImageMode = 'satellite';
   let sat = null; // { peakId, status, selection, pass, level, error, upgrading }
@@ -235,7 +254,16 @@ export function startHimalayaApp({
     const weatherSection = element('section', 'himalaya-weather');
     weatherSection.setAttribute('aria-label', 'Summit weather');
     weatherSection.append(element('h3', null, 'Summit weather'), weatherRows);
-    details.replaceChildren(element('h2', null, peak.name), rows, weatherSection);
+    // History (Lot 6): per-peak aggregates of The Himalayan Database ©, "reported".
+    if (isCovered(peak.id) && history.status === 'idle') loadHistory();
+    const historyList = element('dl', 'himalaya-panel-rows himalaya-history-rows');
+    historyRows(peak.id, history.data, history.status).forEach(([label, value, state]) => {
+      historyList.append(element('dt', null, label), element('dd', state ? `is-${state}` : null, value));
+    });
+    const historySection = element('section', 'himalaya-weather himalaya-history');
+    historySection.setAttribute('aria-label', 'History');
+    historySection.append(element('h3', null, 'History'), historyList);
+    details.replaceChildren(element('h2', null, peak.name), rows, weatherSection, historySection);
   }
 
   function updateSun() {
@@ -513,6 +541,7 @@ export function startHimalayaApp({
     snapshot: () => ({
       activeId, initialFocus: initial, reducedMotion: reducedMotion(), terrainMode,
       time: { ...time, date: currentDate().toISOString() }, sun: sunInfo, moon: moonInfo, sheet: sheet.state,
+      history: { status: history.status, rows: activeId ? Object.fromEntries(historyRows(activeId, history.data, history.status).map(([k, v]) => [k, v])) : null },
       weather: weatherState ? { peakId: weatherState.peakId, status: weatherState.status, fromCache: weatherState.fromCache || false, cacheAgeMs: weatherState.cacheAgeMs ?? null, error: weatherState.error || null } : null,
       weatherRows: activeId ? Object.fromEntries(summitWeatherRows({ peak: getHimalayaPeak(activeId), state: weatherState && weatherState.peakId === activeId ? weatherState : null, date: currentDate() }).map(([k, v]) => [k, v])) : null,
       night: night.hidden ? null : { text: nightText.textContent, moon: nightMoon.hidden ? null : nightMoon.textContent },

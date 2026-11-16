@@ -1,0 +1,45 @@
+// Living Himalaya LOT 6: the "History" section of the summit panel, from the
+// per-peak aggregates of The Himalayan Database © (provenance "reported":
+// compiled from expedition accounts, not measurements). Pure functions.
+// Only the scope approved in writing (16 Nov 2026) is shown: successful
+// expeditions, member summits, first ascent year + season, deaths (total),
+// season totals. No link to the database website until it is confirmed.
+import { HIMALAYA_HISTORY_COVERAGE, HIMALAYA_HISTORY_CREDIT } from '../config/himalaya-history.js';
+
+export const HISTORY_LABEL = 'Reported (compiled from expedition accounts, not measurements)';
+export const NOT_COVERED = 'Not covered by the Himalayan Database';
+export const DISPUTED_NOTE = 'Disputed ascents (unverified, contested or of a controversial style) are counted as successes, as in the database; claimed (not recognised) ascents are not.';
+const SEASON_ORDER = ['spring', 'summer', 'autumn', 'winter', 'unknown'];
+const SEASON_NAME = ['unknown season', 'spring', 'summer', 'autumn', 'winter'];
+
+export function isCovered(peakId) {
+  return Boolean(HIMALAYA_HISTORY_COVERAGE[peakId]);
+}
+
+const n = (v) => Number(v).toLocaleString('en-US');
+const plural = (v, one, many) => `${n(v)} ${Number(v) === 1 ? one : many}`;
+
+/** Rows [label, value, state?] for the History section of one summit. */
+export function historyRows(peakId, data, status = 'ready') {
+  if (!isCovered(peakId)) return [['History', NOT_COVERED, 'pending']];
+  if (status === 'error') return [['History', 'History: temporarily unavailable', 'pending']];
+  if (status === 'loading' || !data) return [['History', 'loading…', 'pending']];
+  const peak = data.peaks?.[peakId];
+  if (!peak?.covered) return [['History', NOT_COVERED, 'pending']];
+  const t = peak.totals;
+  const rows = [];
+  if (peak.firstAscent?.year) rows.push(['First ascent', `${peak.firstAscent.year} (${SEASON_NAME[peak.firstAscent.season] || 'unknown season'})`]);
+  rows.push(['Successful expeditions', `${n(t.successfulExpeditions)}${t.disputedSuccessfulExpeditions ? ` (including ${n(t.disputedSuccessfulExpeditions)} disputed)` : ''}`]);
+  rows.push(['Member summits', `${n(t.memberSummits)} summits by expedition members (ascents, not distinct people${t.disputedMemberSummits ? `; ${n(t.disputedMemberSummits)} on disputed ascents` : ''})`]);
+  rows.push(['Deaths', `${n(t.deaths)} (total, all expeditions on the peak)`]);
+  const seasons = SEASON_ORDER
+    .map((key) => [key, peak.bySeason?.[key]])
+    .filter(([, s]) => s && (s.successfulExpeditions || s.memberSummits || s.deaths))
+    .map(([key, s]) => `${key[0].toUpperCase()}${key.slice(1)}: ${plural(s.successfulExpeditions, 'successful expedition', 'successful expeditions')} · ${plural(s.memberSummits, 'member summit', 'member summits')} · ${plural(s.deaths, 'death', 'deaths')}`);
+  if (seasons.length) rows.push(['By season', seasons.join('; ')]);
+  rows.push(['Note', DISPUTED_NOTE]);
+  rows.push(['Data', `Version ${data.source.version}, ${data.source.update} update (expeditions from 1905)`]);
+  rows.push(['Provenance', HISTORY_LABEL, 'model']);
+  rows.push(['Credit', data.credit || HIMALAYA_HISTORY_CREDIT]);
+  return rows;
+}

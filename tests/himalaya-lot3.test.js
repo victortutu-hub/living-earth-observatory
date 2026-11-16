@@ -153,7 +153,7 @@ describe('labels', () => {
     const om = ATTRIBUTIONS.find((a) => a.id === 'openMeteo');
     expect(om.text).toContain('Weather data by Open-Meteo.com (CC BY 4.0)');
     expect(om.text).toContain('NOAA NCEP GFS');
-    expect(FUTURE_FIELDS).toEqual(['History']);
+    expect(FUTURE_FIELDS).toEqual([]);
   });
 
   it('registers a prediction source for Living Himalaya', () => {

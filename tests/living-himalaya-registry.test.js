@@ -20,9 +20,9 @@ describe('Living Himalaya is in development (Himalaya LOT 1), not a hero portal'
         });
         expect(himalaya.gateway).toBeUndefined();
         expect(himalaya.description).toMatch(/^A regional observatory in development/);
-        expect(himalaya.representations).toEqual(['observed', 'reconstructed', 'prediction', 'fallback']);
+        expect(himalaya.representations).toEqual(['observed', 'reconstructed', 'prediction', 'reported', 'fallback']); // Lot 6: summit history (reported)
         // Only what exists is declared: the peak reference list.
-        expect(himalaya.sources).toEqual(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a']);
+        expect(himalaya.sources).toEqual(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase']);
         expect(himalaya.roadmap.stage).not.toMatch(/Frozen/);
         expect(himalaya.roadmap.progress).toBeGreaterThan(0);
     });
