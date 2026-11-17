@@ -58,10 +58,11 @@ describe('LOT 14 asset: frozen, valid, inside the approved scope', () => {
     expect(asset.attribution).toContain('Wikidata (CC0)');
   });
 
-  it('route lines only for Everest; K2, Manaslu, Ama Dablam and Lhotse have camps but no routes', () => {
+  it('route lines for Everest and Lhotse (LOT 17); K2, Manaslu and Ama Dablam have camps but no routes', () => {
     expect(Object.keys(asset.peaks).sort()).toEqual([...ROUTE_LINE_PEAKS, ...CAMPS_ONLY_PEAKS].sort());
     expect(asset.peaks.everest.routes.map((r) => r.id)).toEqual(['south-col', 'north-col']);
-    for (const id of ['k2', 'manaslu', 'ama-dablam', 'lhotse']) expect(asset.peaks[id].routes).toEqual([]);
+    for (const id of ['k2', 'manaslu', 'ama-dablam']) expect(asset.peaks[id].routes).toEqual([]);
+    expect(asset.peaks.lhotse.routes.map((r) => r.id)).toEqual(['west-face']);
     expect(asset.peaks.everest.routes.find((r) => r.id === 'north-col').style).toBe('dashed');
     expect(asset.peaks.everest.routes.find((r) => r.id === 'south-col').style).toBe('solid');
   });
@@ -165,7 +166,9 @@ describe('LOT 14 asset: frozen, valid, inside the approved scope', () => {
     expect(bc).toMatchObject({ positionSource: 'wikidata:Q99671286', lat: 28.007222, lon: 86.859444, reportedElevationM: 5364, marker: true });
     expect(bc.sources.some((s) => s.ref === 'osm:node/5225912921' && s.role === 'reference')).toBe(true);
     const col = camp('everest', 'everest-s-c4');
-    expect(col).toMatchObject({ positionSource: 'wikidata:Q2598195', reportedElevationM: 7906, elevationSource: 'wikidata:Q2598195' });
+    // LOT 17: the Wikidata P2044 value has no reference -> the published Arnette value is the main one.
+    expect(col).toMatchObject({ positionSource: 'wikidata:Q2598195', reportedElevationM: 8000, elevationSource: 'arnette-everest', elevationSourceUnknown: false });
+    expect(col.sources.some((s) => s.ref === 'wikidata:Q2598195' && s.value === 7906 && s.sourceUnknown)).toBe(true);
     expect(col.sources.some((s) => s.ref === 'osm:node/576713400' && s.value === 7920 && s.demDerived)).toBe(true);
   });
 
@@ -233,7 +236,8 @@ describe('LOT 14 UI texts and opt-in behaviour', () => {
     expect(TEXT.disclaimer).toBe('Approximate routes, for visualization only — not for navigation.');
     expect(rows.find(([k]) => k === 'Route provenance')[1]).toBe(TEXT.routeNote);
     const values = Object.fromEntries(rows.map(([k, v]) => [k, v]));
-    expect(values['C4 · Camp 4 (South Col)']).toBe('reported 7,906 m (Wikidata; sources 7,906–8,000 m) · GLO-30 at this point: 7,865 m · Δ +42 m · Position reported by Wikidata');
+    expect(values['C4 · Camp 4 (South Col)']).toBe('reported 8,000 m (Alan Arnette, Everest FAQ; sources 8,000–8,016 m) · GLO-30 at this point: 7,865 m · Δ +136 m ⚠ · Position reported by Wikidata');
+    expect(values['BC · Everest Base Camp (South, Nepal) (glacier)']).toBe('Wikidata elevation (source unknown) 5,364 m · GLO-30 at this point: 5,321 m · Δ +43 m · Position reported by Wikidata');
     expect(values['ABC · Advanced Base Camp (glacier)']).toMatch(/Δ \+77 m ⚠/);
     expect(values['BC · Everest Base Camp (North, Tibet)']).toBe('reported 5,150 m (Wikidata) · outside the detailed terrain');
     expect(rows.some(([, v]) => v === TEXT.glacier)).toBe(true);

@@ -587,11 +587,13 @@ export function startHimalayaApp({
   // --- mobile framing: summit in the middle of the band above the bottom sheet
   function updateFraming() {
     if (!scene) return;
-    if (desktop.matches) { scene.setViewOffsetY(0); return; }
+    if (desktop.matches) { scene.setViewOffsetY(0); scene.setLabelSafeArea?.({ top: 0, bottom: window.innerHeight }); return; }
     const height = window.innerHeight;
     const top = list.getBoundingClientRect().bottom;
     const bottom = panel.getBoundingClientRect().top;
     scene.setViewOffsetY(viewOffsetY({ height, top, bottom }));
+    // LOT 17: camp labels stay between the peak bar (top) and the bottom sheet.
+    scene.setLabelSafeArea?.({ top, bottom });
   }
   const framingObserver = new ResizeObserver(() => updateFraming());
   framingObserver.observe(panel);
@@ -671,7 +673,6 @@ export function startHimalayaApp({
     measureShadowCost: (samples) => scene?.measureShadowCost(samples) || null,
     measureShadowCostGpu: (samples) => scene?.measureShadowCostGpu(samples) || null,
     view: (target, position) => scene?.setView(target, position),
-    debugOverviewClip: (enabled) => scene?.debugOverviewClip(enabled),
     setImageMode,
     showBestAvailable: () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); },
   });

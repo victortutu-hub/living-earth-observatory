@@ -26,6 +26,7 @@ import { sunDirectionScene } from './sun-position.js';
 import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
 import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_WIDTH_PX, campLabel } from './routes-model.js';
+import { terrainOccludes } from './label-occlusion.js';
 
 export { projectLonLat, VERTICAL_EXAGGERATION };
 export const FLY_DURATION_MS = 1200;
@@ -344,9 +345,8 @@ export function createHimalayaScene({
     lastShadowRequest = reason;
   }
 
-  let clipDebugOff = false;
   function setClip(entry) {
-    if (!entry || clipDebugOff) { clipUniforms.uClipOn.value = 0; return; }
+    if (!entry) { clipUniforms.uClipOn.value = 0; return; }
     entry.corners.forEach((p, k) => clipUniforms.uClipQuad.value[k].set(p.x, p.z));
     clipUniforms.uClipFloor.value = entry.wallBottomKm - 0.05; // just under the patch walls
     clipUniforms.uClipOn.value = 1;
@@ -486,7 +486,7 @@ export function createHimalayaScene({
       labelObject.position.copy(position);
       labelObject.visible = false;
       routeGroup.add(labelObject);
-      routeCamps.push({ id: camp.id, mesh, label, labelObject, position });
+      routeCamps.push({ id: camp.id, mesh, label, labelObject, position, labelReason: 'pending' });
     }
   }
 
@@ -500,6 +500,51 @@ export function createHimalayaScene({
     if (!peak) return;
     if (showCamps) addCampMarkers(peak);
     if (showRoutes && peak.routes?.length) addRouteLines(peak, routeToken);
+  }
+
+  // LOT 17: camp labels hidden by the terrain (ray march on the GLO-30 grid
+  // heights of the visible patch), outside the screen safe area (mobile peak bar
+  // on top, bottom sheet below) and where they overlap a peak label (peak > camp)
+  // or an already placed camp label (nearest first). Checked every
+  // LABEL_CHECK_MS, not every frame. Peak labels are not changed.
+  const LABEL_CHECK_MS = 250;
+  let lastLabelCheck = -Infinity;
+  let labelSafeArea = { top: 0, bottom: Infinity };
+  const projectedLabel = new THREE.Vector3();
+
+  function labelRectAt(point, label, rect) {
+    projectedLabel.copy(point).project(camera);
+    if (projectedLabel.z > 1) return null;
+    const cx = rect.left + ((projectedLabel.x + 1) / 2) * rect.width;
+    const cy = rect.top + ((1 - projectedLabel.y) / 2) * rect.height - 22; // .himalaya-camp-label margin-top
+    const w = label.offsetWidth || label.textContent.length * 6.2 + 10; const h = label.offsetHeight || 16;
+    return { left: cx - w / 2, right: cx + w / 2, top: cy - h / 2, bottom: cy + h / 2 };
+  }
+  const overlaps = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+  function updateCampLabelVisibility(now, routesShown) {
+    if (now - lastLabelCheck < LABEL_CHECK_MS) return;
+    lastLabelCheck = now;
+    const entry = activePatchId ? patches.peek(activePatchId) : null;
+    const meta = activePatchId ? getPatchMeta(activePatchId) : null;
+    const rect = canvas.getBoundingClientRect();
+    const placed = [];
+    for (const marker of markers.values()) {
+      if (!marker.labelObject.visible || marker.label.style.display === 'none') continue;
+      const r = marker.label.getBoundingClientRect();
+      if (r.width > 0) placed.push(r);
+    }
+    const order = routeCamps.map((camp) => ({ camp, d: camera.position.distanceTo(camp.position) })).sort((a, b) => a.d - b.d);
+    for (const { camp, d } of order) {
+      camp.labelReason = null;
+      if (!routesShown || d > CAMP_LABEL_MAX_KM) { camp.labelReason = 'far'; continue; }
+      if (entry && meta && terrainOccludes({ positions: entry.geometry.attributes.position.array, meta, center }, camp.position, camera.position)) { camp.labelReason = 'terrain'; continue; }
+      const r = labelRectAt(camp.position, camp.label, rect);
+      if (!r) { camp.labelReason = 'behind'; continue; }
+      if (r.top < labelSafeArea.top || r.bottom > labelSafeArea.bottom) { camp.labelReason = 'safe-area'; continue; }
+      if (placed.some((p) => overlaps(r, p))) { camp.labelReason = 'overlap'; continue; }
+      placed.push(r);
+    }
   }
 
   function routeOverlayVisible() {
@@ -666,11 +711,12 @@ export function createHimalayaScene({
     // LOT 14: routes/camps only on the visible GLO-30 patch of the active peak; camps below CAMP_LABEL_MAX_KM.
     const routesShown = routeOverlayVisible();
     routeGroup.visible = routesShown;
+    updateCampLabelVisibility(now, routesShown);
     for (const camp of routeCamps) {
       const d = camera.position.distanceTo(camp.position);
       const near = routesShown && d <= CAMP_LABEL_MAX_KM;
       camp.mesh.visible = near;
-      camp.labelObject.visible = near;
+      camp.labelObject.visible = near && camp.labelReason === null;
       if (near) camp.mesh.scale.setScalar(Math.max(0.006, d * 0.0045));
     }
     gridMaterial.opacity = THREE.MathUtils.clamp((distance - 150) / 900, 0, 1) * 0.22;
@@ -728,6 +774,11 @@ export function createHimalayaScene({
     },
     setRouteOverlay(options) {
       if (!disposed) setRouteOverlay(options);
+    },
+    /** LOT 17: screen band (CSS px, viewport) where camp labels may appear. */
+    setLabelSafeArea({ top = 0, bottom = Infinity } = {}) {
+      labelSafeArea = { top, bottom };
+      lastLabelCheck = -Infinity;
     },
     setTerrainMode(mode) {
       if (mode !== 'glo30' && mode !== 'terrarium') return;
@@ -792,7 +843,6 @@ export function createHimalayaScene({
     },
     viewOffsetY: () => viewOffset,
     /** Diagnostics: draw the overview under the patch again (true = normal clip). */
-    debugOverviewClip(enabled) { clipDebugOff = !enabled; const entry = activePatchId ? patches.peek(activePatchId) : null; setClip(enabled && entry?.mesh.visible ? entry : null); },
     /** Camera distance (km) to the focused summit (official elevation). */
     summitDistanceKm: () => {
       const marker = activeId ? markers.get(activeId) : null;
@@ -883,7 +933,8 @@ export function createHimalayaScene({
           peakId: routeOverlay?.peakId ?? null, showRoutes: Boolean(routeOverlay?.showRoutes), showCamps: Boolean(routeOverlay?.showCamps),
           groupVisible: routeGroup.visible, children: routeGroup.children.length, lineModulesRequested: Boolean(lineModulesPromise), lineError: routeLineError,
           lines: routeLines.map((line) => ({ id: line.userData.routeId, style: line.userData.style, vertices: line.userData.vertices, dashed: line.material.dashed, linewidth: line.material.linewidth, color: `#${line.material.color.getHexString()}` })),
-          camps: routeCamps.map((camp) => ({ id: camp.id, visible: camp.labelObject.visible, label: camp.label.textContent })),
+          camps: routeCamps.map((camp) => ({ id: camp.id, visible: camp.labelObject.visible, label: camp.label.textContent, hiddenBy: camp.labelReason })),
+          labelSafeArea: { ...labelSafeArea },
         },
       };
     },

@@ -1,5 +1,5 @@
 {
-  "$comment": "Living Himalaya LOT 14 - hand-written, versioned source for classic routes and camps. Facts only (camp names, reported elevations, route sequence) with the ID of every position (osm:node/... or wikidata:Q...) and the source of every elevation; no text copied. Elevations in feet keep the original value and unit (the build tool converts). OSM ele values whose source cannot be established on a node whose position is tagged SRTM are marked demDerived (likely DEM-derived, not reported): never the main value when a published one exists, excluded from the reported range, never flagged. No data from The Himalayan Database. Built by tools/build-himalaya-routes.mjs into assets/himalaya/routes-<hash>.json.",
+  "$comment": "Living Himalaya LOT 14 - hand-written, versioned source for classic routes and camps. Facts only (camp names, reported elevations, route sequence) with the ID of every position (osm:node/... or wikidata:Q...) and the source of every elevation; no text copied. Elevations in feet keep the original value and unit (the build tool converts). OSM ele values whose source cannot be established on a node whose position is tagged SRTM are marked demDerived (likely DEM-derived, not reported): never the main value when a published one exists, excluded from the reported range, never flagged. Elevations without a traceable source (Wikidata P2044 without reference, OSM ele without source) are marked sourceUnknown with the same rule (LOT 17). No data from The Himalayan Database. Built by tools/build-himalaya-routes.mjs into assets/himalaya/routes-<hash>.json.",
   "checked": "2026-11-17",
   "references": {
     "osm": { "label": "OpenStreetMap", "license": "ODbL" },
@@ -20,8 +20,8 @@
       "camps": [
         { "id": "everest-s-bc", "route": "south-col", "short": "BC", "name": "Everest Base Camp (South, Nepal)", "glacier": true,
           "position": { "ref": "wikidata:Q99671286", "lat": 28.007222, "lon": 86.859444 },
-          "elevation": { "value": 5364, "unit": "m", "ref": "wikidata:Q99671286" },
-          "alternates": [ { "ref": "osm:node/5225912921", "lat": 27.9996646, "lon": 86.8487946, "value": 5364, "unit": "m" } ] },
+          "elevation": { "value": 5364, "unit": "m", "ref": "wikidata:Q99671286", "sourceUnknown": true, "evidence": "Wikidata P2044 without reference or qualifier (checked 2026-11-17)" },
+          "alternates": [ { "ref": "osm:node/5225912921", "lat": 27.9996646, "lon": 86.8487946, "value": 5364, "unit": "m", "sourceUnknown": true, "evidence": "OSM ele without source tags" } ] },
         { "id": "everest-s-c1", "route": "south-col", "short": "C1", "name": "Camp 1 (top of the Khumbu Icefall)", "glacier": true,
           "position": { "ref": "osm:node/4880806686", "lat": 27.9864173, "lon": 86.8765224 },
           "elevation": { "value": 19500, "unit": "ft", "ref": "arnette-everest" },
@@ -36,8 +36,8 @@
           "alternates": [ { "ref": "arnette-everest", "value": 23000, "unit": "ft" }, { "ref": "osm:node/5058632244", "value": 7100, "unit": "m", "demDerived": true, "evidence": "source:location=SRTM-Version 3.0-SRTMGL1-Void Filled; no source for ele" } ] },
         { "id": "everest-s-c4", "route": "south-col", "short": "C4", "name": "Camp 4 (South Col)", "glacier": false,
           "position": { "ref": "wikidata:Q2598195", "lat": 27.975, "lon": 86.931944 },
-          "elevation": { "value": 7906, "unit": "m", "ref": "wikidata:Q2598195" },
-          "alternates": [ { "ref": "osm:node/576713400", "lat": 27.9733654, "lon": 86.9302508, "value": 7920, "unit": "m", "demDerived": true, "evidence": "source:position=SRTM-Version 3.0-SRTMGL1-Void Filled-10m; no source for ele" }, { "ref": "osm:node/2540248530", "lat": 27.9741973, "lon": 86.9319071, "value": 7907, "unit": "m", "demDerived": true, "evidence": "source:position=SRTM-Version 3.0-SRTMGL1-Void Filled-10m; source=bing (imagery); no source for ele" }, { "ref": "arnette-everest", "value": 8000, "unit": "m" } ] },
+          "elevation": { "value": 8000, "unit": "m", "ref": "arnette-everest" },
+          "alternates": [ { "ref": "wikidata:Q2598195", "lat": 27.975, "lon": 86.931944, "value": 7906, "unit": "m", "sourceUnknown": true, "evidence": "Wikidata P2044 without reference or qualifier (checked 2026-11-17)" }, { "ref": "arnette-everest", "value": 26300, "unit": "ft" }, { "ref": "osm:node/576713400", "lat": 27.9733654, "lon": 86.9302508, "value": 7920, "unit": "m", "demDerived": true, "evidence": "source:position=SRTM-Version 3.0-SRTMGL1-Void Filled-10m; no source for ele" }, { "ref": "osm:node/2540248530", "lat": 27.9741973, "lon": 86.9319071, "value": 7907, "unit": "m", "demDerived": true, "evidence": "source:position=SRTM-Version 3.0-SRTMGL1-Void Filled-10m; source=bing (imagery); no source for ele" } ] },
         { "id": "everest-n-bc", "route": "north-col", "short": "BC", "name": "Everest Base Camp (North, Tibet)", "glacier": false,
           "position": { "ref": "wikidata:Q99671023", "lat": 28.141111, "lon": 86.851389 },
           "elevation": { "value": 5150, "unit": "m", "ref": "wikidata:Q99671023" } },
@@ -81,14 +81,23 @@
         { "id": "lhotse-c3", "sameAs": "everest/everest-s-c3", "route": "west-face", "short": "C3", "name": "Camp 3 (shared with Everest)" },
         { "id": "lhotse-c4", "route": "west-face", "short": "C4", "name": "Camp 4 (Lhotse)", "glacier": false, "position": null,
           "elevation": { "value": 7850, "unit": "m", "ref": "arnette-lhotse" } }
+      ],
+      "routes": [
+        { "id": "west-face", "name": "West Face (Lhotse Couloir), via the Everest South Col route to Camp 3", "side": "Nepal (south)", "style": "solid",
+          "note": "Route continues up the Lhotse Face to C4 (~7,850 m, position not published).",
+          "via": [
+            { "camp": "lhotse-bc" },
+            { "feature": "Khumbu Icefall", "ref": "wikidata:Q7876005", "lat": 27.995841, "lon": 86.872759 },
+            { "camp": "lhotse-c1" }, { "camp": "lhotse-c2" }, { "camp": "lhotse-c3" }
+          ] }
       ]
     },
     "k2": {
       "camps": [
         { "id": "k2-bc", "route": "abruzzi", "short": "BC", "name": "K2 Base Camp", "glacier": true,
           "position": { "ref": "wikidata:Q88267655", "lat": 35.8345446, "lon": 76.509271 },
-          "elevation": { "value": 4965, "unit": "m", "ref": "wikidata:Q88267655" },
-          "alternates": [ { "ref": "osm:node/4844636351", "lat": 35.8345446, "lon": 76.509271, "value": 4965, "unit": "m" }, { "ref": "gatta-k2", "value": 5000, "unit": "m" } ] },
+          "elevation": { "value": 5000, "unit": "m", "ref": "gatta-k2" },
+          "alternates": [ { "ref": "wikidata:Q88267655", "value": 4965, "unit": "m", "sourceUnknown": true, "evidence": "Wikidata P2044 without reference or qualifier (checked 2026-11-17)" }, { "ref": "osm:node/4844636351", "lat": 35.8345446, "lon": 76.509271, "value": 4965, "unit": "m", "sourceUnknown": true, "evidence": "OSM ele without source tags" } ] },
         { "id": "k2-c1", "route": "abruzzi", "short": "C1", "name": "Camp 1 (Abruzzi Spur)", "glacier": false,
           "position": { "ref": "osm:node/8333608341", "lat": 35.8660027, "lon": 76.5360937 },
           "elevation": { "value": 6050, "unit": "m", "ref": "arnette-k2" },

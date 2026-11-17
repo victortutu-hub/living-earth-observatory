@@ -66,6 +66,7 @@ export const OBSERVATORY_CAPABILITIES = Object.freeze({
   'living-earth': Object.freeze([
     'data',
     'provenance',
+    'historical-time', // LOT 17: time-scrub (LOT 5/9/11); limits below
     'story',
     'vertical-export',
     'still-export',
@@ -116,6 +117,16 @@ export const OBSERVATORY_CAPABILITY_EVIDENCE = Object.freeze({
   }),
 });
 
+// Optional limits of a declared capability (text shown in the inspector), for an
+// observatory without an evidence map. LOT 17: Living Earth historical time,
+// from EARTH_TIME_CAPABILITIES (src/earth/temporal-provenance.js) and the
+// time-scrub slider (365 days).
+export const OBSERVATORY_CAPABILITY_LIMITS = Object.freeze({
+  'living-earth': Object.freeze({
+    'historical-time': 'Time-scrub up to 365 days back (one UTC day at a time). Follow the chosen day: NASA EONET and USGS earthquakes (7-day window), NASA FIRMS (from 1 Nov 2000, 1-day lag), Snow & ice (MODIS Terra, from 24 Feb 2000, 1-day lag, known gaps), wind (ERA5, about 6-day lag) and ocean currents (SMOC, from 2022, 1-day lag); the Sun, the Moon and the real sky follow the scene time. Hidden in history (live only): GDACS, aurora (OVATION), daily clouds, the ISS. Do not follow the date: the GVP volcano catalogue (as published today), Blue Marble, Black Marble 2016, ETOPO relief and the procedural airglow, zodiacal light and noctilucent clouds.',
+  }),
+});
+
 // What an observatory explicitly has NOT measured (shown in the inspector).
 export const OBSERVATORY_UNMEASURED = Object.freeze({
   'living-himalaya': Object.freeze([
@@ -135,6 +146,10 @@ export function getObservatoryCapabilities(observatoryId) {
 
 export function getCapabilityEvidence(observatoryId, capabilityId) {
   return OBSERVATORY_CAPABILITY_EVIDENCE[observatoryId]?.[capabilityId] || null;
+}
+
+export function getCapabilityLimits(observatoryId, capabilityId) {
+  return OBSERVATORY_CAPABILITY_LIMITS[observatoryId]?.[capabilityId] || null;
 }
 
 export function getObservatoryUnmeasured(observatoryId) {

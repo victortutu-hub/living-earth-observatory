@@ -32,7 +32,7 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     for (const id of platformRegistry.getCapabilities('living-himalaya')) expect(platformRegistry.getCapability(id)).not.toBeNull();
     for (const id of ['story', 'vertical-export', 'still-export', 'video-export', 'diagnostic-replay']) expect(platformRegistry.hasCapability('living-himalaya', id)).toBe(false);
     // Earth and Protein are unchanged.
-    expect(OBSERVATORY_CAPABILITIES['living-earth']).toHaveLength(8);
+    expect(OBSERVATORY_CAPABILITIES['living-earth']).toHaveLength(9); // LOT 17: + historical-time
     expect(OBSERVATORY_CAPABILITIES['living-protein']).toEqual(['data', 'provenance', 'story', 'diagnostic-replay']);
   });
 
@@ -65,27 +65,28 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/GTX 1650/);
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/mobile devices/);
     // Claims only: capabilities, stage, next threshold and the criteria marked done (open criteria may name future work).
-    const { stage, next, criteria } = himalaya.roadmap;
-    const text = JSON.stringify({ capabilities: OBSERVATORY_CAPABILITY_EVIDENCE['living-himalaya'], stage, next, done: criteria.filter((c) => c.done) }).toLowerCase();
+    // The next threshold names future work on purpose (LOT 17: the night sky), so it is not a claim.
+    const { stage, criteria } = himalaya.roadmap;
+    const text = JSON.stringify({ capabilities: OBSERVATORY_CAPABILITY_EVIDENCE['living-himalaya'], stage, done: criteria.filter((c) => c.done) }).toLowerCase();
     for (const word of ['garmin', 'night sky', 'star', 'glacier']) expect(text, word).not.toContain(word);
   });
 
   it('inspector: development contract with capabilities; live and empty records unchanged', () => {
     expect(describeCapabilityContract(himalaya, platformRegistry.getCapabilities('living-himalaya'))).toMatchObject({ label: 'Development contract', state: 'development' });
     const earth = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-earth');
-    expect(describeCapabilityContract(earth, platformRegistry.getCapabilities('living-earth'))).toEqual({ label: 'Live contract', state: 'live', summary: '8 capabilities are explicitly declared by this observatory contract.' });
+    expect(describeCapabilityContract(earth, platformRegistry.getCapabilities('living-earth'))).toEqual({ label: 'Live contract', state: 'live', summary: '9 capabilities are explicitly declared by this observatory contract.' });
     const cell = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-cell');
     expect(describeCapabilityContract(cell, [])).toEqual({ label: 'No runtime claim', state: 'declared', summary: 'This roadmap record has no runtime capability declared yet.' });
   });
 
   it('card: stage and next threshold up to date; progress computed from the criteria', () => {
     expect(himalaya.roadmap.stage).toBe('In development: terrain, Sentinel-2, Sun & Moon, summit weather, Himalayan Database history, optional routes & camps');
-    expect(himalaya.roadmap.next).toBe('Finishing lot: Lhotse route line, camp labels hidden by terrain, checked camp elevations');
+    expect(himalaya.roadmap.next).toBe('Real night sky from NASA SVS star maps (Lot 15b)'); // LOT 17
     expect(himalaya.roadmap.next).not.toMatch(/Per-field provenance/);
-    expect(himalaya.roadmap.progress).toBe(73);
+    expect(himalaya.roadmap.progress).toBe(82);
   });
 
-  it('progress = round(100 · done / total) from exactly the 11 approved criteria (8 done)', () => {
+  it('progress = round(100 · done / total) from exactly the 11 approved criteria (9 done since LOT 17)', () => {
     const { criteria } = himalaya.roadmap;
     expect(himalaya.roadmap.progressSource).toBe('criteria');
     expect(criteria.map((c) => c.label)).toEqual([
@@ -94,10 +95,10 @@ describe('LOT 16: Living Himalaya capabilities', () => {
       'Time from Earth + mobile bottom sheet', 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)',
       'Real night sky (Lot 15b)', 'Measured performance (real GTX 1650, real mobile)',
     ]);
-    expect(criteria.map((c) => c.done)).toEqual([true, true, true, true, true, true, true, true, false, false, false]);
+    expect(criteria.map((c) => c.done)).toEqual([true, true, true, true, true, true, true, true, true, false, false]);
     expect(new Set(criteria.map((c) => c.id)).size).toBe(11);
-    expect(progressFromCriteria(criteria)).toBe(Math.round((100 * 8) / 11));
-    expect(himalaya.roadmap.progress).toBe(73);
+    expect(progressFromCriteria(criteria)).toBe(Math.round((100 * 9) / 11));
+    expect(himalaya.roadmap.progress).toBe(82);
     expect(JSON.stringify(criteria).toLowerCase()).not.toMatch(/garmin|glacier/);
   });
 

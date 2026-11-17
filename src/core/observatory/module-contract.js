@@ -23,6 +23,7 @@ export function validateObservatoryModule(moduleDefinition, {
   capabilityDefinitions = {},
   observatoryCapabilities = {},
   observatoryCapabilityEvidence = {},
+  observatoryCapabilityLimits = {},
 } = {}) {
   const errors = [];
   const warnings = [];
@@ -116,6 +117,15 @@ export function validateObservatoryModule(moduleDefinition, {
       if (!capabilityDefinitions[capabilityId]) {
         errors.push(issue('error', 'unknown-capability', `Unknown capability: ${capabilityId}.`, 'capabilities'));
       }
+    });
+  }
+
+  // Optional limits (LOT 17): only for declared capabilities, as non-empty text.
+  const limits = observatoryCapabilityLimits[module.id];
+  if (limits && Array.isArray(capabilities)) {
+    Object.entries(limits).forEach(([capabilityId, text]) => {
+      if (!capabilities.includes(capabilityId)) errors.push(issue('error', 'limits-without-capability', `Limits for undeclared capability: ${capabilityId}.`, 'capabilities'));
+      if (!hasText(text)) errors.push(issue('error', 'invalid-capability-limits', `Capability limits must be text: ${capabilityId}.`, 'capabilities'));
     });
   }
 

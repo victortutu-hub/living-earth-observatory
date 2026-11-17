@@ -23,8 +23,8 @@ export const ROUTE_COLOR = 0xe8d9b0;
 export const ROUTE_WIDTH_PX = 2;
 
 // Scope approved for LOT 14: route lines only for Everest; camps only (no line) for these.
-export const ROUTE_LINE_PEAKS = Object.freeze(['everest']);
-export const CAMPS_ONLY_PEAKS = Object.freeze(['lhotse', 'k2', 'manaslu', 'ama-dablam']);
+export const ROUTE_LINE_PEAKS = Object.freeze(['everest', 'lhotse']); // LOT 17: Lhotse = the Everest South Col route up to C3
+export const CAMPS_ONLY_PEAKS = Object.freeze(['k2', 'manaslu', 'ama-dablam']);
 
 export const TEXT = Object.freeze({
   disclaimer: 'Approximate routes, for visualization only — not for navigation.',
@@ -40,6 +40,7 @@ export const TEXT = Object.freeze({
   loading: 'loading…',
   terrarium: 'Routes and camps are shown on the GLO-30 detail only (hidden in the Terrarium overview).',
   demDerived: 'OSM elevation (likely DEM-derived)',
+  sourceUnknown: 'Wikidata elevation (source unknown)',
   osmAttribution: '© OpenStreetMap contributors (ODbL)',
   osmCopyrightUrl: 'https://www.openstreetmap.org/copyright',
   wikidataAttribution: 'Wikidata (CC0)',
@@ -81,12 +82,13 @@ export function describeRef(ref, references = {}) {
  * likely DEM-derived elevation (`demDerived`) is not a reported value: its Δ is
  * never flagged.
  */
-export function campDisplay({ hasPosition, outsidePatch, demDeltaM, demDerived = false }) {
+export function campDisplay({ hasPosition, outsidePatch, demDeltaM, demDerived = false, sourceUnknown = false }) {
   if (!hasPosition) return { marker: false, listOnly: 'no-position', flag: false };
   if (outsidePatch) return { marker: false, listOnly: 'outside-patch', flag: false };
   const abs = Math.abs(demDeltaM);
-  if (abs > MARKER_MAX_DELTA_M) return { marker: false, listOnly: 'inconsistent', flag: !demDerived };
-  return { marker: true, listOnly: null, flag: !demDerived && abs > FLAG_DELTA_M };
+  const unverified = demDerived || sourceUnknown; // not a reported value: its delta is never flagged (LOT 15/17)
+  if (abs > MARKER_MAX_DELTA_M) return { marker: false, listOnly: 'inconsistent', flag: !unverified };
+  return { marker: true, listOnly: null, flag: !unverified && abs > FLAG_DELTA_M };
 }
 
 const m = (value) => `${Math.round(value).toLocaleString('en-US')} m`;
@@ -104,7 +106,9 @@ export function campRow(camp, references = {}) {
   const original = camp.elevationOriginal ? `${camp.elevationOriginal.value.toLocaleString('en-US')} ${camp.elevationOriginal.unit}; ` : '';
   const reported = camp.elevationDemDerived
     ? `${TEXT.demDerived} ${m(camp.reportedElevationM)}`
-    : `reported ${m(camp.reportedElevationM)} (${original}${source}${range})`;
+    : camp.elevationSourceUnknown
+      ? `${TEXT.sourceUnknown} ${m(camp.reportedElevationM)}`
+      : `reported ${m(camp.reportedElevationM)} (${original}${source}${range})`;
   const label = `${camp.short} · ${camp.name}${camp.glacier ? ' (glacier)' : ''}`;
   if (camp.listOnly === 'no-position') return [label, `${reported} · ${TEXT.noPosition}`, 'pending'];
   if (camp.listOnly === 'outside-patch') return [label, `${reported} · ${TEXT.outside}`, 'pending'];
@@ -192,8 +196,8 @@ export function validateRoutesAsset(asset, { peakIds = [], inPatch = null } = {}
         if (inPatch && !inPatch(peakId, camp.lat, camp.lon)) fail(`${where}: outside the patch but not marked`);
       } else if (camp.demElevationM !== null || camp.demDeltaM !== null) fail(`${where}: DEM value without a point in the patch`);
       if (hasPosition && camp.outsidePatch && inPatch && inPatch(peakId, camp.lat, camp.lon)) fail(`${where}: marked outside but inside the patch`);
-      if (camp.elevationDemDerived && camp.flag) fail(`${where}: DEM-derived elevation flagged`);
-      const expected = campDisplay({ hasPosition, outsidePatch: camp.outsidePatch, demDeltaM: camp.demDeltaM ?? 0, demDerived: Boolean(camp.elevationDemDerived) });
+      if ((camp.elevationDemDerived || camp.elevationSourceUnknown) && camp.flag) fail(`${where}: unverified elevation flagged`);
+      const expected = campDisplay({ hasPosition, outsidePatch: camp.outsidePatch, demDeltaM: camp.demDeltaM ?? 0, demDerived: Boolean(camp.elevationDemDerived), sourceUnknown: Boolean(camp.elevationSourceUnknown) });
       if (expected.marker !== camp.marker || expected.listOnly !== camp.listOnly || expected.flag !== camp.flag) fail(`${where}: marker/flag decision`);
       if (!byRoute.has(camp.route)) byRoute.set(camp.route, []);
       byRoute.get(camp.route).push(camp);

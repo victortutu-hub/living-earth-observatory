@@ -88,6 +88,8 @@ export function initCapabilityInspector() {
         const label = createElement('strong', null, definition.label);
         const description = createElement('span', null, definition.description);
         item.append(label, description);
+        const limits = platformRegistry.getCapabilityLimits(observatoryId, definition.id);
+        if (limits) item.append(createElement('span', 'capability-evidence-note', `Limits: ${limits}`));
         const evidence = platformRegistry.getCapabilityEvidence(observatoryId, definition.id);
         if (evidence) {
           if (evidence.note) item.append(createElement('span', 'capability-evidence-note', evidence.note));

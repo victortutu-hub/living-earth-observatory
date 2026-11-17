@@ -88,8 +88,9 @@ function buildCamp(peakId, raw, order) {
   const reported = toMetres(camp.elevation);
   const alternates = camp.alternates || [];
   alternates.forEach((a, k) => checkRef(a.ref, `${where} alternate ${k}`));
-  // Likely DEM-derived OSM values are not reported elevations: kept in sources, excluded from the range.
-  const values = [reported, ...alternates.filter((a) => Number.isFinite(a.value) && !a.demDerived).map(toMetres)];
+  // Likely DEM-derived values and values without a traceable source are not reported elevations:
+  // kept in sources, excluded from the range.
+  const values = [reported, ...alternates.filter((a) => Number.isFinite(a.value) && !a.demDerived && !a.sourceUnknown).map(toMetres)];
   const range = Math.min(...values) !== Math.max(...values) ? [Math.min(...values), Math.max(...values)] : null;
   const position = camp.position || null;
   if (position) {
@@ -102,7 +103,8 @@ function buildCamp(peakId, raw, order) {
   const dem = sampled == null ? null : round(sampled, 1); // the published value; Δ is computed from it
   const demDeltaM = dem == null ? null : Math.round(reported - dem);
   const demDerived = Boolean(camp.elevation.demDerived);
-  const display = campDisplay({ hasPosition, outsidePatch, demDeltaM: demDeltaM ?? 0, demDerived });
+  const sourceUnknown = Boolean(camp.elevation.sourceUnknown);
+  const display = campDisplay({ hasPosition, outsidePatch, demDeltaM: demDeltaM ?? 0, demDerived, sourceUnknown });
   return {
     id: camp.id, route: camp.route, short: camp.short, name: camp.name, kind: camp.kind || 'camp', order,
     lat: hasPosition ? position.lat : null, lon: hasPosition ? position.lon : null,
@@ -111,6 +113,7 @@ function buildCamp(peakId, raw, order) {
     reportedElevationM: reported, reportedRangeM: range,
     elevationSource: camp.elevation.ref,
     elevationDemDerived: demDerived,
+    elevationSourceUnknown: sourceUnknown,
     elevationOriginal: camp.elevation.unit === 'm' ? null : { value: camp.elevation.value, unit: camp.elevation.unit },
     demElevationM: dem == null ? null : round(dem, 1), demDeltaM,
     flag: display.flag, marker: display.marker, listOnly: display.listOnly, outsidePatch,
@@ -118,8 +121,8 @@ function buildCamp(peakId, raw, order) {
     sharedWith: camp.sharedWith || null,
     sources: [
       ...(hasPosition ? [{ ref: position.ref, role: 'position', lat: position.lat, lon: position.lon }] : []),
-      { ref: camp.elevation.ref, role: 'elevation', value: camp.elevation.value, unit: camp.elevation.unit, ...(demDerived ? { demDerived: true, evidence: camp.elevation.evidence || null } : {}) },
-      ...alternates.map((a) => ({ ref: a.ref, role: 'reference', ...(Number.isFinite(a.lat) ? { lat: a.lat, lon: a.lon } : {}), ...(Number.isFinite(a.value) ? { value: a.value, unit: a.unit } : {}), ...(a.demDerived ? { demDerived: true, evidence: a.evidence || null } : {}) })),
+      { ref: camp.elevation.ref, role: 'elevation', value: camp.elevation.value, unit: camp.elevation.unit, ...(demDerived ? { demDerived: true, evidence: camp.elevation.evidence || null } : {}), ...(sourceUnknown ? { sourceUnknown: true, evidence: camp.elevation.evidence || null } : {}) },
+      ...alternates.map((a) => ({ ref: a.ref, role: 'reference', ...(Number.isFinite(a.lat) ? { lat: a.lat, lon: a.lon } : {}), ...(Number.isFinite(a.value) ? { value: a.value, unit: a.unit } : {}), ...(a.demDerived ? { demDerived: true, evidence: a.evidence || null } : {}), ...(a.sourceUnknown ? { sourceUnknown: true, evidence: a.evidence || null } : {}) })),
     ],
   };
 }
