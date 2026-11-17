@@ -67,9 +67,22 @@ describe('LOT 17: Wikidata elevations without a reference', () => {
     expect(col).toMatchObject({ reportedElevationM: 8000, elevationSource: 'arnette-everest', reportedRangeM: [8000, 8016], demDeltaM: 136, flag: true, marker: true });
     expect(col.sources.find((s) => s.ref === 'wikidata:Q2598195' && s.role === 'position')).toBeTruthy(); // the position stays Wikidata
     expect(col.sources.find((s) => s.ref === 'wikidata:Q2598195' && s.role === 'reference')).toMatchObject({ value: 7906, sourceUnknown: true });
+    // K2 BC: the Gatta page answered 404 (17 Nov 2026) -> 5000 m stays in the range only; Wikidata 4965 m is the main value, source unknown.
     const k2 = camp('k2', 'k2-bc');
-    expect(k2).toMatchObject({ reportedElevationM: 5000, elevationSource: 'gatta-k2', demDeltaM: 39, flag: false, marker: true, reportedRangeM: null });
-    expect(k2.sources.find((s) => s.ref === 'wikidata:Q88267655' && s.role === 'reference')).toMatchObject({ value: 4965, sourceUnknown: true });
+    expect(k2).toMatchObject({ reportedElevationM: 4965, elevationSource: 'wikidata:Q88267655', elevationSourceUnknown: true, demDeltaM: 4, flag: false, marker: true, reportedRangeM: [4965, 5000] });
+    expect(k2.sources.find((s) => s.ref === 'gatta-k2')).toMatchObject({ role: 'reference', value: 5000 });
+    expect(campRow(k2, asset.references)[1].startsWith('Wikidata elevation (source unknown) 4,965 m')).toBe(true);
+    expect(asset.references['arnette-everest'].evidence).toBe('page');
+    expect(asset.references['arnette-everest'].checked).toContain('the South Col at 8000m');
+  });
+
+  it('no main elevation may come from a search-result summary (validator)', () => {
+    const peakIds = HIMALAYA_ALL_PEAKS.map((p) => p.id);
+    expect(validateRoutesAsset(asset, { peakIds })).toEqual([]);
+    for (const peak of Object.values(asset.peaks)) for (const c of peak.camps) expect(asset.references[c.elevationSource]?.evidence, c.id).not.toBe('search-result');
+    const bad = JSON.parse(JSON.stringify(asset));
+    bad.peaks.k2.camps.find((c) => c.id === 'k2-bc').elevationSource = 'gatta-k2';
+    expect(validateRoutesAsset(bad, { peakIds }).join(' ')).toMatch(/main elevation from a search-result summary/);
   });
 
   it('an elevation without a source is never flagged; the validator enforces it', () => {

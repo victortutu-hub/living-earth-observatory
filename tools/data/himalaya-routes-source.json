@@ -4,7 +4,7 @@
   "references": {
     "osm": { "label": "OpenStreetMap", "license": "ODbL" },
     "wikidata": { "label": "Wikidata", "license": "CC0" },
-    "arnette-everest": { "label": "Alan Arnette, Everest FAQ", "url": "https://www.alanarnette.com/everest/everestfaq.php" },
+    "arnette-everest": { "label": "Alan Arnette, Everest FAQ", "url": "https://www.alanarnette.com/everest/everestfaq.php", "evidence": "page", "checked": "2026-11-17 (redirects to https://www.alanarnette.com/everest-home/everest-faq/): 'Four high camps sat at 19,500; 21,000; 23,500; and 26,300 feet' (2002); 'the South Col at 8000m' (2003)" },
     "arnette-lhotse": { "label": "Alan Arnette, Lhotse FAQ", "url": "https://www.alanarnette.com/alans-climbs/lhotse-faq/" },
     "arnette-k2": { "label": "Alan Arnette, K2 FAQ", "url": "https://www.alanarnette.com/climbs/k2faq.php" },
     "arnette-k2-winter": { "label": "Alan Arnette, K2 winter on the Abruzzi (2020)", "url": "https://www.alanarnette.com/2020/12/23/k2-winter-on-the-abruzzi/", "evidence": "search-result" },
@@ -12,7 +12,7 @@
     "explorersweb-manaslu": { "label": "ExplorersWeb, Manaslu: A Climber's Guide", "url": "https://explorersweb.com/manaslu-a-climbers-guide/" },
     "explorersweb-ama-dablam": { "label": "ExplorersWeb, Ama Dablam: A Climbers' Guide", "url": "https://explorersweb.com/ama-dablam-a-climbers-guide/" },
     "explorersweb-k2": { "label": "ExplorersWeb, Second Seven Summits: K2", "url": "https://explorersweb.com/second-seven-summits-k2/", "evidence": "search-result" },
-    "gatta-k2": { "label": "Philippe Gatta, K2 expedition (8,611 m)", "url": "https://www.philippegatta.fr/k2-8611-m-pakistan", "evidence": "search-result" },
+    "gatta-k2": { "label": "Philippe Gatta, K2 expedition (8,611 m)", "url": "https://www.philippegatta.fr/k2-8611-m-pakistan", "evidence": "search-result", "checked": "2026-11-17: page answered HTTP 404; values not confirmed (range only)" },
     "summitpost-abruzzi": { "label": "SummitPost, The Abruzzi Spur (South-East Ridge)", "url": "https://summitpost.org/the-abruzzi-spur-south-east-ridge/159540", "evidence": "search-result" }
   },
   "peaks": {
@@ -96,8 +96,8 @@
       "camps": [
         { "id": "k2-bc", "route": "abruzzi", "short": "BC", "name": "K2 Base Camp", "glacier": true,
           "position": { "ref": "wikidata:Q88267655", "lat": 35.8345446, "lon": 76.509271 },
-          "elevation": { "value": 5000, "unit": "m", "ref": "gatta-k2" },
-          "alternates": [ { "ref": "wikidata:Q88267655", "value": 4965, "unit": "m", "sourceUnknown": true, "evidence": "Wikidata P2044 without reference or qualifier (checked 2026-11-17)" }, { "ref": "osm:node/4844636351", "lat": 35.8345446, "lon": 76.509271, "value": 4965, "unit": "m", "sourceUnknown": true, "evidence": "OSM ele without source tags" } ] },
+          "elevation": { "value": 4965, "unit": "m", "ref": "wikidata:Q88267655", "sourceUnknown": true, "evidence": "Wikidata P2044 without reference or qualifier (checked 2026-11-17)" },
+          "alternates": [ { "ref": "gatta-k2", "value": 5000, "unit": "m" }, { "ref": "osm:node/4844636351", "lat": 35.8345446, "lon": 76.509271, "value": 4965, "unit": "m", "sourceUnknown": true, "evidence": "OSM ele without source tags" } ] },
         { "id": "k2-c1", "route": "abruzzi", "short": "C1", "name": "Camp 1 (Abruzzi Spur)", "glacier": false,
           "position": { "ref": "osm:node/8333608341", "lat": 35.8660027, "lon": 76.5360937 },
           "elevation": { "value": 6050, "unit": "m", "ref": "arnette-k2" },

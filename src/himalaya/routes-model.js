@@ -185,6 +185,8 @@ export function validateRoutesAsset(asset, { peakIds = [], inPatch = null } = {}
     const byRoute = new Map();
     for (const camp of camps) {
       const where = `${peakId}/${camp.id}`;
+      // LOT 17: a value seen only in a search-result summary may sit in the range, never be the main elevation.
+      if (asset.references?.[camp.elevationSource]?.evidence === 'search-result') fail(`${where}: main elevation from a search-result summary`);
       for (const key of ['id', 'route', 'short', 'name', 'order', 'reportedElevationM', 'elevationSource']) if (camp[key] == null) fail(`${where}: missing ${key}`);
       const hasPosition = Number.isFinite(camp.lat) && Number.isFinite(camp.lon);
       if (hasPosition !== Boolean(camp.positionSource)) fail(`${where}: position without source or source without position`);
