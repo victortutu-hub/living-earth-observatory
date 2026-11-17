@@ -1,4 +1,5 @@
 import { platformRegistry } from '../core/platform-registry.js';
+import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 
 const GROUP_LABELS = Object.freeze({
   data: 'Data & provenance',
@@ -7,6 +8,27 @@ const GROUP_LABELS = Object.freeze({
   export: 'Export',
   runtime: 'Runtime',
 });
+
+/**
+ * State line and summary of the inspector. A live observatory has a live
+ * contract; an observatory in development that declares capabilities has a
+ * development contract (each capability lists its sources); otherwise there
+ * is no runtime claim.
+ */
+export function describeCapabilityContract(observatory, capabilities = []) {
+  if (observatory?.status === 'live') {
+    return { label: 'Live contract', state: 'live', summary: capabilities.length ? `${capabilities.length} capabilities are explicitly declared by this observatory contract.` : 'This roadmap record has no runtime capability declared yet.' };
+  }
+  if (observatory?.status === 'development' && capabilities.length) {
+    return { label: 'Development contract', state: 'development', summary: `${capabilities.length} capabilities are declared for this observatory in development; each names the registered sources behind it.` };
+  }
+  return { label: 'No runtime claim', state: 'declared', summary: 'This roadmap record has no runtime capability declared yet.' };
+}
+
+/** "Title (provenance)" for each registered source id; unknown ids are dropped. */
+export function evidenceSourceLabels(sourceIds = [], sources = SOURCE_DEFINITIONS) {
+  return sourceIds.filter((id) => sources[id]).map((id) => `${sources[id].title} (${sources[id].provenance})`);
+}
 
 function createElement(tag, className, textContent) {
   const element = document.createElement(tag);
@@ -43,11 +65,10 @@ export function initCapabilityInspector() {
     selectedId = observatoryId;
     const capabilities = platformRegistry.getCapabilities(observatoryId);
     title.textContent = `${observatory.title} capabilities`;
-    state.textContent = observatory.status === 'live' ? 'Live contract' : 'No runtime claim';
-    state.dataset.state = observatory.status === 'live' ? 'live' : 'declared';
-    summary.textContent = capabilities.length
-      ? `${capabilities.length} capabilities are explicitly declared by this observatory contract.`
-      : 'This roadmap record has no runtime capability declared yet.';
+    const contract = describeCapabilityContract(observatory, capabilities);
+    state.textContent = contract.label;
+    state.dataset.state = contract.state;
+    summary.textContent = contract.summary;
 
     const grouped = capabilities.reduce((result, capabilityId) => {
       const definition = platformRegistry.getCapability(capabilityId);
@@ -67,11 +88,26 @@ export function initCapabilityInspector() {
         const label = createElement('strong', null, definition.label);
         const description = createElement('span', null, definition.description);
         item.append(label, description);
+        const evidence = platformRegistry.getCapabilityEvidence(observatoryId, definition.id);
+        if (evidence) {
+          if (evidence.note) item.append(createElement('span', 'capability-evidence-note', evidence.note));
+          item.append(createElement('span', 'capability-evidence', `Sources: ${evidenceSourceLabels(evidence.sources).join(' · ')}`));
+        }
         return item;
       }));
       block.append(items);
       return block;
     });
+
+    const unmeasured = platformRegistry.getUnmeasured(observatoryId);
+    if (unmeasured.length) {
+      const block = createElement('section', 'capability-group capability-group-unmeasured');
+      block.append(createElement('span', 'capability-group-label', 'Not measured'));
+      const items = createElement('ul', 'capability-list');
+      items.append(...unmeasured.map((text) => createElement('li', null, text)));
+      block.append(items);
+      groups.push(block);
+    }
 
     list.replaceChildren(...(groups.length ? groups : [
       createElement('p', 'capability-empty', 'The module is mapped in the platform taxonomy, but it does not yet claim an active runtime contract.'),

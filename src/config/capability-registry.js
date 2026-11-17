@@ -79,6 +79,50 @@ export const OBSERVATORY_CAPABILITIES = Object.freeze({
     'story',
     'diagnostic-replay',
   ]),
+  // Only what runs on production (deploy-himalaya-9) and is covered by tests.
+  // Not declared: story, exports, diagnostic-replay (the page keeps its own
+  // request runtimes outside the platform replay workflow).
+  'living-himalaya': Object.freeze([
+    'data',
+    'provenance',
+    'historical-time',
+    'live-layers',
+  ]),
+});
+
+// Optional per-observatory evidence: which registered sources (source-registry)
+// back each declared capability; their provenance is read from the source
+// definition. When an observatory has an evidence map, every declared
+// capability must name at least one source the observatory declares
+// (validated in module-contract.js).
+export const OBSERVATORY_CAPABILITY_EVIDENCE = Object.freeze({
+  'living-himalaya': Object.freeze({
+    data: Object.freeze({
+      sources: Object.freeze(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'sentinel2L2a', 'openMeteoPressureLevels', 'astronomy', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps']),
+      note: 'Cited summit list, GLO-30 patches and Terrarium tiles, Sentinel-2 L2A read in the browser, Open-Meteo GFS at summit height, Sun and Moon from Astronomy Engine, Himalayan Database aggregates (14 eight-thousanders), optional routes and camps.',
+    }),
+    provenance: Object.freeze({
+      sources: Object.freeze(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'sentinel2L2a', 'openMeteoPressureLevels', 'astronomy', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps']),
+      note: 'Provenance bar and per-field provenance in the summit panel; sources and attributions panel.',
+    }),
+    'historical-time': Object.freeze({
+      sources: Object.freeze(['astronomy', 'sentinel2L2a', 'openMeteoPressureLevels']),
+      note: 'A date from Living Earth (up to 366 days back) and a Sun time-of-day slider: Sun and Moon follow it, Sentinel-2 shows the latest clear scene up to that date; summit weather only for the current day.',
+    }),
+    'live-layers': Object.freeze({
+      sources: Object.freeze(['sentinel2L2a', 'openMeteoPressureLevels']),
+      note: 'Latest clear Sentinel-2 L2A scene of the last 30 days; current Open-Meteo GFS run at summit height.',
+    }),
+  }),
+});
+
+// What an observatory explicitly has NOT measured (shown in the inspector).
+export const OBSERVATORY_UNMEASURED = Object.freeze({
+  'living-himalaya': Object.freeze([
+    'Frame rate on a GTX 1650-class GPU in a normal browser session (headless checks only)',
+    'Real mobile devices (layout checked in device emulation only)',
+    'Page load time on the production server',
+  ]),
 });
 
 export function getCapabilityDefinition(capabilityId) {
@@ -87,6 +131,14 @@ export function getCapabilityDefinition(capabilityId) {
 
 export function getObservatoryCapabilities(observatoryId) {
   return OBSERVATORY_CAPABILITIES[observatoryId] || EMPTY_CAPABILITIES;
+}
+
+export function getCapabilityEvidence(observatoryId, capabilityId) {
+  return OBSERVATORY_CAPABILITY_EVIDENCE[observatoryId]?.[capabilityId] || null;
+}
+
+export function getObservatoryUnmeasured(observatoryId) {
+  return OBSERVATORY_UNMEASURED[observatoryId] || EMPTY_CAPABILITIES;
 }
 
 export function hasObservatoryCapability(observatoryId, capabilityId) {

@@ -12,7 +12,8 @@ const ROADMAP = Object.freeze({
   cosmos: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Local stellar neighborhood, not a universe simulator' }),
   network: Object.freeze({ progress: 0, stage: 'Planned', next: 'Static topology and curated measurement story' }),
   // Unfrozen 2026-11-15 (Gate 2 closed). Lot 1: peak list, Earth markers, enter/return, scene without terrain.
-  himalaya: Object.freeze({ progress: 60, stage: 'In development: terrain, Sentinel-2 image, sunlight, summit weather and history', next: 'Per-field provenance in the summit panel' }),
+  // Lot 16: stage and next threshold brought up to date (production: deploy-himalaya-9); progress unchanged (hand-written, criteria proposed, figure pending).
+  himalaya: Object.freeze({ progress: 60, stage: 'In development: terrain, Sentinel-2, Sun & Moon, summit weather, Himalayan Database history, optional routes & camps', next: 'Finishing lot: Lhotse route line, camp labels hidden by terrain, checked camp elevations' }),
 });
 
 // `parent` (optional): id of an existing top-level observatory this one belongs

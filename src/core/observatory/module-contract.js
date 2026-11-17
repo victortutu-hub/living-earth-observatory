@@ -22,6 +22,7 @@ export function validateObservatoryModule(moduleDefinition, {
   sourceDefinitions = {},
   capabilityDefinitions = {},
   observatoryCapabilities = {},
+  observatoryCapabilityEvidence = {},
 } = {}) {
   const errors = [];
   const warnings = [];
@@ -99,6 +100,29 @@ export function validateObservatoryModule(moduleDefinition, {
       if (!capabilityDefinitions[capabilityId]) {
         errors.push(issue('error', 'unknown-capability', `Unknown capability: ${capabilityId}.`, 'capabilities'));
       }
+    });
+  }
+
+  // Optional evidence map: no claimed capability without a registered source.
+  const evidence = observatoryCapabilityEvidence[module.id];
+  if (evidence && Array.isArray(capabilities)) {
+    capabilities.forEach((capabilityId) => {
+      const sources = evidence[capabilityId]?.sources;
+      if (!Array.isArray(sources) || sources.length === 0) {
+        errors.push(issue('error', 'capability-without-source', `Capability ${capabilityId} names no registered source.`, 'capabilities'));
+      }
+    });
+    Object.entries(evidence).forEach(([capabilityId, entry]) => {
+      if (!capabilities.includes(capabilityId)) {
+        errors.push(issue('error', 'evidence-without-capability', `Evidence for undeclared capability: ${capabilityId}.`, 'capabilities'));
+      }
+      (entry?.sources || []).forEach((sourceId) => {
+        if (!sourceDefinitions[sourceId]) {
+          errors.push(issue('error', 'unknown-evidence-source', `Unknown source in capability evidence: ${sourceId}.`, 'capabilities'));
+        } else if (!Array.isArray(module.sources) || !module.sources.includes(sourceId)) {
+          errors.push(issue('error', 'undeclared-evidence-source', `Capability evidence source ${sourceId} is not declared by the observatory.`, 'capabilities'));
+        }
+      });
     });
   }
 

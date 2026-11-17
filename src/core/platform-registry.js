@@ -4,7 +4,10 @@ import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 import {
   CAPABILITY_DEFINITIONS,
   OBSERVATORY_CAPABILITIES,
+  OBSERVATORY_CAPABILITY_EVIDENCE,
   getCapabilityDefinition,
+  getCapabilityEvidence,
+  getObservatoryUnmeasured,
   getObservatoryCapabilities,
   hasObservatoryCapability,
 } from '../config/capability-registry.js';
@@ -17,6 +20,7 @@ const moduleContract = validateObservatoryRegistry(OBSERVATORY_REGISTRY, {
   sourceDefinitions: SOURCE_DEFINITIONS,
   capabilityDefinitions: CAPABILITY_DEFINITIONS,
   observatoryCapabilities: OBSERVATORY_CAPABILITIES,
+  observatoryCapabilityEvidence: OBSERVATORY_CAPABILITY_EVIDENCE,
 });
 
 if (!moduleContract.valid) {
@@ -55,6 +59,14 @@ export const platformRegistry = Object.freeze({
 
   getCapabilities(observatoryId) {
     return getObservatoryCapabilities(observatoryId);
+  },
+
+  getCapabilityEvidence(observatoryId, capabilityId) {
+    return getCapabilityEvidence(observatoryId, capabilityId);
+  },
+
+  getUnmeasured(observatoryId) {
+    return getObservatoryUnmeasured(observatoryId);
   },
 
   hasCapability(observatoryId, capabilityId) {
