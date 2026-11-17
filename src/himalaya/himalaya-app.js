@@ -81,6 +81,15 @@ function element(tag, className, text) {
   return node;
 }
 
+// External link (Himalayan Database home page): new tab, rel="noopener".
+function externalLink({ href, text }) {
+  const a = element('a', 'himalaya-external-link', text);
+  a.href = href;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  return a;
+}
+
 function formatElevation(value) {
   return `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 })} m`;
 }
@@ -203,6 +212,11 @@ export function startHimalayaApp({
     sources.replaceChildren(...[...ATTRIBUTIONS, sentinelEntry].map((entry) => {
       const item = element('li');
       item.append(element('strong', null, entry.title), element('span', 'himalaya-source-text', entry.text), element('span', 'himalaya-source-note', entry.note));
+      if (entry.link) {
+        const linkLine = element('span', 'himalaya-source-link');
+        linkLine.append(externalLink(entry.link));
+        item.append(linkLine);
+      }
       return item;
     }));
   }
@@ -265,8 +279,10 @@ export function startHimalayaApp({
     // History (Lot 6): per-peak aggregates of The Himalayan Database ©, "reported".
     if (isCovered(peak.id) && history.status === 'idle') loadHistory();
     const historyList = element('dl', 'himalaya-panel-rows himalaya-history-rows');
-    historyRows(peak.id, history.data, history.status).forEach(([label, value, state]) => {
-      historyList.append(element('dt', null, label), element('dd', state ? `is-${state}` : null, value));
+    historyRows(peak.id, history.data, history.status).forEach(([label, value, state, link]) => {
+      const dd = element('dd', state ? `is-${state}` : null, value);
+      if (link) dd.append(' · ', externalLink(link));
+      historyList.append(element('dt', null, label), dd);
     });
     const historySection = element('section', 'himalaya-weather himalaya-history');
     historySection.setAttribute('aria-label', 'History');

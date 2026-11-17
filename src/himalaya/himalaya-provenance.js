@@ -2,6 +2,7 @@
 // sources & attribution panel). Pure functions, covered by tests.
 import { GLO30_ACCESSED, GLO30_ATTRIBUTION, GLO30_SELECTED_ACCESSED } from '../config/himalaya-terrain-patches.js';
 import { HIMALAYA_HISTORY_CREDIT } from '../config/himalaya-history.js';
+import { HDB_COVERAGE_NOTE, HDB_HOME_LINK } from './hdb-history.js';
 
 export const TERRAIN_MODES = Object.freeze(['glo30', 'terrarium']);
 export const TERRAIN_LABELS = Object.freeze({
@@ -84,7 +85,8 @@ export const ATTRIBUTIONS = Object.freeze([
     id: 'himalayanDatabase',
     title: 'Summit history (aggregates)',
     text: HIMALAYA_HISTORY_CREDIT,
-    note: 'Per-peak counts only (successful expeditions, member summits, first ascent year and season, total deaths, season totals), used with the written permission of The Himalayan Database. Reported: compiled from expedition accounts, not measurements. Peaks outside its coverage show “Not covered by the Himalayan Database”; the selected Nepal peaks show “Not available for this peak” (the permission covers the 14 eight-thousanders only).',
+    note: `Per-peak counts only (successful expeditions, member summits, first ascent year and season, total deaths of members and hired staff, season totals), used with the written permission of The Himalayan Database. Reported: compiled from expedition accounts, not measurements. ${HDB_COVERAGE_NOTE} Those peaks show “Not covered by the Himalayan Database”; the selected Nepal peaks show “Not available for this peak” (the permission covers the 14 eight-thousanders only).`,
+    link: HDB_HOME_LINK,
   }),
   Object.freeze({
     id: 'peaks',

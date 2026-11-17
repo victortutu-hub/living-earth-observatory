@@ -104,6 +104,25 @@ system. Always consult the original providers for authoritative data.
   of the U.S. Geological Survey; Global ETOPO1 terrain data U.S. National
   Oceanic and Atmospheric Administration.
 
+## Living Himalaya History (The Himalayan Database)
+
+- `assets/himalaya/hdb-aggregates-<hash>.json` (metadata in
+  `src/config/himalaya-history.js`): per-peak aggregates only (successful
+  expeditions, member summits, first ascent year and season, total deaths of
+  members and hired staff, season totals) for the eight-thousanders the
+  database covers, used with written permission (2026-11-16). No records,
+  names or raw tables are published; the licensed copy stays local to the
+  author. Provenance: `reported` (compiled from expedition accounts, not
+  measurements).
+- Credit, as shown in the observatory: “Source: The Himalayan Database ©
+  (Elizabeth Hawley / Richard Salisbury et al.), version 2.75, Autumn–Winter
+  2025 update, extracted 2026-11-16”.
+- Link (home page only): https://www.himalayandatabase.com
+- The Himalayan Database covers Nepal and its border peaks; the six 8000 m
+  peaks in Pakistan and Tibet are not covered. No Himalayan Database data are
+  shown for the 6 selected Nepal peaks (the permission covers the 14
+  eight-thousanders only).
+
 ## Bundled Earth Surface Texture
 
 - `assets/blue-marble-ng-4096x2048.jpg`: NASA Blue Marble: Next Generation

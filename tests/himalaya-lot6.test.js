@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDbfHeader, readDbfRecords } from '../tools/lib/vfp-dbf.mjs';
 import { aggregateExpeditions, matchPeak, SEASON_KEYS } from '../src/himalaya/hdb-aggregate-rules.js';
-import { DISPUTED_NOTE, HISTORY_LABEL, NOT_COVERED, historyRows, isCovered } from '../src/himalaya/hdb-history.js';
+import { DEATHS_LABEL, DISPUTED_NOTE, HDB_COVERAGE_NOTE, HDB_HOME_LINK, HDB_HOME_URL, HISTORY_LABEL, NOT_COVERED, historyRows, isCovered } from '../src/himalaya/hdb-history.js';
 import { HIMALAYA_HISTORY_ASSET, HIMALAYA_HISTORY_COVERAGE, HIMALAYA_HISTORY_CREDIT } from '../src/config/himalaya-history.js';
 import { HIMALAYA_PEAKS } from '../src/config/himalaya-peaks.js';
 import { SOURCE_DEFINITIONS } from '../src/config/source-registry.js';
@@ -109,6 +109,12 @@ describe('counting rules (Program Guide, Appendix B / Expeditions Field Notes)',
 describe('bundled aggregate asset and coverage', () => {
   const asset = JSON.parse(fs.readFileSync(new URL(`../${HIMALAYA_HISTORY_ASSET.file}`, import.meta.url), 'utf8'));
 
+  it('states the coverage: Nepal and its border peaks, not the six in Pakistan and Tibet', () => {
+    expect(HDB_COVERAGE_NOTE).toBe('The Himalayan Database covers Nepal and its border peaks; the six 8000 m peaks in Pakistan and Tibet are not covered.');
+    expect(ATTRIBUTIONS.find((a) => a.id === 'himalayanDatabase').note).toContain(HDB_COVERAGE_NOTE);
+    expect(Object.values(HIMALAYA_HISTORY_COVERAGE).filter((v) => !v)).toHaveLength(6);
+  });
+
   it('covers 8 of the 14 summits (the others say "Not covered by the Himalayan Database")', () => {
     expect(HIMALAYA_HISTORY_COVERAGE).toEqual({
       everest: 'EVER', k2: null, kangchenjunga: 'KANG', lhotse: 'LHOT', makalu: 'MAKA', 'cho-oyu': 'CHOY', dhaulagiri: 'DHA1', manaslu: 'MANA',
@@ -142,20 +148,37 @@ describe('bundled aggregate asset and coverage', () => {
     expect(rows.Provenance).toBe('Reported (compiled from expedition accounts, not measurements)');
     expect(rows.Provenance).toBe(HISTORY_LABEL);
     expect(rows.Credit).toContain('The Himalayan Database ©');
-    expect(Object.keys(rows).some((k) => /oxygen|hired|people/i.test(k))).toBe(false);
+    // Deaths: one total (members + hired staff), never a separate hired-staff figure.
+    expect(DEATHS_LABEL).toBe('Deaths (members + hired staff)');
+    expect(rows[DEATHS_LABEL]).toMatch(/^[\d,]+ \(total, all expeditions on the peak\)$/);
+    expect(Object.keys(rows).filter((k) => /hired/i.test(k))).toEqual([DEATHS_LABEL]);
+    expect(Object.keys(rows).some((k) => /oxygen|people/i.test(k))).toBe(false);
     expect(historyRows('everest', null, 'loading')[0][1]).toBe('loading…');
     expect(historyRows('everest', null, 'error')[0][1]).toBe('History: temporarily unavailable');
     expect(FUTURE_FIELDS).toEqual([]);
   });
 
-  it('credits "The Himalayan Database ©" exactly, everywhere, and links nowhere to the database website', () => {
+  it('credits "The Himalayan Database ©" exactly, everywhere, and links only to the database home page', () => {
     expect(HIMALAYA_HISTORY_CREDIT).toBe(`Source: The Himalayan Database © (Elizabeth Hawley / Richard Salisbury et al.), version 2.75, Autumn–Winter 2025 update, extracted ${HIMALAYA_HISTORY_ASSET.extracted}`);
     expect(asset.credit).toBe(HIMALAYA_HISTORY_CREDIT);
     const source = SOURCE_DEFINITIONS.himalayanDatabase;
     expect(source.provenance).toBe('reported');
     expect(source.license).toContain('The Himalayan Database ©');
     expect(ATTRIBUTIONS.find((a) => a.id === 'himalayanDatabase').text).toBe(HIMALAYA_HISTORY_CREDIT);
-    const files = ['../src/config/himalaya-history.js', '../src/himalaya/hdb-history.js', '../src/himalaya/himalaya-provenance.js', '../src/config/source-registry.js', '../living-himalaya.html', `../${HIMALAYA_HISTORY_ASSET.file}`];
-    for (const f of files) expect(fs.readFileSync(new URL(f, import.meta.url), 'utf8').toLowerCase(), f).not.toContain('himalayandatabase.com');
+    // The link (confirmed in writing 2026-11-16): exactly the home page, next to the credit
+    // in History and in the sources panel; no other himalayandatabase.com URL (files, data).
+    expect(HDB_HOME_URL).toBe('https://www.himalayandatabase.com');
+    expect(HDB_HOME_LINK.href).toBe(HDB_HOME_URL);
+    const credit = historyRows('everest', asset).find(([label]) => label === 'Credit');
+    expect(credit[3]).toBe(HDB_HOME_LINK);
+    expect(ATTRIBUTIONS.find((a) => a.id === 'himalayanDatabase').link).toBe(HDB_HOME_LINK);
+    const app = fs.readFileSync(new URL('../src/himalaya/himalaya-app.js', import.meta.url), 'utf8');
+    expect(app).toMatch(/a\.rel = 'noopener'/);
+    const URL_RE = /(?:https?:\/\/)?(?:[\w-]+\.)*himalayandatabase\.com[^\s'"`<>)\]]*/gi;
+    const files = ['../src/config/himalaya-history.js', '../src/himalaya/hdb-history.js', '../src/himalaya/himalaya-provenance.js', '../src/himalaya/himalaya-app.js', '../src/config/source-registry.js', '../living-himalaya.html', `../${HIMALAYA_HISTORY_ASSET.file}`];
+    const found = [];
+    for (const f of files) for (const m of fs.readFileSync(new URL(f, import.meta.url), 'utf8').matchAll(URL_RE)) found.push([f, m[0]]);
+    expect(found).toEqual([['../src/himalaya/hdb-history.js', 'https://www.himalayandatabase.com']]);
+    expect(fs.readFileSync(new URL(`../${HIMALAYA_HISTORY_ASSET.file}`, import.meta.url), 'utf8').toLowerCase()).not.toContain('himalayandatabase');
   });
 });
