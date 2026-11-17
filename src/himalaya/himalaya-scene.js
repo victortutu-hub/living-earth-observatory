@@ -8,6 +8,10 @@
 //     LOT 7: selected Nepal peaks get a second, smaller marker style; their
 //     labels appear within SELECTED_LABEL_MAX_KM of the camera (or when
 //     active). A peak may share the patch of another (patchKey).
+//   * LOT 14: opt-in "routes" group of the active peak (interpretive route
+//     lines, reported camp markers), created only while a switch is on,
+//     disposed when the peak changes, a switch goes off or the scene closes;
+//     shown only on the visible GLO-30 patch (hidden in Terrarium mode).
 // Projection: azimuthal equidistant (projection.js); 1 unit = 1 km; vertical
 // exaggeration 1.0 everywhere. Async work (tiles, patches, decoder) is owned
 // by the scene and cancelled/ignored after dispose.
@@ -21,6 +25,7 @@ import { buildPatchGeometry, decodePatch, patchCornersXZ, setPatchGroups, FULL_L
 import { sunDirectionScene } from './sun-position.js';
 import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
+import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_WIDTH_PX, campLabel } from './routes-model.js';
 
 export { projectLonLat, VERTICAL_EXAGGERATION };
 export const FLY_DURATION_MS = 1200;
@@ -36,6 +41,20 @@ const SELECTED_HEAD_SCALE = 0.72;
 /** Marker height = official elevation (km), exaggeration 1.0. */
 export function markerHeightKm(elevationM) {
   return heightKm(elevationM);
+}
+
+// LOT 14: three/addons line modules, imported only when a route line is first shown.
+let lineModulesPromise = null;
+function loadLineModules() {
+  if (!lineModulesPromise) {
+    lineModulesPromise = Promise.all([
+      import('three/addons/lines/Line2.js'),
+      import('three/addons/lines/LineMaterial.js'),
+      import('three/addons/lines/LineGeometry.js'),
+    ]).then(([line, material, geometry]) => ({ Line2: line.Line2, LineMaterial: material.LineMaterial, LineGeometry: geometry.LineGeometry }))
+      .catch((error) => { lineModulesPromise = null; throw error; });
+  }
+  return lineModulesPromise;
 }
 
 function easeInOutCubic(t) {
@@ -394,6 +413,101 @@ export function createHimalayaScene({
     }
   }
 
+  // --- LOT 14: routes & camps of the active peak (opt-in)
+  const routeGroup = new THREE.Group();
+  routeGroup.name = 'routes';
+  routeGroup.visible = false;
+  scene.add(routeGroup);
+  const campGeometry = track(new THREE.SphereGeometry(1, 12, 8));
+  const campMaterial = track(new THREE.MeshBasicMaterial({ color: ROUTE_COLOR, transparent: true, opacity: 0.95 }));
+  let routeOverlay = null; // { key, peakId, showRoutes, showCamps }
+  let routeToken = 0;
+  let routeLines = [];
+  let routeCamps = [];
+  let routeLineError = null;
+  const routeResolution = new THREE.Vector2(1, 1);
+
+  function clearRouteOverlay() {
+    routeToken += 1;
+    for (const line of routeLines) { routeGroup.remove(line); line.geometry.dispose(); line.material.dispose(); }
+    for (const camp of routeCamps) { routeGroup.remove(camp.mesh); routeGroup.remove(camp.labelObject); camp.label.remove(); }
+    routeLines = [];
+    routeCamps = [];
+    routeLineError = null;
+  }
+
+  function addRouteLines(peak, token) {
+    loadLineModules().then(({ Line2, LineMaterial, LineGeometry }) => {
+      if (disposed || token !== routeToken) return;
+      for (const route of peak.routes) {
+        const positions = new Float32Array(route.waypoints.length * 3);
+        route.waypoints.forEach(([lat, lon, demM], k) => {
+          const p = projectLonLat(lon, lat, center);
+          positions[k * 3] = p.x; positions[k * 3 + 1] = heightKm(demM + RENDER_LIFT_M); positions[k * 3 + 2] = p.z;
+        });
+        const geometry = new LineGeometry();
+        geometry.setPositions(positions);
+        const material = new LineMaterial({
+          color: ROUTE_COLOR, linewidth: ROUTE_WIDTH_PX, worldUnits: false, transparent: true, opacity: 0.95,
+          dashed: route.style === 'dashed', dashSize: 0.12, gapSize: 0.08,
+        });
+        material.resolution.copy(routeResolution);
+        const line = new Line2(geometry, material);
+        if (route.style === 'dashed') line.computeLineDistances();
+        line.name = `route-${route.id}`;
+        line.renderOrder = 4;
+        line.userData = { routeId: route.id, style: route.style, vertices: route.waypoints.length };
+        routeGroup.add(line);
+        routeLines.push(line);
+      }
+    }).catch((error) => {
+      if (disposed || token !== routeToken) return;
+      routeLineError = error?.message || String(error);
+      console.warn('[Living Himalaya] Route lines unavailable.', routeLineError);
+      onTerrainEvent({ type: 'routes-lines-error', error: routeLineError });
+    });
+  }
+
+  function addCampMarkers(peak) {
+    for (const camp of peak.camps) {
+      if (!camp.marker) continue; // listed only: no position, outside the patch or inconsistent sources
+      const p = projectLonLat(camp.lon, camp.lat, center);
+      const position = new THREE.Vector3(p.x, heightKm(camp.demElevationM + RENDER_LIFT_M), p.z);
+      const mesh = new THREE.Mesh(campGeometry, campMaterial);
+      mesh.position.copy(position);
+      mesh.renderOrder = 5;
+      mesh.visible = false;
+      routeGroup.add(mesh);
+      const label = document.createElement('span');
+      label.className = `himalaya-camp-label${camp.flag ? ' is-flagged' : ''}`;
+      label.dataset.campId = camp.id;
+      label.textContent = `${campLabel(camp)}${camp.flag ? ' ⚠' : ''}`;
+      const labelObject = new CSS2DObject(label);
+      labelObject.position.copy(position);
+      labelObject.visible = false;
+      routeGroup.add(labelObject);
+      routeCamps.push({ id: camp.id, mesh, label, labelObject, position });
+    }
+  }
+
+  /** LOT 14: show the routes/camps of `peakId` (data = the routes asset, or null while not loaded). */
+  function setRouteOverlay({ peakId = null, data = null, showRoutes = false, showCamps = false } = {}) {
+    const peak = peakId && data ? data.peaks?.[peakId] || null : null;
+    const key = `${peakId}|${peak ? 'data' : 'none'}|${showRoutes}|${showCamps}`;
+    if (routeOverlay?.key === key) return;
+    clearRouteOverlay();
+    routeOverlay = { key, peakId, showRoutes, showCamps };
+    if (!peak) return;
+    if (showCamps) addCampMarkers(peak);
+    if (showRoutes && peak.routes?.length) addRouteLines(peak, routeToken);
+  }
+
+  function routeOverlayVisible() {
+    if (!routeOverlay?.peakId || routeOverlay.peakId !== activeId || terrainMode !== 'glo30' || fade) return false;
+    const entry = activePatchId ? patches.peek(activePatchId) : null;
+    return Boolean(entry?.mesh.visible);
+  }
+
   // --- camera
   const overviewTarget = new THREE.Vector3(...OVERVIEW_VIEW.target);
   const overviewPosition = new THREE.Vector3(...OVERVIEW_VIEW.position);
@@ -483,6 +597,8 @@ export function createHimalayaScene({
     const height = canvas.clientHeight || window.innerHeight;
     renderer.setSize(width, height, false);
     labelRenderer.setSize(width, height);
+    routeResolution.set(width, height);
+    for (const line of routeLines) line.material.resolution.set(width, height);
     camera.aspect = width / Math.max(1, height);
     applyViewOffset(width, height);
     camera.updateProjectionMatrix();
@@ -547,6 +663,16 @@ export function createHimalayaScene({
       marker.head.scale.setScalar(s);
       if (marker.selectedStyle) marker.labelObject.visible = marker.peak.id === activeId || d <= SELECTED_LABEL_MAX_KM;
     }
+    // LOT 14: routes/camps only on the visible GLO-30 patch of the active peak; camps below CAMP_LABEL_MAX_KM.
+    const routesShown = routeOverlayVisible();
+    routeGroup.visible = routesShown;
+    for (const camp of routeCamps) {
+      const d = camera.position.distanceTo(camp.position);
+      const near = routesShown && d <= CAMP_LABEL_MAX_KM;
+      camp.mesh.visible = near;
+      camp.labelObject.visible = near;
+      if (near) camp.mesh.scale.setScalar(Math.max(0.006, d * 0.0045));
+    }
     gridMaterial.opacity = THREE.MathUtils.clamp((distance - 150) / 900, 0, 1) * 0.22;
     grid.visible = gridMaterial.opacity > 0.005;
     if (renderer.shadowMap.needsUpdate) shadowUpdates += 1;
@@ -599,6 +725,9 @@ export function createHimalayaScene({
       showPatch(null);
       if (instant) setView(overviewTarget, overviewPosition);
       else flyTo(overviewTarget, overviewPosition);
+    },
+    setRouteOverlay(options) {
+      if (!disposed) setRouteOverlay(options);
     },
     setTerrainMode(mode) {
       if (mode !== 'glo30' && mode !== 'terrarium') return;
@@ -750,6 +879,12 @@ export function createHimalayaScene({
         shadow: { mapSize: SHADOW_MAP_SIZE, autoUpdate: renderer.shadowMap.autoUpdate, updates: shadowUpdates, lastReason: lastShadowRequest },
         gpu: { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, bufferBytes: gpuBufferBytes(), shadowMapBytes: SHADOW_MAP_SIZE * SHADOW_MAP_SIZE * 4 },
         verticalExaggeration: VERTICAL_EXAGGERATION,
+        routes: {
+          peakId: routeOverlay?.peakId ?? null, showRoutes: Boolean(routeOverlay?.showRoutes), showCamps: Boolean(routeOverlay?.showCamps),
+          groupVisible: routeGroup.visible, children: routeGroup.children.length, lineModulesRequested: Boolean(lineModulesPromise), lineError: routeLineError,
+          lines: routeLines.map((line) => ({ id: line.userData.routeId, style: line.userData.style, vertices: line.userData.vertices, dashed: line.material.dashed, linewidth: line.material.linewidth, color: `#${line.material.color.getHexString()}` })),
+          camps: routeCamps.map((camp) => ({ id: camp.id, visible: camp.labelObject.visible, label: camp.label.textContent })),
+        },
       };
     },
     dispose() {
@@ -767,6 +902,8 @@ export function createHimalayaScene({
       satellite.clear();
       disposables.forEach((resource) => resource.dispose());
       sun.shadow.map?.dispose();
+      clearRouteOverlay();
+      scene.remove(routeGroup);
       labelRenderer.domElement.remove();
       gridLabels.length = 0;
       markers.clear();

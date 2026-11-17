@@ -27,7 +27,7 @@ export function sunLabel(sun, date) {
     : `Sun: approximate model (physical-model, simplified; astronomy-engine unavailable), ${formatUtc(date)}`;
 }
 
-export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null, image = null, glo30Accessed = null } = {}) {
+export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null, image = null, glo30Accessed = null, routes = null } = {}) {
   return [
     'Peaks: reference list (sources cited)',
     `Terrain: ${terrainMode === 'terrarium' ? TERRAIN_LABELS.terrarium : glo30Label(glo30Accessed || GLO30_ACCESSED)}`,
@@ -35,6 +35,7 @@ export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date =
     sunLabel(sun, date),
     weather,
     image,
+    routes, // LOT 14: only while a Routes/Camps switch is on
   ].filter(Boolean).join(' | ');
 }
 

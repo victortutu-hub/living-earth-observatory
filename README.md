@@ -116,6 +116,7 @@ The real key stays local. `.env` and `proxy-cache/` are ignored by Git.
 - Summit weather: Open-Meteo NOAA GFS 0.25° pressure levels interpolated to the summit height (`prediction`).
 - Sun and Moon: Astronomy Engine (`physical-model`); moonlight brightness is exaggerated for visibility and labelled.
 - History: per-peak aggregates from The Himalayan Database (`reported`: compiled from expedition accounts, not measurements), only for the peaks it covers; other peaks say so explicitly.
+- Routes & camps (opt-in, both switches off by default; nothing is loaded until one is turned on): Everest South Col and North Col routes drawn on the GLO-30 patch (`interpretive`: through the reported camps and named features, not GPS tracks; the Tibet route is dashed), and base/high camps for Everest, Lhotse, K2, Manaslu and Ama Dablam (positions `reported` by OpenStreetMap / Wikidata). Each camp shows its reported elevation with the source next to GLO-30 at the same point; differences above 50 m are flagged, above 150 m the camp is listed only. Camps without published coordinates or outside the detailed terrain are listed only; glacier camps move from season to season; hidden in the Terrarium overview. Other peaks: “No route data for this peak”. Approximate routes, for visualization only — not for navigation. The routes file is published under ODbL (© OpenStreetMap contributors).
 
 ### Living Protein V0.1
 
@@ -155,7 +156,7 @@ Provenance labels follow `src/config/source-registry.js`.
 - Smithsonian Global Volcanism Program: volcano catalog through the proxy (`observed`).
 - Open-Meteo Forecast API: wind field (`prediction`); Open-Meteo Historical Weather API (ERA5, ECMWF / Copernicus Climate Change Service): past days of wind (`reconstructed`).
 - Open-Meteo Marine API: live ocean currents (`prediction`) and SMOC past days (Copernicus Marine Service / Météo-France, `physical-model`).
-- Living Himalaya: cited summit list (`observed`), Copernicus DEM GLO-30 and Terrarium tiles (`reconstructed`), Sentinel-2 L2A (`observed`), Open-Meteo GFS pressure levels (`prediction`), The Himalayan Database aggregates (`reported`).
+- Living Himalaya: cited summit list (`observed`), Copernicus DEM GLO-30 and Terrarium tiles (`reconstructed`), Sentinel-2 L2A (`observed`), Open-Meteo GFS pressure levels (`prediction`), The Himalayan Database aggregates (`reported`), routes (`interpretive`) and camps (`reported`, OpenStreetMap / Wikidata, ODbL file).
 - NOAA/ETOPO 2022-derived relief assets (built by `tools/build-relief.mjs`); lake surfaces rendered at 0 m (ETOPO has no lake levels).
 - Astronomy Engine: apparent solar position, solar clock, Moon position, phase, distance, and astronomical geometry.
 - TLE/SGP4: ISS position and orbital tracking.

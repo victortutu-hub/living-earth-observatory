@@ -104,6 +104,25 @@ system. Always consult the original providers for authoritative data.
   of the U.S. Geological Survey; Global ETOPO1 terrain data U.S. National
   Oceanic and Atmospheric Administration.
 
+## Living Himalaya Routes And Camps (OpenStreetMap, Wikidata)
+
+- `assets/himalaya/routes-<hash>.json` (metadata in `src/config/himalaya-routes.js`,
+  built offline by `tools/build-himalaya-routes.mjs` from
+  `tools/data/himalaya-routes-source.json`) is published under the
+  **Open Database License (ODbL 1.0)**, separately from the licence of this
+  repository. It contains camp positions from OpenStreetMap —
+  “© OpenStreetMap contributors”, https://www.openstreetmap.org/copyright —
+  and from Wikidata (CC0).
+- Camp elevations are cited facts, each with its source: OpenStreetMap,
+  Wikidata, Alan Arnette (alanarnette.com: Everest, Lhotse, K2 and Manaslu FAQ),
+  ExplorersWeb (Manaslu and Ama Dablam climbers' guides; Second Seven Summits:
+  K2), Philippe Gatta (K2 expedition) and SummitPost (The Abruzzi Spur). No text
+  is copied; no data from The Himalayan Database is used.
+- Route lines are `interpretive` (drawn through the reported camps and named
+  features; not GPS tracks); camp positions are `reported`. Approximate routes,
+  for visualization only — not for navigation. GLO-30 elevations at each camp
+  come from the Copernicus DEM patches listed above.
+
 ## Living Himalaya History (The Himalayan Database)
 
 - `assets/himalaya/hdb-aggregates-<hash>.json` (metadata in

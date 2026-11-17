@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot7">
+  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot14">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
@@ -48,6 +48,12 @@
         </fieldset>
         <p id="himalayaImageNote" class="himalaya-mode-note" aria-live="polite"></p>
         <button id="himalayaImageBest" class="himalaya-time-now himalaya-image-best" type="button" hidden></button>
+        <div class="himalaya-route-switches" role="group" aria-labelledby="himalayaRoutesLegend">
+          <span id="himalayaRoutesLegend" class="himalaya-switch-legend">Routes &amp; camps</span>
+          <button id="himalayaRoutesSwitch" class="himalaya-switch" type="button" role="switch" aria-checked="false"><span class="himalaya-switch-track" aria-hidden="true"></span><span class="himalaya-switch-text">Routes</span></button>
+          <button id="himalayaCampsSwitch" class="himalaya-switch" type="button" role="switch" aria-checked="false"><span class="himalaya-switch-track" aria-hidden="true"></span><span class="himalaya-switch-text">Camps (Base Camp + C1…C4)</span></button>
+          <p id="himalayaRoutesNote" class="himalaya-mode-note himalaya-routes-note" aria-live="polite" hidden></p>
+        </div>
         <p class="himalaya-mode-note">Lit terrain: uniform albedo lit by the computed Sun · vertical exaggeration 1.0</p>
         <label id="himalayaTimeLabel" class="himalaya-time" for="himalayaTime">Sun time on the current UTC day</label>
         <p id="himalayaTimeSource" class="himalaya-mode-note himalaya-time-source" hidden></p>
@@ -76,7 +82,7 @@
   <script type="module">
     import { platformRegistry } from './src/core/platform-registry.js';
     import { createObservatoryModuleHost } from './src/core/observatory/module-host.js';
-    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot7';
+    import { livingHimalayaModule } from './src/himalaya/living-himalaya-module.js?v=himalayaLot14';
 
     const moduleHost = createObservatoryModuleHost({
       registry: platformRegistry,

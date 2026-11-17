@@ -28,6 +28,10 @@ import {
 import { createLru } from './terrarium.js';
 import { historyRows, isCovered } from './hdb-history.js';
 import { HIMALAYA_HISTORY_ASSET } from '../config/himalaya-history.js';
+import { HIMALAYA_ROUTES_ASSET } from '../config/himalaya-routes.js';
+import {
+  ROUTES_ATTRIBUTION, ROUTES_SCHEMA, TEXT as ROUTE_TEXT, routeSectionRows, routesBarSegment, switchNote, wantsRouteData,
+} from './routes-model.js';
 
 export const FUTURE_FIELDS = Object.freeze([]);
 export const IMAGE_MODES = Object.freeze(['satellite', 'lit']);
@@ -140,6 +144,9 @@ export function startHimalayaApp({
   const imageBest = document.getElementById('himalayaImageBest');
   const nightText = document.getElementById('himalayaNightText');
   const nightMoon = document.getElementById('himalayaNightMoon');
+  const routesSwitch = document.getElementById('himalayaRoutesSwitch');
+  const campsSwitch = document.getElementById('himalayaCampsSwitch');
+  const routesNote = document.getElementById('himalayaRoutesNote');
   document.body.classList.toggle('is-atlas-embedded', embedded);
 
   const listeners = new AbortController();
@@ -179,6 +186,52 @@ export function startHimalayaApp({
       renderPanel();
     });
   }
+  // LOT 14: routes & camps, opt-in (both switches OFF by default). The routes
+  // file is fetched only on the first activation (guarded runtime: backoff,
+  // at most 3 failed attempts); the switch state is kept in the page only and
+  // survives summit changes.
+  const routes = { showRoutes: false, showCamps: false, status: 'idle', data: null, lineError: null, requests: 0 };
+  const routesActive = () => routes.showRoutes || routes.showCamps;
+  function loadRoutes() {
+    routes.status = 'loading';
+    routes.requests += 1;
+    terrainRuntime.fetchResource({
+      key: 'himalaya-routes', url: new URL(HIMALAYA_ROUTES_ASSET.file, document.baseURI).href, responseType: 'json',
+      ttl: 0, staleTtl: 0, timeout: 15_000, signal: listeners.signal,
+    }).then((result) => {
+      if (!alive()) return;
+      if (result.data?.schema !== ROUTES_SCHEMA) throw new Error('unexpected routes file');
+      routes.status = 'ready'; routes.data = result.data;
+      applyRoutes();
+    }).catch((error) => {
+      if (!alive()) return;
+      routes.status = 'error';
+      console.warn('[Living Himalaya] Route data unavailable.', error?.message || error);
+      applyRoutes();
+    });
+  }
+  function syncRouteOverlay() {
+    scene?.setRouteOverlay({ peakId: activeId, data: routes.status === 'ready' ? routes.data : null, showRoutes: routes.showRoutes, showCamps: routes.showCamps });
+  }
+  function updateRouteControls() {
+    for (const [button, on] of [[routesSwitch, routes.showRoutes], [campsSwitch, routes.showCamps]]) {
+      button.setAttribute('aria-checked', String(on));
+      button.setAttribute('aria-busy', String(on && routes.status === 'loading'));
+    }
+    const note = switchNote({ ...routes, peakId: activeId, terrainMode });
+    routesNote.hidden = !note;
+    routesNote.textContent = routes.lineError && routes.showRoutes ? `${note} Route lines: ${ROUTE_TEXT.unavailable}.` : note;
+  }
+  function applyRoutes() {
+    if (!alive()) return;
+    if (wantsRouteData(routes)) loadRoutes();
+    updateRouteControls();
+    syncRouteOverlay();
+    renderSources(lastSceneYear);
+    renderPanel();
+    updateProvenance();
+  }
+
   // --- Sentinel-2 Satellite mode (Lot 4)
   let userImageMode = 'satellite';
   let sat = null; // { peakId, status, selection, pass, level, error, upgrading }
@@ -203,13 +256,15 @@ export function startHimalayaApp({
   const timeNotRestored = !timeFromEarth && searchParams.get('timeNote') === 'not-restored';
 
   // --- sources & attribution (the Sentinel-2 notice carries the year of the scene shown)
+  let lastSceneYear = null;
   function renderSources(sceneYear = null) {
+    lastSceneYear = sceneYear;
     const sentinelEntry = {
       title: 'Sentinel-2 image (Satellite mode)',
       text: sceneYear ? sentinelAttribution(sceneYear) : 'Contains modified Copernicus Sentinel data [year of the scene shown]',
       note: 'Sentinel-2 L2A (atmospherically corrected with Sen2Cor), Cloud-Optimized GeoTIFFs found through Earth Search (Element 84) on AWS Open Data; bands B4/B3/B2 with one fixed stretch for every scene, reprojected from UTM onto the GLO-30 patch.',
     };
-    sources.replaceChildren(...[...ATTRIBUTIONS, sentinelEntry].map((entry) => {
+    sources.replaceChildren(...[...ATTRIBUTIONS, sentinelEntry, ...(routesActive() ? [ROUTES_ATTRIBUTION] : [])].map((entry) => {
       const item = element('li');
       item.append(element('strong', null, entry.title), element('span', 'himalaya-source-text', entry.text), element('span', 'himalaya-source-note', entry.note));
       if (entry.link) {
@@ -231,7 +286,7 @@ export function startHimalayaApp({
     const weatherForPeak = weatherState && weatherState.peakId === activeId ? weatherState : null;
     const imageSegment = satelliteShown() ? imageBarSegment(sat.pass) : 'Image: none (Lit terrain)';
     const patch = activeId ? getTerrainPatch(activeId) : null;
-    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment, glo30Accessed: patch?.accessed || null });
+    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment, glo30Accessed: patch?.accessed || null, routes: routesBarSegment(routes) });
     provenanceText.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
   }
 
@@ -287,7 +342,18 @@ export function startHimalayaApp({
     const historySection = element('section', 'himalaya-weather himalaya-history');
     historySection.setAttribute('aria-label', 'History');
     historySection.append(element('h3', null, 'History'), historyList);
-    details.replaceChildren(element('h2', null, peak.name), rows, weatherSection, historySection);
+    const sections = [element('h2', null, peak.name), rows, weatherSection, historySection];
+    // Routes & camps (Lot 14): only while a switch is on.
+    const routeRows = routeSectionRows({ peakId: peak.id, data: routes.data, status: routes.status, showRoutes: routes.showRoutes, showCamps: routes.showCamps, terrainMode });
+    if (routeRows.length) {
+      const routeList = element('dl', 'himalaya-panel-rows himalaya-route-rows');
+      routeRows.forEach(([label, value, state]) => routeList.append(element('dt', null, label), element('dd', state ? `is-${state}` : null, value)));
+      const routeSection = element('section', 'himalaya-weather himalaya-routes');
+      routeSection.setAttribute('aria-label', 'Routes and camps');
+      routeSection.append(element('h3', null, 'Routes & camps'), routeList);
+      sections.push(routeSection);
+    }
+    details.replaceChildren(...sections);
   }
 
   function updateSun() {
@@ -337,6 +403,8 @@ export function startHimalayaApp({
     });
     list.querySelector(`button[data-peak-id="${id}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     scene?.focusPeak(id, { instant });
+    syncRouteOverlay();
+    updateRouteControls();
     sheet.reveal();
     loadWeather(peak);
     loadSatellite(peak);
@@ -432,6 +500,7 @@ export function startHimalayaApp({
     terrainMode = mode;
     terrainInputs.forEach((input) => { input.checked = input.value === mode; });
     scene?.setTerrainMode(mode);
+    updateRouteControls();
     applyImageMode();
     renderPanel();
     updateProvenance();
@@ -456,6 +525,9 @@ export function startHimalayaApp({
   terrainInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setTerrainMode(input.value); }));
   imageInputs.forEach((input) => on(input, 'change', () => { if (input.checked) setImageMode(input.value); }));
   on(imageBest, 'click', () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); });
+  // LOT 14: native buttons (Enter / Space) with role="switch" + aria-checked.
+  on(routesSwitch, 'click', () => { routes.showRoutes = !routes.showRoutes; applyRoutes(); });
+  on(campsSwitch, 'click', () => { routes.showCamps = !routes.showCamps; applyRoutes(); });
   // "Now": back to live; a time from Living Earth is dropped, the weather and
   // the Sentinel-2 selection follow "now" again (the slider never re-selects).
   function goLive() {
@@ -548,6 +620,7 @@ export function startHimalayaApp({
       getPatchKey: patchKeyOf,
       onTerrainEvent: (event) => {
         if (!alive()) return;
+        if (event.type === 'routes-lines-error') { routes.lineError = event.error; updateRouteControls(); return; }
         // Patch events carry the patch key (Yalung Kang -> kangchenjunga); Terrarium events the peak id.
         if (activeId && (event.peakId === activeId || event.peakId === patchKeyOf(activeId))) renderPanel();
       },
@@ -584,6 +657,9 @@ export function startHimalayaApp({
       imageNote: imageNote.textContent,
       provenance: provenanceText.textContent, provenanceExpanded: panelState.provenance, panels: { ...panelState }, viewOffsetY: scene?.viewOffsetY?.() ?? 0,
       timeFromEarth: time.fromEarth, timeNote: timeSource.hidden ? null : timeSource.textContent, scene: scene?.snapshot() || null,
+      routes: { showRoutes: routes.showRoutes, showCamps: routes.showCamps, status: routes.status, requests: routes.requests, lineError: routes.lineError, note: routesNote.hidden ? null : routesNote.textContent,
+        switches: [routesSwitch, campsSwitch].map((b) => ({ id: b.id, role: b.getAttribute('role'), checked: b.getAttribute('aria-checked'), busy: b.getAttribute('aria-busy') })),
+        rows: activeId ? routeSectionRows({ peakId: activeId, data: routes.data, status: routes.status, showRoutes: routes.showRoutes, showCamps: routes.showCamps, terrainMode }) : [] },
     }),
     select: (id) => select(id),
     setTerrainMode,

@@ -1,0 +1,154 @@
+{
+  "$comment": "Living Himalaya LOT 14 - hand-written, versioned source for classic routes and camps. Facts only (camp names, reported elevations, route sequence) with the ID of every position (osm:node/... or wikidata:Q...) and the source of every elevation; no text copied. Elevations in feet keep the original value and unit (the build tool converts). No data from The Himalayan Database. Built by tools/build-himalaya-routes.mjs into assets/himalaya/routes-<hash>.json.",
+  "checked": "2026-11-17",
+  "references": {
+    "osm": { "label": "OpenStreetMap", "license": "ODbL" },
+    "wikidata": { "label": "Wikidata", "license": "CC0" },
+    "arnette-everest": { "label": "Alan Arnette, Everest FAQ", "url": "https://www.alanarnette.com/everest/everestfaq.php" },
+    "arnette-lhotse": { "label": "Alan Arnette, Lhotse FAQ", "url": "https://www.alanarnette.com/alans-climbs/lhotse-faq/" },
+    "arnette-k2": { "label": "Alan Arnette, K2 FAQ", "url": "https://www.alanarnette.com/climbs/k2faq.php" },
+    "arnette-k2-winter": { "label": "Alan Arnette, K2 winter on the Abruzzi (2020)", "url": "https://www.alanarnette.com/2020/12/23/k2-winter-on-the-abruzzi/", "evidence": "search-result" },
+    "arnette-manaslu": { "label": "Alan Arnette, Manaslu FAQ", "url": "https://www.alanarnette.com/climbs/manaslufaq.php" },
+    "explorersweb-manaslu": { "label": "ExplorersWeb, Manaslu: A Climber's Guide", "url": "https://explorersweb.com/manaslu-a-climbers-guide/" },
+    "explorersweb-ama-dablam": { "label": "ExplorersWeb, Ama Dablam: A Climbers' Guide", "url": "https://explorersweb.com/ama-dablam-a-climbers-guide/" },
+    "explorersweb-k2": { "label": "ExplorersWeb, Second Seven Summits: K2", "url": "https://explorersweb.com/second-seven-summits-k2/", "evidence": "search-result" },
+    "gatta-k2": { "label": "Philippe Gatta, K2 expedition (8,611 m)", "url": "https://www.philippegatta.fr/k2-8611-m-pakistan", "evidence": "search-result" },
+    "summitpost-abruzzi": { "label": "SummitPost, The Abruzzi Spur (South-East Ridge)", "url": "https://summitpost.org/the-abruzzi-spur-south-east-ridge/159540", "evidence": "search-result" }
+  },
+  "peaks": {
+    "everest": {
+      "camps": [
+        { "id": "everest-s-bc", "route": "south-col", "short": "BC", "name": "Everest Base Camp (South, Nepal)", "glacier": true,
+          "position": { "ref": "wikidata:Q99671286", "lat": 28.007222, "lon": 86.859444 },
+          "elevation": { "value": 5364, "unit": "m", "ref": "wikidata:Q99671286" },
+          "alternates": [ { "ref": "osm:node/5225912921", "lat": 27.9996646, "lon": 86.8487946, "value": 5364, "unit": "m" } ] },
+        { "id": "everest-s-c1", "route": "south-col", "short": "C1", "name": "Camp 1 (top of the Khumbu Icefall)", "glacier": true,
+          "position": { "ref": "osm:node/4880806686", "lat": 27.9864173, "lon": 86.8765224 },
+          "elevation": { "value": 6060, "unit": "m", "ref": "osm:node/4880806686" },
+          "alternates": [ { "ref": "arnette-everest", "value": 19500, "unit": "ft" } ] },
+        { "id": "everest-s-c2", "route": "south-col", "short": "C2", "name": "Camp 2 (Western Cwm)", "glacier": true,
+          "position": { "ref": "osm:node/4880806685", "lat": 27.9815643, "lon": 86.8991408 },
+          "elevation": { "value": 6400, "unit": "m", "ref": "osm:node/4880806685" },
+          "alternates": [ { "ref": "arnette-everest", "value": 6400, "unit": "m" } ] },
+        { "id": "everest-s-c3", "route": "south-col", "short": "C3", "name": "Camp 3 (Lhotse Face)", "glacier": true,
+          "position": { "ref": "osm:node/5058632244", "lat": 27.9688883, "lon": 86.9178104 },
+          "elevation": { "value": 7100, "unit": "m", "ref": "osm:node/5058632244" },
+          "alternates": [ { "ref": "arnette-everest", "value": 23500, "unit": "ft" }, { "ref": "arnette-everest", "value": 23000, "unit": "ft" } ] },
+        { "id": "everest-s-c4", "route": "south-col", "short": "C4", "name": "Camp 4 (South Col)", "glacier": false,
+          "position": { "ref": "wikidata:Q2598195", "lat": 27.975, "lon": 86.931944 },
+          "elevation": { "value": 7906, "unit": "m", "ref": "wikidata:Q2598195" },
+          "alternates": [ { "ref": "osm:node/576713400", "lat": 27.9733654, "lon": 86.9302508, "value": 7920, "unit": "m" }, { "ref": "osm:node/2540248530", "lat": 27.9741973, "lon": 86.9319071, "value": 7907, "unit": "m" }, { "ref": "arnette-everest", "value": 8000, "unit": "m" } ] },
+        { "id": "everest-n-bc", "route": "north-col", "short": "BC", "name": "Everest Base Camp (North, Tibet)", "glacier": false,
+          "position": { "ref": "wikidata:Q99671023", "lat": 28.141111, "lon": 86.851389 },
+          "elevation": { "value": 5150, "unit": "m", "ref": "wikidata:Q99671023" } },
+        { "id": "everest-n-int", "route": "north-col", "short": "Int.", "name": "Intermediate Camp", "glacier": true,
+          "position": { "ref": "osm:node/11956078353", "lat": 28.082274, "lon": 86.9193624 },
+          "elevation": { "value": 5800, "unit": "m", "ref": "osm:node/11956078353" } },
+        { "id": "everest-n-abc", "route": "north-col", "short": "ABC", "name": "Advanced Base Camp", "glacier": true,
+          "position": { "ref": "osm:node/1348498380", "lat": 28.0304568, "lon": 86.9403576 },
+          "elevation": { "value": 6500, "unit": "m", "ref": "osm:node/1348498380" } },
+        { "id": "everest-n-c1", "route": "north-col", "short": "C1", "name": "Camp 1 (North Col)", "glacier": true,
+          "position": { "ref": "osm:node/1348498379", "lat": 28.0163695, "lon": 86.923316 },
+          "elevation": { "value": 7028, "unit": "m", "ref": "osm:node/1348498379" },
+          "alternates": [ { "ref": "wikidata:Q2611798", "lat": 28.015833, "lon": 86.925, "value": 7020, "unit": "m" }, { "ref": "osm:node/2681946526", "lat": 28.0161604, "lon": 86.9233646, "value": 7042, "unit": "m" }, { "ref": "arnette-everest", "value": 23000, "unit": "ft" } ] },
+        { "id": "everest-n-c2", "route": "north-col", "short": "C2", "name": "Camp 2 (North Ridge)", "glacier": false,
+          "position": { "ref": "osm:node/1348498378", "lat": 28.0062366, "lon": 86.9298976 },
+          "elevation": { "value": 7790, "unit": "m", "ref": "osm:node/1348498378" } },
+        { "id": "everest-n-c3", "route": "north-col", "short": "C3", "name": "Camp 3 (North Ridge)", "glacier": false,
+          "position": { "ref": "osm:node/11956078759", "lat": 27.9990239, "lon": 86.9321909 },
+          "elevation": { "value": 8300, "unit": "m", "ref": "osm:node/11956078759" },
+          "alternates": [ { "ref": "arnette-everest", "value": 8300, "unit": "m" } ] }
+      ],
+      "routes": [
+        { "id": "south-col", "name": "South Col – Southeast Ridge", "side": "Nepal (south)", "style": "solid",
+          "via": [
+            { "camp": "everest-s-bc" },
+            { "feature": "Khumbu Icefall", "ref": "wikidata:Q7876005", "lat": 27.995841, "lon": 86.872759 },
+            { "camp": "everest-s-c1" }, { "camp": "everest-s-c2" }, { "camp": "everest-s-c3" }, { "camp": "everest-s-c4" },
+            { "feature": "Hillary Step", "ref": "wikidata:Q15114831", "lat": 27.987468, "lon": 86.924828 },
+            { "summit": true }
+          ] },
+        { "id": "north-col", "name": "North Col – North Ridge", "side": "Tibet (north)", "style": "dashed",
+          "note": "From Advanced Base Camp; the approach from Base Camp lies outside the detailed terrain.",
+          "via": [ { "camp": "everest-n-abc" }, { "camp": "everest-n-c1" }, { "camp": "everest-n-c2" }, { "camp": "everest-n-c3" }, { "summit": true } ] }
+      ]
+    },
+    "lhotse": {
+      "camps": [
+        { "id": "lhotse-bc", "sameAs": "everest/everest-s-bc", "route": "west-face", "short": "BC", "name": "Everest Base Camp (South, Nepal)" },
+        { "id": "lhotse-c1", "sameAs": "everest/everest-s-c1", "route": "west-face", "short": "C1", "name": "Camp 1 (shared with Everest)" },
+        { "id": "lhotse-c2", "sameAs": "everest/everest-s-c2", "route": "west-face", "short": "C2", "name": "Camp 2 (shared with Everest)" },
+        { "id": "lhotse-c3", "sameAs": "everest/everest-s-c3", "route": "west-face", "short": "C3", "name": "Camp 3 (shared with Everest)" },
+        { "id": "lhotse-c4", "route": "west-face", "short": "C4", "name": "Camp 4 (Lhotse)", "glacier": false, "position": null,
+          "elevation": { "value": 7850, "unit": "m", "ref": "arnette-lhotse" } }
+      ]
+    },
+    "k2": {
+      "camps": [
+        { "id": "k2-bc", "route": "abruzzi", "short": "BC", "name": "K2 Base Camp", "glacier": true,
+          "position": { "ref": "wikidata:Q88267655", "lat": 35.8345446, "lon": 76.509271 },
+          "elevation": { "value": 4965, "unit": "m", "ref": "wikidata:Q88267655" },
+          "alternates": [ { "ref": "osm:node/4844636351", "lat": 35.8345446, "lon": 76.509271, "value": 4965, "unit": "m" }, { "ref": "gatta-k2", "value": 5000, "unit": "m" } ] },
+        { "id": "k2-c1", "route": "abruzzi", "short": "C1", "name": "Camp 1 (Abruzzi Spur)", "glacier": false,
+          "position": { "ref": "osm:node/8333608341", "lat": 35.8660027, "lon": 76.5360937 },
+          "elevation": { "value": 6050, "unit": "m", "ref": "arnette-k2" },
+          "alternates": [ { "ref": "gatta-k2", "value": 6050, "unit": "m" } ] },
+        { "id": "k2-c2", "route": "abruzzi", "short": "C2", "name": "Camp 2 (above House's Chimney)", "glacier": false,
+          "position": { "ref": "osm:node/8333608342", "lat": 35.8684937, "lon": 76.5329501 },
+          "elevation": { "value": 6700, "unit": "m", "ref": "arnette-k2" },
+          "alternates": [ { "ref": "explorersweb-k2", "value": 6570, "unit": "m" }, { "ref": "gatta-k2", "value": 6700, "unit": "m" } ] },
+        { "id": "k2-c3", "route": "abruzzi", "short": "C3", "name": "Camp 3 (above the Black Pyramid)", "glacier": true,
+          "position": { "ref": "osm:node/8333608343", "lat": 35.872406, "lon": 76.5316412 },
+          "elevation": { "value": 7200, "unit": "m", "ref": "arnette-k2" },
+          "alternates": [ { "ref": "summitpost-abruzzi", "value": 7250, "unit": "m" }, { "ref": "arnette-k2-winter", "value": 7300, "unit": "m" }, { "ref": "gatta-k2", "value": 7400, "unit": "m" } ] },
+        { "id": "k2-c4", "route": "abruzzi", "short": "C4", "name": "Camp 4 (Shoulder)", "glacier": true, "position": null,
+          "elevation": { "value": 7600, "unit": "m", "ref": "arnette-k2" },
+          "alternates": [ { "ref": "gatta-k2", "value": 7950, "unit": "m" } ] }
+      ]
+    },
+    "manaslu": {
+      "camps": [
+        { "id": "manaslu-bc", "route": "northeast-face", "short": "BC", "name": "Manaslu Base Camp", "glacier": true,
+          "position": { "ref": "osm:node/5255108622", "lat": 28.5940526, "lon": 84.6001815 },
+          "elevation": { "value": 4800, "unit": "m", "ref": "explorersweb-manaslu" },
+          "alternates": [ { "ref": "osm:node/5255108622", "value": 4800, "unit": "m" }, { "ref": "arnette-manaslu", "value": 15700, "unit": "ft" } ] },
+        { "id": "manaslu-c1", "route": "northeast-face", "short": "C1", "name": "Camp 1", "glacier": true,
+          "position": { "ref": "osm:node/8086699617", "lat": 28.5884728, "lon": 84.5691639 },
+          "elevation": { "value": 5500, "unit": "m", "ref": "explorersweb-manaslu" },
+          "alternates": [ { "ref": "arnette-manaslu", "value": 18700, "unit": "ft" } ] },
+        { "id": "manaslu-c2", "route": "northeast-face", "short": "C2", "name": "Camp 2", "glacier": true, "position": null,
+          "elevation": { "value": 6250, "unit": "m", "ref": "explorersweb-manaslu" },
+          "alternates": [ { "ref": "arnette-manaslu", "value": 21000, "unit": "ft" } ] },
+        { "id": "manaslu-c3", "route": "northeast-face", "short": "C3", "name": "Camp 3", "glacier": true,
+          "position": { "ref": "osm:node/8086699618", "lat": 28.5714976, "lon": 84.5518901 },
+          "elevation": { "value": 6800, "unit": "m", "ref": "explorersweb-manaslu" },
+          "alternates": [ { "ref": "arnette-manaslu", "value": 22300, "unit": "ft" } ] },
+        { "id": "manaslu-north-col", "route": "northeast-face", "short": "Col", "name": "North Col (saddle on the route)", "kind": "feature", "glacier": true,
+          "position": { "ref": "osm:node/7872060430", "lat": 28.5731216, "lon": 84.5493221 },
+          "elevation": { "value": 7100, "unit": "m", "ref": "osm:node/7872060430" } },
+        { "id": "manaslu-c4", "route": "northeast-face", "short": "C4", "name": "Camp 4", "glacier": true,
+          "position": { "ref": "osm:node/8086699319", "lat": 28.5618633, "lon": 84.5470376 },
+          "elevation": { "value": 7500, "unit": "m", "ref": "explorersweb-manaslu" },
+          "alternates": [ { "ref": "arnette-manaslu", "value": 24500, "unit": "ft" } ] }
+      ]
+    },
+    "ama-dablam": {
+      "camps": [
+        { "id": "ama-dablam-bc", "route": "southwest-ridge", "short": "BC", "name": "Ama Dablam Base Camp", "glacier": false, "position": null,
+          "elevation": { "value": 4470, "unit": "m", "ref": "explorersweb-ama-dablam" } },
+        { "id": "ama-dablam-yak", "route": "southwest-ridge", "short": "Yak", "name": "Yak Camp (advanced base camp)", "glacier": false,
+          "position": { "ref": "osm:node/13353897160", "lat": 27.8398065, "lon": 86.8429937 },
+          "elevation": { "value": 5100, "unit": "m", "ref": "explorersweb-ama-dablam" } },
+        { "id": "ama-dablam-c1", "route": "southwest-ridge", "short": "C1", "name": "Camp 1", "glacier": false, "position": null,
+          "elevation": { "value": 5700, "unit": "m", "ref": "explorersweb-ama-dablam" } },
+        { "id": "ama-dablam-c2", "route": "southwest-ridge", "short": "C2", "name": "Camp 2 (on the Yellow Tower)", "glacier": false,
+          "position": { "ref": "osm:node/13353897506", "lat": 27.8565956, "lon": 86.8544885 },
+          "elevation": { "value": 6080, "unit": "m", "ref": "explorersweb-ama-dablam" } },
+        { "id": "ama-dablam-c3", "route": "southwest-ridge", "short": "C3", "name": "Camp 3 (often skipped)", "glacier": true,
+          "position": { "ref": "osm:node/13357969032", "lat": 27.8597, "lon": 86.8575035 },
+          "elevation": { "value": 6277, "unit": "m", "ref": "explorersweb-ama-dablam" },
+          "note": "Often skipped: recent summit bids start from Camp 2." }
+      ]
+    }
+  }
+}
