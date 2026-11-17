@@ -131,13 +131,42 @@ describe('LOT 14 asset: frozen, valid, inside the approved scope', () => {
     expect(camp('ama-dablam', 'ama-dablam-c3')).toMatchObject({ marker: true, flag: false, reportedElevationM: 6277 });
   });
 
+  it('⚠ strictly above 50 m, for positive and negative Δ (Manaslu C4: 7500 − 7424.6 → +75 m ⚠)', () => {
+    const at = (demDeltaM, demDerived = false) => campDisplay({ hasPosition: true, outsidePatch: false, demDeltaM, demDerived }).flag;
+    expect([45, 50, 51, -45, -50, -51].map((d) => at(d))).toEqual([false, false, true, false, false, true]);
+    expect(camp('manaslu', 'manaslu-c4')).toMatchObject({ reportedElevationM: 7500, elevationSource: 'explorersweb-manaslu', demDeltaM: 75, flag: true, marker: true });
+    expect(camp('ama-dablam', 'ama-dablam-c3')).toMatchObject({ demDeltaM: -29, flag: false });
+  });
+
+  it('likely DEM-derived OSM elevations: never the main value when a published one exists, never flagged', () => {
+    const at = (demDeltaM) => campDisplay({ hasPosition: true, outsidePatch: false, demDeltaM, demDerived: true });
+    expect(at(120)).toEqual({ marker: true, listOnly: null, flag: false });
+    expect(at(-200)).toEqual({ marker: false, listOnly: 'inconsistent', flag: false });
+    for (const peak of Object.values(asset.peaks)) {
+      for (const c of peak.camps) {
+        if (c.elevationDemDerived) expect(c.flag, c.id).toBe(false);
+        expect(c.sources.filter((x) => x.demDerived).every((x) => x.role === 'reference' || c.elevationDemDerived), c.id).toBe(true);
+      }
+    }
+    // Everest South Col route: OSM ele on nodes whose position is tagged SRTM (no source for ele) -> Arnette is the main value.
+    for (const [id, node, reported] of [['everest-s-c1', 4880806686, 5944], ['everest-s-c2', 4880806685, 6400], ['everest-s-c3', 5058632244, 7163]]) {
+      const c = camp('everest', id);
+      expect(c).toMatchObject({ elevationSource: 'arnette-everest', elevationDemDerived: false, reportedElevationM: reported, positionSource: `osm:node/${node}` });
+      expect(c.sources.find((x) => x.ref === `osm:node/${node}` && x.demDerived)).toMatchObject({ role: 'reference', evidence: expect.stringContaining('SRTM') });
+    }
+    expect(camp('everest', 'everest-s-c3').reportedRangeM).toEqual([7010, 7163]); // 7100 (OSM, DEM-derived) is not in the range
+    const derived = campRow({ ...camp('everest', 'everest-s-c2'), elevationDemDerived: true, flag: false }, asset.references)[1];
+    expect(derived.startsWith('OSM elevation (likely DEM-derived) 6,400 m · GLO-30 at this point: 6,392 m')).toBe(true);
+    expect(derived).not.toContain('⚠');
+  });
+
   it('two-point camps: one marker at the Wikidata position, the other point kept in sources', () => {
     const bc = camp('everest', 'everest-s-bc');
     expect(bc).toMatchObject({ positionSource: 'wikidata:Q99671286', lat: 28.007222, lon: 86.859444, reportedElevationM: 5364, marker: true });
     expect(bc.sources.some((s) => s.ref === 'osm:node/5225912921' && s.role === 'reference')).toBe(true);
     const col = camp('everest', 'everest-s-c4');
     expect(col).toMatchObject({ positionSource: 'wikidata:Q2598195', reportedElevationM: 7906, elevationSource: 'wikidata:Q2598195' });
-    expect(col.sources.some((s) => s.ref === 'osm:node/576713400' && s.value === 7920)).toBe(true);
+    expect(col.sources.some((s) => s.ref === 'osm:node/576713400' && s.value === 7920 && s.demDerived)).toBe(true);
   });
 
   it('Lhotse C4 has no coordinates (listed only); Lhotse C1–C3 reuse the Everest camps', () => {
@@ -154,7 +183,7 @@ describe('LOT 14 asset: frozen, valid, inside the approved scope', () => {
       }
     }
     expect(feetToMetres(19500)).toBe(5944);
-    expect(camp('everest', 'everest-s-c1').reportedRangeM).toEqual([5944, 6060]);
+    expect(camp('everest', 'everest-s-c1')).toMatchObject({ reportedElevationM: 5944, elevationOriginal: { value: 19500, unit: 'ft' }, elevationSource: 'arnette-everest', reportedRangeM: null });
   });
 
   it('contains no Himalayan Database data', () => {
@@ -214,6 +243,7 @@ describe('LOT 14 UI texts and opt-in behaviour', () => {
     expect(k2['C2 · Camp 2 (above House\'s Chimney)']).toContain(TEXT.inconsistent);
     expect(k2['C4 · Camp 4 (Shoulder) (glacier)']).toContain('no published position — listed only');
     expect(campLabel(camp('everest', 'everest-s-c2'))).toBe('C2 · 6,400 m');
+    expect(values['C1 · Camp 1 (top of the Khumbu Icefall) (glacier)']).toBe('reported 5,944 m (19,500 ft; Alan Arnette, Everest FAQ) · GLO-30 at this point: 6,042 m · Δ −98 m ⚠ · Position reported by OpenStreetMap');
     expect(campRow(camp('lhotse', 'lhotse-c4'), asset.references)[1]).toBe('reported 7,850 m (Alan Arnette, Lhotse FAQ) · no published position — listed only');
   });
 

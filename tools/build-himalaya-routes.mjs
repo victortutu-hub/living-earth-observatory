@@ -88,7 +88,8 @@ function buildCamp(peakId, raw, order) {
   const reported = toMetres(camp.elevation);
   const alternates = camp.alternates || [];
   alternates.forEach((a, k) => checkRef(a.ref, `${where} alternate ${k}`));
-  const values = [reported, ...alternates.filter((a) => Number.isFinite(a.value)).map(toMetres)];
+  // Likely DEM-derived OSM values are not reported elevations: kept in sources, excluded from the range.
+  const values = [reported, ...alternates.filter((a) => Number.isFinite(a.value) && !a.demDerived).map(toMetres)];
   const range = Math.min(...values) !== Math.max(...values) ? [Math.min(...values), Math.max(...values)] : null;
   const position = camp.position || null;
   if (position) {
@@ -100,7 +101,8 @@ function buildCamp(peakId, raw, order) {
   const sampled = hasPosition && !outsidePatch ? sampleDem(peakId, position.lat, position.lon) : null;
   const dem = sampled == null ? null : round(sampled, 1); // the published value; Δ is computed from it
   const demDeltaM = dem == null ? null : Math.round(reported - dem);
-  const display = campDisplay({ hasPosition, outsidePatch, demDeltaM: demDeltaM ?? 0 });
+  const demDerived = Boolean(camp.elevation.demDerived);
+  const display = campDisplay({ hasPosition, outsidePatch, demDeltaM: demDeltaM ?? 0, demDerived });
   return {
     id: camp.id, route: camp.route, short: camp.short, name: camp.name, kind: camp.kind || 'camp', order,
     lat: hasPosition ? position.lat : null, lon: hasPosition ? position.lon : null,
@@ -108,6 +110,7 @@ function buildCamp(peakId, raw, order) {
     positionProvenance: hasPosition ? 'reported' : null,
     reportedElevationM: reported, reportedRangeM: range,
     elevationSource: camp.elevation.ref,
+    elevationDemDerived: demDerived,
     elevationOriginal: camp.elevation.unit === 'm' ? null : { value: camp.elevation.value, unit: camp.elevation.unit },
     demElevationM: dem == null ? null : round(dem, 1), demDeltaM,
     flag: display.flag, marker: display.marker, listOnly: display.listOnly, outsidePatch,
@@ -115,8 +118,8 @@ function buildCamp(peakId, raw, order) {
     sharedWith: camp.sharedWith || null,
     sources: [
       ...(hasPosition ? [{ ref: position.ref, role: 'position', lat: position.lat, lon: position.lon }] : []),
-      { ref: camp.elevation.ref, role: 'elevation', value: camp.elevation.value, unit: camp.elevation.unit },
-      ...alternates.map((a) => ({ ref: a.ref, role: 'reference', ...(Number.isFinite(a.lat) ? { lat: a.lat, lon: a.lon } : {}), ...(Number.isFinite(a.value) ? { value: a.value, unit: a.unit } : {}) })),
+      { ref: camp.elevation.ref, role: 'elevation', value: camp.elevation.value, unit: camp.elevation.unit, ...(demDerived ? { demDerived: true, evidence: camp.elevation.evidence || null } : {}) },
+      ...alternates.map((a) => ({ ref: a.ref, role: 'reference', ...(Number.isFinite(a.lat) ? { lat: a.lat, lon: a.lon } : {}), ...(Number.isFinite(a.value) ? { value: a.value, unit: a.unit } : {}), ...(a.demDerived ? { demDerived: true, evidence: a.evidence || null } : {}) })),
     ],
   };
 }

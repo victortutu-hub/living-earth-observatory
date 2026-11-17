@@ -2,5 +2,5 @@
 // Living Himalaya LOT 14: classic routes (interpretive) and camps (reported
 // positions) for the approved peaks; the file itself is published under ODbL.
 // Loaded only when the user turns on "Routes" or "Camps".
-export const HIMALAYA_ROUTES_ASSET = Object.freeze({"file":"assets/himalaya/routes-20e9a6b906.json","sha256":"20e9a6b90687e2ed015a6c25949ee5ed17a0816b43580353e65cb636cb375798","bytes":39877,"checked":"2026-11-17","sourceSha256":"f2e087dec5659737bbf1699c56383521b577277b31eb4237a9a7103d6b1cb4f9"});
+export const HIMALAYA_ROUTES_ASSET = Object.freeze({"file":"assets/himalaya/routes-0e359644d2.json","sha256":"0e359644d239c57efc543d825c4caa9d8ca78e2f6f220032e2192dcbb101920b","bytes":41787,"checked":"2026-11-17","sourceSha256":"f7fb5b298b930cb5886e165d0056a04d90a76734d6b303bf10b7de53afa5ea0e"});
 export const HIMALAYA_ROUTE_PEAK_IDS = Object.freeze(["everest","lhotse","k2","manaslu","ama-dablam"]);
