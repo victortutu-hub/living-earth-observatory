@@ -4,7 +4,7 @@
 // not yet built is claimed.
 import { describe, expect, it } from 'vitest';
 import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
-import { OBSERVATORY_REGISTRY } from '../src/config/observatory-registry.js';
+import { OBSERVATORY_REGISTRY, progressFromCriteria } from '../src/config/observatory-registry.js';
 import { SOURCE_DEFINITIONS } from '../src/config/source-registry.js';
 import {
   CAPABILITY_DEFINITIONS, OBSERVATORY_CAPABILITIES, OBSERVATORY_CAPABILITY_EVIDENCE, OBSERVATORY_UNMEASURED,
@@ -64,7 +64,9 @@ describe('LOT 16: Living Himalaya capabilities', () => {
   it('declares what is not measured, and claims nothing deferred or not started', () => {
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/GTX 1650/);
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/mobile devices/);
-    const text = JSON.stringify({ capabilities: OBSERVATORY_CAPABILITY_EVIDENCE['living-himalaya'], roadmap: himalaya.roadmap }).toLowerCase();
+    // Claims only: capabilities, stage, next threshold and the criteria marked done (open criteria may name future work).
+    const { stage, next, criteria } = himalaya.roadmap;
+    const text = JSON.stringify({ capabilities: OBSERVATORY_CAPABILITY_EVIDENCE['living-himalaya'], stage, next, done: criteria.filter((c) => c.done) }).toLowerCase();
     for (const word of ['garmin', 'night sky', 'star', 'glacier']) expect(text, word).not.toContain(word);
   });
 
@@ -76,10 +78,46 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     expect(describeCapabilityContract(cell, [])).toEqual({ label: 'No runtime claim', state: 'declared', summary: 'This roadmap record has no runtime capability declared yet.' });
   });
 
-  it('card: stage and next threshold up to date; progress unchanged (pending decision)', () => {
+  it('card: stage and next threshold up to date; progress computed from the criteria', () => {
     expect(himalaya.roadmap.stage).toBe('In development: terrain, Sentinel-2, Sun & Moon, summit weather, Himalayan Database history, optional routes & camps');
     expect(himalaya.roadmap.next).toBe('Finishing lot: Lhotse route line, camp labels hidden by terrain, checked camp elevations');
     expect(himalaya.roadmap.next).not.toMatch(/Per-field provenance/);
-    expect(himalaya.roadmap.progress).toBe(60);
+    expect(himalaya.roadmap.progress).toBe(73);
+  });
+
+  it('progress = round(100 · done / total) from exactly the 11 approved criteria (8 done)', () => {
+    const { criteria } = himalaya.roadmap;
+    expect(himalaya.roadmap.progressSource).toBe('criteria');
+    expect(criteria.map((c) => c.label)).toEqual([
+      'Real terrain (GLO-30 + Terrarium)', 'Observed image (Sentinel-2 L2A)', 'Real Sun & Moon', 'Summit weather (model)',
+      'Summit history (Himalayan Database, approved aggregates)', 'Per-field provenance + source panel', 'Optional routes & camps',
+      'Time from Earth + mobile bottom sheet', 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)',
+      'Real night sky (Lot 15b)', 'Measured performance (real GTX 1650, real mobile)',
+    ]);
+    expect(criteria.map((c) => c.done)).toEqual([true, true, true, true, true, true, true, true, false, false, false]);
+    expect(new Set(criteria.map((c) => c.id)).size).toBe(11);
+    expect(progressFromCriteria(criteria)).toBe(Math.round((100 * 8) / 11));
+    expect(himalaya.roadmap.progress).toBe(73);
+    expect(JSON.stringify(criteria).toLowerCase()).not.toMatch(/garmin|glacier/);
+  });
+
+  it('the contract rejects a hand-written progress next to criteria, and computed progress without criteria', () => {
+    const withRoadmap = (roadmap) => OBSERVATORY_REGISTRY.map((item) => (item.id === 'living-himalaya' ? { ...item, roadmap } : item));
+    const codes = (roadmap) => validateObservatoryRegistry(withRoadmap(roadmap), options).errors.map((e) => e.code);
+    const { criteria, stage, next } = himalaya.roadmap;
+    expect(codes({ progress: 60, stage, next, criteria })).toContain('manual-progress-with-criteria');
+    expect(codes({ progress: 60, progressSource: 'criteria', stage, next, criteria })).toContain('manual-progress-with-criteria');
+    expect(codes({ progress: 73, progressSource: 'criteria', stage, next })).toContain('criteria-progress-without-criteria');
+    expect(codes({ progress: 73, progressSource: 'criteria', stage, next, criteria: [{ id: 'x', label: 'x', done: 'yes' }] })).toContain('invalid-progress-criteria');
+    expect(codes(himalaya.roadmap)).toEqual([]);
+  });
+
+  it('Earth and Protein keep their hand-written progress (unchanged)', () => {
+    const earth = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-earth');
+    const protein = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-protein');
+    expect(earth.roadmap).toMatchObject({ progress: 100, stage: 'Live observatory' });
+    expect(protein.roadmap).toMatchObject({ progress: 55, stage: 'Live v0.1' });
+    expect(earth.roadmap.criteria).toBeUndefined();
+    expect(protein.roadmap.criteria).toBeUndefined();
   });
 });

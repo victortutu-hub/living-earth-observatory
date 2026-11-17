@@ -99,6 +99,22 @@ export function initCapabilityInspector() {
       return block;
     });
 
+    // Lot 16: the checklist behind a computed progress.
+    const criteria = observatory.roadmap?.progressSource === 'criteria' ? observatory.roadmap.criteria : null;
+    if (criteria?.length) {
+      const done = criteria.filter((item) => item.done).length;
+      const block = createElement('section', 'capability-group capability-group-criteria');
+      block.append(createElement('span', 'capability-group-label', `Progress criteria · ${done} of ${criteria.length} (${observatory.roadmap.progress}%)`));
+      const items = createElement('ul', 'capability-list');
+      items.append(...criteria.map((item) => {
+        const li = createElement('li', item.done ? 'is-done' : 'is-open', `${item.done ? '✓' : '○'} ${item.label}`);
+        li.dataset.criterion = item.id;
+        return li;
+      }));
+      block.append(items);
+      groups.push(block);
+    }
+
     const unmeasured = platformRegistry.getUnmeasured(observatoryId);
     if (unmeasured.length) {
       const block = createElement('section', 'capability-group capability-group-unmeasured');

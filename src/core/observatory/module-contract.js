@@ -92,6 +92,22 @@ export function validateObservatoryModule(moduleDefinition, {
     errors.push(issue('error', 'gateway-non-live', 'Only live modules may be enabled in the gateway.', 'gateway'));
   }
 
+  // Lot 16: a roadmap with criteria carries only the computed progress.
+  const roadmap = module.roadmap;
+  if (roadmap && roadmap.criteria !== undefined) {
+    const criteria = roadmap.criteria;
+    if (!Array.isArray(criteria) || criteria.length === 0 || criteria.some((item) => !hasText(item?.id) || !hasText(item?.label) || typeof item?.done !== 'boolean')) {
+      errors.push(issue('error', 'invalid-progress-criteria', 'Progress criteria must be a non-empty list of { id, label, done }.', 'roadmap'));
+    } else {
+      const computed = Math.round((100 * criteria.filter((item) => item.done).length) / criteria.length);
+      if (roadmap.progressSource !== 'criteria' || roadmap.progress !== computed) {
+        errors.push(issue('error', 'manual-progress-with-criteria', `Progress must be computed from the criteria (${computed}), not written by hand.`, 'roadmap'));
+      }
+    }
+  } else if (roadmap?.progressSource === 'criteria') {
+    errors.push(issue('error', 'criteria-progress-without-criteria', 'A computed progress needs its criteria.', 'roadmap'));
+  }
+
   const capabilities = observatoryCapabilities[module.id] || [];
   if (!Array.isArray(capabilities)) {
     errors.push(issue('error', 'invalid-capabilities', 'Observatory capabilities must be an array.', 'capabilities'));

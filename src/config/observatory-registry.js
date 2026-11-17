@@ -1,3 +1,16 @@
+// Progress computed from a checklist (Lot 16): round(100 * done / total).
+// A roadmap with criteria never carries a hand-written progress (validated in
+// module-contract.js). Earth and Protein still use a hand-written progress.
+export function progressFromCriteria(criteria) {
+  const total = criteria.length;
+  return total ? Math.round((100 * criteria.filter((item) => item.done === true).length) / total) : 0;
+}
+
+function roadmapFromCriteria({ stage, next, criteria }) {
+  const frozen = Object.freeze(criteria.map((item) => Object.freeze({ id: item.id, label: item.label, done: item.done === true })));
+  return Object.freeze({ progress: progressFromCriteria(frozen), progressSource: 'criteria', stage, next, criteria: frozen });
+}
+
 const ROADMAP = Object.freeze({
   platform: Object.freeze({ progress: 72, stage: 'Foundation active', next: 'Shared contracts, lifecycle and reproducible diagnostics' }),
   earth: Object.freeze({ progress: 100, stage: 'Live observatory', next: 'Calibration and historical playback' }),
@@ -12,8 +25,24 @@ const ROADMAP = Object.freeze({
   cosmos: Object.freeze({ progress: 0, stage: 'Research mapped', next: 'Local stellar neighborhood, not a universe simulator' }),
   network: Object.freeze({ progress: 0, stage: 'Planned', next: 'Static topology and curated measurement story' }),
   // Unfrozen 2026-11-15 (Gate 2 closed). Lot 1: peak list, Earth markers, enter/return, scene without terrain.
-  // Lot 16: stage and next threshold brought up to date (production: deploy-himalaya-9); progress unchanged (hand-written, criteria proposed, figure pending).
-  himalaya: Object.freeze({ progress: 60, stage: 'In development: terrain, Sentinel-2, Sun & Moon, summit weather, Himalayan Database history, optional routes & camps', next: 'Finishing lot: Lhotse route line, camp labels hidden by terrain, checked camp elevations' }),
+  // Lot 16: stage and next threshold up to date (production: deploy-himalaya-9); progress computed from the criteria below.
+  himalaya: roadmapFromCriteria({
+    stage: 'In development: terrain, Sentinel-2, Sun & Moon, summit weather, Himalayan Database history, optional routes & camps',
+    next: 'Finishing lot: Lhotse route line, camp labels hidden by terrain, checked camp elevations',
+    criteria: [
+      { id: 'real-terrain', label: 'Real terrain (GLO-30 + Terrarium)', done: true },
+      { id: 'observed-image', label: 'Observed image (Sentinel-2 L2A)', done: true },
+      { id: 'sun-moon', label: 'Real Sun & Moon', done: true },
+      { id: 'summit-weather', label: 'Summit weather (model)', done: true },
+      { id: 'summit-history', label: 'Summit history (Himalayan Database, approved aggregates)', done: true },
+      { id: 'provenance', label: 'Per-field provenance + source panel', done: true },
+      { id: 'routes-camps', label: 'Optional routes & camps', done: true },
+      { id: 'time-mobile', label: 'Time from Earth + mobile bottom sheet', done: true },
+      { id: 'finishing-lot', label: 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)', done: false },
+      { id: 'night-sky', label: 'Real night sky (Lot 15b)', done: false },
+      { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real mobile)', done: false },
+    ],
+  }),
 });
 
 // `parent` (optional): id of an existing top-level observatory this one belongs
