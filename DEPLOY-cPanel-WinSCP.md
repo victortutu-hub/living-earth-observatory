@@ -44,7 +44,7 @@ cPanel sau prin WinSCP Synchronize.
 
   ```bash
   git -c core.autocrlf=false archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
-    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js     assets/himalaya
+    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js     assets/himalaya assets/sky
   ```
 
   Plus un manifest `<sha256>  <cale>`, calculat din conținutul arhivei.
@@ -59,6 +59,15 @@ cPanel sau prin WinSCP Synchronize.
   dă `404` la teren. Numele au hash-ul conținutului, deci un fișier nou nu
   suprascrie niciodată unul vechi. În raportul de deploy listezi separat
   fiecare fișier din `assets/himalaya/` cu mărime și SHA-256.
+- **Excepție: `assets/sky/` se promovează la fel** (din Lot 15, cerul real
+  Living Earth). Conține hărțile Căii Lactee (`milkyway-2020-luminance-<hash>.ktx2`,
+  `milkyway-2020-chroma-<hash>.ktx2`, ~6,6 MB) și stelele
+  (`hyg-v44-stars-<hash>.bin`), la care trimit `src/config/sky-map.js` și
+  `src/config/sky-stars.js`; fără ele cerul cade pe fallback. Pe producție e un
+  folder nou la primul deploy; la update-uri se copiază fișier cu fișier (numele
+  au hash-ul conținutului, deci nu suprascriu nimic vechi). Listezi separat
+  fiecare fișier din `assets/sky/` cu mărime și SHA-256. `tmp/sky/` (EXR-urile
+  NASA SVS, HYG brut) nu intră niciodată în arhivă.
 - Restul `assets/` și `vendor/` (fișiere mari) nu intră în arhivă. Le compari separat
   cu serverul (`git ls-tree -r -l HEAD -- assets vendor` față de lista de pe
   server) și le urci doar dacă diferă.
@@ -66,7 +75,7 @@ cPanel sau prin WinSCP Synchronize.
   HEAD. E sigur doar dacă working tree-ul e identic cu HEAD pe căile site-ului:
 
   ```bash
-  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya
+  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya assets/sky
   ```
 
   Comanda trebuie să nu afișeze nimic. Altfel faci commit sau stash înainte, ori
@@ -87,12 +96,12 @@ import map-ul din HTML (CDN) și nu intră în verificare.
 ### Regula 3 — întâi staging pe server, apoi producția
 
 1. **Backup în afara site-ului:** în cPanel → File Manager, copiază `src/`,
-   `styles/`, `assets/himalaya/`, cele 4 HTML-uri și `sw.js` în
+   `styles/`, `assets/himalaya/`, `assets/sky/` (dacă există deja), cele 4 HTML-uri și `sw.js` în
    `/home/luminomorphism/deploy-backups/<lot>-<AAAALLZZ>/`. Nu pune backup-ul
    în `public_html`.
 2. Creează `public_html/_staging-<lot>/` și copiază în el `assets/` și
-   `vendor/` (paginile le referă relativ). `assets/himalaya/` vine din arhivă,
-   peste această copie.
+   `vendor/` (paginile le referă relativ). `assets/himalaya/` și `assets/sky/` vin
+   din arhivă, peste această copie.
 3. Urcă arhiva în `_staging-<lot>/` și dezarhiveaz-o acolo.
 4. Deschide `https://luminomorphism.ro/_staging-<lot>/earth-eonet-relief.html`,
    apoi `/_staging-<lot>/index.html`, `/_staging-<lot>/living-protein.html` și
