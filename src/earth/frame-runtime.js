@@ -6,7 +6,7 @@ export function createFrameRuntime({
     camera,
     clouds,
     realCloudOverlay,
-    stars,
+    sky,
     sunLight,
     cloudMat,
     cloudOverlayMat,
@@ -84,7 +84,8 @@ export function createFrameRuntime({
     function update(t) {
         clouds.rotation.y += 0.00018;
         realCloudOverlay.rotation.y = clouds.rotation.y;
-        stars.rotation.y += 0.00008;
+        // LOT 15: the real sky follows the Earth time state (GAST + precession), not a constant spin.
+        sky?.update();
         updateSunUniforms(t);
         updateCloudOverlayCrossfade(t);
     }

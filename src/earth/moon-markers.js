@@ -2,8 +2,8 @@
 // cratere si mari majore) - coordonate selenografice (longitudine Est
 // pozitiva, IAU) din surse publice (NASA LPI, USGS Astrogeology). Nu e un
 // feed live ca NASA EONET pentru Pamant - Luna nu are "evenimente" curente,
-// deci lista e curata manual, similar catalogului de stele numite din
-// star-field.js.
+// deci lista e curata manual (catalog static citat, ca si cataloagele de
+// stele din cerul real, LOT 15).
 export const moonLandmarks = [
     {
         id: 'apollo11',

@@ -12,6 +12,7 @@ const ZODIACAL_FRAG = `
 precision highp float;
 
 uniform vec3 uSunDir;
+uniform vec3 uEclipticNormal;
 uniform float uTime;
 uniform float uIntensity;
 uniform float uEnabled;
@@ -48,9 +49,9 @@ void main() {
     float sunAngle = acos(clamp(dot(dir, sunDir), -1.0, 1.0));
     float antiSunAngle = acos(clamp(dot(dir, -sunDir), -1.0, 1.0));
 
-    // In this scene the star field and solar vectors use an equatorial-like
-    // frame. A 23.44 deg tilted normal approximates the ecliptic plane.
-    vec3 eclipticNormal = normalize(vec3(0.0, cos(radians(23.44)), -sin(radians(23.44))));
+    // LOT 15: ecliptic pole (J2000) in the Earth-fixed scene, rotated by the same
+    // matrix as the real sky (GAST + precession), updated from real-sky.js.
+    vec3 eclipticNormal = normalize(uEclipticNormal);
     float eclipticLat = abs(asin(clamp(dot(dir, eclipticNormal), -1.0, 1.0)));
     float band = exp(-pow(eclipticLat / radians(11.5), 2.0));
     float eclipticCore = exp(-pow(eclipticLat / radians(3.4), 2.0));
@@ -100,6 +101,7 @@ export function createZodiacalLightSystem({
     const material = new THREE.ShaderMaterial({
         uniforms: {
             uSunDir: { value: new THREE.Vector3(1, 0, 0) },
+            uEclipticNormal: { value: new THREE.Vector3(0, Math.cos(23.4392911 * Math.PI / 180), -Math.sin(23.4392911 * Math.PI / 180)) },
             uTime: { value: 0 },
             uIntensity: { value: intensity },
             uEnabled: { value: 0 }
@@ -125,6 +127,11 @@ export function createZodiacalLightSystem({
     mesh.visible = false;
     mesh.renderOrder = 10;
     scene.add(mesh);
+
+    /** Ecliptic pole as a scene vector [x, y, z] (from real-sky.js). */
+    function setEclipticNormal([x, y, z]) {
+        material.uniforms.uEclipticNormal.value.set(x, y, z);
+    }
 
     function setEnabled(enabled) {
         state.enabled = Boolean(enabled);
@@ -159,6 +166,7 @@ export function createZodiacalLightSystem({
         setEnabled,
         toggle,
         setIntensity,
+        setEclipticNormal,
         update
     };
 }

@@ -12,7 +12,7 @@ import zlib from 'node:zlib';
 
 export const VK_FORMAT_R16_SFLOAT = 76;
 export const VK_FORMAT_R16_UNORM = 70;
-const KTX2_IDENTIFIER = Buffer.from([0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a]);
+export const KTX2_IDENTIFIER = Buffer.from([0xab, 0x4b, 0x54, 0x58, 0x20, 0x32, 0x30, 0xbb, 0x0d, 0x0a, 0x1a, 0x0a]);
 const SUPERCOMPRESSION_ZSTD = 2;
 const HEADER_BYTES = 80;
 const LEVEL_INDEX_BYTES = 24;
@@ -59,7 +59,7 @@ function dataFormatDescriptor(vkFormat = VK_FORMAT_R16_SFLOAT) {
     return dfd;
 }
 
-function keyValueData(keyValues) {
+export function keyValueData(keyValues) {
     const parts = Object.keys(keyValues).sort().map((key) => {
         const body = Buffer.concat([Buffer.from(key, 'utf8'), Buffer.from([0]), Buffer.from(String(keyValues[key]), 'utf8'), Buffer.from([0])]);
         const entry = Buffer.alloc(4 + align4(body.length));

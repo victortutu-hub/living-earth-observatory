@@ -2,7 +2,7 @@ import { createCloudSetup } from './cloud-setup.js';
 import { createSolarRuntime } from './solar-runtime.js';
 import { categoryColors, fallbackColor, futureDateToleranceMs } from './eonet-config.js';
 import { createGeoUtils } from './geo.js';
-import { createStarField } from './star-field.js';
+import { createRealSky } from './real-sky.js';
 import { createEventUtils } from './event-utils.js';
 import { createEarthLayers } from './earth-layers.js';
 import { createMoonSystem } from './moon-system.js';
@@ -95,8 +95,15 @@ export function createAppVisualFoundation({
     const windParticles = createWindParticles({ THREE, renderer, earthGroup });
     const oceanCurrents = createOceanCurrents({ THREE, renderer, earthGroup });
 
-    const stars = createStarField(THREE);
-    scene.add(stars);
+    // LOT 15: real sky (NASA SVS Milky Way + HYG Hipparcos stars), oriented by the
+    // Earth time state; the zodiacal light takes the ecliptic pole from the same matrix.
+    const realSky = createRealSky({
+        THREE,
+        scene,
+        getDate,
+        onEclipticNormal: (normal) => zodiacalLightSystem.setEclipticNormal(normal),
+        noteHost: document.querySelector('#sourcesPanel ul'),
+    });
 
     let applyNightLookHandler = () => {};
     function applyNightLook(enabled) {
@@ -110,7 +117,7 @@ export function createAppVisualFoundation({
         earthGroup,
         earthClouds,
         camera,
-        stars,
+        sky: realSky,
         sunLight,
         nightLights,
         setNightLightsStatusListener,
@@ -133,6 +140,7 @@ export function createAppVisualFoundation({
         cloudSetup.disable?.();
         windParticles.dispose();
         oceanCurrents.dispose();
+        realSky.dispose();
     }
 
     return {
@@ -146,6 +154,7 @@ export function createAppVisualFoundation({
         issSystem,
         airglowSystem,
         zodiacalLightSystem,
+        realSky,
         noctilucentCloudSystem,
         windParticles,
         oceanCurrents,

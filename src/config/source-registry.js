@@ -1,3 +1,4 @@
+import { SKY_MAP_ASSET } from './sky-map.js';
 // Scientific provenance: the canonical vocabulary from AGENTS.md. It is a
 // separate axis from accessClass (how the data is reached) and from the Earth
 // TEMPORAL_TYPES (how time applies to a layer); the three are not merged.
@@ -434,6 +435,21 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     visuals: ['Night-side airglow shell'],
     observatories: ['living-earth'],
   }),
+  realSky: defineSource({
+    title: 'Real sky (Milky Way + stars)',
+    provenance: 'observed',
+    provenanceNote: `Milky Way: NASA SVS Deep Star Maps 2020; stars: HYG v4.4 (Hipparcos). Exposure curve applied; sky shown at +${SKY_MAP_ASSET.exposure.stops} stops relative to the Earth exposure; Gaia colours balanced by eye (SVS). The SVS map is relative and clipped at 1.0 (not absolute photometry); star and background brightness share one scale calibrated on the SVS bright-star layer`,
+    authority: 'NASA/Goddard Space Flight Center Scientific Visualization Studio (Gaia DR2: ESA/Gaia/DPAC); HYG database v4.4 (astronexus)',
+    endpoint: 'Local assets assets/sky/milkyway-2020-*.ktx2 (cube maps) and assets/sky/hyg-v44-stars-*.bin, built offline by tools/build-sky-map.mjs and tools/build-sky-stars.mjs',
+    type: 'Milky Way background without the Hipparcos/Tycho stars (survey render, ICRS/J2000) and Hipparcos point stars with V <= 6.5',
+    process: 'Oriented by the Earth time state (GAST + precession and nutation); drawn behind the Earth; stars on the same photometric scale as the background.',
+    scope: 'Living Earth sky. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC.',
+    access: { kind: 'local-asset', label: 'Bundled sky assets', requiresProxy: false },
+    license: 'Milky Way map: NASA SVS (public domain unless noted) built on Gaia DR2, CC BY-NC 3.0 IGO (non-commercial use); star file: derived from HYG v4.4, CC BY-SA 4.0. Separate from the repository licence (see NOTICE.md).',
+    privacyClass: 'local-asset',
+    visuals: ['Milky Way background', 'Point stars'],
+    observatories: ['living-earth'],
+  }),
   zodiacal: defineSource({
     title: 'Zodiacal light layer',
     provenance: 'interpretive',
@@ -515,6 +531,7 @@ export const INITIAL_SOURCE_STATUS = Object.freeze({
   himalayaTerrainGlo30: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   terrariumTiles: { value: 'TILES', state: 'declared', updated: null },
   airglow: { value: 'PROCEDURAL', state: 'declared', updated: null },
+  realSky: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   zodiacal: { value: 'PROCEDURAL', state: 'declared', updated: null },
   noctilucent: { value: 'PROCEDURAL', state: 'declared', updated: null },
 });

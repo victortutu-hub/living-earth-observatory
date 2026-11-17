@@ -96,7 +96,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     representations: Object.freeze(['observed', 'reconstructed', 'physical-model', 'interpretive', 'fallback']),
     sources: Object.freeze([
       'eonet', 'gibs', 'usgs', 'firms', 'gdacs', 'ovation', 'etopo', 'astronomy', 'celestrak',
-      'openMeteo', 'openMeteoMarine', 'openMeteoEra5', 'openMeteoMarineArchive', 'gvp', 'airglow', 'zodiacal', 'noctilucent',
+      'openMeteo', 'openMeteoMarine', 'openMeteoEra5', 'openMeteoMarineArchive', 'gvp', 'airglow', 'zodiacal', 'noctilucent', 'realSky',
       'himalayaPeaks',
     ]),
     roadmap: ROADMAP.earth,

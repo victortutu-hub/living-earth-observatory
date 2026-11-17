@@ -104,6 +104,33 @@ system. Always consult the original providers for authoritative data.
   of the U.S. Geological Survey; Global ETOPO1 terrain data U.S. National
   Oceanic and Atmospheric Administration.
 
+## Real Sky (Living Earth)
+
+These two files are distributed under their own terms, separately from the
+licence of this repository:
+
+- `assets/sky/milkyway-2020-luminance-<hash>.ktx2` and
+  `assets/sky/milkyway-2020-chroma-<hash>.ktx2` (metadata in
+  `src/config/sky-map.js`): the Milky Way background of NASA's Scientific
+  Visualization Studio “Deep Star Maps 2020” (svs.gsfc.nasa.gov/4851,
+  `milkyway_2020_4k.exr`, the map without the Hipparcos and Tycho stars),
+  re-projected to cube maps and re-encoded by `tools/build-sky-map.mjs`.
+  Credit: “NASA/Goddard Space Flight Center Scientific Visualization Studio.
+  Gaia DR2: ESA/Gaia/DPAC.” SVS content is public domain unless noted; the map
+  is built on Gaia DR2 data, distributed under **CC BY-NC 3.0 IGO**: use here
+  is **non-commercial**. The SVS values are relative and clipped at 1.0 (not
+  absolute photometry); the brightness scale is calibrated on the SVS
+  bright-star layer (`hiptyc_2020_4k.exr`, used locally only).
+- `assets/sky/hyg-v44-stars-<hash>.bin` (metadata in
+  `src/config/sky-stars.js`): 8870 Hipparcos stars with V ≤ 6.5 derived
+  from the HYG database v4.4 (astronexus, https://codeberg.org/astronexus/hyg),
+  licensed **CC BY-SA 4.0**; this derived file is published under CC BY-SA 4.0.
+  Positions J2000 (epoch and equinox 2000.0), V magnitude and B−V colour index.
+- Provenance: `observed` (survey render and catalogue). The sky is shown at
+  +19 stops relative to the Earth exposure (declared; the only display
+  choice, derived from the data and the lowest bloom threshold); Gaia colours
+  in the SVS map were balanced by eye by SVS.
+
 ## Living Himalaya Routes And Camps (OpenStreetMap, Wikidata)
 
 - `assets/himalaya/routes-<hash>.json` (metadata in `src/config/himalaya-routes.js`,
