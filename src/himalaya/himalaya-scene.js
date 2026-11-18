@@ -666,6 +666,11 @@ export function createHimalayaScene({
 
   let frameId = 0;
   let frames = 0;
+  // LOT 19: timestamps for the page-load figures (performance.now(), cheap) and an optional
+  // frame probe installed only by the ?perf=1 run (null otherwise: no measurement code runs).
+  let firstFrameAt = null;
+  const patchReadyAt = new Map();
+  let frameProbe = null;
   let fpsWindowStart = performance.now();
   let fps = null;
   let lastOverviewUpdate = 0;
@@ -703,6 +708,7 @@ export function createHimalayaScene({
       }
     }
     const active = activePatchId && terrainMode === 'glo30' ? patches.peek(activePatchId) : null;
+    if (active && active.mesh.visible && !fade && !patchReadyAt.has(active.id)) patchReadyAt.set(active.id, now);
     if (active) {
       const lod = camera.position.distanceTo(active.center) < FULL_LOD_DISTANCE_KM ? 'full' : 'coarse';
       if (lod !== active.lod) {
@@ -733,8 +739,11 @@ export function createHimalayaScene({
     gridMaterial.opacity = THREE.MathUtils.clamp((distance - 150) / 900, 0, 1) * 0.22;
     grid.visible = gridMaterial.opacity > 0.005;
     if (renderer.shadowMap.needsUpdate) shadowUpdates += 1;
+    if (frameProbe) frameProbe.before(renderer);
     renderer.render(scene, camera);
+    if (frameProbe) frameProbe.after(renderer);
     labelRenderer.render(scene, camera);
+    if (firstFrameAt === null) firstFrameAt = now;
     frames += 1;
     if (now - fpsWindowStart >= 1000) {
       fps = Math.round((frames * 1000) / (now - fpsWindowStart));
@@ -808,6 +817,19 @@ export function createHimalayaScene({
       realSky.setObserver({ date, latDeg: lat, lonDeg: lon, heightM, basis: localBasis(lon, lat, center), Astronomy, sun, ...(eMax ? { eMax } : {}) });
     },
     skySnapshot: () => realSky.snapshot(),
+    /** LOT 19 (?perf=1 only): probe { before(renderer), after(renderer) } around the WebGL render; null removes it. */
+    setFrameProbe(probe) { frameProbe = probe && typeof probe.before === 'function' && typeof probe.after === 'function' ? probe : null; },
+    hasFrameProbe: () => frameProbe !== null,
+    /** LOT 19: light per-frame state for the summit-change timing (no snapshot object). */
+    patchStatus: () => {
+      const entry = activePatchId ? patches.peek(activePatchId) : null;
+      return { id: activePatchId, visible: Boolean(entry && entry.mesh.visible && terrainMode === 'glo30'), fading: Boolean(fade), flying: Boolean(flight), readyAt: activePatchId ? patchReadyAt.get(activePatchId) ?? null : null };
+    },
+    /** LOT 19: page-load figures (ms since the navigation start). */
+    loadTimings: () => ({ firstFrameAt, patchReadyAt: Object.fromEntries(patchReadyAt) }),
+    rendererInfo: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }),
+    drawingBufferSize: () => { const v = renderer.getDrawingBufferSize(new THREE.Vector2()); return [v.x, v.y]; },
+    webglContext: () => renderer.getContext(),
     skyReady: () => realSky.ready,
     /** GPU cost of the sky (background + stars) at the current size: TIME_ELAPSED with / without it. */
     async measureSkyCostGpu(samples = 8) {

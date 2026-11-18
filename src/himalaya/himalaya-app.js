@@ -652,6 +652,43 @@ export function startHimalayaApp({
     updateSun();
   }).catch(() => { /* the approximate model stays, labelled */ });
 
+  function showOverview(options) {
+    activeId = null; weather.clear(); weatherState = null; scene?.overview(options); renderPanel(); updateSun();
+  }
+
+  // --- LOT 19: performance run, only with ?perf=1. The measurement code is a separate module
+  // loaded dynamically here; without the parameter it is never requested and nothing changes.
+  let perfTeardown = null;
+  function perfApi() {
+    return Object.freeze({
+      scene,
+      state: () => {
+        const s = scene?.snapshot();
+        return { activeId, terrainMode, showRoutes: routes.showRoutes, showCamps: routes.showCamps, time: { ...time }, view: s ? { target: s.target, camera: s.camera } : null };
+      },
+      select: (id) => select(id, { instant: true }),
+      overview: () => showOverview({ instant: true }),
+      setTerrainMode,
+      setRoutes: ({ showRoutes, showCamps }) => { routes.showRoutes = Boolean(showRoutes); routes.showCamps = Boolean(showCamps); applyRoutes(); },
+      routesReady: () => routes.status === 'ready',
+      setTime: (iso) => { const d = new Date(iso); Object.assign(time, { mode: 'manual', baseDay: d, minutes: utcMinutesOfDay(d), fromEarth: null }); updateSun(); },
+      restore: (saved) => {
+        setTerrainMode(saved.terrainMode);
+        routes.showRoutes = saved.showRoutes; routes.showCamps = saved.showCamps;
+        Object.assign(time, saved.time);
+        if (saved.activeId) select(saved.activeId, { instant: true }); else showOverview({ instant: true });
+        applyRoutes();
+        updateSun();
+        if (saved.view) scene?.setView(saved.view.target, saved.view.camera);
+      },
+    });
+  }
+  if (searchParams.get('perf') === '1' && scene) {
+    import('./perf/perf-run.js')
+      .then(({ mountPerfRun }) => { if (alive()) perfTeardown = mountPerfRun({ api: perfApi() }); })
+      .catch((error) => console.warn('[Living Himalaya] Performance run unavailable.', error?.message || error));
+  }
+
   window.__livingHimalayaDebug = Object.freeze({
     snapshot: () => ({
       activeId, initialFocus: initial, reducedMotion: reducedMotion(), terrainMode,
@@ -678,7 +715,7 @@ export function startHimalayaApp({
     setNow: () => goLive(),
     panels: () => ({ ...panelState }),
     togglePanels: () => setPanels(toggleAll(panelState)),
-    overview: (options) => { activeId = null; weather.clear(); weatherState = null; scene?.overview(options); renderPanel(); updateSun(); },
+    overview: (options) => showOverview(options),
     measureShadowCost: (samples) => scene?.measureShadowCost(samples) || null,
     measureShadowCostGpu: (samples) => scene?.measureShadowCostGpu(samples) || null,
     measureSkyCostGpu: (samples) => scene?.measureSkyCostGpu?.(samples) || null,
@@ -690,6 +727,7 @@ export function startHimalayaApp({
   });
 
   return () => {
+    perfTeardown?.();
     listeners.abort();
     clearInterval(ticker);
     clearInterval(upgradeTimer);
