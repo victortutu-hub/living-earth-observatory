@@ -28,7 +28,7 @@ const EARTH = [
   ['real-sky', 'Real night sky (Lot 15)', true],
   ['provenance', 'Per-source + temporal provenance', true],
   ['export', 'Still, video & 9:16 export', true],
-  ['runtime-state', "Runtime state from Earth's own signals", false],
+  ['runtime-state', "Runtime state from Earth's own signals", true], // LOT 23
   ['mobile', 'Mobile layout checked on a real phone', false],
   ['measured-performance', 'Measured performance (real GTX 1650, real phone)', false],
   ['surface-detail', 'Surface detail at high zoom (Sprint 2.4, interpretive)', false],
@@ -57,7 +57,7 @@ function evidenceTests(evidence) {
 }
 
 describe.each([
-  ['living-earth', earth, EARTH, 67, "Runtime state from Earth's own signals",
+  ['living-earth', earth, EARTH, 75, 'Mobile layout checked on a real phone', // LOT 23 (was 67, runtime state)
     'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export'],
   ['living-protein', protein, PROTEIN, 58, 'Experimental context beside prediction confidence',
     'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins'],

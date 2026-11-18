@@ -120,9 +120,9 @@ describe('LOT 16: Living Himalaya capabilities', () => {
   it('Earth and Protein progress is computed from criteria (LOT 22)', () => {
     const earth = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-earth');
     const protein = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-protein');
-    expect(earth.roadmap).toMatchObject({ progress: 67, progressSource: 'criteria' });
+    expect(earth.roadmap).toMatchObject({ progress: 75, progressSource: 'criteria' }); // LOT 23 (67 in LOT 22)
     expect(protein.roadmap).toMatchObject({ progress: 58, progressSource: 'criteria' });
-    expect(progressFromCriteria(earth.roadmap.criteria)).toBe(67);
+    expect(progressFromCriteria(earth.roadmap.criteria)).toBe(75);
     expect(progressFromCriteria(protein.roadmap.criteria)).toBe(58);
   });
 });

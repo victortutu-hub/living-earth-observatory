@@ -456,10 +456,10 @@ export function createFieldParticles({
                 return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `${label}: Not available for ${dayText} — not yet published by the source` };
             }
             if (error.kind === 'rate-limited') {
-                return { enabled, loading: false, state: 'error', message: `${label}: temporarily unavailable — try again in ${Math.max(1, Math.ceil(error.retryAfterS / 60))} min` };
+                return { enabled, loading: false, state: 'error', errorKind: error.kind, message: `${label}: temporarily unavailable — try again in ${Math.max(1, Math.ceil(error.retryAfterS / 60))} min` };
             }
             if (error.kind === 'proxy-required') return { enabled, loading: false, state: 'off', message: error.text };
-            return { enabled, loading: false, state: 'error', message: `${label}: unavailable for ${dayText} (${error.text})` };
+            return { enabled, loading: false, state: 'error', errorKind: error.kind, message: `${label}: unavailable for ${dayText} (${error.text})` };
         }
         const provenance = describeSourceProvenance(history?.provenanceKey);
         const hour = String(state.hour ?? 0).padStart(2, '0');
@@ -477,7 +477,7 @@ export function createFieldParticles({
     function getStatus() {
         if (mode === 'day' && dayController && enabled) return dayStatus();
         if (loading) return { enabled, loading, state: 'refreshing', message: `${label}: loading...` };
-        if (lastError) return { enabled, loading, state: 'error', message: `${label}: ${lastError.message || 'network error'}` };
+        if (lastError) return { enabled, loading, state: 'error', errorKind: 'open-meteo', message: `${label}: ${lastError.message || 'network error'}` };
         if (!enabled) return { enabled, loading, state: 'off', message: `${label}: off` };
         if (!ready) return { enabled, loading, state: 'refreshing', message: `${label}: preparing simulation...` };
         const cacheState = fieldMeta.temporal?.cacheState;

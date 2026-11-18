@@ -260,7 +260,7 @@ export function createFirmsWildfireProvider({
             const effectiveArea = urlParams.get('firmsArea') || area;
             const params = new URLSearchParams({ source: 'firms', sensor: effectiveSource, area: effectiveArea, days: String(days), cache: String(Date.now()) });
             const response = await fetch(`${proxyBase}/nasa-proxy?${params.toString()}`, { signal: controller.signal, cache: 'no-store' });
-            if (!response.ok) throw new Error(`Proxy returned ${response.status}`);
+            if (!response.ok) throw Object.assign(new Error(`Proxy returned ${response.status}`), { status: response.status }); // LOT 23: status kept for classifyDayError
             const payload = await response.json();
             if (payload.proxyStatus === 'error') throw new Error(payload.proxyError || 'NASA FIRMS proxy error (ai completat FIRMS_MAP_KEY in nasa-proxy-server.js?)');
             lastProxyStatus = payload.proxyStatus;
@@ -312,7 +312,7 @@ export function createFirmsWildfireProvider({
         if (error?.kind === 'no-coverage') {
             return { enabled, loading: false, state: 'unavailable', timeUnavailable: true, message: `NASA FIRMS: Not available for ${formatUtcDay(day)} — no FIRMS product covers this day` };
         }
-        if (error) return { enabled, loading: false, state: 'error', message: `NASA FIRMS: unavailable for ${formatUtcDay(day)} (${error.text})` };
+        if (error) return { enabled, loading: false, state: 'error', errorKind: error.kind, message: `NASA FIRMS: unavailable for ${formatUtcDay(day)} (${error.text})` };
         const sourceLabel = dayState.source.replace('_', ' ');
         const status = composeHistoricalStatus({
             sourceKey: 'firms',
@@ -337,7 +337,7 @@ export function createFirmsWildfireProvider({
         if (enabled && dayState) return historicalStatus();
         if (loading) return { enabled, loading, state: 'refreshing', message: 'NASA FIRMS: loading wildfire hotspots...' };
         if (!enabled) return { enabled, loading, state: 'off', message: 'NASA FIRMS: off' };
-        if (lastError) return { enabled, loading, state: 'error', message: `NASA FIRMS: ${lastError.message || 'network error'}` };
+        if (lastError) return { enabled, loading, state: 'error', errorKind: classifyDayError(lastError).kind, message: `NASA FIRMS: ${lastError.message || 'network error'}` };
         // data = cea mai recenta achizitie satelitara dintre hotspot-urile afisate.
         const status = composeSourceStatus({
             sourceKey: 'firms',

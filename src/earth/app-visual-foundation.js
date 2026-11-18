@@ -167,6 +167,7 @@ export function createAppVisualFoundation({
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
+        getEarthLayerSignals: earthLayers.getRuntimeSignals, // LOT 23
         setTerminatorGuideVisible,
         atmosphereMat,
         applyAtmosphereLayerMode,

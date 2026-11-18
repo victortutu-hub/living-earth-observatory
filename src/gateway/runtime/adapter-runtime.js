@@ -19,7 +19,7 @@ export function createAdapterRuntime({ id, observatoryId, statusKey, atlasStatus
     sourceState = nextSourceState;
     sourceMeta = { ...sourceMeta, ...nextSourceMeta };
     phase = meta.phase || phase;
-    if (observatoryId) observatoryRuntime.set(observatoryId, nextState, meta);
+    if (observatoryId) observatoryRuntime.setPreview(observatoryId, nextState, meta); // LOT 23
     if (statusKey) {
       atlasStatus.setStatus(statusKey, runtimeDisplayValue(sourceState), sourceState, {
         ...createRuntimeMeta(sourceMeta),

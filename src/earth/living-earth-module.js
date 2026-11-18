@@ -3,6 +3,7 @@ import { createSceneRuntime } from './scene-runtime.js';
 import { createInitialEarthState } from './app-state.js';
 import { createEarthAppServices } from './app-services.js';
 import { prepareObservatoryEntry } from '../portal-continuity.js';
+import { earthRuntimeState } from './earth-runtime-state.js';
 
 export function createLivingEarthModule({ THREE, earcut }) {
   if (!THREE || typeof earcut !== 'function') {
@@ -37,11 +38,33 @@ export function createLivingEarthModule({ THREE, earcut }) {
       const performanceApi = Object.freeze({ snapshot: appRuntime.performanceSnapshot });
       window.LIVING_EARTH_PERF = performanceApi;
 
+      // LOT 23: runtime state from the page's own signals (earth-runtime-state.js), written
+      // through the module context; republished only when it changes (one owned 1 s timer).
+      const startedAt = performance.now();
+      let runtime = null; // last published
+      let latest = null; // last evaluated (debug snapshot)
+      let stopped = false;
+      function publishRuntime() {
+        // A cached app-services.js older than LOT 23 has no runtimeSignals: keep the context's state.
+        if (stopped || typeof appServices.runtimeSignals !== 'function') return;
+        const signals = appServices.runtimeSignals();
+        const next = earthRuntimeState({ ...signals, elapsedMs: performance.now() - startedAt });
+        latest = { ...next, signals, published: runtime?.updated || null };
+        const key = `${next.state}|${next.reasons.join(',')}|${next.secondary.join(',')}`;
+        if (runtime?.key === key) return;
+        runtime = { ...next, key, signals, updated: new Date().toISOString() };
+        latest.published = runtime.updated;
+        context.setRuntime?.(next.state, { phase: 'ready', reason: [...next.reasons, ...next.secondary].join('; ') || 'core-signals-ok' });
+      }
+
       if (new URLSearchParams(location.search).has('debug')) {
-        window.__livingEarthDebug = { state, sceneRuntime, appServices, moduleContext: context };
+        window.__livingEarthDebug = { state, sceneRuntime, appServices, moduleContext: context, runtime: () => latest && { ...latest } };
       }
 
       appRuntime.start();
+      // The first write follows the module context's own "module-ready" write (a microtask later).
+      const runtimeStart = window.setTimeout(publishRuntime, 0);
+      const runtimeTimer = window.setInterval(publishRuntime, 1000);
       const entryDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches
         ? 80
         : portalEntry.fromAtlas ? 1180 : 520;
@@ -51,6 +74,9 @@ export function createLivingEarthModule({ THREE, earcut }) {
       });
 
       return () => {
+        stopped = true;
+        window.clearTimeout(runtimeStart);
+        window.clearInterval(runtimeTimer);
         cancelAnimationFrame(entryFrame);
         if (entryTimer !== null) window.clearTimeout(entryTimer);
         appServices.dispose?.();

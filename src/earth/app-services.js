@@ -25,6 +25,8 @@ import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js';
 import { localDirForSelenographic } from './moon-system.js';
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
+import { atlasStatus } from '../core/status-store.js';
+import { getAstronomyImportState } from './astronomy-runtime.js';
 
 export function createEarthAppServices({
     THREE,
@@ -349,6 +351,7 @@ export function createEarthAppServices({
         eventMagnitudeScale
     });
 
+    let dataSourceProvider = null; // LOT 23: active event provider ('NASA EONET' / 'GDACS')
     const eonetApp = createEonetApp({
         apiUrl: EONET_API,
         state,
@@ -365,6 +368,7 @@ export function createEarthAppServices({
         supplementalProviders: liveDataLayers.supplementalProviders,
         fallbackProviders: [gdacsProvider],
         onSourceStateChange: status => {
+            dataSourceProvider = status.activeProvider || null; // LOT 23: runtime signals
             state.dataSourceState = status.state || 'off';
             state.dataSourceMessage = status.message || 'Data source: NASA EONET default';
             updateDataSourceStatus?.(status);
@@ -595,6 +599,41 @@ export function createEarthAppServices({
     // LOT 11: the scene hour of the loaded day drives wind / currents locally.
     const unsubscribeSceneTime = timeState.subscribe(snapshot => appRuntime.applySceneTime(snapshot));
 
+    // LOT 23: the page's own runtime signals for earth-runtime-state.js (read-only snapshot).
+    function runtimeSignals() {
+        const layers = visualFoundation.getEarthLayerSignals?.() || {};
+        const astronomy = getAstronomyImportState();
+        const sunSource = solarRuntime?.solarState?.source;
+        const eonet = atlasStatus.getSourceStatus('eonet');
+        const sky = atlasStatus.getSourceStatus('realSky');
+        const [usgsProvider, firmsProvider] = liveDataLayers.supplementalProviders || [];
+        const registryLayer = (id) => {
+            const entry = layerRegistry.entryState?.(id);
+            return { id, enabled: Boolean(entry?.wanted), state: entry?.state || 'off' };
+        };
+        const providerLayer = (id, status) => ({ id, enabled: Boolean(status?.enabled), state: status?.state || 'off', errorKind: status?.errorKind || null });
+        const iss = issSystem?.issState;
+        return {
+            relief: layers.relief || 'loading',
+            surface: layers.surface || { kind: 'loading' },
+            sun: sunSource === 'astronomy-engine' ? 'astronomy-engine'
+                : !astronomy.loaded && !astronomy.loading && astronomy.error ? 'approx' : 'loading',
+            eonet: { state: eonet?.state || null, phase: eonet?.phase || null, mode: state.dataSourceMode || 'eonet', activeProvider: dataSourceProvider },
+            sky: sky?.phase === 'ready' ? sky.value : 'loading',
+            nightLights: layers.nightLights || null,
+            layers: [
+                providerLayer('usgs', usgsProvider?.getStatus?.()),
+                providerLayer('firms', firmsProvider?.getStatus?.()),
+                providerLayer('wind', windParticles?.getStatus?.()),
+                providerLayer('currents', oceanCurrents?.getStatus?.()),
+                registryLayer('aurora'),
+                registryLayer('gvp'),
+                registryLayer('snowIce'),
+                { id: 'iss', enabled: Boolean(iss?.enabled), state: iss?.enabled && iss.source === 'unavailable' ? 'error' : 'on' },
+            ],
+        };
+    }
+
     let disposed = false;
     function dispose() {
         if (disposed) return;
@@ -630,6 +669,7 @@ export function createEarthAppServices({
         noctilucentCloudSystem,
         windParticles,
         oceanCurrents,
+        runtimeSignals,
         dispose
     };
 }

@@ -66,6 +66,13 @@ export function createEarthLayers({
         title: reliefTitle
     };
     let surfaceStatusListener = null;
+    // LOT 23: runtime signals (earth-runtime-state.js); no effect on what is drawn.
+    let reliefOutcome = 'loading';
+    let surfaceEvent = { kind: 'loading', retryWhenVisible: false };
+    function reportSurface(event) {
+        surfaceEvent = { kind: event.kind, retryWhenVisible: Boolean(event.retryWhenVisible) };
+        publishSurfaceStatus(surfaceStatusFor(event));
+    }
 
     function publishSurfaceStatus(next) {
         Object.assign(surfaceStatus, next);
@@ -162,6 +169,9 @@ export function createEarthLayers({
             if (key !== 'relief') return;
             activeRelief = texture;
             syncActiveReliefTexture([earthMat, earthMatPBR], activeReliefRef, texture);
+        },
+        onOutcome: (key, outcome) => {
+            if (key === 'relief') reliefOutcome = outcome === 'ktx2' ? 'ktx2' : outcome === 'fallback' ? 'bin' : 'failed';
         },
     });
 
@@ -323,7 +333,7 @@ export function createEarthLayers({
     let surfaceLevelApplied = false;
     const surfaceWatchdog = setTimeout(() => {
         if (surfaceSettled || surfaceLevelApplied) return;
-        publishSurfaceStatus(surfaceStatusFor({ kind: 'still-loading' }));
+        reportSurface({ kind: 'still-loading' });
     }, 16_000);
 
     function applySurfaceTexture(texture) {
@@ -354,7 +364,7 @@ export function createEarthLayers({
                 surfaceLevelApplied = true;
                 applySurfaceTexture(texture);
                 performance.mark?.(`lea:surface:wmts-z${z}`, { detail: { tiles, elapsedMs, resolution } });
-                if (!final) publishSurfaceStatus(surfaceStatusFor({ kind: 'preview', z, resolution }));
+                if (!final) reportSurface({ kind: 'preview', z, resolution });
             }
         })
             .then(({ texture, z, resolution, failures }) => {
@@ -362,7 +372,7 @@ export function createEarthLayers({
                 surfaceSettled = true;
                 clearTimeout(surfaceWatchdog);
                 const retry = !isRetry && z !== finalSurfaceLevel && visibility.wasHidden();
-                publishSurfaceStatus(surfaceStatusFor({ kind: 'settled', z, resolution, finalLevel: finalSurfaceLevel, retryWhenVisible: retry }));
+                reportSurface({ kind: 'settled', z, resolution, finalLevel: finalSurfaceLevel, retryWhenVisible: retry });
                 if (failures.length) console.warn('[Earth] NASA GIBS Blue Marble WMTS: some levels failed.', failures);
                 if (retry) whenVisible().then(() => startSurface([finalSurfaceLevel], true));
                 return texture;
@@ -375,7 +385,7 @@ export function createEarthLayers({
                 console.warn('[Earth] NASA GIBS Blue Marble surface unavailable; keeping bundled fallback texture.', error);
                 // A retry that fails keeps the level that is already applied.
                 if (!(isRetry && surfaceLevelApplied)) {
-                    publishSurfaceStatus(surfaceStatusFor({ kind: 'unavailable', retryWhenVisible: retry }));
+                    reportSurface({ kind: 'unavailable', retryWhenVisible: retry });
                 }
                 if (retry) whenVisible().then(() => startSurface(surfaceLevels, true));
                 return activeSurfaceMap;
@@ -406,6 +416,7 @@ export function createEarthLayers({
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
+        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state }), // LOT 23
         updateTerminatorGuide,
         setTerminatorGuideVisible,
         atmosphere,

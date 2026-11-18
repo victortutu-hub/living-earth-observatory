@@ -1,3 +1,5 @@
+import { mirrorChildRuntime } from '../core/observatory/child-runtime-mirror.js';
+
 const EARTH_READY_TIMEOUT_MS = 30_000;
 
 function waitForEarthHost(frame, signal) {
@@ -65,7 +67,10 @@ export function createLivingEarthAtlasModule({ route = './earth-eonet-relief.htm
       };
       try {
         const childHost = await waitForEarthHost(frame, context.signal);
+        // LOT 23: mirror the child's runtime state (earth-runtime-state.js) while mounted.
+        const stopMirror = mirrorChildRuntime({ frame, childHost, id: 'living-earth', context });
         return async (reason = 'atlas-unmount') => {
+          stopMirror();
           try {
             await childHost.destroy('living-earth', reason);
           } catch (error) {

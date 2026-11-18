@@ -15,6 +15,15 @@ const records = new Map(
   }]),
 );
 
+// LOT 23: two writers share a record. The gateway preview (index.html) writes through
+// setPreview(); a mounted module writes through set() with writer 'module' (module-context.js).
+// While a module holds the record, previews are remembered but not shown; when the module is
+// unmounted ("cancelled" / "idle"), the last preview takes the record back. Without a preview
+// (Living Himalaya) the module's own unmount record stays, as before.
+const previews = new Map();
+const held = new Set();
+const RELEASE_PHASES = new Set(['cancelled', 'idle']);
+
 function broadcast(id, record) {
   // LOT 21: a mount-only badge (live child without a gateway) is shown only while mounted.
   const shown = observatoryRuntimeBadge(observatoryById.get(id), record).runtimeBound;
@@ -30,23 +39,48 @@ function broadcast(id, record) {
   }));
 }
 
+function write(id, state, meta) {
+  const previous = records.get(id) || {};
+  const record = {
+    ...previous,
+    ...createRuntimeMeta(meta),
+    state,
+    value: runtimeDisplayValue(state),
+    updated: Object.prototype.hasOwnProperty.call(meta, 'updated')
+      ? meta.updated
+      : new Date().toISOString(),
+  };
+  records.set(id, record);
+  broadcast(id, record);
+  return record;
+}
+
 export const observatoryRuntime = Object.freeze({
   set(id, state, meta = {}) {
     // Ignore records without a route (e.g. an old diagnostic snapshot replay).
     if (!routedIds.has(id)) return null;
-    const previous = records.get(id) || {};
-    const record = {
-      ...previous,
-      ...createRuntimeMeta(meta),
-      state,
-      value: runtimeDisplayValue(state),
-      updated: Object.prototype.hasOwnProperty.call(meta, 'updated')
-        ? meta.updated
-        : new Date().toISOString(),
-    };
-    records.set(id, record);
-    broadcast(id, record);
-    return record;
+    if (meta.writer === 'module') {
+      if (RELEASE_PHASES.has(meta.phase)) {
+        held.delete(id);
+        const preview = previews.get(id);
+        if (preview) return write(id, preview.state, preview.meta);
+      } else {
+        held.add(id);
+      }
+    }
+    return write(id, state, meta);
+  },
+
+  /** Gateway preview state (LOT 23): shown only while no mounted module holds the record. */
+  setPreview(id, state, meta = {}) {
+    if (!routedIds.has(id)) return null;
+    previews.set(id, { state, meta: { ...meta } });
+    if (held.has(id)) return records.get(id);
+    return write(id, state, meta);
+  },
+
+  isHeld(id) {
+    return held.has(id);
   },
 
   get(id) {

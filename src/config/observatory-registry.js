@@ -17,10 +17,10 @@ function roadmapFromCriteria({ stage, next, criteria }) {
 
 const ROADMAP = Object.freeze({
   platform: Object.freeze({ progress: 72, stage: 'Foundation active', next: 'Shared contracts, lifecycle and reproducible diagnostics' }),
-  // LOT 22: was a hand-written 100 ('Live observatory'); now 8 of 12 criteria.
+  // LOT 22: was a hand-written 100 ('Live observatory'); 8 of 12 criteria. LOT 23: 9 of 12 (runtime state).
   earth: roadmapFromCriteria({
     stage: 'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export',
-    next: "Runtime state from Earth's own signals",
+    next: 'Mobile layout checked on a real phone', // LOT 23
     criteria: [
       { id: 'real-relief', label: 'Real relief & bathymetry (ETOPO 2022 + GIBS surface)', done: true,
         evidence: 'src/earth/relief-linear.js, gibs-surface.js, gibs-tiles.js · tests relief-linear, surface-relief-atmosphere, gibs-tiles · LOT 4b on production 2026-11-13 (Gate 1)' },
@@ -38,7 +38,8 @@ const ROADMAP = Object.freeze({
         evidence: 'src/earth/temporal-provenance.js, src/config/source-registry.js · tests source-provenance, temporal-provenance, data-time-status' },
       { id: 'export', label: 'Still, video & 9:16 export', done: true,
         evidence: 'src/earth/export-system.js, reel-*.js, vertical-director.js · reel 2026-11-15 with SHA-256 (Gate 2) + test h264-conversion + test earth-export-lot22; PNG/MediaRecorder without an automated test' },
-      { id: 'runtime-state', label: "Runtime state from Earth's own signals", done: false },
+      { id: 'runtime-state', label: "Runtime state from Earth's own signals", done: true, // LOT 23
+        evidence: 'src/earth/earth-runtime-state.js, living-earth-module.js, src/core/observatory/child-runtime-mirror.js, src/core/observatory-runtime-store.js · tests earth-lot23, himalaya-lot21, observatory-runtime-badge · checked in the browser (Atlas mount, surface blocked, Return)' },
       { id: 'mobile', label: 'Mobile layout checked on a real phone', done: false },
       { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real phone)', done: false },
       { id: 'surface-detail', label: 'Surface detail at high zoom (Sprint 2.4, interpretive)', done: false },

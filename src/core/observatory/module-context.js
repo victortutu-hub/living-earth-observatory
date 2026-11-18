@@ -76,7 +76,7 @@ export function createObservatoryModuleContext({
   }
 
   function setRuntime(state, meta = {}) {
-    return runtime?.set?.(observatory.id, state, meta) || null;
+    return runtime?.set?.(observatory.id, state, { ...meta, writer: 'module' }) || null; // LOT 23
   }
 
   function onDispose(cleanup) {
