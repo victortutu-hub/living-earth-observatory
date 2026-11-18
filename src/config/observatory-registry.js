@@ -27,7 +27,7 @@ const ROADMAP = Object.freeze({
   // Unfrozen 2026-11-15 (Gate 2 closed). Lot 1: peak list, Earth markers, enter/return, scene without terrain.
   // Lot 16: stage and next threshold up to date (production: deploy-himalaya-9); progress computed from the criteria below.
   himalaya: roadmapFromCriteria({
-    stage: 'In development: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps',
+    stage: 'Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps; measured on GTX 1650 and a real phone', // LOT 21
     next: 'All criteria met — next: glaciers (research)', // LOT 20
     criteria: [
       { id: 'real-terrain', label: 'Real terrain (GLO-30 + Terrarium)', done: true },
@@ -117,6 +117,16 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
       adapterOptions: Object.freeze({ textureSource: 'earthTexture', eventSource: 'eonet', statusKey: 'gibs' }),
     }),
   }),
+  // LOT 21: right after Living Earth (its parent), now that it is live.
+  futureObservatory({
+    id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'live', // LOT 21 (was development)
+    parent: 'living-earth', // entered from the Earth globe, not from the hero
+    route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay'],
+    accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
+    description: 'A regional observatory entered from a summit marker on the Earth globe: the 14 eight-thousanders and 6 selected Nepal peaks from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky (night observed, day interpretive), with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported; the 14 only).',
+    features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Summit history (reported)', 'Opt-in expedition tracks'],
+    representations: ['observed', 'reconstructed', 'prediction', 'reported', 'interpretive', 'fallback'],
+  }),
   Object.freeze({
     id: 'living-protein',
     title: 'Living Protein',
@@ -183,15 +193,6 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     accent: '34,211,238', secondaryAccent: '14,165,233', provenanceTag: 'ocean', roadmap: ROADMAP.ocean,
     description: 'A separate ocean observatory for currents, temperature and biogeochemistry, rather than one more decorative Earth layer.',
     features: ['Current fields', 'Temperature stories', 'Biogeochemical context'], representations: ['observed', 'reconstructed', 'physical-model', 'fallback'],
-  }),
-  futureObservatory({
-    id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'development',
-    parent: 'living-earth', // entered from the Earth globe, not from the hero
-    route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay'],
-    accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
-    description: 'A regional observatory in development, entered from a summit marker on the Earth globe. Today: the 14 eight-thousanders and 6 selected Nepal peaks from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky (night observed, day interpretive), with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported; the 14 only).',
-    features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Summit history (reported)', 'Opt-in expedition tracks'],
-    representations: ['observed', 'reconstructed', 'prediction', 'reported', 'interpretive', 'fallback'],
   }),
   futureObservatory({
     id: 'living-cell', title: 'Living Cell', subtitle: 'Observatory', family: 'life', scale: 'cellular', status: 'research',

@@ -2,7 +2,7 @@ import { PLATFORM_TAXONOMY } from '../config/platform-taxonomy.js';
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
 import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
 import { observatoryRuntime } from '../core/observatory-runtime-store.js';
-import { hasRuntime, observatoryRuntimeBadge } from '../core/observatory-runtime-badge.js';
+import { hasRuntime, isMountOnlyRuntime, observatoryRuntimeBadge } from '../core/observatory-runtime-badge.js';
 
 let platformFilters = { family: 'all', scale: 'all', status: 'all' };
 
@@ -67,11 +67,16 @@ const familyById = new Map(PLATFORM_TAXONOMY.families.map(item => [item.id,item]
         coordinate.textContent = getScopeCoordinate(item);
         // Runtime badge only for routed observatories; the status chip above
         // already states PLANNED / RESEARCH / IN DEVELOPMENT for the rest.
+        // LOT 21: a live child without a gateway (Living Himalaya) gets a hidden
+        // badge, revealed by the runtime store only while it is mounted.
         const badge = hasRuntime(item) ? observatoryRuntimeBadge(item, observatoryRuntime.get(item.id)) : null;
-        if (badge?.runtimeBound) {
+        const mountOnly = item.status === 'live' && hasRuntime(item) && isMountOnlyRuntime(item);
+        if (badge?.runtimeBound || mountOnly) {
           const runtimeStatus = createElement('span','obs-runtime-status',badge.text);
           runtimeStatus.dataset.observatoryRuntime = item.id;
           runtimeStatus.dataset.state = badge.state;
+          runtimeStatus.hidden = !badge.runtimeBound;
+          if (!badge.runtimeBound) runtimeStatus.style.display = 'none';
           head.append(status,runtimeStatus,coordinate);
         } else {
           head.append(status,coordinate);

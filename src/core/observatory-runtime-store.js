@@ -1,11 +1,12 @@
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
 import { RUNTIME_STATE, runtimeDisplayValue, createRuntimeMeta } from './runtime/runtime-states.js';
-import { hasRuntime } from './observatory-runtime-badge.js';
+import { hasRuntime, observatoryRuntimeBadge } from './observatory-runtime-badge.js';
 
 // Only routed observatories have a runtime. Planned / research / development
 // records are not services that can be offline; their badge shows the
 // registry status (observatory-runtime-badge.js).
 const routedIds = new Set(OBSERVATORY_REGISTRY.filter(hasRuntime).map((observatory) => observatory.id));
+const observatoryById = new Map(OBSERVATORY_REGISTRY.map((observatory) => [observatory.id, observatory]));
 const records = new Map(
   OBSERVATORY_REGISTRY.filter(hasRuntime).map((observatory) => [observatory.id, {
     state: observatory.gateway?.enabled ? RUNTIME_STATE.FALLBACK : RUNTIME_STATE.OFFLINE,
@@ -15,10 +16,14 @@ const records = new Map(
 );
 
 function broadcast(id, record) {
+  // LOT 21: a mount-only badge (live child without a gateway) is shown only while mounted.
+  const shown = observatoryRuntimeBadge(observatoryById.get(id), record).runtimeBound;
   document.querySelectorAll(`[data-observatory-runtime="${id}"]`).forEach((element) => {
     element.textContent = record.value;
     element.dataset.state = record.state;
     if (record.phase) element.dataset.phase = record.phase;
+    element.hidden = !shown;
+    element.style.display = shown ? '' : 'none'; // the badge CSS sets display, which beats [hidden]
   });
   document.dispatchEvent(new CustomEvent('lumi:observatory-runtime', {
     detail: { id, ...record },

@@ -73,8 +73,9 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     for (const word of ['garmin', 'glacier']) expect(text, word).not.toContain(word);
   });
 
-  it('inspector: development contract with capabilities; live and empty records unchanged', () => {
-    expect(describeCapabilityContract(himalaya, platformRegistry.getCapabilities('living-himalaya'))).toMatchObject({ label: 'Development contract', state: 'development' });
+  it('inspector: live contract since LOT 21 (development contract before); live and empty records unchanged', () => {
+    expect(describeCapabilityContract(himalaya, platformRegistry.getCapabilities('living-himalaya'))).toEqual({ label: 'Live contract', state: 'live', summary: '4 capabilities are explicitly declared by this observatory contract.' });
+    expect(describeCapabilityContract({ ...himalaya, status: 'development' }, platformRegistry.getCapabilities('living-himalaya'))).toMatchObject({ label: 'Development contract', state: 'development' });
     const earth = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-earth');
     expect(describeCapabilityContract(earth, platformRegistry.getCapabilities('living-earth'))).toEqual({ label: 'Live contract', state: 'live', summary: '9 capabilities are explicitly declared by this observatory contract.' });
     const cell = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-cell');
@@ -82,7 +83,7 @@ describe('LOT 16: Living Himalaya capabilities', () => {
   });
 
   it('card: stage and next threshold up to date; progress computed from the criteria', () => {
-    expect(himalaya.roadmap.stage).toBe('In development: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps'); // LOT 15b
+    expect(himalaya.roadmap.stage).toBe('Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps; measured on GTX 1650 and a real phone'); // LOT 21
     expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)'); // LOT 20
     expect(himalaya.roadmap.next).not.toMatch(/Per-field provenance/);
     expect(himalaya.roadmap.progress).toBe(100);

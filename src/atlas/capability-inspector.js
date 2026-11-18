@@ -1,6 +1,6 @@
 import { platformRegistry } from '../core/platform-registry.js';
 import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
-import { describeMeasuredRun } from '../config/capability-registry.js';
+import { measuredRunTitle, measuredRunView } from '../config/capability-registry.js';
 
 const GROUP_LABELS = Object.freeze({
   data: 'Data & provenance',
@@ -11,10 +11,11 @@ const GROUP_LABELS = Object.freeze({
 });
 
 /**
- * State line and summary of the inspector. A live observatory has a live
- * contract; an observatory in development that declares capabilities has a
- * development contract (each capability lists its sources); otherwise there
- * is no runtime claim.
+ * State line and summary of the inspector. A live observatory (Living Earth,
+ * Living Protein, Living Himalaya since LOT 21) has a live contract; an
+ * observatory in development that declares capabilities has a development
+ * contract (each capability lists its sources); otherwise there is no runtime
+ * claim.
  */
 export function describeCapabilityContract(observatory, capabilities = []) {
   if (observatory?.status === 'live') {
@@ -119,19 +120,27 @@ export function initCapabilityInspector() {
     }
 
     // LOT 20: real-device runs (primary first), with the reports' location.
+    // LOT 21: same typography as the other groups (strong / span inside .capability-list),
+    // one compact key-value list per run, the notes once at the end.
     const measured = platformRegistry.getMeasured?.(observatoryId) || [];
     if (measured.length) {
       const block = createElement('section', 'capability-group capability-group-measured');
       block.append(createElement('span', 'capability-group-label', 'Measured'));
       const items = createElement('ul', 'capability-list');
-      items.append(...measured.filter((run) => run.primary).map((run) => createElement('li', null, describeMeasuredRun(run))));
-      block.append(items);
-      const secondary = measured.filter((run) => !run.primary);
-      const note = [
-        'Reports (schema lumi-himalaya-perf/1, ?perf=1 mode) are versioned in the repository under docs/perf/ with their SHA-256; they are not published on the site.',
-        ...secondary.map((run) => `Also measured: ${run.note}`),
-      ].join(' ');
-      block.append(createElement('p', 'capability-evidence-note', note));
+      items.append(...measured.filter((run) => run.primary).map((run) => {
+        const view = measuredRunView(run);
+        const item = createElement('li');
+        const values = createElement('dl', 'capability-measured');
+        view.rows.forEach(([key, value]) => values.append(createElement('dt', null, key), createElement('dd', null, value)));
+        item.append(createElement('strong', null, view.title), createElement('span', null, view.subtitle), values);
+        return item;
+      }));
+      const notes = createElement('div', 'capability-list');
+      notes.append(createElement('span', 'capability-evidence-note', 'Reports in the repository under docs/perf/ (not published on the site).'));
+      measured.filter((run) => !run.primary).forEach((run) => {
+        notes.append(createElement('span', 'capability-evidence-note', `Also measured (secondary): ${measuredRunTitle(run)} in Desktop-site mode — heavier than normal; mobile layout not exercised; not counted as the phone run.`));
+      });
+      block.append(items, notes);
       groups.push(block);
     }
 

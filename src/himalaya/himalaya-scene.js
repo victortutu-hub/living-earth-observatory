@@ -825,6 +825,15 @@ export function createHimalayaScene({
       const entry = activePatchId ? patches.peek(activePatchId) : null;
       return { id: activePatchId, visible: Boolean(entry && entry.mesh.visible && terrainMode === 'glo30'), fading: Boolean(fade), flying: Boolean(flight), readyAt: activePatchId ? patchReadyAt.get(activePatchId) ?? null : null };
     },
+    /** LOT 21: signals for the runtime state (himalaya-runtime-state.js). */
+    runtimeSignals: () => {
+      const stats = overview.stats();
+      return {
+        glo30Failed: Boolean(activePatchId && terrainMode === 'glo30' && patchStates.get(activePatchId) === 'error'),
+        terrarium: { requested: stats.loaded + stats.failed, failed: stats.failed },
+        sky: realSky.snapshot().status,
+      };
+    },
     /** LOT 19: page-load figures (ms since the navigation start). */
     loadTimings: () => ({ firstFrameAt, patchReadyAt: Object.fromEntries(patchReadyAt) }),
     rendererInfo: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }),

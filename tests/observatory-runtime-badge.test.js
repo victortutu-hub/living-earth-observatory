@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { OBSERVATORY_REGISTRY } from '../src/config/observatory-registry.js';
 import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
-import { hasRuntime, observatoryRuntimeBadge } from '../src/core/observatory-runtime-badge.js';
+import { hasRuntime, isMountedRuntime, isMountOnlyRuntime, observatoryRuntimeBadge } from '../src/core/observatory-runtime-badge.js';
 
 const statusLabel = (id) => PLATFORM_TAXONOMY.statuses.find((status) => status.id === id)?.label;
 const byId = (id) => OBSERVATORY_REGISTRY.find((item) => item.id === id);
@@ -15,11 +15,28 @@ describe('runtime badge: planned observatories are not "offline"', () => {
         expect(observatoryRuntimeBadge(byId('living-sun'), null, statusLabel('development')).text).toBe('IN DEVELOPMENT');
     });
 
-    it('a routed development record (Living Himalaya) shows its status, not a runtime state', () => {
-        expect(byId('living-himalaya').route).toBe('./living-himalaya.html');
-        expect(observatoryRuntimeBadge(byId('living-himalaya'), { value: 'OFFLINE', state: 'offline' }, statusLabel('development')))
+    it('a routed development record shows its status, not a runtime state', () => {
+        const development = { ...byId('living-himalaya'), status: 'development' };
+        expect(observatoryRuntimeBadge(development, { value: 'OFFLINE', state: 'offline' }, statusLabel('development')))
             .toEqual({ text: 'IN DEVELOPMENT', state: 'declared', runtimeBound: false });
-        expect(observatoryRuntimeBadge(byId('living-himalaya'), null, statusLabel('development')).text).toBe('IN DEVELOPMENT');
+    });
+
+    it('LOT 21: live child without a gateway (Living Himalaya): no runtime badge unless mounted', () => {
+        const himalaya = byId('living-himalaya');
+        expect(himalaya.status).toBe('live');
+        expect(isMountOnlyRuntime(himalaya)).toBe(true);
+        expect(isMountOnlyRuntime(byId('living-earth'))).toBe(false);
+        expect(isMountOnlyRuntime(byId('living-protein'))).toBe(false);
+        const notRunning = { text: 'NOT RUNNING', state: 'declared', runtimeBound: false };
+        expect(observatoryRuntimeBadge(himalaya, null)).toEqual(notRunning);
+        expect(observatoryRuntimeBadge(himalaya, { value: 'OFFLINE', state: 'offline', phase: 'idle' })).toEqual(notRunning); // never mounted
+        expect(observatoryRuntimeBadge(himalaya, { value: 'OFFLINE', state: 'offline', phase: 'cancelled' })).toEqual(notRunning); // unmounted
+        expect(observatoryRuntimeBadge(himalaya, { value: 'LIVE', state: 'live', phase: 'ready' })).toEqual({ text: 'LIVE', state: 'live', runtimeBound: true });
+        expect(observatoryRuntimeBadge(himalaya, { value: 'FALLBACK', state: 'fallback', phase: 'ready' })).toEqual({ text: 'FALLBACK', state: 'fallback', runtimeBound: true });
+        expect(observatoryRuntimeBadge(himalaya, { value: 'FALLBACK', state: 'fallback', phase: 'loading' }).runtimeBound).toBe(true);
+        expect(isMountedRuntime({ phase: 'error' })).toBe(true); // a failed mount keeps its OFFLINE badge
+        // Earth and Protein unchanged: a record in any phase is a runtime badge.
+        expect(observatoryRuntimeBadge(byId('living-earth'), { value: 'FALLBACK', state: 'fallback', phase: 'idle' })).toEqual({ text: 'FALLBACK', state: 'fallback', runtimeBound: true });
     });
 
     it('keeps real runtime states for routed observatories, OFFLINE included', () => {

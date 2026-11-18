@@ -23,6 +23,7 @@ import { createAttemptLedger, createGuardedRuntime } from './request-guard.js';
 import { computeMoon, nightMessage } from './moon-position.js';
 import { HIMALAYA_SKY_NOTES, isBrightSky, skyAttribution, skyBarSegment } from './himalaya-sky.js';
 import { SKY_MODEL } from '../core/sky/sky-atmosphere.js';
+import { himalayaRuntimeState } from './himalaya-runtime-state.js';
 import { createSentinelClient } from './sentinel-client.js';
 import {
   LEVEL_20M, LEVEL_40M, STRETCH_LABEL, imageBarSegment, lightingLabel, selectionSummary, sentinelAttribution, shouldLoad20m,
@@ -116,7 +117,7 @@ export function demRowText(mode, patch, terrariumSummit) {
 
 export function startHimalayaApp({
   signal, createScene, search = window.location.search, embedded = false,
-  now = () => new Date(), loadAstronomy = loadAstronomyEngine,
+  now = () => new Date(), loadAstronomy = loadAstronomyEngine, setRuntime = null,
 } = {}) {
   const canvas = document.getElementById('himalayaStage');
   const labelHost = document.getElementById('himalayaLabels');
@@ -656,6 +657,31 @@ export function startHimalayaApp({
     activeId = null; weather.clear(); weatherState = null; scene?.overview(options); renderPanel(); updateSun();
   }
 
+  // --- LOT 21: runtime state from the page's own signals (himalaya-runtime-state.js), written
+  // through the module context; republished only when it changes (one owned 1 s timer).
+  let runtime = null;
+  function runtimeSignals() {
+    return {
+      webgl2: Boolean(scene), ...(scene?.runtimeSignals?.() || {}),
+      sunSource: sunInfo?.source || null,
+      // Lit terrain chosen by the user: a Sentinel-2 error is not on screen (LIVE).
+      sentinel: userImageMode === 'lit' ? 'lit-by-user' : sat && sat.peakId === activeId ? sat.status : null,
+      weather: weatherState && weatherState.peakId === activeId ? weatherState.status : null,
+    };
+  }
+  function publishRuntime() {
+    if (!alive()) return;
+    const next = himalayaRuntimeState(runtimeSignals());
+    const key = `${next.state}|${next.reasons.join(',')}|${next.secondary.join(',')}`;
+    if (runtime?.key === key) return;
+    runtime = { ...next, key, updated: new Date().toISOString() };
+    setRuntime?.(next.state, { phase: 'ready', reason: [...next.reasons, ...next.secondary].join('; ') || 'core-signals-ok' });
+  }
+  // The first write follows the module context's own "module-ready" write (a microtask later).
+  const runtimeStart = setTimeout(publishRuntime, 0);
+  const runtimeTimer = setInterval(publishRuntime, 1000);
+  listeners.signal.addEventListener('abort', () => { clearTimeout(runtimeStart); clearInterval(runtimeTimer); }, { once: true });
+
   // --- LOT 19: performance run, only with ?perf=1. The measurement code is a separate module
   // loaded dynamically here; without the parameter it is never requested and nothing changes.
   let perfTeardown = null;
@@ -705,6 +731,7 @@ export function startHimalayaApp({
       imageNote: imageNote.textContent,
       provenance: provenanceText.textContent, provenanceExpanded: panelState.provenance, panels: { ...panelState }, viewOffsetY: scene?.viewOffsetY?.() ?? 0,
       timeFromEarth: time.fromEarth, timeNote: timeSource.hidden ? null : timeSource.textContent, scene: scene?.snapshot() || null,
+      runtime: runtime ? { state: runtime.state, reasons: [...runtime.reasons], secondary: [...runtime.secondary], updated: runtime.updated } : null,
       routes: { showRoutes: routes.showRoutes, showCamps: routes.showCamps, status: routes.status, requests: routes.requests, lineError: routes.lineError, note: routesNote.hidden ? null : routesNote.textContent,
         switches: [routesSwitch, campsSwitch].map((b) => ({ id: b.id, role: b.getAttribute('role'), checked: b.getAttribute('aria-checked'), busy: b.getAttribute('aria-busy') })),
         rows: activeId ? routeSectionRows({ peakId: activeId, data: routes.data, status: routes.status, showRoutes: routes.showRoutes, showCamps: routes.showCamps, terrainMode }) : [] },

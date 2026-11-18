@@ -75,7 +75,21 @@ export function createLivingHimalayaAtlasModule({ route = './living-himalaya.htm
       };
       try {
         const childHost = await waitForHimalayaHost(frame, context.signal);
+        // LOT 21: mirror the child's runtime state (its own signals) in the host page while
+        // mounted: the card badge and the control center show it. Same-origin frame: the
+        // child's runtime store dispatches lumi:observatory-runtime on its document.
+        const childDocument = frame.contentDocument;
+        const copyRuntime = (record) => {
+          if (!record?.state || record.phase === 'cancelled') return;
+          context.setRuntime?.(record.state, { phase: record.phase || 'ready', reason: record.reason ? `child: ${record.reason}` : 'child-runtime', error: record.error || null });
+        };
+        const onChildRuntime = (event) => { if (event.detail?.id === 'living-himalaya') copyRuntime(event.detail); };
+        childDocument?.addEventListener('lumi:observatory-runtime', onChildRuntime);
+        // The host context writes its own "module-ready" (LIVE) right after this start resolves.
+        const initialCopy = window.setTimeout(() => copyRuntime(childHost.snapshot('living-himalaya')?.runtime), 0);
         return async (reason = 'atlas-unmount') => {
+          window.clearTimeout(initialCopy);
+          childDocument?.removeEventListener('lumi:observatory-runtime', onChildRuntime);
           try {
             await childHost.destroy('living-himalaya', reason);
           } catch (error) {

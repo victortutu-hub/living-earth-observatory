@@ -391,6 +391,37 @@ export function gpuName(renderer) {
   return field.replace(/\(TM\)\s*/g, '').replace(/\s*\(0x[0-9A-Fa-f]+\).*$/, '').replace(/\s+(Direct3D|OpenGL).*$/, '').trim();
 }
 
+/** LOT 21: short run title, e.g. "Desktop · GTX 1650 · Edge 157" / "Phone · Adreno 740 · Edge 157 Android". */
+export function measuredRunTitle(run) {
+  const who = run.role === 'desktop' ? 'Desktop' : 'Phone';
+  const gpu = gpuName(run.device).replace(/^NVIDIA GeForce /, '');
+  const browser = run.browser.replace(/ desktop \(Windows\)$/, '').replace(/ \(Desktop-site mode\)$/, '');
+  return `${who} · ${gpu} · ${browser}`;
+}
+
+/**
+ * LOT 21: the inspector's view of one run - a title, a subtitle (date, viewport, canvas) and
+ * key-value rows, all derived from OBSERVATORY_MEASURED (no value of its own).
+ */
+export function measuredRunView(run) {
+  const scenarios = Object.values(run.frames);
+  const maxOf = (values) => Math.max(...values);
+  // Numbers without a unit, the unit once per value: "16.7 / 16.8 / 17.3 ms".
+  const num = (v) => fmtMs(v).replace(/ ms$/, '');
+  const span = (values) => { const lo = Math.min(...values); const hi = Math.max(...values); return lo === hi ? num(lo) : `${num(lo)}–${num(hi)}`; };
+  const rows = [
+    ['Frames (p50 / p95 / max)', `${span(scenarios.map((s) => s.p50Ms))} / ${num(maxOf(scenarios.map((s) => s.p95Ms)))} / ${num(maxOf(scenarios.map((s) => s.maxMs)))} ms · ${run.refreshHz} Hz vsync`],
+    ['GPU (p50 / p95)', typeof run.gpu === 'string' ? run.gpu : `${span(Object.values(run.gpu).map((g) => g.p50Ms))} / ≤ ${num(maxOf(Object.values(run.gpu).map((g) => g.p95Ms)))} ms`],
+  ];
+  if (run.skyGpuMs) rows.push(['Sky (day / night)', `${num(run.skyGpuMs.A)} / ${num(run.skyGpuMs.C)} ms`]);
+  rows.push(
+    ['First frame', fmtMs(run.load.firstFrameMs)],
+    ['Relief ready', fmtMs(run.load.reliefReadyMs)],
+    ['Everest → K2 (first / second)', `${num(run.summitSwitch.firstReadyMs)} ms, ${run.summitSwitch.firstSource} / ${num(run.summitSwitch.secondReadyMs)} ms, ${run.summitSwitch.secondSource}`],
+  );
+  return { title: measuredRunTitle(run), subtitle: `${run.date} · viewport ${run.viewport.join('×')} · canvas ${run.canvas.join('×')}`, rows };
+}
+
 const range = (values) => { const lo = Math.min(...values); const hi = Math.max(...values); return lo === hi ? fmtMs(lo) : `${fmtMs(lo)}–${fmtMs(hi)}`; };
 /** One line per measured run for the inspector. */
 export function describeMeasuredRun(run) {

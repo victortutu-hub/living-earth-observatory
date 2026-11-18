@@ -4,22 +4,24 @@ import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
 import { validateObservatoryRegistry } from '../src/core/observatory/module-contract.js';
 import { platformRegistry } from '../src/core/platform-registry.js';
 
-describe('Living Himalaya is in development (Himalaya LOT 1), not a hero portal', () => {
+describe('Living Himalaya: live since LOT 21 (in development from Himalaya LOT 1), not a hero portal', () => {
     const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
 
-    it('is a development regional planetary record with a route and no portal', () => {
+    it('is a live regional planetary record with a route and no portal (child of Living Earth)', () => {
         expect(himalaya).toMatchObject({
             title: 'Living Himalaya',
             subtitle: 'Observatory',
             family: 'planetary',
             scale: 'regional',
             scaleAxis: 'physical',
-            status: 'development',
+            status: 'live', // LOT 21
+            parent: 'living-earth',
             route: './living-himalaya.html',
             featured: false,
         });
         expect(himalaya.gateway).toBeUndefined();
-        expect(himalaya.description).toMatch(/^A regional observatory in development/);
+        expect(himalaya.description).toMatch(/^A regional observatory entered from a summit marker on the Earth globe: the 14 eight-thousanders/);
+        expect(himalaya.description).not.toMatch(/in development|Today:/);
         expect(himalaya.representations).toEqual(['observed', 'reconstructed', 'prediction', 'reported', 'interpretive', 'fallback']); // Lot 6: history (reported); Lot 14: routes (interpretive)
         // Only what exists is declared: the peak reference list.
         expect(himalaya.sources).toEqual(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps',
@@ -54,7 +56,7 @@ describe('Living Himalaya is in development (Himalaya LOT 1), not a hero portal'
         const portals = OBSERVATORY_REGISTRY.filter((item) => item.gateway).map((item) => item.id);
         expect(portals).toEqual(['living-earth', 'living-protein']);
         const routed = OBSERVATORY_REGISTRY.filter((item) => item.route).map((item) => item.id);
-        expect(routed).toEqual(['living-earth', 'living-protein', 'living-himalaya']);
+        expect(routed).toEqual(['living-earth', 'living-himalaya', 'living-protein']); // LOT 21: right after its parent
     });
 });
 

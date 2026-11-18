@@ -125,11 +125,11 @@ describe('LOT 20: contract for criterion 11 (measured performance)', () => {
 });
 
 describe('LOT 20: roadmap, inspector and "Not measured"', () => {
-  it('11 of 11 = 100%; honest next threshold; status stays "development"', () => {
+  it('11 of 11 = 100%; honest next threshold (status: development in LOT 20, live since LOT 21)', () => {
     expect(himalaya.roadmap.criteria.every((c) => c.done)).toBe(true);
     expect(himalaya.roadmap.progress).toBe(100);
     expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)');
-    expect(himalaya.status).toBe('development');
+    expect(himalaya.status).toBe('live');
   });
 
   it('"Not measured" no longer lists what is measured; what remains is true for these runs', () => {
@@ -144,9 +144,11 @@ describe('LOT 20: roadmap, inspector and "Not measured"', () => {
   it('inspector: a "Measured" group with the two primary runs, the docs/perf/ note and the secondary run', () => {
     const inspector = read('src/atlas/capability-inspector.js').toString();
     expect(inspector).toContain("block.append(createElement('span', 'capability-group-label', 'Measured'));");
-    expect(inspector).toContain('measured.filter((run) => run.primary).map((run) => createElement(\'li\', null, describeMeasuredRun(run)))');
-    expect(inspector).toContain('versioned in the repository under docs/perf/');
-    expect(inspector).toContain('Also measured: ${run.note}');
+    // LOT 21: structured per run (title, subtitle, key-value rows) with the inspector's own classes.
+    expect(inspector).toContain('measured.filter((run) => run.primary).map((run) => {');
+    expect(inspector).toContain('const view = measuredRunView(run);');
+    expect(inspector).toContain("Reports in the repository under docs/perf/ (not published on the site).");
+    expect(inspector).toContain('Also measured (secondary): ${measuredRunTitle(run)} in Desktop-site mode');
     expect(describeMeasuredRun(byRole.desktop)).toMatch(/^Desktop · NVIDIA GeForce GTX 1650 · Edge 157 desktop \(Windows\) · 2026-11-18 · 1528×698 CSS px \(canvas 1910×872\): frames p50 16\.7 ms \(60 Hz vsync\)/);
     expect(describeMeasuredRun(byRole.desktop)).toMatch(/GPU p50 2\.09 ms–3\.1 ms|GPU p50 2\.1 ms–3\.1 ms/);
     expect(describeMeasuredRun(byRole.mobile)).toMatch(/^Phone · Adreno 740 · Edge 157 Android .* GPU timer unavailable; first frame 443 ms, relief ready 1,268 ms/);

@@ -11,8 +11,8 @@ natural-disaster signals. **Living Protein V0.1** is the second live
 observatory: a single-molecule view built from AlphaFold structure predictions,
 per-residue model confidence, and UniProt functional annotations. Its data
 model is explicitly prediction-derived rather than experimental structure data.
-**Living Himalaya** is a regional observatory in development, entered from the
-Earth globe (see below).
+**Living Himalaya** is a live regional observatory, entered from the Earth
+globe (see below).
 
 Public landing page:
 

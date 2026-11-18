@@ -9,6 +9,8 @@ export const livingHimalayaModule = Object.freeze({
       signal: context.signal,
       createScene: createHimalayaScene,
       embedded: params.get('embedded') === 'atlas',
+      // LOT 21: the page's runtime state goes through the module context (badge, Atlas).
+      setRuntime: (state, meta) => context.setRuntime(state, meta),
     });
   },
 });
