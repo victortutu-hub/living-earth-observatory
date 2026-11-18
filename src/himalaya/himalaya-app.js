@@ -21,6 +21,8 @@ import { isWeatherDay, summitWeatherRows, weatherBarSegment } from './summit-wea
 import { createSessionStorageCache, createWeatherClient } from './weather-client.js';
 import { createAttemptLedger, createGuardedRuntime } from './request-guard.js';
 import { computeMoon, nightMessage } from './moon-position.js';
+import { HIMALAYA_SKY_NOTES, skyAttribution, skyBarSegment } from './himalaya-sky.js';
+import { SKY_MODEL } from '../core/sky/sky-atmosphere.js';
 import { createSentinelClient } from './sentinel-client.js';
 import {
   LEVEL_20M, LEVEL_40M, STRETCH_LABEL, imageBarSegment, lightingLabel, selectionSummary, sentinelAttribution, shouldLoad20m,
@@ -169,6 +171,7 @@ export function startHimalayaApp({
   let sunInfo = null;
   let moonInfo = null;
   let weatherState = null;
+  let skyEMax = null; // LOT 15b: debug override of E_max for the comparison captures (null = SKY_MODEL default)
   // History aggregates (one small same-origin asset, loaded once, through the guarded runtime).
   const history = { status: 'idle', data: null };
   function loadHistory() {
@@ -264,7 +267,7 @@ export function startHimalayaApp({
       text: sceneYear ? sentinelAttribution(sceneYear) : 'Contains modified Copernicus Sentinel data [year of the scene shown]',
       note: 'Sentinel-2 L2A (atmospherically corrected with Sen2Cor), Cloud-Optimized GeoTIFFs found through Earth Search (Element 84) on AWS Open Data; bands B4/B3/B2 with one fixed stretch for every scene, reprojected from UTM onto the GLO-30 patch.',
     };
-    sources.replaceChildren(...[...ATTRIBUTIONS, sentinelEntry, ...(routesActive() ? [ROUTES_ATTRIBUTION] : [])].map((entry) => {
+    sources.replaceChildren(...[...ATTRIBUTIONS, sentinelEntry, skyAttribution(scene?.skySnapshot?.() || null), ...(routesActive() ? [ROUTES_ATTRIBUTION] : [])].map((entry) => {
       const item = element('li');
       item.append(element('strong', null, entry.title), element('span', 'himalaya-source-text', entry.text), element('span', 'himalaya-source-note', entry.note));
       if (entry.link) {
@@ -286,7 +289,7 @@ export function startHimalayaApp({
     const weatherForPeak = weatherState && weatherState.peakId === activeId ? weatherState : null;
     const imageSegment = satelliteShown() ? imageBarSegment(sat.pass) : 'Image: none (Lit terrain)';
     const patch = activeId ? getTerrainPatch(activeId) : null;
-    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment, glo30Accessed: patch?.accessed || null, routes: routesBarSegment(routes) });
+    provenanceText.textContent = composeProvenanceBar({ terrainMode, sun: sunInfo, sky: scene?.skySnapshot ? skyBarSegment(scene.skySnapshot()) : null, date, weather: weatherBarSegment(activeId ? weatherForPeak || { status: 'loading' } : null, date), image: imageSegment, glo30Accessed: patch?.accessed || null, routes: routesBarSegment(routes) });
     provenanceText.title = terrainMode === 'glo30' && patch ? glo30FillNote(patch) : '';
   }
 
@@ -366,6 +369,8 @@ export function startHimalayaApp({
     const result = computeSun({ date, lat, lon, heightM, Astronomy: astronomy });
     sunInfo = { ...result, lat, lon };
     scene?.setSun({ ...result, lat, lon });
+    // LOT 15b: the sky seen from the summit (region centre at a nominal plateau height in the overview).
+    scene?.setSky?.({ date, lat, lon, heightM: peak ? peak.elevationM : SKY_MODEL.overviewHeightM, sun: result, Astronomy: astronomy, eMax: skyEMax });
     const utc = date.getUTCHours() * 60 + date.getUTCMinutes();
     timeSlider.value = String(time.mode === 'now' ? Math.round(utc / TIME_STEP_MINUTES) * TIME_STEP_MINUTES : time.minutes);
     const place = peak ? peak.name : 'region centre';
@@ -387,7 +392,7 @@ export function startHimalayaApp({
     const message = peak ? nightMessage({ peakName: peak.name, sun: result, moon, isNow: time.mode === 'now' }) : null;
     night.hidden = !message;
     nightText.textContent = message ? `${message.text}${satelliteShown() ? ' (image: daylight as captured)' : ''}` : '';
-    nightMoon.textContent = message?.moon || '';
+    nightMoon.textContent = message?.moon ? `${message.moon} · ${HIMALAYA_SKY_NOTES.moon}` : '';
     nightMoon.hidden = !message?.moon;
     if (peak) renderPanel();
     updateProvenance();
@@ -632,6 +637,9 @@ export function startHimalayaApp({
     notice.textContent = `3D view unavailable (${error.message}). The peak list and details still work.`;
   }
 
+  // LOT 15b: provenance bar and sources follow the sky assets once they settle.
+  scene?.skyReady?.().then(() => { if (alive()) { updateProvenance(); renderSources(lastSceneYear); } });
+
   updateFraming();
   const initial = resolveInitialFocus(search);
   if (initial) select(initial, { instant: false });
@@ -672,6 +680,9 @@ export function startHimalayaApp({
     overview: (options) => { activeId = null; weather.clear(); weatherState = null; scene?.overview(options); renderPanel(); updateSun(); },
     measureShadowCost: (samples) => scene?.measureShadowCost(samples) || null,
     measureShadowCostGpu: (samples) => scene?.measureShadowCostGpu(samples) || null,
+    measureSkyCostGpu: (samples) => scene?.measureSkyCostGpu?.(samples) || null,
+    sky: () => scene?.skySnapshot?.() || null,
+    setSkyEMax: (value) => { skyEMax = Number.isFinite(value) ? value : null; updateSun(); },
     view: (target, position) => scene?.setView(target, position),
     setImageMode,
     showBestAvailable: () => { const peak = getHimalayaPeak(activeId); if (peak) loadSatellite(peak, { useBest: true }); },

@@ -27,6 +27,7 @@ import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
 import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_WIDTH_PX, campLabel } from './routes-model.js';
 import { terrainOccludes } from './label-occlusion.js';
+import { createHimalayaSky } from './himalaya-sky.js';
 
 export { projectLonLat, VERTICAL_EXAGGERATION };
 export const FLY_DURATION_MS = 1200;
@@ -34,6 +35,7 @@ export const PATCH_FADE_MS = 400;
 export const SHADOW_MAP_SIZE = 2048;
 export const MAX_PATCHES_IN_MEMORY = 2;
 const TERRAIN_ALBEDO = 0xc3ccd3;
+const CLEAR_COLOR = 0x03060d;
 const SHADOW_HALF_KM = 16;
 const OVERVIEW_VIEW = Object.freeze({ target: [0, 0, 120], position: [0, 2350, 2050] });
 export const SELECTED_LABEL_MAX_KM = 160;
@@ -98,7 +100,7 @@ export function createHimalayaScene({
     throw new Error('WebGL2 is not available.');
   }
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.setClearColor(0x03060d, 1);
+  renderer.setClearColor(CLEAR_COLOR, 1);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
@@ -121,6 +123,9 @@ export function createHimalayaScene({
   const track = (resource) => { disposables.push(resource); return resource; };
   const disposeController = new AbortController();
   let disposed = false;
+
+  // --- LOT 15b: the real sky (background only: the lights below are unchanged)
+  const realSky = createHimalayaSky({ THREE, scene, groundColor: CLEAR_COLOR });
 
   // --- lights: the real Sun (directional) + a dim sky fill
   const sun = new THREE.DirectionalLight(0xfff4e6, 2.4);
@@ -792,6 +797,46 @@ export function createHimalayaScene({
     },
     setSun,
     setMoon,
+    /** LOT 15b: sky for the observer { date, lat, lon, heightM, sun: { azimuthDeg, altitudeDeg }, Astronomy, eMax? }. */
+    setSky({ date, lat, lon, heightM, sun, Astronomy = null, eMax }) {
+      realSky.setObserver({ date, latDeg: lat, lonDeg: lon, heightM, basis: localBasis(lon, lat, center), Astronomy, sun, ...(eMax ? { eMax } : {}) });
+    },
+    skySnapshot: () => realSky.snapshot(),
+    skyReady: () => realSky.ready,
+    /** GPU cost of the sky (background + stars) at the current size: TIME_ELAPSED with / without it. */
+    async measureSkyCostGpu(samples = 8) {
+      const gl = renderer.getContext();
+      const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+      if (!ext) return { available: false };
+      const shown = { background: realSky.background.visible, stars: realSky.stars.visible };
+      const runOne = (withSky) => {
+        realSky.background.visible = withSky && shown.background;
+        realSky.stars.visible = withSky && shown.stars;
+        const query = gl.createQuery();
+        gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+        renderer.render(scene, camera);
+        gl.endQuery(ext.TIME_ELAPSED_EXT);
+        return query;
+      };
+      const pending = [];
+      for (let i = 0; i < samples; i++) { pending.push(['sky', runOne(true)]); pending.push(['none', runOne(false)]); }
+      realSky.background.visible = shown.background; realSky.stars.visible = shown.stars;
+      const started = performance.now();
+      while (pending.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) && performance.now() - started < 3000) {
+        await new Promise((resolve) => setTimeout(resolve, 16));
+      }
+      const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
+      const results = { sky: [], none: [] };
+      for (const [kind, q] of pending) {
+        if (gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) results[kind].push(gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6);
+        gl.deleteQuery(q);
+      }
+      const median = (values) => (values.length ? values.sort((a, b) => a - b)[Math.floor(values.length / 2)] : null);
+      const withSky = median(results.sky); const without = median(results.none);
+      const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+      return { available: true, disjoint, samples: results.sky.length, drawingBuffer: [size.x, size.y], withSkyGpuMs: withSky && +withSky.toFixed(3), withoutSkyGpuMs: without && +without.toFixed(3),
+        skyGpuMs: withSky != null && without != null ? +(withSky - without).toFixed(3) : null };
+    },
     /** Sentinel-2 mosaic for a summit: { rgba, width, height, level, res, utm: { zone, e0, n0, widthM, heightM } }. */
     setSatelliteImage(peakIdIn, image) {
       const peakId = getPatchKey(peakIdIn);
@@ -929,6 +974,7 @@ export function createHimalayaScene({
         shadow: { mapSize: SHADOW_MAP_SIZE, autoUpdate: renderer.shadowMap.autoUpdate, updates: shadowUpdates, lastReason: lastShadowRequest },
         gpu: { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, bufferBytes: gpuBufferBytes(), shadowMapBytes: SHADOW_MAP_SIZE * SHADOW_MAP_SIZE * 4 },
         verticalExaggeration: VERTICAL_EXAGGERATION,
+        sky: realSky.snapshot(),
         routes: {
           peakId: routeOverlay?.peakId ?? null, showRoutes: Boolean(routeOverlay?.showRoutes), showCamps: Boolean(routeOverlay?.showCamps),
           groupVisible: routeGroup.visible, children: routeGroup.children.length, lineModulesRequested: Boolean(lineModulesPromise), lineError: routeLineError,
@@ -952,6 +998,7 @@ export function createHimalayaScene({
       for (const sat of satellite.values()) { sat.texture.dispose(); sat.material.dispose(); }
       satellite.clear();
       disposables.forEach((resource) => resource.dispose());
+      realSky.dispose();
       sun.shadow.map?.dispose();
       clearRouteOverlay();
       scene.remove(routeGroup);

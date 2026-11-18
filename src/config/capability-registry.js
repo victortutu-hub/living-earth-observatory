@@ -99,16 +99,16 @@ export const OBSERVATORY_CAPABILITIES = Object.freeze({
 export const OBSERVATORY_CAPABILITY_EVIDENCE = Object.freeze({
   'living-himalaya': Object.freeze({
     data: Object.freeze({
-      sources: Object.freeze(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'sentinel2L2a', 'openMeteoPressureLevels', 'astronomy', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps']),
-      note: 'Cited summit list, GLO-30 patches and Terrarium tiles, Sentinel-2 L2A read in the browser, Open-Meteo GFS at summit height, Sun and Moon from Astronomy Engine, Himalayan Database aggregates (14 eight-thousanders), optional routes and camps.',
+      sources: Object.freeze(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'sentinel2L2a', 'openMeteoPressureLevels', 'astronomy', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaSkyNight', 'himalayaSkyTwilight']),
+      note: 'Cited summit list, GLO-30 patches and Terrarium tiles, Sentinel-2 L2A read in the browser, Open-Meteo GFS at summit height, Sun and Moon from Astronomy Engine, Himalayan Database aggregates (14 eight-thousanders), optional routes and camps, the real sky from the summit (NASA SVS Milky Way, HYG stars, twilight fit).',
     }),
     provenance: Object.freeze({
-      sources: Object.freeze(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'sentinel2L2a', 'openMeteoPressureLevels', 'astronomy', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps']),
-      note: 'Provenance bar and per-field provenance in the summit panel; sources and attributions panel.',
+      sources: Object.freeze(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'sentinel2L2a', 'openMeteoPressureLevels', 'astronomy', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay']),
+      note: 'Provenance bar (with the sky regime: night observed, twilight observed fit, transition and day interpretive) and per-field provenance in the summit panel; sources and attributions panel.',
     }),
     'historical-time': Object.freeze({
-      sources: Object.freeze(['astronomy', 'sentinel2L2a', 'openMeteoPressureLevels']),
-      note: 'A date from Living Earth (up to 366 days back) and a Sun time-of-day slider: Sun and Moon follow it, Sentinel-2 shows the latest clear scene up to that date; summit weather only for the current day.',
+      sources: Object.freeze(['astronomy', 'sentinel2L2a', 'openMeteoPressureLevels', 'himalayaSkyNight']),
+      note: 'A date from Living Earth (up to 366 days back) and a Sun time-of-day slider: Sun, Moon and the sky follow it, Sentinel-2 shows the latest clear scene up to that date; summit weather only for the current day.',
     }),
     'live-layers': Object.freeze({
       sources: Object.freeze(['sentinel2L2a', 'openMeteoPressureLevels']),

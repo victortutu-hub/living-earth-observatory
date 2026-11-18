@@ -171,10 +171,10 @@ describe('LOT 17: Living Earth historical time', () => {
 });
 
 describe('LOT 17: Himalaya criterion 9 and next threshold', () => {
-  it('finishing lot done -> 9 of 11 = 82%; next threshold = the real night sky', () => {
+  it('finishing lot done (LOT 17); since LOT 15b 10 of 11 = 91% and the next threshold is measured performance', () => {
     const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
     expect(himalaya.roadmap.criteria.find((c) => c.id === 'finishing-lot').done).toBe(true);
-    expect(himalaya.roadmap.progress).toBe(82);
-    expect(himalaya.roadmap.next).toBe('Real night sky from NASA SVS star maps (Lot 15b)');
+    expect(himalaya.roadmap.progress).toBe(91);
+    expect(himalaya.roadmap.next).toBe('Measured performance (real GTX 1650, real mobile)');
   });
 });

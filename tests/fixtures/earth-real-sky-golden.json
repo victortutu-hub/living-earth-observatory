@@ -1,0 +1,172 @@
+{
+ "generatedBy": "tmp/lot15b/lot15b-earth.mjs before (headless Chrome, :8765, commit 01fd70e, before the Lot 15b move to src/core/sky/sky-layer.js)",
+ "date": "2026-11-17T20:00:00Z",
+ "camera": {
+  "fovDeg": 45,
+  "drawingBufferHeight": 900,
+  "pixelRatio": 1,
+  "view": "galactic centre (RA 266.4, Dec -28.94) from 3.6 R outward"
+ },
+ "snapshot": {
+  "status": "MAP + STARS",
+  "map": true,
+  "stars": true,
+  "starCount": 8870,
+  "note": null,
+  "errors": {},
+  "source": "astronomy-engine",
+  "siderealHours": 23.792769292214597,
+  "matrix": [
+   0.9981789868863945,
+   0.0026280962775401366,
+   -0.06026444431343575,
+   -0.06026472511935926,
+   0.000027715951121424947,
+   -0.9981824292874094,
+   -0.0026216492403232606,
+   0.9999965461649266,
+   0.00018604697976412957
+  ],
+  "exposureStops": 19,
+  "sceneScale": 0.1522587
+ },
+ "background": {
+  "name": "real-sky-background",
+  "type": "Mesh",
+  "renderOrder": -1000,
+  "visible": true,
+  "frustumCulled": false,
+  "material": {
+   "name": "real-sky-background",
+   "depthTest": false,
+   "depthWrite": false,
+   "transparent": false,
+   "blending": 1,
+   "side": 0
+  },
+  "vertexShader": "4bce282c1970ed1a766c074e63894e71604268024c289bbb8a471dd9ea890003",
+  "fragmentShader": "1ea16c7fe01549d5066025e8cf1429b610abdf2d91e111128a081abe6404ec20",
+  "geometry": {
+   "position": [
+    -1,
+    -1,
+    0,
+    3,
+    -1,
+    0,
+    -1,
+    3,
+    0
+   ]
+  }
+ },
+ "stars": {
+  "name": "real-sky-stars",
+  "type": "Points",
+  "renderOrder": -999,
+  "visible": true,
+  "frustumCulled": false,
+  "material": {
+   "name": "real-sky-stars",
+   "depthTest": true,
+   "depthWrite": false,
+   "transparent": true,
+   "blending": 2,
+   "side": 0
+  },
+  "vertexShader": "09c45ff8eca99b4ac12007a0412733f29108cba854507dd6f0d79ac6d1438a34",
+  "fragmentShader": "a93ea13f896d9a5480976dd00e5e0319e5db91f5d9fa97ee5460f6dc228e4d87",
+  "attributes": {
+   "position": {
+    "count": 8870,
+    "itemSize": 3,
+    "sha256": "e7073d139d5de32b3c887390c8dd52d60d9e55d866b254a4e1c2fdd90163d6db"
+   },
+   "aColor": {
+    "count": 8870,
+    "itemSize": 3,
+    "sha256": "8e02ad4cde92868d424d29e833c49d723d2743a03b6629ad54f47ba3a657d676"
+   },
+   "aFlux": {
+    "count": 8870,
+    "itemSize": 1,
+    "sha256": "8f8cc3e46af41317410a870edb547f0d34f0cd655908e13a20806377ced63795"
+   }
+  }
+ },
+ "uniforms": {
+  "background": {
+   "uLum": {
+    "texture": "CubeTexture",
+    "format": 1028,
+    "type": 1009,
+    "mipmaps": 10,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "colorSpace": "",
+    "generateMipmaps": false,
+    "unpackAlignment": 1,
+    "flipY": false,
+    "size": 1024
+   },
+   "uChroma": {
+    "texture": "CubeTexture",
+    "format": 1030,
+    "type": 1009,
+    "mipmaps": 8,
+    "minFilter": 1008,
+    "magFilter": 1006,
+    "colorSpace": "",
+    "generateMipmaps": false,
+    "unpackAlignment": 1,
+    "flipY": false,
+    "size": 256
+   },
+   "uSkyToScene": [
+    0.9981789868863945,
+    0.0026280962775401366,
+    -0.06026444431343575,
+    -0.06026472511935926,
+    0.000027715951121424947,
+    -0.9981824292874094,
+    -0.0026216492403232606,
+    0.9999965461649266,
+    0.00018604697976412957
+   ],
+   "uScale": 0.1522587,
+   "uInvProjView": [
+    -0.7363110695366005,
+    1.9822257536605352e-18,
+    -0.010050971381435158,
+    5.285935343094761e-18,
+    -0.0027367184620024146,
+    0.3624511927703195,
+    0.20048570643625005,
+    -1.6914993097903235e-16,
+    0,
+    0,
+    0,
+    -4.995,
+    -0.01194349596447415,
+    -0.4840604038300793,
+    0.8749530720833014,
+    5.005
+   ]
+  },
+  "stars": {
+   "uSkyToScene": [
+    0.9981789868863945,
+    0.0026280962775401366,
+    -0.06026444431343575,
+    -0.06026472511935926,
+    0.000027715951121424947,
+    -0.9981824292874094,
+    -0.0026216492403232606,
+    0.9999965461649266,
+    0.00018604697976412957
+   ],
+   "uFluxToPixels": 0.4228617048758622,
+   "uSigma": 0.7
+  }
+ }
+}

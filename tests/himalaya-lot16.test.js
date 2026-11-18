@@ -65,10 +65,11 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/GTX 1650/);
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/mobile devices/);
     // Claims only: capabilities, stage, next threshold and the criteria marked done (open criteria may name future work).
-    // The next threshold names future work on purpose (LOT 17: the night sky), so it is not a claim.
+    // The next threshold names future work on purpose, so it is not a claim. LOT 15b: the real night sky
+    // (criterion 10) now exists, so it is no longer a forbidden claim; GPS tracks and glaciers still are.
     const { stage, criteria } = himalaya.roadmap;
     const text = JSON.stringify({ capabilities: OBSERVATORY_CAPABILITY_EVIDENCE['living-himalaya'], stage, done: criteria.filter((c) => c.done) }).toLowerCase();
-    for (const word of ['garmin', 'night sky', 'star', 'glacier']) expect(text, word).not.toContain(word);
+    for (const word of ['garmin', 'glacier']) expect(text, word).not.toContain(word);
   });
 
   it('inspector: development contract with capabilities; live and empty records unchanged', () => {
@@ -80,13 +81,13 @@ describe('LOT 16: Living Himalaya capabilities', () => {
   });
 
   it('card: stage and next threshold up to date; progress computed from the criteria', () => {
-    expect(himalaya.roadmap.stage).toBe('In development: terrain, Sentinel-2, Sun & Moon, summit weather, Himalayan Database history, optional routes & camps');
-    expect(himalaya.roadmap.next).toBe('Real night sky from NASA SVS star maps (Lot 15b)'); // LOT 17
+    expect(himalaya.roadmap.stage).toBe('In development: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps'); // LOT 15b
+    expect(himalaya.roadmap.next).toBe('Measured performance (real GTX 1650, real mobile)'); // LOT 15b
     expect(himalaya.roadmap.next).not.toMatch(/Per-field provenance/);
-    expect(himalaya.roadmap.progress).toBe(82);
+    expect(himalaya.roadmap.progress).toBe(91);
   });
 
-  it('progress = round(100 · done / total) from exactly the 11 approved criteria (9 done since LOT 17)', () => {
+  it('progress = round(100 · done / total) from exactly the 11 approved criteria (10 done since LOT 15b)', () => {
     const { criteria } = himalaya.roadmap;
     expect(himalaya.roadmap.progressSource).toBe('criteria');
     expect(criteria.map((c) => c.label)).toEqual([
@@ -95,10 +96,10 @@ describe('LOT 16: Living Himalaya capabilities', () => {
       'Time from Earth + mobile bottom sheet', 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)',
       'Real night sky (Lot 15b)', 'Measured performance (real GTX 1650, real mobile)',
     ]);
-    expect(criteria.map((c) => c.done)).toEqual([true, true, true, true, true, true, true, true, true, false, false]);
+    expect(criteria.map((c) => c.done)).toEqual([true, true, true, true, true, true, true, true, true, true, false]);
     expect(new Set(criteria.map((c) => c.id)).size).toBe(11);
-    expect(progressFromCriteria(criteria)).toBe(Math.round((100 * 9) / 11));
-    expect(himalaya.roadmap.progress).toBe(82);
+    expect(progressFromCriteria(criteria)).toBe(Math.round((100 * 10) / 11));
+    expect(himalaya.roadmap.progress).toBe(91);
     expect(JSON.stringify(criteria).toLowerCase()).not.toMatch(/garmin|glacier/);
   });
 

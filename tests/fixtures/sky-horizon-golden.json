@@ -1,0 +1,685 @@
+{
+ "generatedBy": "tmp/lot15b/lot15b-astro.mjs (headless Chrome, astronomy-engine@2.1.19 from the page runtime)",
+ "note": "Rotation_EQJ_HOR rows; star alt/az from Equator(ofdate, no aberration) + Horizon(no refraction); HOR vector x = north, y = west, z = zenith (checked with HorizonFromVector).",
+ "hasRotationEqjHor": true,
+ "galacticCentre": {
+  "name": "Galactic Centre (Sgr A*)",
+  "raDeg": 266.41684,
+  "decDeg": -29.00781,
+  "best": {
+   "iso": "2026-06-21T18:00:00.000Z",
+   "gcAltDeg": 32.993280054052526,
+   "gcAzDeg": 180.03441394340365,
+   "sunAltDeg": -38.46299445135551,
+   "moonAltDeg": -0.934088073493939
+  }
+ },
+ "frames": [
+  {
+   "iso": "2026-06-21T18:00:00.000Z",
+   "observer": "everest",
+   "lat": 27.98806,
+   "lon": 86.92521,
+   "heightM": 8849,
+   "gastHours": 11.99651659217317,
+   "horizon": [
+    [
+     0.03067332089014631,
+     0.46845407885742185,
+     0.8829552216207878
+    ],
+    [
+     -0.9981652309040773,
+     0.060493909448105974,
+     0.0025804522654372243
+    ],
+    [
+     -0.052204589834419314,
+     -0.881414353707454,
+     0.4694501228870765
+    ]
+   ],
+   "stars": [
+    {
+     "name": "Sirius",
+     "raDeg": 101.287215,
+     "decDeg": -16.716116,
+     "azimuthDeg": 306.5482398206513,
+     "altitudeDeg": -72.37931902172221
+    },
+    {
+     "name": "Alnitak",
+     "raDeg": 85.189695,
+     "decDeg": -1.942572,
+     "azimuthDeg": 3.062463111026741,
+     "altitudeDeg": -63.908599091301966
+    },
+    {
+     "name": "Alnilam",
+     "raDeg": 84.05338499999999,
+     "decDeg": -1.20192,
+     "azimuthDeg": 5.488777980267277,
+     "altitudeDeg": -63.091816300995674
+    },
+    {
+     "name": "Mintaka",
+     "raDeg": 83.001675,
+     "decDeg": -0.299092,
+     "azimuthDeg": 7.559232330053116,
+     "altitudeDeg": -62.085448902211
+    },
+    {
+     "name": "Acrux",
+     "raDeg": 186.649665,
+     "decDeg": -63.099092,
+     "azimuthDeg": 208.21898690370497,
+     "altitudeDeg": -20.42679701787641
+    },
+    {
+     "name": "Gacrux",
+     "raDeg": 187.791435,
+     "decDeg": -57.113212,
+     "azimuthDeg": 213.7933907753091,
+     "altitudeDeg": -17.53285657739471
+    },
+    {
+     "name": "Mimosa",
+     "raDeg": 191.930385,
+     "decDeg": -59.688764,
+     "azimuthDeg": 210.37823797986783,
+     "altitudeDeg": -16.71050695948533
+    },
+    {
+     "name": "Polaris",
+     "raDeg": 37.94625,
+     "decDeg": 89.264109,
+     "azimuthDeg": 0.4555399003707334,
+     "altitudeDeg": 27.511170415265077
+    },
+    {
+     "name": "Betelgeuse",
+     "raDeg": 88.792935,
+     "decDeg": 7.407063,
+     "azimuthDeg": 356.1009201145788,
+     "altitudeDeg": -54.531562527751674
+    },
+    {
+     "name": "Rigel",
+     "raDeg": 78.63447,
+     "decDeg": -8.20164,
+     "azimuthDeg": 22.173016610913002,
+     "altitudeDeg": -68.81915156860171
+    },
+    {
+     "name": "Galactic centre (Sgr A*)",
+     "raDeg": 266.40000000000003,
+     "decDeg": -28.94,
+     "azimuthDeg": 180.05228582146987,
+     "altitudeDeg": 33.061034883857175
+    },
+    {
+     "name": "Galactic Centre (Sgr A*)",
+     "raDeg": 266.41684,
+     "decDeg": -29.00781,
+     "azimuthDeg": 180.03441394340365,
+     "altitudeDeg": 32.993280054052526
+    }
+   ]
+  },
+  {
+   "iso": "2026-06-21T18:00:00.000Z",
+   "observer": "k2",
+   "lat": 35.88165,
+   "lon": 76.51347,
+   "heightM": 8611,
+   "gastHours": 11.99651659217317,
+   "horizon": [
+    [
+     0.1426967090733567,
+     0.5690226513147816,
+     0.8098462023806313
+    ],
+    [
+     -0.9707974529126462,
+     0.2398875435327998,
+     0.0025043714016881394
+    ],
+    [
+     -0.19284697207359075,
+     -0.7865539960794149,
+     0.5866369035558127
+    ]
+   ],
+   "stars": [
+    {
+     "name": "Sirius",
+     "raDeg": 101.287215,
+     "decDeg": -16.716116,
+     "azimuthDeg": 304.0500308965911,
+     "altitudeDeg": -60.61345976234762
+    },
+    {
+     "name": "Alnitak",
+     "raDeg": 85.189695,
+     "decDeg": -1.942572,
+     "azimuthDeg": 344.0571766783917,
+     "altitudeDeg": -55.022890147523896
+    },
+    {
+     "name": "Alnilam",
+     "raDeg": 84.05338499999999,
+     "decDeg": -1.20192,
+     "azimuthDeg": 346.2482510857278,
+     "altitudeDeg": -54.53098632821798
+    },
+    {
+     "name": "Mintaka",
+     "raDeg": 83.001675,
+     "decDeg": -0.299092,
+     "azimuthDeg": 348.2886939122449,
+     "altitudeDeg": -53.82731986893816
+    },
+    {
+     "name": "Acrux",
+     "raDeg": 186.649665,
+     "decDeg": -63.099092,
+     "azimuthDeg": 207.31280077202672,
+     "altitudeDeg": -23.283500561692037
+    },
+    {
+     "name": "Gacrux",
+     "raDeg": 187.791435,
+     "decDeg": -57.113212,
+     "azimuthDeg": 212.17523633492405,
+     "altitudeDeg": -19.32834688282665
+    },
+    {
+     "name": "Mimosa",
+     "raDeg": 191.930385,
+     "decDeg": -59.688764,
+     "azimuthDeg": 208.61156333445862,
+     "altitudeDeg": -19.21728858518871
+    },
+    {
+     "name": "Polaris",
+     "raDeg": 37.94625,
+     "decDeg": 89.264109,
+     "azimuthDeg": 0.38165107397827763,
+     "altitudeDeg": 35.33972818521197
+    },
+    {
+     "name": "Betelgeuse",
+     "raDeg": 88.792935,
+     "decDeg": 7.407063,
+     "azimuthDeg": 342.0245881354889,
+     "altitudeDeg": -45.090105300565796
+    },
+    {
+     "name": "Rigel",
+     "raDeg": 78.63447,
+     "decDeg": -8.20164,
+     "azimuthDeg": 354.70270074421745,
+     "altitudeDeg": -62.19567882513914
+    },
+    {
+     "name": "Galactic centre (Sgr A*)",
+     "raDeg": 266.40000000000003,
+     "decDeg": -28.94,
+     "azimuthDeg": 170.04515809569605,
+     "altitudeDeg": 24.437691360452263
+    },
+    {
+     "name": "Galactic Centre (Sgr A*)",
+     "raDeg": 266.41684,
+     "decDeg": -29.00781,
+     "azimuthDeg": 170.04089045797298,
+     "altitudeDeg": 24.368408365851934
+    }
+   ]
+  },
+  {
+   "iso": "2026-11-17T20:00:00.000Z",
+   "observer": "everest",
+   "lat": 27.98806,
+   "lon": 86.92521,
+   "heightM": 8849,
+   "gastHours": 23.792769292214597,
+   "horizon": [
+    [
+     -0.051046399560260636,
+     -0.46621873858215307,
+     0.8831955349110413
+    ],
+    [
+     0.9935094247898214,
+     -0.1137199267256278,
+     -0.0026078955723017093
+    ],
+    [
+     0.10165278129855776,
+     0.877329964187012,
+     0.468997703612591
+    ]
+   ],
+   "stars": [
+    {
+     "name": "Sirius",
+     "raDeg": 101.287215,
+     "decDeg": -16.716116,
+     "azimuthDeg": 156.81109562169016,
+     "altitudeDeg": 42.07094578169707
+    },
+    {
+     "name": "Alnitak",
+     "raDeg": 85.189695,
+     "decDeg": -1.942572,
+     "azimuthDeg": 176.56758496422984,
+     "altitudeDeg": 60.03822942106973
+    },
+    {
+     "name": "Alnilam",
+     "raDeg": 84.05338499999999,
+     "decDeg": -1.20192,
+     "azimuthDeg": 178.81037633886856,
+     "altitudeDeg": 60.821885768433084
+    },
+    {
+     "name": "Mintaka",
+     "raDeg": 83.001675,
+     "decDeg": -0.299092,
+     "azimuthDeg": 180.990826280742,
+     "altitudeDeg": 61.72918829374052
+    },
+    {
+     "name": "Acrux",
+     "raDeg": 186.649665,
+     "decDeg": -63.099092,
+     "azimuthDeg": 149.37609893188923,
+     "altitudeDeg": -30.656945959278048
+    },
+    {
+     "name": "Gacrux",
+     "raDeg": 187.791435,
+     "decDeg": -57.113212,
+     "azimuthDeg": 142.3821252340849,
+     "altitudeDeg": -30.870888472910067
+    },
+    {
+     "name": "Mimosa",
+     "raDeg": 191.930385,
+     "decDeg": -59.688764,
+     "azimuthDeg": 145.31929692988493,
+     "altitudeDeg": -33.135015339894494
+    },
+    {
+     "name": "Polaris",
+     "raDeg": 37.94625,
+     "decDeg": 89.264109,
+     "azimuthDeg": 359.57259398112575,
+     "altitudeDeg": 28.484266866236744
+    },
+    {
+     "name": "Betelgeuse",
+     "raDeg": 88.792935,
+     "decDeg": 7.407063,
+     "azimuthDeg": 165.19941561792814,
+     "altitudeDeg": 68.81231657174999
+    },
+    {
+     "name": "Rigel",
+     "raDeg": 78.63447,
+     "decDeg": -8.20164,
+     "azimuthDeg": 188.107017781048,
+     "altitudeDeg": 53.53787155338552
+    },
+    {
+     "name": "Galactic centre (Sgr A*)",
+     "raDeg": 266.40000000000003,
+     "decDeg": -28.94,
+     "azimuthDeg": 249.3074258800968,
+     "altitudeDeg": -87.18200587886159
+    },
+    {
+     "name": "Galactic Centre (Sgr A*)",
+     "raDeg": 266.41684,
+     "decDeg": -29.00781,
+     "azimuthDeg": 248.12179350400908,
+     "altitudeDeg": -87.1449515812474
+    }
+   ]
+  },
+  {
+   "iso": "2026-11-17T20:00:00.000Z",
+   "observer": "k2",
+   "lat": 35.88165,
+   "lon": 76.51347,
+   "heightM": 8611,
+   "gastHours": 23.792769292214597,
+   "horizon": [
+    [
+     -0.1686608338003686,
+     -0.5606546530967221,
+     0.8106909911321075
+    ],
+    [
+     0.9565992990120354,
+     -0.29139578112434733,
+     -0.0025059674008025084
+    ],
+    [
+     0.2376369168951804,
+     0.7750837752810503,
+     0.5854689035505025
+    ]
+   ],
+   "stars": [
+    {
+     "name": "Sirius",
+     "raDeg": 101.287215,
+     "decDeg": -16.716116,
+     "azimuthDeg": 148.15351130853998,
+     "altitudeDeg": 30.99927414846998
+    },
+    {
+     "name": "Alnitak",
+     "raDeg": 85.189695,
+     "decDeg": -1.942572,
+     "azimuthDeg": 160.71378737958767,
+     "altitudeDeg": 50.532015010204624
+    },
+    {
+     "name": "Alnilam",
+     "raDeg": 84.05338499999999,
+     "decDeg": -1.20192,
+     "azimuthDeg": 162.15081505965728,
+     "altitudeDeg": 51.5431502197548
+    },
+    {
+     "name": "Mintaka",
+     "raDeg": 83.001675,
+     "decDeg": -0.299092,
+     "azimuthDeg": 163.45628421831495,
+     "altitudeDeg": 52.673757414819896
+    },
+    {
+     "name": "Acrux",
+     "raDeg": 186.649665,
+     "decDeg": -63.099092,
+     "azimuthDeg": 146.27557158706762,
+     "altitudeDeg": -42.029994240732975
+    },
+    {
+     "name": "Gacrux",
+     "raDeg": 187.791435,
+     "decDeg": -57.113212,
+     "azimuthDeg": 138.17626987960537,
+     "altitudeDeg": -42.57385893355965
+    },
+    {
+     "name": "Mimosa",
+     "raDeg": 191.930385,
+     "decDeg": -59.688764,
+     "azimuthDeg": 141.76030014889736,
+     "altitudeDeg": -44.72007623842518
+    },
+    {
+     "name": "Polaris",
+     "raDeg": 37.94625,
+     "decDeg": 89.264109,
+     "azimuthDeg": 359.6523469466116,
+     "altitudeDeg": 36.43772886601501
+    },
+    {
+     "name": "Betelgeuse",
+     "raDeg": 88.792935,
+     "decDeg": 7.407063,
+     "azimuthDeg": 149.37814090508394,
+     "altitudeDeg": 58.090813947576265
+    },
+    {
+     "name": "Rigel",
+     "raDeg": 78.63447,
+     "decDeg": -8.20164,
+     "azimuthDeg": 172.12344784937306,
+     "altitudeDeg": 45.63848562564145
+    },
+    {
+     "name": "Galactic centre (Sgr A*)",
+     "raDeg": 266.40000000000003,
+     "decDeg": -28.94,
+     "azimuthDeg": 297.6995471519643,
+     "altitudeDeg": -76.73540827094405
+    },
+    {
+     "name": "Galactic Centre (Sgr A*)",
+     "raDeg": 266.41684,
+     "decDeg": -29.00781,
+     "azimuthDeg": 297.4196058580959,
+     "altitudeDeg": -76.76181956804251
+    }
+   ]
+  },
+  {
+   "iso": "2000-01-01T12:00:00.000Z",
+   "observer": "everest",
+   "lat": 27.98806,
+   "lon": 86.92521,
+   "heightM": 8849,
+   "gastHours": 18.697136303445482,
+   "horizon": [
+    [
+     -0.46541776989010736,
+     -0.06035174711372769,
+     0.8830311240782172
+    ],
+    [
+     0.12855038163776722,
+     -0.9917029791196602,
+     -0.000024206924088490707
+    ],
+    [
+     0.8757060573339114,
+     0.11350272166565623,
+     0.4693144290592236
+    ]
+   ],
+   "stars": [
+    {
+     "name": "Sirius",
+     "raDeg": 101.287215,
+     "decDeg": -16.716116,
+     "azimuthDeg": 103.16078025968905,
+     "altitudeDeg": -11.101151572869384
+    },
+    {
+     "name": "Alnitak",
+     "raDeg": 85.189695,
+     "decDeg": -1.942572,
+     "azimuthDeg": 97.52516419383542,
+     "altitudeDeg": 9.818121978462997
+    },
+    {
+     "name": "Alnilam",
+     "raDeg": 84.05338499999999,
+     "decDeg": -1.20192,
+     "azimuthDeg": 97.42285491288975,
+     "altitudeDeg": 11.170400184608184
+    },
+    {
+     "name": "Mintaka",
+     "raDeg": 83.001675,
+     "decDeg": -0.299092,
+     "azimuthDeg": 97.13298858058756,
+     "altitudeDeg": 12.527051888155327
+    },
+    {
+     "name": "Acrux",
+     "raDeg": 186.649665,
+     "decDeg": -63.099092,
+     "azimuthDeg": 179.42307772125474,
+     "altitudeDeg": -54.88743310231092
+    },
+    {
+     "name": "Gacrux",
+     "raDeg": 187.791435,
+     "decDeg": -57.113212,
+     "azimuthDeg": 180.4548881201932,
+     "altitudeDeg": -60.8751721488818
+    },
+    {
+     "name": "Mimosa",
+     "raDeg": 191.930385,
+     "decDeg": -59.688764,
+     "azimuthDeg": 184.34818108695637,
+     "altitudeDeg": -58.1485365135529
+    },
+    {
+     "name": "Polaris",
+     "raDeg": 37.94625,
+     "decDeg": 89.264109,
+     "azimuthDeg": 0.42782391565807404,
+     "altitudeDeg": 28.62281230730045
+    },
+    {
+     "name": "Betelgeuse",
+     "raDeg": 88.792935,
+     "decDeg": 7.407063,
+     "azimuthDeg": 87.41425153659692,
+     "altitudeDeg": 11.03023789374491
+    },
+    {
+     "name": "Rigel",
+     "raDeg": 78.63447,
+     "decDeg": -8.20164,
+     "azimuthDeg": 106.37026630091808,
+     "altitudeDeg": 12.356624967525264
+    },
+    {
+     "name": "Galactic centre (Sgr A*)",
+     "raDeg": 266.40000000000003,
+     "decDeg": -28.94,
+     "azimuthDeg": 247.89070711439368,
+     "altitudeDeg": -21.984220115122838
+    },
+    {
+     "name": "Galactic Centre (Sgr A*)",
+     "raDeg": 266.41684,
+     "decDeg": -29.00781,
+     "azimuthDeg": 247.816699491251,
+     "altitudeDeg": -21.994516175294294
+    }
+   ]
+  },
+  {
+   "iso": "2000-01-01T12:00:00.000Z",
+   "observer": "k2",
+   "lat": 35.88165,
+   "lon": 76.51347,
+   "heightM": 8611,
+   "gastHours": 18.697136303445482,
+   "horizon": [
+    [
+     -0.5853176528386871,
+     0.030916816371766038,
+     0.8102144134368661
+    ],
+    [
+     -0.05278750325899264,
+     -0.9986057673780374,
+     -0.00002930874662440467
+    ],
+    [
+     0.8090838799377308,
+     -0.042786350916563166,
+     0.5861336054178712
+    ]
+   ],
+   "stars": [
+    {
+     "name": "Sirius",
+     "raDeg": 101.287215,
+     "decDeg": -16.716116,
+     "azimuthDeg": 95.80120169320595,
+     "altitudeDeg": -21.127407470384043
+    },
+    {
+     "name": "Alnitak",
+     "raDeg": 85.189695,
+     "decDeg": -1.942572,
+     "azimuthDeg": 92.62103441296999,
+     "altitudeDeg": 0.3053096768712038
+    },
+    {
+     "name": "Alnilam",
+     "raDeg": 84.05338499999999,
+     "decDeg": -1.20192,
+     "azimuthDeg": 92.68802056889415,
+     "altitudeDeg": 1.6596693644469838
+    },
+    {
+     "name": "Mintaka",
+     "raDeg": 83.001675,
+     "decDeg": -0.299092,
+     "azimuthDeg": 92.57464678406679,
+     "altitudeDeg": 3.0410267873260324
+    },
+    {
+     "name": "Acrux",
+     "raDeg": 186.649665,
+     "decDeg": -63.099092,
+     "azimuthDeg": 189.3675235280777,
+     "altitudeDeg": -62.13766323242794
+    },
+    {
+     "name": "Gacrux",
+     "raDeg": 187.791435,
+     "decDeg": -57.113212,
+     "azimuthDeg": 195.49127039541764,
+     "altitudeDeg": -67.56522834080377
+    },
+    {
+     "name": "Mimosa",
+     "raDeg": 191.930385,
+     "decDeg": -59.688764,
+     "azimuthDeg": 197.48160309176995,
+     "altitudeDeg": -64.2983968659245
+    },
+    {
+     "name": "Polaris",
+     "raDeg": 37.94625,
+     "decDeg": 89.264109,
+     "azimuthDeg": 0.6018485672473876,
+     "altitudeDeg": 36.43723603932182
+    },
+    {
+     "name": "Betelgeuse",
+     "raDeg": 88.792935,
+     "decDeg": 7.407063,
+     "azimuthDeg": 82.93299305229428,
+     "altitudeDeg": 2.8685583867900704
+    },
+    {
+     "name": "Rigel",
+     "raDeg": 78.63447,
+     "decDeg": -8.20164,
+     "azimuthDeg": 101.52857169781934,
+     "altitudeDeg": 1.8726976440603664
+    },
+    {
+     "name": "Galactic centre (Sgr A*)",
+     "raDeg": 266.40000000000003,
+     "decDeg": -28.94,
+     "azimuthDeg": 246.14886216722994,
+     "altitudeDeg": -16.90079716118457
+    },
+    {
+     "name": "Galactic Centre (Sgr A*)",
+     "raDeg": 266.41684,
+     "decDeg": -29.00781,
+     "azimuthDeg": 246.0806543887781,
+     "altitudeDeg": -16.924390818040848
+    }
+   ]
+  }
+ ]
+}

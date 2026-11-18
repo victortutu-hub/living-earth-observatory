@@ -131,6 +131,21 @@ licence of this repository:
   choice, derived from the data and the lowest bloom threshold); Gaia colours
   in the SVS map were balanced by eye by SVS.
 
+## Real Sky (Living Himalaya)
+
+- The same two sky asset sets as Living Earth (terms above), drawn from the
+  selected summit with the same photometric scale (not amplified).
+- Day sky: the Preetham, Shirley & Smits (1999) analytic daylight model,
+  adapted in `src/core/sky/sky-atmosphere.js` from three.js r185
+  `examples/jsm/objects/Sky.js` (in-scattering term only; Rayleigh scaled by
+  the pressure at the summit height). three.js is © 2010–2025 three.js
+  authors, MIT License (https://github.com/mrdoob/three.js/blob/dev/LICENSE).
+  Provenance: `interpretive`, absolute brightness not photometric.
+- Twilight: the published V-band fit of Patat, Ugolnikov & Postylyakov 2006
+  (A&A 455, 385), Table 1; dark sky: Patat 2003 (A&A 400, 1183); extinction:
+  Buton et al. 2013 (A&A 549, A8), Table 6; airmass: Kasten & Young 1989
+  (Applied Optics 28, 4735). Coefficients cited, no data files redistributed.
+
 ## Living Himalaya Routes And Camps (OpenStreetMap, Wikidata)
 
 - `assets/himalaya/routes-<hash>.json` (metadata in `src/config/himalaya-routes.js`,

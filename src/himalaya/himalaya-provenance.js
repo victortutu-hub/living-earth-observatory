@@ -27,12 +27,13 @@ export function sunLabel(sun, date) {
     : `Sun: approximate model (physical-model, simplified; astronomy-engine unavailable), ${formatUtc(date)}`;
 }
 
-export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, date = new Date(), weather = null, image = null, glo30Accessed = null, routes = null } = {}) {
+export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, sky = null, date = new Date(), weather = null, image = null, glo30Accessed = null, routes = null } = {}) {
   return [
     'Peaks: reference list (sources cited)',
     `Terrain: ${terrainMode === 'terrarium' ? TERRAIN_LABELS.terrarium : glo30Label(glo30Accessed || GLO30_ACCESSED)}`,
     `Overview: ${OVERVIEW_LABEL}`,
     sunLabel(sun, date),
+    sky, // LOT 15b: sky regime and provenance
     weather,
     image,
     routes, // LOT 14: only while a Routes/Camps switch is on
