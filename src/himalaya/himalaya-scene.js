@@ -25,7 +25,7 @@ import { buildPatchGeometry, decodePatch, patchCornersXZ, setPatchGroups, FULL_L
 import { sunDirectionScene } from './sun-position.js';
 import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
-import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_WIDTH_PX, campLabel } from './routes-model.js';
+import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_LINE, campLabel } from './routes-model.js';
 import { terrainOccludes } from './label-occlusion.js';
 import { createHimalayaSky } from './himalaya-sky.js';
 
@@ -450,20 +450,26 @@ export function createHimalayaScene({
           const p = projectLonLat(lon, lat, center);
           positions[k * 3] = p.x; positions[k * 3 + 1] = heightKm(demM + RENDER_LIFT_M); positions[k * 3 + 2] = p.z;
         });
-        const geometry = new LineGeometry();
-        geometry.setPositions(positions);
-        const material = new LineMaterial({
-          color: ROUTE_COLOR, linewidth: ROUTE_WIDTH_PX, worldUnits: false, transparent: true, opacity: 0.95,
-          dashed: route.style === 'dashed', dashSize: 0.12, gapSize: 0.08,
-        });
-        material.resolution.copy(routeResolution);
-        const line = new Line2(geometry, material);
-        if (route.style === 'dashed') line.computeLineDistances();
-        line.name = `route-${route.id}`;
-        line.renderOrder = 4;
-        line.userData = { routeId: route.id, style: route.style, vertices: route.waypoints.length };
-        routeGroup.add(line);
-        routeLines.push(line);
+        // LOT 18: casing (dark, wide, continuous, no depth write) drawn first, then the orange core
+        // (dashed for the dashed routes); the continuous casing keeps a dashed route traceable on snow.
+        for (const part of ['casing', 'core']) {
+          const spec = ROUTE_LINE[part];
+          const dashed = part === 'core' ? route.style === 'dashed' : spec.dashed;
+          const geometry = new LineGeometry();
+          geometry.setPositions(positions);
+          const material = new LineMaterial({
+            color: spec.color, linewidth: spec.widthPx, worldUnits: false, transparent: true, opacity: spec.opacity,
+            depthWrite: part === 'core', dashed, dashSize: 0.12, gapSize: 0.08,
+          });
+          material.resolution.copy(routeResolution);
+          const line = new Line2(geometry, material);
+          if (dashed) line.computeLineDistances();
+          line.name = `route-${route.id}-${part}`;
+          line.renderOrder = spec.renderOrder;
+          line.userData = { routeId: route.id, part, style: route.style, vertices: route.waypoints.length };
+          routeGroup.add(line);
+          routeLines.push(line);
+        }
       }
     }).catch((error) => {
       if (disposed || token !== routeToken) return;
@@ -978,7 +984,7 @@ export function createHimalayaScene({
         routes: {
           peakId: routeOverlay?.peakId ?? null, showRoutes: Boolean(routeOverlay?.showRoutes), showCamps: Boolean(routeOverlay?.showCamps),
           groupVisible: routeGroup.visible, children: routeGroup.children.length, lineModulesRequested: Boolean(lineModulesPromise), lineError: routeLineError,
-          lines: routeLines.map((line) => ({ id: line.userData.routeId, style: line.userData.style, vertices: line.userData.vertices, dashed: line.material.dashed, linewidth: line.material.linewidth, color: `#${line.material.color.getHexString()}` })),
+          lines: routeLines.map((line) => ({ id: line.userData.routeId, part: line.userData.part, style: line.userData.style, vertices: line.userData.vertices, dashed: line.material.dashed, linewidth: line.material.linewidth, color: `#${line.material.color.getHexString()}`, opacity: line.material.opacity, renderOrder: line.renderOrder, depthWrite: line.material.depthWrite })),
           camps: routeCamps.map((camp) => ({ id: camp.id, visible: camp.labelObject.visible, label: camp.label.textContent, hiddenBy: camp.labelReason })),
           labelSafeArea: { ...labelSafeArea },
         },

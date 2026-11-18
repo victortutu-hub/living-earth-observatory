@@ -16,11 +16,14 @@ body { overflow: hidden; }
 .himalaya-label-layer { position: absolute; inset: 0; pointer-events: none; }
 
 .himalaya-header { position: fixed; z-index: 2; top: 22px; left: 26px; right: 26px; display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; pointer-events: none; }
-.himalaya-brand { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 14px rgba(3, 6, 13, 0.85); }
+/* LOT 18: free text over the sky - a veil like the panels (light at night, stronger over a bright sky). */
+.himalaya-brand { --sky-veil: 0.42; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 14px rgba(3, 6, 13, 0.85); background: rgba(3, 8, 16, var(--sky-veil)); padding: 8px 12px 6px; margin: -8px -12px 0; border-radius: 4px; max-width: 600px; transition: background-color 300ms ease; }
+body.is-bright-sky .himalaya-brand { --sky-veil: 0.78; }
 .himalaya-brand span { font-size: 10px; letter-spacing: 0.19em; text-transform: uppercase; color: var(--cyan); }
 .himalaya-brand h1 { margin: 8px 0 0; font-size: clamp(20px, 2.8vw, 34px); font-weight: 300; letter-spacing: 0.08em; }
 .himalaya-brand p { margin: 8px 0 0; color: #c4d4e2; max-width: 560px; font-size: 13px; line-height: 1.55; }
-.himalaya-return { pointer-events: auto; flex: 0 0 auto; color: var(--text); text-decoration: none; border: 1px solid var(--line); padding: 11px 14px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(4, 9, 17, 0.62); }
+.himalaya-return { pointer-events: auto; flex: 0 0 auto; color: var(--text); text-decoration: none; border: 1px solid var(--line); padding: 11px 14px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(4, 9, 17, 0.62); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+body.is-bright-sky .himalaya-return { background: rgba(4, 9, 17, 0.82); }
 .himalaya-return:hover, .himalaya-return:focus-visible { border-color: var(--cyan); outline: none; }
 /* Inside the Atlas the host page owns Return (history-aware). */
 body.is-atlas-embedded .himalaya-return { display: none; }
@@ -60,7 +63,8 @@ body.is-atlas-embedded .himalaya-list-panel { top: 214px; max-height: calc(100vh
 .himalaya-peak-group { margin: 2px 4px 4px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .himalaya-peak-group.is-later { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .himalaya-peak-button.is-selected-peak .himalaya-peak-name::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #c4b5fd; vertical-align: 1px; }
-.himalaya-grid-label { color: rgba(155, 176, 196, 0.6); font-size: 10px; letter-spacing: 0.05em; pointer-events: none; }
+.himalaya-grid-label { color: rgba(155, 176, 196, 0.6); font-size: 10px; letter-spacing: 0.05em; pointer-events: none; text-shadow: 0 0 3px rgba(3, 6, 13, 0.95), 0 1px 2px rgba(0, 0, 0, 0.9); }
+body.is-bright-sky .himalaya-grid-label { color: #d6e4ef; background: rgba(3, 8, 16, 0.66); padding: 1px 4px; border-radius: 2px; }
 
 /* Night message (Sun below the horizon at the selected summit and time) */
 .himalaya-night { position: fixed; z-index: 3; left: 50%; top: 22%; transform: translateX(-50%); max-width: min(560px, calc(100vw - 32px)); padding: 10px 16px; background: rgba(3, 8, 18, 0.78); border: 1px solid rgba(184, 205, 245, 0.35); text-align: center; pointer-events: none; }

@@ -21,7 +21,7 @@ import { isWeatherDay, summitWeatherRows, weatherBarSegment } from './summit-wea
 import { createSessionStorageCache, createWeatherClient } from './weather-client.js';
 import { createAttemptLedger, createGuardedRuntime } from './request-guard.js';
 import { computeMoon, nightMessage } from './moon-position.js';
-import { HIMALAYA_SKY_NOTES, skyAttribution, skyBarSegment } from './himalaya-sky.js';
+import { HIMALAYA_SKY_NOTES, isBrightSky, skyAttribution, skyBarSegment } from './himalaya-sky.js';
 import { SKY_MODEL } from '../core/sky/sky-atmosphere.js';
 import { createSentinelClient } from './sentinel-client.js';
 import {
@@ -371,6 +371,7 @@ export function startHimalayaApp({
     scene?.setSun({ ...result, lat, lon });
     // LOT 15b: the sky seen from the summit (region centre at a nominal plateau height in the overview).
     scene?.setSky?.({ date, lat, lon, heightM: peak ? peak.elevationM : SKY_MODEL.overviewHeightM, sun: result, Astronomy: astronomy, eMax: skyEMax });
+    document.body.classList.toggle('is-bright-sky', isBrightSky(scene?.skySnapshot?.() || null)); // LOT 18: veil behind the free text
     const utc = date.getUTCHours() * 60 + date.getUTCMinutes();
     timeSlider.value = String(time.mode === 'now' ? Math.round(utc / TIME_STEP_MINUTES) * TIME_STEP_MINUTES : time.minutes);
     const place = peak ? peak.name : 'region centre';
@@ -638,7 +639,7 @@ export function startHimalayaApp({
   }
 
   // LOT 15b: provenance bar and sources follow the sky assets once they settle.
-  scene?.skyReady?.().then(() => { if (alive()) { updateProvenance(); renderSources(lastSceneYear); } });
+  scene?.skyReady?.().then(() => { if (alive()) { updateProvenance(); renderSources(lastSceneYear); document.body.classList.toggle('is-bright-sky', isBrightSky(scene.skySnapshot())); } });
 
   updateFraming();
   const initial = resolveInitialFocus(search);

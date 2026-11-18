@@ -43,7 +43,7 @@ export const SKY_MODEL = Object.freeze({
   kastenYoung: Object.freeze({ a: 0.50572, b: 96.07995, c: 1.6364, source: 'Kasten & Young 1989, Applied Optics 28, 4735' }),
   ksAirmass: 0.96,
   day: Object.freeze({ turbidity: 2, rayleigh: 1, mieCoefficient: 0.005, mieDirectionalG: 0.8, source: 'Preetham, Shirley & Smits 1999; three.js r185 Sky.js (MIT)' }),
-  exposure: Object.freeze({ target: 0.18, referenceAltitudeDeg: 45, eMin: 1e-7, eMaxCandidates: Object.freeze([15, 50, 150]), eMax: 50, eMaxProvisional: true }),
+  exposure: Object.freeze({ target: 0.18, referenceAltitudeDeg: 45, eMin: 1e-7, eMaxCandidates: Object.freeze([15, 50, 150]), eMax: 50 }), // LOT 18: E_max = 50 final (aesthetic choice, from the Lot 15b captures)
   overviewHeightM: 5000,
 });
 

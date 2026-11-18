@@ -438,7 +438,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
   realSky: defineSource({
     title: 'Real sky (Milky Way + stars)',
     provenance: 'observed',
-    provenanceNote: `Milky Way: NASA SVS Deep Star Maps 2020; stars: HYG v4.4 (Hipparcos). Exposure curve applied; sky shown at +${SKY_MAP_ASSET.exposure.stops} stops relative to the Earth exposure; Gaia colours balanced by eye (SVS). The SVS map is relative and clipped at 1.0 (not absolute photometry); star and background brightness share one scale calibrated on the SVS bright-star layer`,
+    provenanceNote: `Milky Way: NASA SVS Deep Star Maps 2020; stars: HYG v4.4 (Hipparcos). Exposure curve applied; sky shown at +${SKY_MAP_ASSET.exposure.stops} stops relative to the Earth exposure; Gaia colours balanced by eye (SVS). The SVS map is relative and clipped at 1.0 (not absolute photometry); star and background brightness share one scale calibrated on the SVS bright-star layer; colours as recorded by a camera; the dark-adapted eye sees little colour`,
     authority: 'NASA/Goddard Space Flight Center Scientific Visualization Studio (Gaia DR2: ESA/Gaia/DPAC); HYG database v4.4 (astronexus)',
     endpoint: 'Local assets assets/sky/milkyway-2020-*.ktx2 (cube maps) and assets/sky/hyg-v44-stars-*.bin, built offline by tools/build-sky-map.mjs and tools/build-sky-stars.mjs',
     type: 'Milky Way background without the Hipparcos/Tycho stars (survey render, ICRS/J2000) and Hipparcos point stars with V <= 6.5',
@@ -454,11 +454,11 @@ export const SOURCE_DEFINITIONS = Object.freeze({
   himalayaSkyNight: defineSource({
     title: 'Himalaya night sky (Milky Way + stars, from the summit)',
     provenance: 'observed',
-    provenanceNote: 'NASA SVS Deep Star Maps 2020 Milky Way and HYG v4.4 stars on the Living Earth photometric scale (not amplified), oriented for the observer (ICRS -> local horizon, refraction ignored) and dimmed by V-band extinction 10^(-0.4 k X) with the Kasten & Young 1989 airmass; k from Buton et al. 2013 (Mauna Kea, 5500 A: Rayleigh 0.064 scaled by the ISA pressure ratio P(h)/616 hPa, ozone 0.024, aerosols 0.018), about 0.075 mag/airmass at 8.8 km. Dark-sky residual: Patat 2003 zenith V 21.6 mag/arcsec^2 minus the mean starlight of the map at |b| > 60 deg (23.22), i.e. 21.88, brightened towards the horizon with the Krisciunas & Schaefer form. Moonlight on the sky not modelled',
+    provenanceNote: 'NASA SVS Deep Star Maps 2020 Milky Way and HYG v4.4 stars on the Living Earth photometric scale (not amplified), oriented for the observer (ICRS -> local horizon, refraction ignored) and dimmed by V-band extinction 10^(-0.4 k X) with the Kasten & Young 1989 airmass; k from Buton et al. 2013 (Mauna Kea, 5500 A: Rayleigh 0.064 scaled by the ISA pressure ratio P(h)/616 hPa, ozone 0.024, aerosols 0.018), about 0.075 mag/airmass at 8.8 km. Dark-sky residual: Patat 2003 zenith V 21.6 mag/arcsec^2 minus the mean starlight of the map at |b| > 60 deg (23.22), i.e. 21.88, brightened towards the horizon with the Krisciunas & Schaefer form. Milky Way colours as recorded by a camera; the dark-adapted eye sees little colour. Moonlight on the sky not modelled',
     authority: 'NASA/Goddard Space Flight Center Scientific Visualization Studio (Gaia DR2: ESA/Gaia/DPAC); HYG database v4.4 (astronexus); Patat 2003; Buton et al. 2013; Kasten & Young 1989',
     endpoint: 'Local assets assets/sky/milkyway-2020-*.ktx2 and assets/sky/hyg-v44-stars-*.bin (shared with Living Earth), through the shared request runtime without persistent cache',
     type: 'Milky Way background and Hipparcos point stars (V <= 6.5) seen from the selected summit',
-    process: 'Exposure E = 0.18 / L(45 deg, opposite the Sun), limited to E_max (provisional 50 per cd/m^2); Reinhard tone curve on the sky shaders only. Background only: the sky does not light the terrain.',
+    process: 'Exposure E = 0.18 / L(45 deg, opposite the Sun): display target 0.18, adaptation limit E_max = 50 per cd/m^2 — aesthetic choice; Reinhard tone curve on the sky shaders only. Background only: the sky does not light the terrain.',
     scope: 'Living Himalaya sky, Sun below -16 deg (fully) and below -5 deg (with the twilight fit).',
     access: { kind: 'local-asset', label: 'Bundled sky assets', requiresProxy: false },
     license: 'Milky Way map: NASA SVS built on Gaia DR2, CC BY-NC 3.0 IGO (non-commercial use); star file derived from HYG v4.4, CC BY-SA 4.0 (see NOTICE.md).',

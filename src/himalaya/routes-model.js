@@ -19,8 +19,14 @@ export const MARKER_MAX_DELTA_M = 150;
 export const RENDER_LIFT_M = 10;
 /** Camp markers and labels appear only below this camera distance (km), for the active peak. */
 export const CAMP_LABEL_MAX_KM = 25;
-export const ROUTE_COLOR = 0xe8d9b0;
+export const ROUTE_COLOR = 0xe8d9b0; // camp markers and labels (unchanged)
 export const ROUTE_WIDTH_PX = 2;
+// LOT 18: route lines as a dark casing under a saturated orange core (both Line2, screen-space widths).
+// Orange is kept apart from the summit cyan, the selected-peak lavender, the active amber and the ⚠ gold.
+export const ROUTE_LINE = Object.freeze({
+  casing: Object.freeze({ color: 0x1a1410, widthPx: 5, opacity: 0.75, renderOrder: 4, dashed: false }),
+  core: Object.freeze({ color: 0xff8a3d, widthPx: 2.5, opacity: 1, renderOrder: 4.5 }),
+});
 
 // Scope approved for LOT 14: route lines only for Everest; camps only (no line) for these.
 export const ROUTE_LINE_PEAKS = Object.freeze(['everest', 'lhotse']); // LOT 17: Lhotse = the Everest South Col route up to C3

@@ -292,8 +292,7 @@ describe('LOT 15b: sky brightness models (V band)', () => {
     expect(exposureFor(1e12)).toBe(SKY_MODEL.exposure.eMin);
     expect(exposureFor(1)).toBeCloseTo(0.18, 12);
     expect(SKY_MODEL.exposure.eMaxCandidates).toEqual([15, 50, 150]);
-    expect(SKY_MODEL.exposure.eMax).toBe(50); // middle candidate, provisional until chosen from the captures
-    expect(SKY_MODEL.exposure.eMaxProvisional).toBe(true);
+    expect(SKY_MODEL.exposure.eMax).toBe(50); // middle candidate; final since LOT 18 (tests/himalaya-lot18.test.js)
   });
 
   it('regimes and continuity: day (Preetham) -> transition 0..-5 -> twilight fit -> night; no jumps at the joins', () => {
@@ -358,7 +357,7 @@ describe('LOT 15b: Living Himalaya sky integration, provenance and registry', ()
     expect(skyBarSegment({ status: 'UNAVAILABLE', map: false, stars: false })).toBe('Sky: unavailable (plain background)');
     const note = skyAttribution({ k: 0.0747 }).note;
     for (const part of ['Night: observed', 'k = 0.075 mag/airmass', 'Buton et al. 2013', 'Twilight (Sun −5° to −16°): observed', 'extrapolated to altitude', 'Sun 0° to −5°: interpretive',
-      'Day: interpretive', 'mid grey (0.18)', 'E_max = 50 per cd/m² (provisional)', 'refraction ignored', 'does not light the terrain']) expect(note, part).toContain(part);
+      'Day: interpretive', 'mid grey at 45°', 'E_max = 50', 'refraction ignored', 'does not light the terrain']) expect(note, part).toContain(part);
     expect(HIMALAYA_SKY_NOTES.moon).toBe('Moonlight on the sky not modelled — with a bright Moon the Milky Way would be fainter than shown.');
     expect(note).toContain(HIMALAYA_SKY_NOTES.moon);
     expect(skyAttribution({ note: HIMALAYA_SKY_NOTES.mapUnavailable }).note).toContain(HIMALAYA_SKY_NOTES.mapUnavailable);

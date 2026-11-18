@@ -202,7 +202,7 @@ export function createHimalayaSky({ THREE, scene, groundColor = 0x03060d, baseUR
         status: state.status, map: state.map, stars: state.stars, starCount: state.starCount, note: state.note, errors: { ...state.errors },
         source: state.source, observer: state.observer, matrix: skyMatrix.toArray(), backgroundVisible: background.visible, starsVisible: stars.visible,
         regime: m?.regime ?? null, zeta: m ? +m.zeta.toFixed(3) : null, k: m ? +m.k.toFixed(4) : null,
-        exposure: m?.exposure ?? null, eMax: m?.eMax ?? null, eMaxProvisional: SKY_MODEL.exposure.eMaxProvisional, referenceCdm2: m?.referenceCdm2 ?? null,
+        exposure: m?.exposure ?? null, eMax: m?.eMax ?? null, referenceCdm2: m?.referenceCdm2 ?? null,
         nightCdm2: m?.nightCdm2 ?? null, dayBlend: m?.dayBlend ?? null, mapToCdm2: backgroundMaterial.uniforms.uMapToCdm2.value,
       };
     },
@@ -213,6 +213,14 @@ export function createHimalayaSky({ THREE, scene, groundColor = 0x03060d, baseUR
       layer.dispose();
     },
   };
+}
+
+/** LOT 18: displayed reference sky (tone-mapped E * L_ref) above which the free text gets the strong veil. */
+export const BRIGHT_SKY_DISPLAY = 0.03;
+export function isBrightSky(snapshot) {
+  if (!snapshot || !snapshot.backgroundVisible || snapshot.exposure == null || snapshot.referenceCdm2 == null) return false;
+  const lb = snapshot.exposure * snapshot.referenceCdm2;
+  return lb / (1 + lb) > BRIGHT_SKY_DISPLAY;
 }
 
 /** Sources & attribution entry for the sky (credit + every declared model choice). */
@@ -229,7 +237,8 @@ export function skyAttribution(snapshot = null) {
       'Twilight (Sun −5° to −16°): observed — the empirical V-band zenith fit of Patat, Ugolnikov & Postylyakov 2006 (Cerro Paranal, 2635 m), applied unchanged at 5–9 km (extrapolated to altitude); colour and the glow towards the Sun not modelled.',
       'Sun 0° to −5°: interpretive transition between the day model and the twilight fit.',
       'Day: interpretive — Preetham sky with the Rayleigh term scaled by the pressure at the summit height; absolute brightness not photometric.',
-      `Exposure: the sky is exposed for mid grey (${e.target}) at 45° above the horizon opposite the Sun, limited to E_max = ${e.eMax} per cd/m²${e.eMaxProvisional ? ' (provisional)' : ''}; tone curve on the sky only — terrain, image, lines and labels are unchanged. The sky does not light the terrain.`,
+      `Exposure: display target ${e.target}, adaptation limit E_max = ${e.eMax} — aesthetic choice (mid grey at 45° above the horizon opposite the Sun, E_max per cd/m²); tone curve on the sky only — terrain, image, lines and labels are unchanged. The sky does not light the terrain.`,
+      'Milky Way: colours as recorded by a camera; the dark-adapted eye sees little colour.',
       'Directions are geometric: atmospheric refraction ignored.',
       HIMALAYA_SKY_NOTES.moon,
       snapshot?.note || null,
