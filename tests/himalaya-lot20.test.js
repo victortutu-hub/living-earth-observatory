@@ -35,6 +35,7 @@ describe('LOT 20: the reports in docs/perf/', () => {
     for (const [file, hash] of Object.entries(EXPECTED)) expect(sha(read(file)), file).toBe(hash);
     expect(Object.fromEntries(runs.map((r) => [r.file, r.sha256]))).toEqual(EXPECTED);
     expect(read('.gitignore').toString()).toContain('!docs/perf/');
+    expect(read('.gitattributes').toString()).toContain('docs/perf/*.json -text'); // stored byte-for-byte (no EOL conversion)
   });
 
   it('every report is a valid lumi-himalaya-perf/1 report from a real (non-headless) session', () => {

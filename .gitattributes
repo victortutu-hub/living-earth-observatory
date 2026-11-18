@@ -8,3 +8,5 @@
 *.pdf binary
 *.docx binary
 *.bin binary
+# LOT 20: performance reports are kept byte-for-byte (their SHA-256 is in the registry).
+docs/perf/*.json -text
