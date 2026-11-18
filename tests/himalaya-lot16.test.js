@@ -116,12 +116,13 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     expect(codes(himalaya.roadmap)).toEqual([]);
   });
 
-  it('Earth and Protein keep their hand-written progress (unchanged)', () => {
+  // LOT 22: Earth and Protein are computed from criteria too (details in tests/lot22.test.js).
+  it('Earth and Protein progress is computed from criteria (LOT 22)', () => {
     const earth = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-earth');
     const protein = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-protein');
-    expect(earth.roadmap).toMatchObject({ progress: 100, stage: 'Live observatory' });
-    expect(protein.roadmap).toMatchObject({ progress: 55, stage: 'Live v0.1' });
-    expect(earth.roadmap.criteria).toBeUndefined();
-    expect(protein.roadmap.criteria).toBeUndefined();
+    expect(earth.roadmap).toMatchObject({ progress: 67, progressSource: 'criteria' });
+    expect(protein.roadmap).toMatchObject({ progress: 58, progressSource: 'criteria' });
+    expect(progressFromCriteria(earth.roadmap.criteria)).toBe(67);
+    expect(progressFromCriteria(protein.roadmap.criteria)).toBe(58);
   });
 });

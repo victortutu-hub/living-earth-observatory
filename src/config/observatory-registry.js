@@ -1,20 +1,75 @@
 // Progress computed from a checklist (Lot 16): round(100 * done / total).
 // A roadmap with criteria never carries a hand-written progress (validated in
-// module-contract.js). Earth and Protein still use a hand-written progress.
+// module-contract.js). LOT 22: Earth and Protein are computed from criteria too.
 export function progressFromCriteria(criteria) {
   const total = criteria.length;
   return total ? Math.round((100 * criteria.filter((item) => item.done === true).length) / total) : 0;
 }
 
+// LOT 22: optional `evidence` per criterion (files + tests + deploy), kept in the registry only.
 function roadmapFromCriteria({ stage, next, criteria }) {
-  const frozen = Object.freeze(criteria.map((item) => Object.freeze({ id: item.id, label: item.label, done: item.done === true })));
+  const frozen = Object.freeze(criteria.map((item) => Object.freeze({
+    id: item.id, label: item.label, done: item.done === true,
+    ...(item.evidence ? { evidence: item.evidence } : {}),
+  })));
   return Object.freeze({ progress: progressFromCriteria(frozen), progressSource: 'criteria', stage, next, criteria: frozen });
 }
 
 const ROADMAP = Object.freeze({
   platform: Object.freeze({ progress: 72, stage: 'Foundation active', next: 'Shared contracts, lifecycle and reproducible diagnostics' }),
-  earth: Object.freeze({ progress: 100, stage: 'Live observatory', next: 'Calibration and historical playback' }),
-  protein: Object.freeze({ progress: 55, stage: 'Live v0.1', next: 'Experimental context beside prediction confidence' }),
+  // LOT 22: was a hand-written 100 ('Live observatory'); now 8 of 12 criteria.
+  earth: roadmapFromCriteria({
+    stage: 'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export',
+    next: "Runtime state from Earth's own signals",
+    criteria: [
+      { id: 'real-relief', label: 'Real relief & bathymetry (ETOPO 2022 + GIBS surface)', done: true,
+        evidence: 'src/earth/relief-linear.js, gibs-surface.js, gibs-tiles.js · tests relief-linear, surface-relief-atmosphere, gibs-tiles · LOT 4b on production 2026-11-13 (Gate 1)' },
+      { id: 'solar-light', label: 'Physical Sun lighting + night lights', done: true,
+        evidence: 'src/earth/solar-runtime.js, atmosphere-physics.js, gibs-night-lights.js · tests surface-relief-atmosphere, gibs-tiles (Black Marble), temporal-provenance · Gate 0 / Gate 2' },
+      { id: 'event-layers', label: 'Live event layers (EONET, USGS, FIRMS, GDACS, GVP)', done: true,
+        evidence: 'src/earth/eonet-*.js, usgs-earthquakes.js, firms-wildfires.js, gdacs-provider.refactored.js · tests feed-adapter, event-utils, usgs-earthquakes, usgs-single-path, firms-*, gvp-volcanoes, data-time-status' },
+      { id: 'geophysical-layers', label: 'Aurora, ISS, wind, ocean currents', done: true,
+        evidence: 'src/earth/noaa-aurora-layer.js, iss-system.js, wind-*.js, ocean-current*.js · tests field-day-client, field-day-proxy, lot5-timeline, source-provenance · Gate 2 (wind 59.9 FPS on GTX 1650)' },
+      { id: 'historical-time', label: 'Time-scrub 365 days (EONET, USGS, FIRMS, snow, ERA5, SMOC)', done: true,
+        evidence: 'src/earth/time-scrub-panel.js, earth-time-state.js, field-day-history.js · tests lot5-timeline, firms-day-client, field-day-client, himalaya-lot17 · LOT 5/9/11 on production 2026-11-14, LOT 17 deploy-himalaya-11' },
+      { id: 'real-sky', label: 'Real night sky (Lot 15)', done: true,
+        evidence: 'src/earth/real-sky.js · tests sky-lot15 (+ golden fixture) · deploy-himalaya-10' },
+      { id: 'provenance', label: 'Per-source + temporal provenance', done: true,
+        evidence: 'src/earth/temporal-provenance.js, src/config/source-registry.js · tests source-provenance, temporal-provenance, data-time-status' },
+      { id: 'export', label: 'Still, video & 9:16 export', done: true,
+        evidence: 'src/earth/export-system.js, reel-*.js, vertical-director.js · reel 2026-11-15 with SHA-256 (Gate 2) + test h264-conversion + test earth-export-lot22; PNG/MediaRecorder without an automated test' },
+      { id: 'runtime-state', label: "Runtime state from Earth's own signals", done: false },
+      { id: 'mobile', label: 'Mobile layout checked on a real phone', done: false },
+      { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real phone)', done: false },
+      { id: 'surface-detail', label: 'Surface detail at high zoom (Sprint 2.4, interpretive)', done: false },
+    ],
+  }),
+  // LOT 22: was a hand-written 55; now 7 of 12 criteria (1-6 ticked after tests/protein-lot22.test.js).
+  protein: roadmapFromCriteria({
+    stage: 'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins',
+    next: 'Experimental context beside prediction confidence',
+    criteria: [
+      { id: 'alphafold-structure', label: 'AlphaFold structure via the shared broker', done: true,
+        evidence: 'src/protein/protein-data.js (data-broker), protein-geometry.js parseAlphaFoldPdb · test protein-lot22 (fixture protein-synthetic.pdb) · live on production' },
+      { id: 'plddt-confidence', label: 'pLDDT colouring, bands, "not experimental evidence"', done: true,
+        evidence: 'src/protein/protein-geometry.js (PLDDT_BANDS, plddtBand, summarizeConfidence), protein-scene.js · test protein-lot22' },
+      { id: 'uniprot-features', label: 'UniProt features × confidence (coverage, mean pLDDT, focus)', done: true,
+        evidence: 'src/protein/protein-analysis.js crossReferenceFeatures, protein-app.js · test protein-lot22' },
+      { id: 'curated-models', label: '4 curated proteins with a story', done: true,
+        evidence: 'src/protein/protein-app.js PROTEIN_MODELS, living-protein.html picker · test protein-lot22' },
+      { id: 'explicit-fallback', label: 'Labelled fallback trace', done: true,
+        evidence: 'src/protein/protein-app.js fallback texts, source-registry INITIAL_SOURCE_STATUS · tests protein-lot22, observatory-runtime-badge' },
+      { id: 'provenance', label: 'Source entries + provenance line', done: true,
+        evidence: 'src/config/source-registry.js (alpha, uniprot), #proteinProvenance · test protein-lot22' },
+      { id: 'lifecycle', label: 'Atlas mount / unmount, abort', done: true,
+        evidence: 'src/protein/living-protein-atlas-module.js · tests atlas-module-lifecycle, observatory-deep-link' },
+      { id: 'experimental-context', label: 'Experimental context beside prediction confidence', done: false },
+      { id: 'pae', label: 'Predicted aligned error (PAE)', done: false },
+      { id: 'runtime-state', label: 'Runtime state from own signals', done: false },
+      { id: 'mobile', label: 'Mobile layout checked on a real phone', done: false },
+      { id: 'measured-performance', label: 'Measured performance', done: false },
+    ],
+  }),
   phase: Object.freeze({ progress: 0, stage: 'Research frame declared', next: 'Bridge perceptual studies to real material records' }),
   sun: Object.freeze({ progress: 0, stage: 'Development scoped', next: 'Solar activity MVP and Earth coupling' }),
   materials: Object.freeze({ progress: 0, stage: 'Development scoped', next: 'Crystal viewer with a first traceable dataset' }),
