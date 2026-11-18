@@ -9,7 +9,7 @@ import { OBSERVATORY_REGISTRY } from '../src/config/observatory-registry.js';
 import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
 import { SOURCE_DEFINITIONS } from '../src/config/source-registry.js';
 import {
-  CAPABILITY_DEFINITIONS, OBSERVATORY_CAPABILITIES, OBSERVATORY_CAPABILITY_EVIDENCE, OBSERVATORY_CAPABILITY_LIMITS,
+  CAPABILITY_DEFINITIONS, OBSERVATORY_CAPABILITIES, OBSERVATORY_CAPABILITY_EVIDENCE, OBSERVATORY_CAPABILITY_LIMITS, OBSERVATORY_MEASURED,
 } from '../src/config/capability-registry.js';
 import { validateObservatoryRegistry } from '../src/core/observatory/module-contract.js';
 import { platformRegistry } from '../src/core/platform-registry.js';
@@ -162,7 +162,7 @@ describe('LOT 17: Living Earth historical time', () => {
   it('the contract rejects limits for an undeclared capability', () => {
     const options = {
       taxonomy: PLATFORM_TAXONOMY, sourceDefinitions: SOURCE_DEFINITIONS, capabilityDefinitions: CAPABILITY_DEFINITIONS,
-      observatoryCapabilities: OBSERVATORY_CAPABILITIES, observatoryCapabilityEvidence: OBSERVATORY_CAPABILITY_EVIDENCE,
+      observatoryCapabilities: OBSERVATORY_CAPABILITIES, observatoryCapabilityEvidence: OBSERVATORY_CAPABILITY_EVIDENCE, observatoryMeasured: OBSERVATORY_MEASURED, // LOT 20
     };
     expect(validateObservatoryRegistry(OBSERVATORY_REGISTRY, { ...options, observatoryCapabilityLimits: OBSERVATORY_CAPABILITY_LIMITS }).errors).toEqual([]);
     const codes = validateObservatoryRegistry(OBSERVATORY_REGISTRY, { ...options, observatoryCapabilityLimits: { 'living-protein': { 'historical-time': 'x' } } }).errors.map((e) => e.code);
@@ -171,10 +171,10 @@ describe('LOT 17: Living Earth historical time', () => {
 });
 
 describe('LOT 17: Himalaya criterion 9 and next threshold', () => {
-  it('finishing lot done (LOT 17); since LOT 15b 10 of 11 = 91% and the next threshold is measured performance', () => {
+  it('finishing lot done (LOT 17); since LOT 20 all 11 criteria are done (100%)', () => {
     const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
     expect(himalaya.roadmap.criteria.find((c) => c.id === 'finishing-lot').done).toBe(true);
-    expect(himalaya.roadmap.progress).toBe(91);
-    expect(himalaya.roadmap.next).toBe('Measured performance (real GTX 1650, real mobile)');
+    expect(himalaya.roadmap.progress).toBe(100);
+    expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)');
   });
 });

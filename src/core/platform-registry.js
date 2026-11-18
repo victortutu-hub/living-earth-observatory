@@ -6,10 +6,12 @@ import {
   OBSERVATORY_CAPABILITIES,
   OBSERVATORY_CAPABILITY_EVIDENCE,
   OBSERVATORY_CAPABILITY_LIMITS,
+  OBSERVATORY_MEASURED,
   getCapabilityDefinition,
   getCapabilityLimits,
   getCapabilityEvidence,
   getObservatoryUnmeasured,
+  getObservatoryMeasured,
   getObservatoryCapabilities,
   hasObservatoryCapability,
 } from '../config/capability-registry.js';
@@ -24,6 +26,7 @@ const moduleContract = validateObservatoryRegistry(OBSERVATORY_REGISTRY, {
   observatoryCapabilities: OBSERVATORY_CAPABILITIES,
   observatoryCapabilityEvidence: OBSERVATORY_CAPABILITY_EVIDENCE,
   observatoryCapabilityLimits: OBSERVATORY_CAPABILITY_LIMITS,
+  observatoryMeasured: OBSERVATORY_MEASURED,
 });
 
 if (!moduleContract.valid) {
@@ -74,6 +77,10 @@ export const platformRegistry = Object.freeze({
 
   getUnmeasured(observatoryId) {
     return getObservatoryUnmeasured(observatoryId);
+  },
+
+  getMeasured(observatoryId) {
+    return getObservatoryMeasured(observatoryId);
   },
 
   hasCapability(observatoryId, capabilityId) {

@@ -26,6 +26,7 @@ releases/
 # README.md is intentionally not ignored.
 docs/*
 !docs/archive/
+!docs/perf/
 !docs/architecture-baseline.md
 *.pdf
 *.docx

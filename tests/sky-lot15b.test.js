@@ -376,12 +376,11 @@ describe('LOT 15b: Living Himalaya sky integration, provenance and registry', ()
     for (const id of ['himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay']) expect(himalaya.sources).toContain(id);
   });
 
-  it('criterion 10 done -> 10 of 11 = 91%; next threshold = measured performance', () => {
+  it('criterion 10 done (LOT 15b); since LOT 20 all 11 criteria are done', () => {
     const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
     expect(himalaya.roadmap.criteria.find((c) => c.id === 'night-sky')).toEqual({ id: 'night-sky', label: 'Real night sky (Lot 15b)', done: true });
-    expect(himalaya.roadmap.criteria.filter((c) => c.done)).toHaveLength(10);
-    expect(himalaya.roadmap.progress).toBe(91);
-    expect(himalaya.roadmap.next).toBe('Measured performance (real GTX 1650, real mobile)');
+    expect(himalaya.roadmap.criteria.filter((c) => c.done)).toHaveLength(11);
+    expect(himalaya.roadmap.progress).toBe(100);
   });
 
   it('NOTICE credits the Preetham sky code from three.js (MIT)', () => {

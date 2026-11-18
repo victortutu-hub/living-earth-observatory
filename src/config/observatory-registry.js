@@ -28,7 +28,7 @@ const ROADMAP = Object.freeze({
   // Lot 16: stage and next threshold up to date (production: deploy-himalaya-9); progress computed from the criteria below.
   himalaya: roadmapFromCriteria({
     stage: 'In development: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps',
-    next: 'Measured performance (real GTX 1650, real mobile)', // LOT 15b
+    next: 'All criteria met — next: glaciers (research)', // LOT 20
     criteria: [
       { id: 'real-terrain', label: 'Real terrain (GLO-30 + Terrarium)', done: true },
       { id: 'observed-image', label: 'Observed image (Sentinel-2 L2A)', done: true },
@@ -40,7 +40,7 @@ const ROADMAP = Object.freeze({
       { id: 'time-mobile', label: 'Time from Earth + mobile bottom sheet', done: true },
       { id: 'finishing-lot', label: 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)', done: true }, // LOT 17
       { id: 'night-sky', label: 'Real night sky (Lot 15b)', done: true }, // LOT 15b
-      { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real mobile)', done: false },
+      { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real mobile)', done: true }, // LOT 20: docs/perf/, checked by the contract
     ],
   }),
 });

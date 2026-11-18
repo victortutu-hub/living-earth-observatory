@@ -1,5 +1,6 @@
 import { platformRegistry } from '../core/platform-registry.js';
 import { SOURCE_DEFINITIONS } from '../config/source-registry.js';
+import { describeMeasuredRun } from '../config/capability-registry.js';
 
 const GROUP_LABELS = Object.freeze({
   data: 'Data & provenance',
@@ -114,6 +115,23 @@ export function initCapabilityInspector() {
         return li;
       }));
       block.append(items);
+      groups.push(block);
+    }
+
+    // LOT 20: real-device runs (primary first), with the reports' location.
+    const measured = platformRegistry.getMeasured?.(observatoryId) || [];
+    if (measured.length) {
+      const block = createElement('section', 'capability-group capability-group-measured');
+      block.append(createElement('span', 'capability-group-label', 'Measured'));
+      const items = createElement('ul', 'capability-list');
+      items.append(...measured.filter((run) => run.primary).map((run) => createElement('li', null, describeMeasuredRun(run))));
+      block.append(items);
+      const secondary = measured.filter((run) => !run.primary);
+      const note = [
+        'Reports (schema lumi-himalaya-perf/1, ?perf=1 mode) are versioned in the repository under docs/perf/ with their SHA-256; they are not published on the site.',
+        ...secondary.map((run) => `Also measured: ${run.note}`),
+      ].join(' ');
+      block.append(createElement('p', 'capability-evidence-note', note));
       groups.push(block);
     }
 

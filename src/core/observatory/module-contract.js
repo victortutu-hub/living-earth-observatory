@@ -17,6 +17,35 @@ function hasText(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+// LOT 20: the "measured performance" criterion is done only with real-device runs of the ?perf=1
+// mode (lumi-himalaya-perf/1) recorded in the registry: >= 1 desktop run on a GTX 1650 and >= 1 run
+// on a real phone in its mobile layout (mobile user agent: Android or iPhone + "Mobile", viewport at
+// most 760 CSS px wide), every scenario valid, not headless, the report versioned in docs/perf/ with
+// its SHA-256 (the file hash itself is checked by tools/validate-registry.mjs and the tests).
+// A phone in Desktop-site mode (desktop UA, wide viewport) never counts as the mobile run.
+export const MEASURED_PERFORMANCE_CRITERION = 'measured-performance';
+export const MOBILE_MAX_VIEWPORT_PX = 760;
+const MEASURED_ROLES = Object.freeze(['desktop', 'mobile', 'mobile-desktop-site']);
+
+const runUsable = (run) => run?.headless === false && run?.allScenariosValid === true
+  && typeof run?.file === 'string' && /^docs\/perf\/[\w.-]+\.json$/.test(run.file) && /^[0-9a-f]{64}$/.test(run?.sha256 || '');
+
+export function isMobileRun(run) {
+  const ua = String(run?.userAgent || '');
+  return runUsable(run) && /(Android|iPhone)/.test(ua) && /Mobile/.test(ua)
+    && Array.isArray(run.viewport) && run.viewport[0] <= MOBILE_MAX_VIEWPORT_PX;
+}
+
+export function isGtx1650DesktopRun(run) {
+  return runUsable(run) && run.role === 'desktop' && /GTX 1650/.test(String(run.device || '')) && !/Mobile/.test(String(run.userAgent || ''));
+}
+
+export function measuredPerformanceStatus(runs = []) {
+  const desktop = runs.some(isGtx1650DesktopRun);
+  const mobile = runs.some(isMobileRun);
+  return Object.freeze({ desktop, mobile, done: desktop && mobile });
+}
+
 export function validateObservatoryModule(moduleDefinition, {
   taxonomy,
   sourceDefinitions = {},
@@ -24,6 +53,7 @@ export function validateObservatoryModule(moduleDefinition, {
   observatoryCapabilities = {},
   observatoryCapabilityEvidence = {},
   observatoryCapabilityLimits = {},
+  observatoryMeasured = {},
 } = {}) {
   const errors = [];
   const warnings = [];
@@ -118,6 +148,26 @@ export function validateObservatoryModule(moduleDefinition, {
         errors.push(issue('error', 'unknown-capability', `Unknown capability: ${capabilityId}.`, 'capabilities'));
       }
     });
+  }
+
+  // LOT 20: measured runs (structure) and the measured-performance criterion.
+  const measured = observatoryMeasured[module.id] || [];
+  if (!Array.isArray(measured)) {
+    errors.push(issue('error', 'invalid-measured-runs', 'Measured runs must be an array.', 'measured'));
+  } else {
+    measured.forEach((run, index) => {
+      if (!MEASURED_ROLES.includes(run?.role) || !hasText(run?.device) || !hasText(run?.browser) || !hasText(run?.date)
+        || !/^docs\/perf\/[\w.-]+\.json$/.test(run?.file || '') || !/^[0-9a-f]{64}$/.test(run?.sha256 || '')) {
+        errors.push(issue('error', 'invalid-measured-run', `Measured run ${index} needs role, device, browser, date, a docs/perf/ file and its SHA-256.`, 'measured'));
+      }
+    });
+    const criterion = Array.isArray(roadmap?.criteria) ? roadmap.criteria.find((item) => item?.id === MEASURED_PERFORMANCE_CRITERION) : null;
+    if (criterion?.done === true) {
+      const status = measuredPerformanceStatus(measured);
+      if (!status.done) {
+        errors.push(issue('error', 'measured-performance-without-runs', `Criterion ${MEASURED_PERFORMANCE_CRITERION} is done without ${[status.desktop ? null : 'a valid GTX 1650 desktop run', status.mobile ? null : 'a valid real-phone run in the mobile layout'].filter(Boolean).join(' and ')}.`, 'roadmap'));
+      }
+    }
   }
 
   // Optional limits (LOT 17): only for declared capabilities, as non-empty text.

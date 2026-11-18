@@ -135,6 +135,18 @@ site-ul (fără `Ctrl+Shift+R`) că pagina e cea nouă.
 - Proxy: `GET /nasaproxy/nasa-proxy?source=gdacs|gvp|firms` răspunde `200`.
 - Ștergi `_staging-<lot>/` și toate arhivele `.zip` din `public_html`, fiindcă
   sunt publice.
+- **Ștergerea e definitivă, nu în Coș** — o faci abia după promovare și după
+  ce hash-ul agregat al fișierelor de pe producție e identic cu manifestul. În
+  cPanel → File Manager → Delete bifezi **„Skip the trash and permanently delete
+  the files”** (sau golești Coșul imediat după). Contul are o cotă de
+  **1000 MB**, iar un staging cu `assets/` are câteva sute de MB; în Coș ocupă
+  la fel de mult.
+
+  > **Incident 2026-11-18:** staging-urile șterse anterior ajunseseră în Coș și
+  > au umplut cota; la dezarhivare cPanel a dat **„quota exceeded”**.
+  > Rezolvare: Coșul golit, după care contul a coborât la **254 MB** folosiți.
+  > De atunci: staging-ul se șterge definitiv, iar înainte de dezarhivare
+  > verifici spațiul liber (cPanel → Disk Usage).
 
 ### Rollback
 

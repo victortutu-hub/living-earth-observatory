@@ -7,7 +7,7 @@ import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
 import { OBSERVATORY_REGISTRY, progressFromCriteria } from '../src/config/observatory-registry.js';
 import { SOURCE_DEFINITIONS } from '../src/config/source-registry.js';
 import {
-  CAPABILITY_DEFINITIONS, OBSERVATORY_CAPABILITIES, OBSERVATORY_CAPABILITY_EVIDENCE, OBSERVATORY_UNMEASURED,
+  CAPABILITY_DEFINITIONS, OBSERVATORY_CAPABILITIES, OBSERVATORY_CAPABILITY_EVIDENCE, OBSERVATORY_UNMEASURED, OBSERVATORY_MEASURED,
 } from '../src/config/capability-registry.js';
 import { validateObservatoryRegistry } from '../src/core/observatory/module-contract.js';
 import { platformRegistry } from '../src/core/platform-registry.js';
@@ -16,7 +16,7 @@ import { describeCapabilityContract, evidenceSourceLabels } from '../src/atlas/c
 const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
 const options = {
   taxonomy: PLATFORM_TAXONOMY, sourceDefinitions: SOURCE_DEFINITIONS, capabilityDefinitions: CAPABILITY_DEFINITIONS,
-  observatoryCapabilities: OBSERVATORY_CAPABILITIES, observatoryCapabilityEvidence: OBSERVATORY_CAPABILITY_EVIDENCE,
+  observatoryCapabilities: OBSERVATORY_CAPABILITIES, observatoryCapabilityEvidence: OBSERVATORY_CAPABILITY_EVIDENCE, observatoryMeasured: OBSERVATORY_MEASURED, // LOT 20
 };
 
 describe('LOT 16: Living Himalaya capabilities', () => {
@@ -62,8 +62,9 @@ describe('LOT 16: Living Himalaya capabilities', () => {
   });
 
   it('declares what is not measured, and claims nothing deferred or not started', () => {
-    expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/GTX 1650/);
-    expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/mobile devices/);
+    // LOT 20: the GTX 1650 desktop and the real phone are measured now; what stays unmeasured is declared.
+    expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/120 Hz/);
+    expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/GPU time per frame on the phone/);
     // Claims only: capabilities, stage, next threshold and the criteria marked done (open criteria may name future work).
     // The next threshold names future work on purpose, so it is not a claim. LOT 15b: the real night sky
     // (criterion 10) now exists, so it is no longer a forbidden claim; GPS tracks and glaciers still are.
@@ -82,12 +83,12 @@ describe('LOT 16: Living Himalaya capabilities', () => {
 
   it('card: stage and next threshold up to date; progress computed from the criteria', () => {
     expect(himalaya.roadmap.stage).toBe('In development: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps'); // LOT 15b
-    expect(himalaya.roadmap.next).toBe('Measured performance (real GTX 1650, real mobile)'); // LOT 15b
+    expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)'); // LOT 20
     expect(himalaya.roadmap.next).not.toMatch(/Per-field provenance/);
-    expect(himalaya.roadmap.progress).toBe(91);
+    expect(himalaya.roadmap.progress).toBe(100);
   });
 
-  it('progress = round(100 · done / total) from exactly the 11 approved criteria (10 done since LOT 15b)', () => {
+  it('progress = round(100 · done / total) from exactly the 11 approved criteria (11 done since LOT 20)', () => {
     const { criteria } = himalaya.roadmap;
     expect(himalaya.roadmap.progressSource).toBe('criteria');
     expect(criteria.map((c) => c.label)).toEqual([
@@ -96,10 +97,10 @@ describe('LOT 16: Living Himalaya capabilities', () => {
       'Time from Earth + mobile bottom sheet', 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)',
       'Real night sky (Lot 15b)', 'Measured performance (real GTX 1650, real mobile)',
     ]);
-    expect(criteria.map((c) => c.done)).toEqual([true, true, true, true, true, true, true, true, true, true, false]);
+    expect(criteria.map((c) => c.done)).toEqual(Array(11).fill(true));
     expect(new Set(criteria.map((c) => c.id)).size).toBe(11);
-    expect(progressFromCriteria(criteria)).toBe(Math.round((100 * 10) / 11));
-    expect(himalaya.roadmap.progress).toBe(91);
+    expect(progressFromCriteria(criteria)).toBe(100);
+    expect(himalaya.roadmap.progress).toBe(100);
     expect(JSON.stringify(criteria).toLowerCase()).not.toMatch(/garmin|glacier/);
   });
 

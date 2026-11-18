@@ -1,0 +1,249 @@
+{
+ "schema": "lumi-himalaya-perf/1",
+ "createdAt": "2026-11-18T08:46:41.489Z",
+ "environment": {
+  "headless": false
+ },
+ "device": {
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.4341.53",
+  "devicePixelRatio": 4,
+  "viewport": [
+   980,
+   1676
+  ],
+  "canvas": [
+   1960,
+   3352
+  ],
+  "gpuRenderer": "ANGLE (Qualcomm, Adreno (TM) 740, OpenGL ES 3.2)",
+  "gpuVendor": "Google Inc. (Qualcomm)",
+  "timerQuery": false
+ },
+ "page": {
+  "url": "/living-himalaya.html?focus=everest&perf=1",
+  "version": {
+   "module": "himalayaLot19",
+   "stylesheet": "himalayaLot19"
+  },
+  "assets": [
+   {
+    "role": "routes",
+    "file": "assets/himalaya/routes-2bff0efd18.json",
+    "sha256": "2bff0efd183821f5b2808ac52d6c104f3f8069812d897fd5132ec36958429388"
+   },
+   {
+    "role": "sky luminance",
+    "file": "assets/sky/milkyway-2020-luminance-e04b3ab3ba.ktx2",
+    "sha256": "e04b3ab3ba897aed917022e24d413169f54335bca03d7b0a9a4f66708e59377d"
+   },
+   {
+    "role": "sky chroma",
+    "file": "assets/sky/milkyway-2020-chroma-dd5892e120.ktx2",
+    "sha256": "dd5892e120750ba1d4c0b39dd519cbda793ec6da483144518ca7cfcd1458a80d"
+   },
+   {
+    "role": "sky stars",
+    "file": "assets/sky/hyg-v44-stars-01ebd16c2b.bin",
+    "sha256": "01ebd16c2b57ed97309f5f6887bbae089ecef45e618767a1e023d15078bbc8f0"
+   },
+   {
+    "role": "terrain everest",
+    "file": "assets/himalaya/glo30-everest-8832b09204.ktx2"
+   },
+   {
+    "role": "terrain k2",
+    "file": "assets/himalaya/glo30-k2-a6b49698c6.ktx2"
+   }
+  ]
+ },
+ "pageLoad": {
+  "clock": "ms since the navigation start (performance.now)",
+  "responseEndMs": 279,
+  "domContentLoadedMs": 973,
+  "loadEventMs": 973,
+  "firstRenderedFrameMs": 845,
+  "focus": "everest",
+  "activeReliefReadyMs": 2105,
+  "note": "relief ready = the GLO-30 patch of the focused summit visible with its fade finished"
+ },
+ "times": {
+  "day": "2026-06-21T10:44:00Z",
+  "night": "2026-06-21T21:36:00Z"
+ },
+ "timing": {
+  "warmupMs": 3000,
+  "measureMs": 10000
+ },
+ "scenarios": [
+  {
+   "id": "A",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 594,
+    "meanMs": 16.823,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 108.3,
+    "over33Ms": 1,
+    "meanFps": 59.4
+   },
+   "gpu": null,
+   "gpuNote": "GPU timer unavailable",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost"
+   },
+   "drawCalls": 22,
+   "triangles": 1103233,
+   "switch": null,
+   "sky": {
+    "status": "MAP + STARS",
+    "regime": "day"
+   },
+   "routeLines": 0,
+   "memory": {
+    "usedJSHeapSize": 76600000,
+    "totalJSHeapSize": 91700000
+   }
+  },
+  {
+   "id": "B",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.67,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 16.8,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": null,
+   "gpuNote": "GPU timer unavailable",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost"
+   },
+   "drawCalls": 30,
+   "triangles": 1064881,
+   "switch": null,
+   "sky": {
+    "status": "MAP + STARS",
+    "regime": "day"
+   },
+   "routeLines": 4,
+   "memory": {
+    "usedJSHeapSize": 76600000,
+    "totalJSHeapSize": 91700000
+   }
+  },
+  {
+   "id": "C",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 599,
+    "meanMs": 16.684,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 25.1,
+    "over33Ms": 0,
+    "meanFps": 59.9
+   },
+   "gpu": null,
+   "gpuNote": "GPU timer unavailable",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost"
+   },
+   "drawCalls": 19,
+   "triangles": 1066369,
+   "switch": null,
+   "sky": {
+    "status": "MAP + STARS",
+    "regime": "night"
+   },
+   "routeLines": 0,
+   "memory": {
+    "usedJSHeapSize": 76600000,
+    "totalJSHeapSize": 91700000
+   }
+  },
+  {
+   "id": "D",
+   "valid": true,
+   "reason": null,
+   "frames": null,
+   "gpu": null,
+   "switch": {
+    "firstReadyMs": 1532,
+    "firstSettledMs": 1532,
+    "firstSource": "network",
+    "secondReadyMs": 417,
+    "secondSettledMs": 417,
+    "secondSource": "memory (patch already held by the scene: no request)",
+    "note": "ready = K2 GLO-30 patch visible with its fade finished; settled = camera flight ended too. Source from Resource Timing: network (bytes transferred), http-cache (no bytes transferred), or memory (the scene still held the patch: no request). The second switch normally comes from memory, not from the HTTP cache."
+   }
+  },
+  {
+   "id": "E",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 598,
+    "meanMs": 16.726,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 41.8,
+    "over33Ms": 1,
+    "meanFps": 59.8
+   },
+   "gpu": null,
+   "gpuNote": "GPU timer unavailable",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost"
+   },
+   "drawCalls": 42,
+   "triangles": 197281,
+   "switch": null,
+   "overviewTiles": {
+    "requested": 105,
+    "loaded": 105,
+    "failed": 0,
+    "evicted": 0,
+    "aborted": 0,
+    "inLru": 105,
+    "drawn": 25,
+    "inflight": 0,
+    "queued": 0,
+    "drawnByZoom": {
+     "6": 25
+    }
+   },
+   "memory": {
+    "usedJSHeapSize": 76600000,
+    "totalJSHeapSize": 91700000
+   }
+  }
+ ],
+ "validation": []
+}

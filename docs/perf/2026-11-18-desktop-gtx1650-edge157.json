@@ -1,0 +1,281 @@
+{
+ "schema": "lumi-himalaya-perf/1",
+ "createdAt": "2026-11-18T08:43:13.919Z",
+ "environment": {
+  "headless": false
+ },
+ "device": {
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+  "devicePixelRatio": 1.25,
+  "viewport": [
+   1528,
+   698
+  ],
+  "canvas": [
+   1910,
+   872
+  ],
+  "gpuRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 (0x00001F91) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "gpuVendor": "Google Inc. (NVIDIA)",
+  "timerQuery": true
+ },
+ "page": {
+  "url": "/living-himalaya.html?focus=everest&perf=1",
+  "version": {
+   "module": "himalayaLot19",
+   "stylesheet": "himalayaLot19"
+  },
+  "assets": [
+   {
+    "role": "routes",
+    "file": "assets/himalaya/routes-2bff0efd18.json",
+    "sha256": "2bff0efd183821f5b2808ac52d6c104f3f8069812d897fd5132ec36958429388"
+   },
+   {
+    "role": "sky luminance",
+    "file": "assets/sky/milkyway-2020-luminance-e04b3ab3ba.ktx2",
+    "sha256": "e04b3ab3ba897aed917022e24d413169f54335bca03d7b0a9a4f66708e59377d"
+   },
+   {
+    "role": "sky chroma",
+    "file": "assets/sky/milkyway-2020-chroma-dd5892e120.ktx2",
+    "sha256": "dd5892e120750ba1d4c0b39dd519cbda793ec6da483144518ca7cfcd1458a80d"
+   },
+   {
+    "role": "sky stars",
+    "file": "assets/sky/hyg-v44-stars-01ebd16c2b.bin",
+    "sha256": "01ebd16c2b57ed97309f5f6887bbae089ecef45e618767a1e023d15078bbc8f0"
+   },
+   {
+    "role": "terrain everest",
+    "file": "assets/himalaya/glo30-everest-8832b09204.ktx2"
+   },
+   {
+    "role": "terrain k2",
+    "file": "assets/himalaya/glo30-k2-a6b49698c6.ktx2"
+   }
+  ]
+ },
+ "pageLoad": {
+  "clock": "ms since the navigation start (performance.now)",
+  "responseEndMs": 56,
+  "domContentLoadedMs": 586,
+  "loadEventMs": 625,
+  "firstRenderedFrameMs": 525,
+  "focus": "everest",
+  "activeReliefReadyMs": 1392,
+  "note": "relief ready = the GLO-30 patch of the focused summit visible with its fade finished"
+ },
+ "times": {
+  "day": "2026-06-21T10:44:00Z",
+  "night": "2026-06-21T21:36:00Z"
+ },
+ "timing": {
+  "warmupMs": 3000,
+  "measureMs": 10000
+ },
+ "scenarios": [
+  {
+   "id": "A",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 16.9,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 2.603,
+    "p50Ms": 2.092,
+    "p95Ms": 6.342,
+    "p99Ms": 6.369,
+    "maxMs": 6.735
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 38,
+   "triangles": 1241761,
+   "switch": null,
+   "sky": {
+    "status": "MAP + STARS",
+    "regime": "day"
+   },
+   "routeLines": 0,
+   "skyGpuMs": 0.332,
+   "skyNote": "sky (background + stars) GPU cost: renders with / without it, measured after the window",
+   "memory": {
+    "usedJSHeapSize": 82448671,
+    "totalJSHeapSize": 96366175
+   }
+  },
+  {
+   "id": "B",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 16.9,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 2.636,
+    "p50Ms": 2.289,
+    "p95Ms": 5.87,
+    "p99Ms": 6.061,
+    "maxMs": 6.281
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 42,
+   "triangles": 1147993,
+   "switch": null,
+   "sky": {
+    "status": "MAP + STARS",
+    "regime": "day"
+   },
+   "routeLines": 4,
+   "memory": {
+    "usedJSHeapSize": 75463273,
+    "totalJSHeapSize": 93459137
+   }
+  },
+  {
+   "id": "C",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.9,
+    "maxMs": 17.3,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 2.79,
+    "p50Ms": 2.413,
+    "p95Ms": 5.666,
+    "p99Ms": 5.757,
+    "maxMs": 6.309
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 31,
+   "triangles": 1149889,
+   "switch": null,
+   "sky": {
+    "status": "MAP + STARS",
+    "regime": "night"
+   },
+   "routeLines": 0,
+   "skyGpuMs": 0.135,
+   "skyNote": "sky (background + stars) GPU cost: renders with / without it, measured after the window",
+   "memory": {
+    "usedJSHeapSize": 73779869,
+    "totalJSHeapSize": 91926545
+   }
+  },
+  {
+   "id": "D",
+   "valid": true,
+   "reason": null,
+   "frames": null,
+   "gpu": null,
+   "switch": {
+    "firstReadyMs": 667,
+    "firstSettledMs": 667,
+    "firstSource": "http-cache",
+    "secondReadyMs": 417,
+    "secondSettledMs": 417,
+    "secondSource": "memory (patch already held by the scene: no request)",
+    "note": "ready = K2 GLO-30 patch visible with its fade finished; settled = camera flight ended too. Source from Resource Timing: network (bytes transferred), http-cache (no bytes transferred), or memory (the scene still held the patch: no request). The second switch normally comes from memory, not from the HTTP cache."
+   }
+  },
+  {
+   "id": "E",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.9,
+    "maxMs": 16.9,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 2.902,
+    "p50Ms": 3.058,
+    "p95Ms": 3.337,
+    "p99Ms": 7.252,
+    "maxMs": 7.662
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 64,
+   "triangles": 383617,
+   "switch": null,
+   "overviewTiles": {
+    "requested": 190,
+    "loaded": 189,
+    "failed": 0,
+    "evicted": 39,
+    "aborted": 0,
+    "inLru": 150,
+    "drawn": 19,
+    "inflight": 1,
+    "queued": 0,
+    "drawnByZoom": {
+     "6": 19
+    }
+   },
+   "memory": {
+    "usedJSHeapSize": 110509941,
+    "totalJSHeapSize": 126668777
+   }
+  }
+ ],
+ "validation": []
+}
