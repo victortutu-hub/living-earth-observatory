@@ -120,7 +120,7 @@ describe('LOT 20: contract for criterion 11 (measured performance)', () => {
   it('criterion open -> no error even without runs', () => {
     const open = OBSERVATORY_REGISTRY.map((item) => (item.id === 'living-himalaya'
       ? { ...item, roadmap: { ...item.roadmap, progress: 92, criteria: item.roadmap.criteria.map((c) => (c.id === 'measured-performance' ? { ...c, done: false } : c)) } } : item));
-    expect(contract({}, open).errors).toEqual([]);
+    expect(contract({ 'living-earth': OBSERVATORY_MEASURED['living-earth'] }, open).errors).toEqual([]); // LOT 29: keep the Earth runs (its criteria are ticked)
   });
 });
 

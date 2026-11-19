@@ -135,6 +135,14 @@ export const OBSERVATORY_UNMEASURED = Object.freeze({
     'GPU time per frame on the phone (its browser exposes no GPU timer)',
     'Other GPUs and browsers (only GeForce GTX 1650 with Edge 157 on Windows and Adreno 740 with Edge 157 on Android were measured)',
   ]),
+  // LOT 29: Living Earth measured on the GTX 1650 desktop and the real phone (OBSERVATORY_MEASURED).
+  'living-earth': Object.freeze([
+    'Rendering headroom above 60 FPS: both measured runs were capped by a 60 Hz display (vsync); 120 Hz+ screens not measured',
+    'GPU time per frame and the sky cost on the phone (its browser exposes no GPU timer)',
+    'JavaScript memory on the phone (its browser reports a fixed coarse value)',
+    'Wind and currents of a past day (ERA5 / SMOC through the proxy): scenario B measured the live Open-Meteo fields only',
+    'Other GPUs and browsers (only GeForce GTX 1650 with Edge 157 on Windows and Adreno 740 with Edge 157 on Android were measured)',
+  ]),
 });
 
 const deepFreeze = (value) => {
@@ -143,7 +151,7 @@ const deepFreeze = (value) => {
 };
 
 // LOT 20: measured performance, one entry per real-device run of the ?perf=1 mode (schema
-// lumi-himalaya-perf/1). Values copied from the reports in docs/perf/ (versioned, not deployed);
+// lumi-himalaya-perf/1; LOT 29: Living Earth, lumi-earth-perf/1). Values copied from the reports in docs/perf/ (versioned, not deployed);
 // tests compare every value and the SHA-256 with the files. Frame times in ms (rAF intervals),
 // GPU = TIME_ELAPSED per frame, load = ms since the navigation start, summit switch = Everest -> K2.
 export const OBSERVATORY_MEASURED = deepFreeze({
@@ -362,6 +370,248 @@ export const OBSERVATORY_MEASURED = deepFreeze({
     "note": "Secondary: phone in Desktop-site mode (desktop UA, 980 px viewport, 1960×3352 canvas) — heavier than normal; mobile layout not exercised. Does not count as the mobile run."
    }
   ],
+  // LOT 29: Living Earth (lumi-earth-perf/1, scenarios A-D, generated from docs/perf/ by
+  // tmp/lot29/gen-measured.mjs): + GIBS surface / runtime LIVE times, sky A (day) / D (night), layout checks.
+  'living-earth': [
+   {
+    "id": "2026-11-19-earth-desktop-gtx1650-edge157",
+    "role": "desktop",
+    "primary": true,
+    "device": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 (0x00001F91) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "browser": "Edge 157 desktop (Windows)",
+    "date": "2026-11-19",
+    "createdAt": "2026-11-19T13:16:19.390Z",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0",
+    "devicePixelRatio": 1.25,
+    "viewport": [
+     1528,
+     698
+    ],
+    "canvas": [
+     1910,
+     872
+    ],
+    "headless": false,
+    "allScenariosValid": true,
+    "refreshHz": 60,
+    "frames": {
+     "A": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 17
+     },
+     "B": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 16.9
+     },
+     "C": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 17
+     },
+     "D": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 16.9
+     }
+    },
+    "gpu": {
+     "A": {
+      "p50Ms": 3.498,
+      "p95Ms": 3.828
+     },
+     "B": {
+      "p50Ms": 3.781,
+      "p95Ms": 3.9
+     },
+     "C": {
+      "p50Ms": 3.544,
+      "p95Ms": 4.842
+     },
+     "D": {
+      "p50Ms": 3.789,
+      "p95Ms": 4.778
+     }
+    },
+    "skyGpuMs": {
+     "A": 0.293,
+     "D": 0.281
+    },
+    "memory": {
+     "A": {
+      "usedMB": 43.3
+     },
+     "B": {
+      "usedMB": 49.5
+     },
+     "C": {
+      "usedMB": 47.7
+     },
+     "D": {
+      "usedMB": 47.2
+     }
+    },
+    "load": {
+     "firstFrameMs": 966,
+     "surfaceShownMs": 1617,
+     "runtimeLiveMs": 4805
+    },
+    "layout": {
+     "mobileLayout": false,
+     "allPass": true,
+     "checks": [
+      {
+       "id": "viewport",
+       "pass": true,
+       "value": [
+        1528,
+        698
+       ]
+      },
+      {
+       "id": "no-horizontal-scroll",
+       "pass": true,
+       "value": {
+        "scrollWidth": 1528,
+        "innerWidth": 1528
+       }
+      },
+      {
+       "id": "hud-toggle",
+       "pass": true,
+       "value": {
+        "present": true,
+        "shown": false
+       }
+      },
+      {
+       "id": "buttons-in-viewport",
+       "pass": true,
+       "value": {
+        "checked": 43,
+        "outside": []
+       }
+      },
+      {
+       "id": "base-text-px",
+       "pass": true,
+       "value": {
+        "minPx": 12,
+        "elements": 3,
+        "bodyPx": 16
+       }
+      }
+     ]
+    },
+    "layoutAllPass": true,
+    "file": "docs/perf/2026-11-19-earth-desktop-gtx1650-edge157.json",
+    "sha256": "b1eb8dc8893e0ac5472ce13acca88251d870e49d50ff487b6eb5b5f4877b7aa4"
+   },
+   {
+    "id": "2026-11-19-earth-mobile-adreno740-edge157",
+    "role": "mobile",
+    "primary": true,
+    "device": "ANGLE (Qualcomm, Adreno (TM) 740, OpenGL ES 3.2)",
+    "browser": "Edge 157 Android",
+    "date": "2026-11-19",
+    "createdAt": "2026-11-19T13:16:12.530Z",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36 EdgA/157.0.0.0",
+    "devicePixelRatio": 4,
+    "viewport": [
+     360,
+     615
+    ],
+    "canvas": [
+     720,
+     1230
+    ],
+    "headless": false,
+    "allScenariosValid": true,
+    "refreshHz": 60,
+    "frames": {
+     "A": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 16.8
+     },
+     "B": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 25.1
+     },
+     "C": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 16.8
+     },
+     "D": {
+      "p50Ms": 16.7,
+      "p95Ms": 16.8,
+      "maxMs": 16.8
+     }
+    },
+    "gpu": "GPU timer unavailable",
+    "skyGpuMs": null,
+    "memory": "not measurable (browser reports a fixed coarse value)",
+    "load": {
+     "firstFrameMs": 2725,
+     "surfaceShownMs": 4200,
+     "runtimeLiveMs": 6199
+    },
+    "layout": {
+     "mobileLayout": true,
+     "allPass": true,
+     "checks": [
+      {
+       "id": "viewport",
+       "pass": true,
+       "value": [
+        360,
+        615
+       ]
+      },
+      {
+       "id": "no-horizontal-scroll",
+       "pass": true,
+       "value": {
+        "scrollWidth": 360,
+        "innerWidth": 360
+       }
+      },
+      {
+       "id": "hud-toggle",
+       "pass": true,
+       "value": {
+        "before": true,
+        "afterFirst": false,
+        "afterSecond": true
+       }
+      },
+      {
+       "id": "buttons-in-viewport",
+       "pass": true,
+       "value": {
+        "checked": 44,
+        "outside": []
+       }
+      },
+      {
+       "id": "base-text-px",
+       "pass": true,
+       "value": {
+        "minPx": 12,
+        "elements": 3,
+        "bodyPx": 16
+       }
+      }
+     ]
+    },
+    "layoutAllPass": true,
+    "file": "docs/perf/2026-11-19-earth-mobile-adreno740-edge157.json",
+    "sha256": "6b208098fb08c7e4c3558ff51fe20aa7463ed4bcba5ef9dedec0fea5db2dc358"
+   }
+  ],
 });
 
 export function getCapabilityDefinition(capabilityId) {
@@ -413,13 +663,30 @@ export function measuredRunView(run) {
     ['Frames (p50 / p95 / max)', `${span(scenarios.map((s) => s.p50Ms))} / ${num(maxOf(scenarios.map((s) => s.p95Ms)))} / ${num(maxOf(scenarios.map((s) => s.maxMs)))} ms · ${run.refreshHz} Hz vsync`],
     ['GPU (p50 / p95)', typeof run.gpu === 'string' ? run.gpu : `${span(Object.values(run.gpu).map((g) => g.p50Ms))} / ≤ ${num(maxOf(Object.values(run.gpu).map((g) => g.p95Ms)))} ms`],
   ];
-  if (run.skyGpuMs) rows.push(['Sky (day / night)', `${num(run.skyGpuMs.A)} / ${num(run.skyGpuMs.C)} ms`]);
-  rows.push(
-    ['First frame', fmtMs(run.load.firstFrameMs)],
-    ['Relief ready', fmtMs(run.load.reliefReadyMs)],
-    ['Everest → K2 (first / second)', `${num(run.summitSwitch.firstReadyMs)} ms, ${run.summitSwitch.firstSource} / ${num(run.summitSwitch.secondReadyMs)} ms, ${run.summitSwitch.secondSource}`],
-  );
+  // Day / night sky keys: Himalaya A / C, Living Earth A / D (LOT 29).
+  if (run.skyGpuMs) { const [day, night] = Object.values(run.skyGpuMs); rows.push(['Sky (day / night)', `${num(day)} / ${num(night)} ms`]); }
+  if (run.summitSwitch) {
+    rows.push(
+      ['First frame', fmtMs(run.load.firstFrameMs)],
+      ['Relief ready', fmtMs(run.load.reliefReadyMs)],
+      ['Everest → K2 (first / second)', `${num(run.summitSwitch.firstReadyMs)} ms, ${run.summitSwitch.firstSource} / ${num(run.summitSwitch.secondReadyMs)} ms, ${run.summitSwitch.secondSource}`],
+    );
+  } else {
+    // LOT 29 (Living Earth): page-load times and the layout checks of the same run.
+    rows.push(
+      ['First frame', fmtMs(run.load.firstFrameMs)],
+      ['GIBS surface shown', fmtMs(run.load.surfaceShownMs)],
+      ['Runtime LIVE', fmtMs(run.load.runtimeLiveMs)],
+      ['Layout', layoutSummary(run.layout)],
+    );
+  }
   return { title: measuredRunTitle(run), subtitle: `${run.date} · viewport ${run.viewport.join('×')} · canvas ${run.canvas.join('×')}`, rows };
+}
+
+/** LOT 29: "mobile layout · 5 of 5 checks pass" (or the failed check ids). */
+export function layoutSummary(layout) {
+  const failed = layout.checks.filter((c) => !c.pass).map((c) => c.id);
+  return `${layout.mobileLayout ? 'mobile' : 'desktop'} layout · ${layout.checks.length - failed.length} of ${layout.checks.length} checks pass${failed.length ? ` (failed: ${failed.join(', ')})` : ''}`;
 }
 
 const range = (values) => { const lo = Math.min(...values); const hi = Math.max(...values); return lo === hi ? fmtMs(lo) : `${fmtMs(lo)}–${fmtMs(hi)}`; };
@@ -427,11 +694,14 @@ const range = (values) => { const lo = Math.min(...values); const hi = Math.max(
 export function describeMeasuredRun(run) {
   const scenarios = Object.values(run.frames);
   const gpu = typeof run.gpu === 'string' ? run.gpu : `GPU p50 ${range(Object.values(run.gpu).map((g) => g.p50Ms))}, p95 ≤ ${fmtMs(Math.max(...Object.values(run.gpu).map((g) => g.p95Ms)))}`;
-  const sky = run.skyGpuMs ? `; sky ${fmtMs(run.skyGpuMs.A)} by day, ${fmtMs(run.skyGpuMs.C)} at night` : '';
+  const [skyDay, skyNight] = run.skyGpuMs ? Object.values(run.skyGpuMs) : [];
+  const sky = run.skyGpuMs ? `; sky ${fmtMs(skyDay)} by day, ${fmtMs(skyNight)} at night` : '';
   const who = run.role === 'desktop' ? 'Desktop' : run.role === 'mobile' ? 'Phone' : 'Phone, Desktop-site mode (secondary)';
   return `${who} · ${gpuName(run.device)} · ${run.browser} · ${run.date} · ${run.viewport.join('×')} CSS px (canvas ${run.canvas.join('×')}): `
     + `frames p50 ${range(scenarios.map((s) => s.p50Ms))} (${run.refreshHz} Hz vsync), p95 ≤ ${fmtMs(Math.max(...scenarios.map((s) => s.p95Ms)))}, max ≤ ${fmtMs(Math.max(...scenarios.map((s) => s.maxMs)))}; ${gpu}${sky}; `
-    + `first frame ${fmtMs(run.load.firstFrameMs)}, relief ready ${fmtMs(run.load.reliefReadyMs)}; Everest → K2 ${fmtMs(run.summitSwitch.firstReadyMs)} (${run.summitSwitch.firstSource}), again ${fmtMs(run.summitSwitch.secondReadyMs)} (${run.summitSwitch.secondSource}).`;
+    + (run.summitSwitch
+      ? `first frame ${fmtMs(run.load.firstFrameMs)}, relief ready ${fmtMs(run.load.reliefReadyMs)}; Everest → K2 ${fmtMs(run.summitSwitch.firstReadyMs)} (${run.summitSwitch.firstSource}), again ${fmtMs(run.summitSwitch.secondReadyMs)} (${run.summitSwitch.secondSource}).`
+      : `first frame ${fmtMs(run.load.firstFrameMs)}, GIBS surface ${fmtMs(run.load.surfaceShownMs)}, runtime LIVE ${fmtMs(run.load.runtimeLiveMs)}; ${layoutSummary(run.layout)}.`);
 }
 
 export function getObservatoryUnmeasured(observatoryId) {

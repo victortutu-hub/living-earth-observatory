@@ -18,9 +18,10 @@ function roadmapFromCriteria({ stage, next, criteria }) {
 const ROADMAP = Object.freeze({
   platform: Object.freeze({ progress: 72, stage: 'Foundation active', next: 'Shared contracts, lifecycle and reproducible diagnostics' }),
   // LOT 22: was a hand-written 100 ('Live observatory'); 8 of 12 criteria. LOT 23: 9 of 12 (runtime state).
+  // LOT 29: 11 of 12 (mobile + measured performance from the docs/perf/ runs).
   earth: roadmapFromCriteria({
     stage: 'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export',
-    next: 'Mobile layout checked on a real phone', // LOT 23
+    next: 'Surface detail at high zoom (Sprint 2.4, interpretive)', // LOT 29 (LOT 23: mobile layout)
     criteria: [
       { id: 'real-relief', label: 'Real relief & bathymetry (ETOPO 2022 + GIBS surface)', done: true,
         evidence: 'src/earth/relief-linear.js, gibs-surface.js, gibs-tiles.js · tests relief-linear, surface-relief-atmosphere, gibs-tiles · LOT 4b on production 2026-11-13 (Gate 1)' },
@@ -40,8 +41,10 @@ const ROADMAP = Object.freeze({
         evidence: 'src/earth/export-system.js, reel-*.js, vertical-director.js · reel 2026-11-15 with SHA-256 (Gate 2) + test h264-conversion + test earth-export-lot22; PNG/MediaRecorder without an automated test' },
       { id: 'runtime-state', label: "Runtime state from Earth's own signals", done: true, // LOT 23
         evidence: 'src/earth/earth-runtime-state.js, living-earth-module.js, src/core/observatory/child-runtime-mirror.js, src/core/observatory-runtime-store.js · tests earth-lot23, himalaya-lot21, observatory-runtime-badge · checked in the browser (Atlas mount, surface blocked, Return)' },
-      { id: 'mobile', label: 'Mobile layout checked on a real phone', done: false },
-      { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real phone)', done: false },
+      { id: 'mobile', label: 'Mobile layout checked on a real phone', done: true, // LOT 29: checked by the contract (isMobileLayoutRun)
+        evidence: 'docs/perf/2026-11-19-earth-mobile-adreno740-edge157.json (SHA-256 in OBSERVATORY_MEASURED) · Adreno 740, Edge 157 Android, 360×615, mobile layout, 5 of 5 layout checks pass · src/earth/perf/earth-layout-checks.js · tests earth-lot29, earth-lot28' },
+      { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real phone)', done: true, // LOT 29: checked by the contract
+        evidence: 'docs/perf/2026-11-19-earth-desktop-gtx1650-edge157.json + 2026-11-19-earth-mobile-adreno740-edge157.json (SHA-256 in OBSERVATORY_MEASURED; lumi-earth-perf/1, scenarios A-D valid, not headless) · tests earth-lot29, earth-lot28' },
       { id: 'surface-detail', label: 'Surface detail at high zoom (Sprint 2.4, interpretive)', done: false },
     ],
   }),

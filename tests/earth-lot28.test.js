@@ -199,14 +199,14 @@ describe('LOT 28: contract prepared for Earth (no criterion ticked)', () => {
   const desktopSite = { ...phone, role: 'mobile-desktop-site', viewport: [980, 1676], userAgent: 'Mozilla/5.0 (X11; Linux x86_64)' };
   const earth = OBSERVATORY_REGISTRY.find((o) => o.id === 'living-earth');
   const withDone = (ids) => OBSERVATORY_REGISTRY.map((o) => (o.id === 'living-earth' ? { ...o, roadmap: (() => {
-    const criteria = o.roadmap.criteria.map((c) => (ids.includes(c.id) ? { ...c, done: true, evidence: 'test' } : c));
+    // LOT 29: the two criteria are set from `ids` (the registry has them ticked since LOT 29).
+    const criteria = o.roadmap.criteria.map((c) => (ids.includes(c.id) ? { ...c, done: true, evidence: 'test' }
+      : ['mobile', 'measured-performance'].includes(c.id) ? { id: c.id, label: c.label, done: false } : c));
     return { ...o.roadmap, criteria, progress: Math.round((100 * criteria.filter((c) => c.done).length) / criteria.length) };
   })() } : o));
   const codes = (runs, ids) => validateObservatoryRegistry(withDone(ids), { ...options, observatoryMeasured: { ...OBSERVATORY_MEASURED, 'living-earth': runs } }).errors.map((e) => e.code);
 
-  it('today: no Earth runs, both criteria open, no error', () => {
-    expect(OBSERVATORY_MEASURED['living-earth']).toBeUndefined();
-    expect(earth.roadmap.criteria.filter((c) => ['measured-performance', 'mobile'].includes(c.id)).map((c) => c.done)).toEqual([false, false]);
+  it('without Earth runs and with both criteria open the contract has no error (LOT 29 ticks them, tests/earth-lot29.test.js)', () => {
     expect(codes([], [])).toEqual([]);
   });
 

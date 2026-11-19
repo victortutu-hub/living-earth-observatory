@@ -29,8 +29,8 @@ const EARTH = [
   ['provenance', 'Per-source + temporal provenance', true],
   ['export', 'Still, video & 9:16 export', true],
   ['runtime-state', "Runtime state from Earth's own signals", true], // LOT 23
-  ['mobile', 'Mobile layout checked on a real phone', false],
-  ['measured-performance', 'Measured performance (real GTX 1650, real phone)', false],
+  ['mobile', 'Mobile layout checked on a real phone', true], // LOT 29
+  ['measured-performance', 'Measured performance (real GTX 1650, real phone)', true], // LOT 29
   ['surface-detail', 'Surface detail at high zoom (Sprint 2.4, interpretive)', false],
 ];
 const PROTEIN = [
@@ -57,7 +57,7 @@ function evidenceTests(evidence) {
 }
 
 describe.each([
-  ['living-earth', earth, EARTH, 75, 'Mobile layout checked on a real phone', // LOT 23 (was 67, runtime state)
+  ['living-earth', earth, EARTH, 92, 'Surface detail at high zoom (Sprint 2.4, interpretive)', // LOT 29 (LOT 23: 75, LOT 22: 67)
     'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export'],
   ['living-protein', protein, PROTEIN, 58, 'Experimental context beside prediction confidence',
     'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins'],
@@ -93,12 +93,15 @@ describe.each([
     expect(codes(id, { ...roadmap, progress: 100 })).toContain('manual-progress-with-criteria');
   });
 
-  it('measured-performance is open, and the contract refuses to tick it without docs/perf runs', () => {
-    expect(roadmap.criteria.find((c) => c.id === 'measured-performance').done).toBe(false);
-    expect(OBSERVATORY_MEASURED[id]).toBeUndefined();
+  it('measured-performance only with docs/perf runs: the contract refuses to tick it without them', () => {
+    // LOT 29: Earth has its real-device runs (ticked); Protein has none (open).
+    const done = roadmap.criteria.find((c) => c.id === 'measured-performance').done;
+    expect(done).toBe(id === 'living-earth');
+    if (done) expect(OBSERVATORY_MEASURED[id].length).toBe(2); else expect(OBSERVATORY_MEASURED[id]).toBeUndefined();
     const ticked = { ...roadmap, criteria: roadmap.criteria.map((c) => (c.id === 'measured-performance' ? { ...c, done: true } : c)) };
     ticked.progress = progressFromCriteria(ticked.criteria);
-    expect(codes(id, ticked)).toContain('measured-performance-without-runs');
+    const withoutRuns = validateObservatoryRegistry(OBSERVATORY_REGISTRY.map((item) => (item.id === id ? { ...item, roadmap: ticked } : item)), { ...options, observatoryMeasured: { ...OBSERVATORY_MEASURED, [id]: [] } }).errors.map((e) => e.code);
+    expect(withoutRuns).toContain('measured-performance-without-runs');
   });
 
   it('status stays live (progress does not drive the status)', () => {
