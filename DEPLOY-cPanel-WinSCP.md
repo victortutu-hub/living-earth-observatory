@@ -148,6 +148,42 @@ site-ul (fără `Ctrl+Shift+R`) că pagina e cea nouă.
   > De atunci: staging-ul se șterge definitiv, iar înainte de dezarhivare
   > verifici spațiul liber (cPanel → Disk Usage).
 
+### Regula 6 — CSS schimbat = `?v=` nou în HTML (Lot 25)
+
+Politica de cache constatată pe producție (2026-11-19, din antetele răspunsurilor):
+
+- `.js`, `.mjs`, `.html`: `Cache-Control: no-cache` (regula din secțiunea 4b).
+  Browserul revalidează la fiecare încărcare, deci nu se pot amesteca module
+  vechi și noi.
+- `.css`: `public, max-age=604800` (7 zile). Un vizitator care a mai fost pe
+  site păstrează CSS-ul vechi până la 7 zile, cât timp URL-ul nu se schimbă.
+- Asset-urile din `assets/himalaya/` și `assets/sky/` au hash-ul conținutului
+  în nume: un fișier nou are alt URL.
+
+Regula: dacă `styles/X.css` diferă de deploy-ul anterior, fiecare HTML care îl
+referea trebuie să îl refere acum cu alt `?v=` decât în snapshot-ul anterior.
+Un stylesheet nou, sau referit pentru prima dată de o pagină, nu are nevoie de
+bump.
+
+Verificarea e automată și se face după ce ai creat arhiva și manifestul:
+
+```bash
+node tools/check-css-cache-bust.mjs --zip exports/deploy-<lot>.zip
+# sau: npm run check:css-cache -- --zip exports/deploy-<lot>.zip
+```
+
+Scriptul compară arhiva nouă cu cel mai recent `exports/deploy-*.manifest.txt`
+(și cu arhiva `.zip` de lângă el, din care ia `?v=` vechi). Cu
+`--previous exports/deploy-<lot-anterior>` alegi explicit snapshot-ul anterior.
+Dacă eșuează, mesajul numește CSS-ul, HTML-ul și `?v=` vechi. Atunci schimbi
+`?v=` în HTML, faci commit și refaci arhiva. `.htaccess` nu se atinge pentru
+asta.
+
+> Verificat pe arhivele vechi: garda ar fi oprit deploy-himalaya-12 (Lot 15b +
+> Lot 18: `styles/himalaya.css` schimbat, dar `living-himalaya.html` încă pe
+> `?v=himalayaLot14`). Acceptă însă deploy-himalaya-15 (Lot 21: `main.css` cu
+> `?v=atlasLot21` în loc de `atlasEarthMount1`).
+
 ### Rollback
 
 Copiezi fișierele din `deploy-backups/<lot>-<AAAALLZZ>/` înapoi peste
