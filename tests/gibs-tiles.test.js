@@ -187,14 +187,14 @@ describe('Blue Marble surface (progressive WMTS z2 -> z3)', () => {
 
     it('keeps z2 when z3 fails and says so', async () => {
         const loadImage = async (url) => { if (url.includes('/500m/3/')) throw new Error('down'); return tileImage(url); };
-        const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: fakeCanvasFactory().create, policy: { concurrency: 8, tileTimeoutMs: 50, retries: 0 } });
+        const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: fakeCanvasFactory().create, policy: { concurrency: 8, tileTimeoutMs: 50, retries: 0, deadlineMs: 0 } }); // LOT 24: no background rounds
         expect(result.z).toBe(2);
         expect(result.failures).toEqual(['z3: down']);
     });
 
     it('rejects when every level fails, so the bundled fallback stays', async () => {
         const loadImage = async () => { throw new Error('offline'); };
-        await expect(loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: fakeCanvasFactory().create, policy: { concurrency: 8, tileTimeoutMs: 50, retries: 0 } }))
+        await expect(loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: fakeCanvasFactory().create, policy: { concurrency: 8, tileTimeoutMs: 50, retries: 0, deadlineMs: 0 } })) // LOT 24: no background rounds
             .rejects.toThrow('NASA GIBS Blue Marble WMTS unavailable — z2: offline; z3: offline');
     });
 

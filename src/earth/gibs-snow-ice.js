@@ -3,7 +3,8 @@
 // comes from WMTS tiles (gibs-tiles.js) with the date in the tile URL, level
 // z2 of the 500m set (5 x 3 tiles, 2560 x 1280), composed on a transparent
 // canvas. The GIBS WMS answered in 2–160 s; one z2 tile takes ~0.3–0.6 s.
-import { GIBS_LAYERS, composeGibsEquirectangularMosaic } from './gibs-tiles.js';
+import { GIBS_LAYERS, GIBS_TILE_POLICY, composeGibsEquirectangularMosaic } from './gibs-tiles.js';
+import { loadGibsTileBitmap } from './gibs-tile-loader.js';
 import { createTemporalDescriptor, EARTH_TEMPORAL_LAYERS, utcDay } from './temporal-provenance.js';
 
 const DAY_MS = 86_400_000;
@@ -31,8 +32,9 @@ export async function loadSnowIceMaskTexture({
     day = null,
     z = SNOW_ICE_ZOOM,
     signal = null,
-    tileTimeoutMs = 15_000,
+    tileTimeoutMs = GIBS_TILE_POLICY.timeoutMs, // LOT 24 (was 15 s, 1 retry)
     compose = composeGibsEquirectangularMosaic,
+    loadImage = loadGibsTileBitmap, // LOT 24: a new request per attempt
     now = Date.now(),
 }) {
     const candidates = day ? [day] : snowIceLiveCandidates(now);
@@ -40,7 +42,7 @@ export async function loadSnowIceMaskTexture({
     for (const date of candidates) {
         if (signal?.aborted) throw abortError(signal);
         try {
-            const mosaic = await compose({ layer: GIBS_LAYERS.snowCover, date, z, alpha: true, signal, tileTimeoutMs });
+            const mosaic = await compose({ layer: GIBS_LAYERS.snowCover, date, z, alpha: true, signal, tileTimeoutMs, retries: GIBS_TILE_POLICY.retries, backoffMs: GIBS_TILE_POLICY.backoffMs, loadImage });
             if (signal?.aborted) {
                 mosaic.canvas.width = 0;
                 throw abortError(signal);

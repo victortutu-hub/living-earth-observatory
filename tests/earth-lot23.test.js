@@ -32,8 +32,9 @@ describe('LOT 23: core signals (one row per mapping)', () => {
     expect(run({ relief: 'failed' })).toMatchObject({ state: 'fallback', reasons: [R.relief] });
   });
 
-  it('surface: GIBS unavailable -> FALLBACK; still loading / retry when visible -> no effect', () => {
-    expect(run({ surface: { kind: 'unavailable', retryWhenVisible: false } })).toMatchObject({ state: 'fallback', reasons: [R.surface] });
+  it('surface: bundled texture -> FALLBACK after the 60 s surface grace (LOT 24); still loading / retry when visible -> no effect', () => {
+    expect(run({ surface: { kind: 'unavailable', retryWhenVisible: false } })).toMatchObject({ state: 'live', pending: ['surface'] }); // 5 s: within the grace
+    expect(run({ surface: { kind: 'unavailable', retryWhenVisible: false }, elapsedMs: 61_000 })).toMatchObject({ state: 'fallback', reasons: [R.surface] });
     expect(run({ surface: { kind: 'unavailable', retryWhenVisible: true } })).toMatchObject({ state: 'live', reasons: [] });
     expect(run({ surface: { kind: 'still-loading' } })).toMatchObject({ state: 'live', reasons: [], pending: ['surface'] });
     expect(run({ surface: { kind: 'preview' } })).toMatchObject({ state: 'live', pending: [] });
@@ -65,13 +66,14 @@ describe('LOT 23: grace period and aggregation', () => {
     expect(CORE_GRACE_MS).toBe(30_000);
     const loading = { relief: 'loading', surface: { kind: 'still-loading' } };
     expect(run({ ...loading, elapsedMs: 29_000 })).toEqual({ state: 'live', reasons: [], secondary: [], pending: ['relief', 'surface'] });
-    expect(run({ ...loading, elapsedMs: 31_000 })).toMatchObject({ state: 'fallback', reasons: [`${R.timeout} (relief, surface)`] });
+    expect(run({ ...loading, elapsedMs: 31_000 })).toMatchObject({ state: 'fallback', reasons: [`${R.timeout} (relief)`], pending: ['relief', 'surface'] }); // LOT 24: surface grace is 60 s
+    expect(run({ ...loading, elapsedMs: 61_000 })).toMatchObject({ state: 'fallback', reasons: [`${R.timeout} (relief, surface)`] });
     expect(run({ elapsedMs: 31_000 })).toMatchObject({ state: 'live', reasons: [] }); // nothing pending
   });
 
   it('worst state wins (mergeRuntimeState): FALLBACK over STALE over LIVE; reasons kept in order', () => {
     expect(run({ eonet: { state: 'stale' }, sun: 'approx' })).toMatchObject({ state: 'fallback', reasons: [R.sun, R.eonetStale] });
-    expect(run({ relief: 'failed', surface: { kind: 'unavailable' }, sky: 'UNAVAILABLE' }).reasons).toEqual([R.relief, R.surface, R.sky]);
+    expect(run({ relief: 'failed', surface: { kind: 'unavailable' }, sky: 'UNAVAILABLE', elapsedMs: 61_000 }).reasons).toEqual([R.relief, R.surface, R.sky]);
     const source = text('src/earth/earth-runtime-state.js');
     expect(source).toContain('mergeRuntimeState(...states, RUNTIME_STATE.LIVE)');
     expect(source).not.toMatch(/RUNTIME_STATE\.OFFLINE/); // OFFLINE only from the module lifecycle
@@ -125,8 +127,8 @@ describe('LOT 23: secondary layers never touch the state', () => {
 describe('LOT 23: signal wiring (no visual change)', () => {
   it('earth-layers reports relief / surface / night lights; ktx2-support reports each outcome', () => {
     const layers = text('src/earth/earth-layers.js');
-    expect(layers).toContain("getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state }), // LOT 23");
-    expect(layers.match(/reportSurface\(\{ kind: '/g)).toHaveLength(4);
+    expect(layers).toContain("getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })) }), // LOT 23 (+ LOT 24 stats)");
+    expect(layers.match(/reportSurface\(\{ kind: '/g)).toHaveLength(5); // LOT 24: + 'unavailable' while retrying in the background
     expect(layers).not.toMatch(/publishSurfaceStatus\(surfaceStatusFor\(\{/); // every event goes through reportSurface()
     expect(layers.match(/publishSurfaceStatus\(surfaceStatusFor\(event\)\)/g)).toHaveLength(1);
     const ktx2 = text('src/earth/ktx2-support.js');

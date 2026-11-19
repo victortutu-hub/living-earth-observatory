@@ -289,27 +289,86 @@ export function whenVisible(doc = pageDocument()) {
     });
 }
 
+/** LOT 24: default per-tile policy (each attempt is a new request; see gibs-tile-loader.js). */
+// Timeouts rise per attempt (20 s / 30 s / 45 s): a new request restarts the source's own time,
+// so a slow but alive source (e.g. 20 s per tile) still gets through on a retry.
+export const GIBS_TILE_POLICY = Object.freeze({ timeoutMs: Object.freeze([20_000, 30_000, 45_000]), retries: 2, backoffMs: Object.freeze([1000, 3000]) });
+
+/** Timeout of one attempt: a number, or a list per attempt (the last value repeats). */
+export function attemptTimeoutMs(timeoutMs, attempt) {
+    return Array.isArray(timeoutMs) ? timeoutMs[Math.min(attempt, timeoutMs.length - 1)] : timeoutMs;
+}
+
+/** LOT 24: why an attempt failed: timeout | http | decode | abort | network. */
+export function classifyTileError(error) {
+    if (error?.tileReason) return error.tileReason;
+    const cause = error?.cause;
+    if (error?.name === 'TimeoutError' || cause?.name === 'TimeoutError') return 'timeout';
+    if (error?.name === 'AbortError') return 'abort';
+    if (Number.isFinite(error?.status) || Number.isFinite(cause?.status)) return 'http';
+    return 'network';
+}
+
+/** Abortable wait (backoff between attempts, background rounds). */
+export function waitAbortable(ms, signal = null) {
+    if (signal?.aborted) return Promise.reject(abortError(signal));
+    if (!(ms > 0)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const onAbort = () => { clearTimeout(timer); reject(abortError(signal)); };
+        const timer = setTimeout(() => { signal?.removeEventListener('abort', onAbort); resolve(); }, ms);
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
+}
+
 /**
  * One tile attempt bounded by timeoutMs of visible time, retried `retries`
  * times. The timer is always cancelled; an abort is never retried.
+ * LOT 24: every attempt gets its own AbortController (passed to the loader as
+ * `signal`) that is aborted when its timeout fires, so the next attempt is a
+ * new request instead of waiting on the old one; optional backoff before each
+ * retry (backoffMs[i] before retry i + 1, the last value repeats);
+ * onAttempt({ attempt, ok, reason }) reports every attempt. timeoutMs may be a
+ * list (one value per attempt, the last repeats).
  */
-export async function loadTileWithRetry(loadImage, url, { timeoutMs = 15_000, retries = 1, signal = null, doc = pageDocument() } = {}) {
+export async function loadTileWithRetry(loadImage, url, { timeoutMs = 15_000, retries = 1, backoffMs = [], signal = null, doc = pageDocument(), onAttempt = null } = {}) {
     let lastError = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
         if (signal?.aborted) throw abortError(signal);
+        if (attempt > 0 && backoffMs.length) await waitAbortable(backoffMs[Math.min(attempt - 1, backoffMs.length - 1)], signal);
+        const attemptTimeout = attemptTimeoutMs(timeoutMs, attempt);
+        const attemptController = new AbortController();
+        let rejectOnAbort = null;
+        // An external abort settles the attempt even if the loader ignores its signal.
+        const onAbort = () => { attemptController.abort(abortError(signal)); rejectOnAbort?.(abortError(signal)); };
+        signal?.addEventListener('abort', onAbort, { once: true });
         let timeout = null;
+        let timedOut = false;
         try {
-            return await Promise.race([
-                Promise.resolve().then(() => loadImage(url, { timeoutMs, signal, doc })),
+            const result = await Promise.race([
+                Promise.resolve().then(() => loadImage(url, { timeoutMs: attemptTimeout, signal: attemptController.signal, doc, attempt })),
+                new Promise((_, reject) => { rejectOnAbort = reject; }),
                 new Promise((_, reject) => {
-                    timeout = visibleTimeout(timeoutMs, () => reject(new Error(`GIBS tile timed out after ${timeoutMs} ms: ${url}`)), doc);
+                    timeout = visibleTimeout(attemptTimeout, () => {
+                        timedOut = true;
+                        const error = new Error(`GIBS tile timed out after ${attemptTimeout} ms: ${url}`);
+                        error.tileReason = 'timeout';
+                        attemptController.abort(new DOMException(error.message, 'TimeoutError'));
+                        reject(error);
+                    }, doc);
                 }),
             ]);
+            onAttempt?.({ attempt, ok: true, reason: null });
+            return result;
         } catch (error) {
-            if (error?.name === 'AbortError') throw error;
+            if (!timedOut && (signal?.aborted || error?.name === 'AbortError')) {
+                onAttempt?.({ attempt, ok: false, reason: 'abort' });
+                throw signal?.aborted ? abortError(signal) : error;
+            }
             lastError = error;
+            onAttempt?.({ attempt, ok: false, reason: timedOut ? 'timeout' : classifyTileError(error) });
         } finally {
             timeout?.cancel();
+            signal?.removeEventListener('abort', onAbort);
         }
     }
     throw lastError;
@@ -365,6 +424,8 @@ export async function composeGibsEquirectangularMosaic({
     concurrency = 8,
     tileTimeoutMs = 15_000,
     retries = 1,
+    backoffMs = [], // LOT 24
+    onAttempt = null, // LOT 24: ({ url, attempt, ok, reason })
     outputSize = null,
     createCanvas = defaultCreateCanvas,
     signal = null,
@@ -382,7 +443,7 @@ export async function composeGibsEquirectangularMosaic({
 
     const queue = new GibsTileQueue({
         concurrency,
-        load: (url) => loadTileWithRetry(loadImage, url, { timeoutMs: tileTimeoutMs, retries, signal, doc }),
+        load: (url) => loadTileWithRetry(loadImage, url, { timeoutMs: tileTimeoutMs, retries, backoffMs, signal, doc, onAttempt: onAttempt && ((info) => onAttempt({ url, ...info })) }),
     });
     const tasks = [];
     for (let y = 0; y < coverage.rows; y++) {

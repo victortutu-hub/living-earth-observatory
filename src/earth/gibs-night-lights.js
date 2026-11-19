@@ -5,17 +5,20 @@
 // answered in 45-160 s or 504 (measured 2026-11-12). The local texture
 // remains the startup/failure fallback.
 import { EARTH_TEMPORAL_LAYERS } from './temporal-provenance.js';
-import { GIBS_LAYERS, composeGibsEquirectangularMosaic } from './gibs-tiles.js';
+import { GIBS_LAYERS, GIBS_TILE_POLICY, composeGibsEquirectangularMosaic } from './gibs-tiles.js';
+import { loadGibsTileBitmap } from './gibs-tile-loader.js';
 
 export const BLACK_MARBLE_LEVEL = 2;
-export const BLACK_MARBLE_TILE_POLICY = Object.freeze({ concurrency: 8, tileTimeoutMs: 15_000, retries: 1 });
+// LOT 24: same per-tile path as the surface (a new request per attempt, 20 s / 30 s / 45 s, 2 retries with backoff);
+// still all-or-nothing: a failed tile keeps the local night-lights texture (no background rounds).
+export const BLACK_MARBLE_TILE_POLICY = Object.freeze({ concurrency: 8, tileTimeoutMs: GIBS_TILE_POLICY.timeoutMs, retries: GIBS_TILE_POLICY.retries, backoffMs: GIBS_TILE_POLICY.backoffMs });
 
 export async function loadBlackMarbleTexture({
     THREE,
     renderer,
     year = 2016,
     z = BLACK_MARBLE_LEVEL,
-    loadImage,
+    loadImage = loadGibsTileBitmap, // LOT 24
     createCanvas,
     signal = null,
     policy = BLACK_MARBLE_TILE_POLICY,
@@ -28,7 +31,8 @@ export async function loadBlackMarbleTexture({
         concurrency: policy.concurrency,
         tileTimeoutMs: policy.tileTimeoutMs,
         retries: policy.retries,
-        ...(loadImage ? { loadImage } : {}),
+        backoffMs: policy.backoffMs,
+        loadImage,
         ...(createCanvas ? { createCanvas } : {}),
         signal,
     });

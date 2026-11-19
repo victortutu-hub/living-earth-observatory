@@ -69,6 +69,11 @@ export function createEarthLayers({
     // LOT 23: runtime signals (earth-runtime-state.js); no effect on what is drawn.
     let reliefOutcome = 'loading';
     let surfaceEvent = { kind: 'loading', retryWhenVisible: false };
+    // LOT 24: GIBS loads (surface, Black Marble) are owned by this controller and stop on dispose.
+    const gibsController = new AbortController();
+    let layersDisposed = false;
+    let surfaceStats = [];
+    const isAbort = (error) => error?.name === 'AbortError' || gibsController.signal.aborted;
     function reportSurface(event) {
         surfaceEvent = { kind: event.kind, retryWhenVisible: Boolean(event.retryWhenVisible) };
         publishSurfaceStatus(surfaceStatusFor(event));
@@ -278,7 +283,7 @@ export function createEarthLayers({
     function loadNightLights(isRetry) {
         if (surfaceVisualCase) return Promise.resolve(null);
         const visibility = watchPageVisibility();
-        return loadBlackMarbleTexture({ THREE, renderer })
+        return loadBlackMarbleTexture({ THREE, renderer, signal: gibsController.signal })
             .catch(error => {
                 error.retryWhenVisible = !isRetry && visibility.wasHidden();
                 throw error;
@@ -312,6 +317,7 @@ export function createEarthLayers({
         .catch(error => {
             blackMarbleSettled = true;
             clearTimeout(blackMarbleWatchdog);
+            if (isAbort(error)) return; // disposed (LOT 24)
             console.warn('[Earth] NASA GIBS Black Marble unavailable; keeping local night-lights fallback.', error);
             publishNightLightsStatus({
                 state: 'fallback',
@@ -319,7 +325,7 @@ export function createEarthLayers({
                     ? 'Black Marble: local fallback active — NASA GIBS tiles did not finish while the page was hidden; retrying when visible'
                     : 'Black Marble: local fallback active — terminator linked; NASA GIBS unavailable'
             });
-            if (error.retryWhenVisible) whenVisible().then(() => startNightLights(true));
+            if (error.retryWhenVisible) whenVisible().then(() => { if (!layersDisposed) startNightLights(true); });
         });
     }
     startNightLights();
@@ -332,7 +338,7 @@ export function createEarthLayers({
     let surfaceSettled = false;
     let surfaceLevelApplied = false;
     const surfaceWatchdog = setTimeout(() => {
-        if (surfaceSettled || surfaceLevelApplied) return;
+        if (surfaceSettled || surfaceLevelApplied || surfaceEvent.kind === 'unavailable') return;
         reportSurface({ kind: 'still-loading' });
     }, 16_000);
 
@@ -360,12 +366,19 @@ export function createEarthLayers({
             THREE,
             renderer,
             levels,
+            signal: gibsController.signal, // LOT 24: stops on dispose
             onLevel: (texture, { z, resolution, tiles, elapsedMs, final }) => {
                 surfaceLevelApplied = true;
                 applySurfaceTexture(texture);
                 performance.mark?.(`lea:surface:wmts-z${z}`, { detail: { tiles, elapsedMs, resolution } });
                 if (!final) reportSurface({ kind: 'preview', z, resolution });
-            }
+            },
+            // LOT 24: no level on screen and every level has a failing tile: the bundled texture
+            // stays, the tiles keep loading in the background (a later level replaces it).
+            onUnavailable: ({ retrying }) => {
+                if (!surfaceLevelApplied) reportSurface({ kind: 'unavailable', retrying });
+            },
+            onStats: (stats) => { surfaceStats = stats; },
         })
             .then(({ texture, z, resolution, failures }) => {
                 visibility.stop();
@@ -374,20 +387,21 @@ export function createEarthLayers({
                 const retry = !isRetry && z !== finalSurfaceLevel && visibility.wasHidden();
                 reportSurface({ kind: 'settled', z, resolution, finalLevel: finalSurfaceLevel, retryWhenVisible: retry });
                 if (failures.length) console.warn('[Earth] NASA GIBS Blue Marble WMTS: some levels failed.', failures);
-                if (retry) whenVisible().then(() => startSurface([finalSurfaceLevel], true));
+                if (retry) whenVisible().then(() => { if (!layersDisposed) startSurface([finalSurfaceLevel], true); });
                 return texture;
             })
             .catch(error => {
                 visibility.stop();
                 surfaceSettled = true;
                 clearTimeout(surfaceWatchdog);
+                if (isAbort(error)) return activeSurfaceMap; // disposed (LOT 24)
                 const retry = !isRetry && visibility.wasHidden();
                 console.warn('[Earth] NASA GIBS Blue Marble surface unavailable; keeping bundled fallback texture.', error);
                 // A retry that fails keeps the level that is already applied.
                 if (!(isRetry && surfaceLevelApplied)) {
                     reportSurface({ kind: 'unavailable', retryWhenVisible: retry });
                 }
-                if (retry) whenVisible().then(() => startSurface(surfaceLevels, true));
+                if (retry) whenVisible().then(() => { if (!layersDisposed) startSurface(surfaceLevels, true); });
                 return activeSurfaceMap;
             });
     }
@@ -416,7 +430,15 @@ export function createEarthLayers({
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
-        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state }), // LOT 23
+        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })) }), // LOT 23 (+ LOT 24 stats)
+        // LOT 24: stops the GIBS loads and their timers (DESTROYED_IS_TERMINAL).
+        dispose() {
+            if (layersDisposed) return;
+            layersDisposed = true;
+            gibsController.abort(new DOMException('earth layers disposed', 'AbortError'));
+            clearTimeout(blackMarbleWatchdog);
+            clearTimeout(surfaceWatchdog);
+        },
         updateTerminatorGuide,
         setTerminatorGuideVisible,
         atmosphere,

@@ -141,6 +141,7 @@ export function createAppVisualFoundation({
         windParticles.dispose();
         oceanCurrents.dispose();
         realSky.dispose();
+        earthLayers.dispose?.(); // LOT 24: GIBS surface / Black Marble loads
     }
 
     return {

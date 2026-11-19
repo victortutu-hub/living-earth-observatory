@@ -3,13 +3,15 @@
 // living-earth-module.js; inside the Atlas the adapter mirrors it to the host page.
 //   Core signals (the only ones that can lower the state):
 //     relief     .bin instead of KTX2 -> no effect (same ETOPO metres); both failed -> FALLBACK
-//     surface    NASA GIBS unavailable -> FALLBACK (bundled texture); still loading or retrying
-//                when the page becomes visible -> no effect
+//     surface    LOT 24: its grace ends at the first GIBS level on screen or at SURFACE_GRACE_MS
+//                (60 s): the bundled texture still on screen after 60 s -> FALLBACK surface-fallback;
+//                still loading after 60 s -> FALLBACK core-timeout; retrying when the page becomes
+//                visible -> no effect; a GIBS level arriving later (background tiles) -> LIVE again
 //     Sun        approximate model instead of Astronomy Engine -> FALLBACK
 //     EONET      offline -> FALLBACK (GDACS, if the "smart" mode switched to it, named in the
 //                reason); served from the stale-if-error cache -> STALE
 //     real sky   without the map, without the stars or without both -> FALLBACK
-//   A core signal still loading after CORE_GRACE_MS -> FALLBACK core-timeout.
+//   A core signal still loading after CORE_GRACE_MS (surface: SURFACE_GRACE_MS) -> FALLBACK core-timeout.
 //   Secondary (listed in `secondary`, never in the state), only for layers the user turned on:
 //     night lights fallback, USGS, aurora, ISS, FIRMS (404 no-coverage: nothing; 429: budget;
 //     proxy / unreachable), ERA5 / SMOC days (202 queued and 404 not published: nothing),
@@ -20,6 +22,8 @@
 import { RUNTIME_STATE, mergeRuntimeState } from '../core/runtime/runtime-states.js';
 
 export const CORE_GRACE_MS = 30_000;
+/** LOT 24: the surface loads levels independently and keeps retrying in the background. */
+export const SURFACE_GRACE_MS = 60_000;
 
 export const EARTH_RUNTIME_REASONS = Object.freeze({
   relief: 'relief-unavailable',
@@ -46,11 +50,13 @@ function coreRelief(value) {
   return 'pending';
 }
 
-function coreSurface(value) {
+function coreSurface(value, elapsedMs) {
   if (value?.kind === 'preview' || value?.kind === 'settled') return 'ok';
   if (value?.kind === 'unavailable') {
     // A load that failed while the page was hidden retries when visible: expected, no effect.
-    return value.retryWhenVisible ? 'ok' : { reason: EARTH_RUNTIME_REASONS.surface, state: RUNTIME_STATE.FALLBACK };
+    if (value.retryWhenVisible) return 'ok';
+    // LOT 24: the bundled texture counts as FALLBACK only once the surface grace is over.
+    return Number(elapsedMs) > SURFACE_GRACE_MS ? { reason: EARTH_RUNTIME_REASONS.surface, state: RUNTIME_STATE.FALLBACK } : 'pending';
   }
   return 'pending'; // loading / still-loading
 }
@@ -112,14 +118,15 @@ export function earthRuntimeState(s = {}) {
   const states = [];
   const pending = [];
   for (const key of CORE) {
-    const result = CORE_RULES[key](s[key]);
+    const result = CORE_RULES[key](s[key], s.elapsedMs);
     if (result === 'ok') continue;
     if (result === 'pending') { pending.push(key); continue; }
     reasons.push(result.reason);
     states.push(result.state);
   }
-  if (pending.length && Number(s.elapsedMs) > CORE_GRACE_MS) {
-    reasons.push(`${EARTH_RUNTIME_REASONS.timeout} (${pending.join(', ')})`);
+  const timedOut = pending.filter((key) => Number(s.elapsedMs) > (key === 'surface' ? SURFACE_GRACE_MS : CORE_GRACE_MS));
+  if (timedOut.length) {
+    reasons.push(`${EARTH_RUNTIME_REASONS.timeout} (${timedOut.join(', ')})`);
     states.push(RUNTIME_STATE.FALLBACK);
   }
   const secondary = [];
