@@ -30,7 +30,7 @@ import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
 import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_LINE, campLabel } from './routes-model.js';
 import { terrainOccludes } from './label-occlusion.js';
-import { GLACIER_LABEL_MAX_KM, GLACIER_LIFT_M, GLACIER_LINE, GLACIER_TINT, LABELS_PER_PATCH, decodeGlaciersAsset, glacierLabel } from './glaciers-model.js';
+import { GLACIER_LABEL_MAX_KM, GLACIER_LIFT_M, GLACIER_LINE, GLACIER_TINT, LABELS_PER_PATCH, decodeGlaciersAsset, glacierLabel, glacierShortLabel } from './glaciers-model.js';
 import { createHimalayaSky } from './himalaya-sky.js';
 
 export { projectLonLat, VERTICAL_EXAGGERATION };
@@ -490,7 +490,8 @@ export function createHimalayaScene({
       const label = document.createElement('span');
       label.className = 'himalaya-camp-label is-glacier';
       label.dataset.glacierId = glacier.id;
-      label.textContent = glacierLabel(glacier, { clipped: e.clipped });
+      label.textContent = glacierShortLabel(glacier, { clipped: e.clipped }); // LOT 27: short on the map
+      label.title = glacierLabel(glacier, { clipped: e.clipped }); // full text (also in the panel)
       const labelObject = new CSS2DObject(label);
       labelObject.position.copy(position);
       labelObject.visible = false;
@@ -1238,7 +1239,7 @@ export function createHimalayaScene({
             tint: Boolean(entry?.mesh.material[0]?.userData?.glacierVariant), maskAttribute: Boolean(entry?.geometry.getAttribute('glacierMask')), variants: glacierVariants.size,
             segmentModulesRequested: Boolean(segmentModulesPromise),
             lines: glacierLines.map((line) => ({ part: line.userData.part, segments: line.userData.segments, color: `#${line.material.color.getHexString()}`, linewidth: line.material.linewidth })),
-            labels: glacierLabels.map((item) => ({ id: item.id, label: item.label.textContent, visible: item.labelObject.visible, hiddenBy: item.labelReason })),
+            labels: glacierLabels.map((item) => ({ id: item.id, label: item.label.textContent, title: item.label.title, visible: item.labelObject.visible, hiddenBy: item.labelReason })),
           };
         })(),
       };

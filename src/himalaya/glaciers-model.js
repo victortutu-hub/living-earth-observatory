@@ -56,6 +56,16 @@ export function glacierLabel(glacier, { clipped = false } = {}) {
   return `${name} · ${date}${clipped ? ` · ${GLACIER_TEXT.clipped}` : ''}`;
 }
 
+/**
+ * LOT 27: short map label "<name or RGI id> · <year> · clipped" (the last part only when the outline
+ * is clipped). The full label (glacierLabel: complete date, clipped note) stays in the panel and in
+ * the label's title.
+ */
+export function glacierShortLabel(glacier, { clipped = false } = {}) {
+  const year = /^(\d{4})/.exec(glacier.date || '')?.[1] || 'date unknown';
+  return `${glacier.name || glacier.id} · ${year}${clipped ? ' · clipped' : ''}`;
+}
+
 /** "1998-06-11" or "1998-06-11 to 2001-12-20" for the outlines of a patch. */
 export function outlineDates(dateMin, dateMax) {
   if (!dateMin) return 'an undated image';
@@ -75,8 +85,9 @@ export function glacierSectionRows({ peakId, patchId, header, status, show, terr
   if (status === 'error') return [['Glaciers', GLACIER_TEXT.unavailable, 'error']];
   const info = header?.patches?.[patchId || peakId];
   if (!info?.glaciers?.length) return [['Glaciers', GLACIER_TEXT.noData, 'missing']];
+  // LOT 27: the panel keeps the full label (complete outline date, clipped note) of the largest glaciers.
   const largest = info.glaciers.map((e) => ({ e, g: header.glaciers[e.g] })).sort((a, b) => b.g.areaKm2 - a.g.areaKm2).slice(0, 3)
-    .map(({ e, g }) => `${g.name || g.id} (${g.areaKm2.toLocaleString('en-US', { maximumFractionDigits: 1 })} km² total${e.clipped ? ', clipped' : ''})`).join('; ');
+    .map(({ e, g }) => `${glacierLabel(g, { clipped: e.clipped })} (${g.areaKm2.toLocaleString('en-US', { maximumFractionDigits: 1 })} km² total)`).join('; ');
   const rows = [
     ['Outlines', `${info.glaciers.length} RGI 7.0 glaciers touch the detailed terrain (${info.clippedCount} clipped at its edge)`],
     ['Ice within the terrain', `${info.insideAreaKm2.toLocaleString('en-US')} km² (from the outline mask)`],
