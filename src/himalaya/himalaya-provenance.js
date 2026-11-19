@@ -27,7 +27,7 @@ export function sunLabel(sun, date) {
     : `Sun: approximate model (physical-model, simplified; astronomy-engine unavailable), ${formatUtc(date)}`;
 }
 
-export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, sky = null, date = new Date(), weather = null, image = null, glo30Accessed = null, routes = null } = {}) {
+export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, sky = null, date = new Date(), weather = null, image = null, glo30Accessed = null, routes = null, glaciers = null } = {}) {
   return [
     'Peaks: reference list (sources cited)',
     `Terrain: ${terrainMode === 'terrarium' ? TERRAIN_LABELS.terrarium : glo30Label(glo30Accessed || GLO30_ACCESSED)}`,
@@ -37,6 +37,7 @@ export function composeProvenanceBar({ terrainMode = 'glo30', sun = null, sky = 
     weather,
     image,
     routes, // LOT 14: only while a Routes/Camps switch is on
+    glaciers, // LOT 26: only while the Glaciers switch is on
   ].filter(Boolean).join(' | ');
 }
 

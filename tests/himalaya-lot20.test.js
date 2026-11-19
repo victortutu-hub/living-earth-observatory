@@ -119,7 +119,7 @@ describe('LOT 20: contract for criterion 11 (measured performance)', () => {
 
   it('criterion open -> no error even without runs', () => {
     const open = OBSERVATORY_REGISTRY.map((item) => (item.id === 'living-himalaya'
-      ? { ...item, roadmap: { ...item.roadmap, progress: 91, criteria: item.roadmap.criteria.map((c) => (c.id === 'measured-performance' ? { ...c, done: false } : c)) } } : item));
+      ? { ...item, roadmap: { ...item.roadmap, progress: 92, criteria: item.roadmap.criteria.map((c) => (c.id === 'measured-performance' ? { ...c, done: false } : c)) } } : item));
     expect(contract({}, open).errors).toEqual([]);
   });
 });
@@ -128,7 +128,7 @@ describe('LOT 20: roadmap, inspector and "Not measured"', () => {
   it('11 of 11 = 100%; honest next threshold (status: development in LOT 20, live since LOT 21)', () => {
     expect(himalaya.roadmap.criteria.every((c) => c.done)).toBe(true);
     expect(himalaya.roadmap.progress).toBe(100);
-    expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)');
+    expect(himalaya.roadmap.next).toBe('All criteria met — next: glacier change (Hugonnet 2021, licence to confirm)');
     expect(himalaya.status).toBe('live');
   });
 

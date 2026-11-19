@@ -61,8 +61,10 @@ function readValue(bytes, field, view) {
 /**
  * Iterates the records of a table as plain objects with only the requested
  * readable fields (`fieldNames`, upper case). Never returns memo contents.
+ * LOT 26: `{ withIndex: true }` adds `$index` (the record number, deleted
+ * records included in the count) so a table can be joined with a .shp file.
  */
-export function* readDbfRecords(bytes, fieldNames) {
+export function* readDbfRecords(bytes, fieldNames, { withIndex = false } = {}) {
   const header = parseDbfHeader(bytes);
   const wanted = header.fields.filter((f) => fieldNames.includes(f.name));
   for (const f of wanted) if (!READABLE.has(f.type)) throw new Error(`Field ${f.name} has unsupported type ${f.type}.`);
@@ -74,6 +76,7 @@ export function* readDbfRecords(bytes, fieldNames) {
     const view = new DataView(record.buffer, record.byteOffset, record.byteLength);
     const out = {};
     for (const f of wanted) out[f.name] = readValue(record, f, view);
+    if (withIndex) out.$index = i;
     yield out;
   }
 }

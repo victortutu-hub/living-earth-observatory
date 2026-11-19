@@ -74,7 +74,7 @@ describe('LOT 25: parsing helpers', () => {
   it('the real pages link their stylesheets with a ?v=', () => {
     const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
     expect(stylesheetLinks(read('index.html'))).toEqual([{ css: 'styles/main.css', token: 'atlasLot21' }]);
-    expect(stylesheetLinks(read('living-himalaya.html'))).toEqual([{ css: 'styles/himalaya.css', token: 'himalayaLot21' }]);
+    expect(stylesheetLinks(read('living-himalaya.html'))).toEqual([{ css: 'styles/himalaya.css', token: 'himalayaLot26' }]);
     expect(stylesheetLinks(read('living-protein.html'))).toEqual([{ css: 'styles/protein.css', token: 'atlasProteinMount1' }]);
   });
 

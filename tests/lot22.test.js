@@ -116,10 +116,10 @@ describe('LOT 22: evidence files', () => {
     expect(earth.roadmap.criteria.find((c) => c.id === 'export').evidence).toContain('reel 2026-11-15 with SHA-256 (Gate 2) + test h264-conversion + test earth-export-lot22; PNG/MediaRecorder without an automated test');
   });
 
-  it('Himalaya unchanged: 11 criteria, 100 %, no evidence field', () => {
+  it('Himalaya: 12 criteria (LOT 26), 100 %, evidence only on the glacier criterion', () => {
     const himalaya = byId('living-himalaya').roadmap;
-    expect(himalaya.criteria).toHaveLength(11);
+    expect(himalaya.criteria).toHaveLength(12);
     expect(himalaya.progress).toBe(100);
-    expect(himalaya.criteria.every((c) => !('evidence' in c))).toBe(true);
+    expect(himalaya.criteria.filter((c) => 'evidence' in c).map((c) => c.id)).toEqual(['glacier-outlines']);
   });
 });

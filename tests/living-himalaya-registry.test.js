@@ -24,7 +24,7 @@ describe('Living Himalaya: live since LOT 21 (in development from Himalaya LOT 1
         expect(himalaya.description).not.toMatch(/in development|Today:/);
         expect(himalaya.representations).toEqual(['observed', 'reconstructed', 'prediction', 'reported', 'interpretive', 'fallback']); // Lot 6: history (reported); Lot 14: routes (interpretive)
         // Only what exists is declared: the peak reference list.
-        expect(himalaya.sources).toEqual(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps',
+        expect(himalaya.sources).toEqual(['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaGlaciers', // LOT 26
           'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay']); // LOT 15b: the real sky
         expect(himalaya.roadmap.stage).not.toMatch(/Frozen/);
         expect(himalaya.roadmap.progress).toBeGreaterThan(0);

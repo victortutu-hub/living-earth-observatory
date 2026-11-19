@@ -8,6 +8,9 @@
 //     LOT 7: selected Nepal peaks get a second, smaller marker style; their
 //     labels appear within SELECTED_LABEL_MAX_KM of the camera (or when
 //     active). A peak may share the patch of another (patchKey).
+//   * LOT 26: opt-in "glaciers" (RGI 7.0 outlines): a mask tint in the terrain
+//     shader through material variants used only while the switch is on, draped
+//     outline lines and a few labels, on the visible GLO-30 patch only.
 //   * LOT 14: opt-in "routes" group of the active peak (interpretive route
 //     lines, reported camp markers), created only while a switch is on,
 //     disposed when the peak changes, a switch goes off or the scene closes;
@@ -27,6 +30,7 @@ import { moonlightIntensity } from './moon-position.js';
 import { createLru, lonToTileX, latToTileY, OVERVIEW_REGION, TILE_SIZE } from './terrarium.js';
 import { CAMP_LABEL_MAX_KM, RENDER_LIFT_M, ROUTE_COLOR, ROUTE_LINE, campLabel } from './routes-model.js';
 import { terrainOccludes } from './label-occlusion.js';
+import { GLACIER_LABEL_MAX_KM, GLACIER_LIFT_M, GLACIER_LINE, GLACIER_TINT, LABELS_PER_PATCH, decodeGlaciersAsset, glacierLabel } from './glaciers-model.js';
 import { createHimalayaSky } from './himalaya-sky.js';
 
 export { projectLonLat, VERTICAL_EXAGGERATION };
@@ -48,6 +52,19 @@ export function markerHeightKm(elevationM) {
 
 // LOT 14: three/addons line modules, imported only when a route line is first shown.
 let lineModulesPromise = null;
+// LOT 26: segment lines for the glacier outlines (one draw per part), imported on first use.
+let segmentModulesPromise = null;
+function loadSegmentModules() {
+  if (!segmentModulesPromise) {
+    segmentModulesPromise = Promise.all([
+      import('three/addons/lines/LineSegments2.js'),
+      import('three/addons/lines/LineMaterial.js'),
+      import('three/addons/lines/LineSegmentsGeometry.js'),
+    ]).then(([segments, material, geometry]) => ({ LineSegments2: segments.LineSegments2, LineMaterial: material.LineMaterial, LineSegmentsGeometry: geometry.LineSegmentsGeometry }))
+      .catch((error) => { segmentModulesPromise = null; throw error; });
+  }
+  return segmentModulesPromise;
+}
 function loadLineModules() {
   if (!lineModulesPromise) {
     lineModulesPromise = Promise.all([
@@ -340,7 +357,176 @@ export function createHimalayaScene({
     if (!entry) return;
     const sat = satelliteFor(entry);
     if (sat) ensureUv(entry, sat);
-    entry.mesh.material = [sat ? sat.material : patchMaterial, wallMaterial];
+    const base = sat ? sat.material : patchMaterial;
+    // LOT 26: the glacier tint only on the patch of the glacier overlay, once its mask is set.
+    entry.mesh.material = [glacierTintOn(entry) ? glacierVariantOf(base) : base, wallMaterial];
+  }
+
+  // --- LOT 26: glacier outlines (RGI 7.0), opt-in
+  const glacierGroup = new THREE.Group();
+  glacierGroup.name = 'glaciers';
+  glacierGroup.visible = false;
+  scene.add(glacierGroup);
+  let glacierOverlay = null; // { key, patchId, show, bytes }
+  let glacierToken = 0;
+  let glacierAsset = null; // { bytes, decoded }
+  let glacierLines = [];
+  let glacierLabels = [];
+  let glacierBuiltFor = null;
+  let glacierError = null;
+  const glacierVariants = new Map(); // base material -> variant with the tint (built only while used)
+  const glacierResolution = new THREE.Vector2(1, 1);
+
+  function glacierTintOn(entry) {
+    return Boolean(glacierOverlay?.show && entry && entry.id === glacierOverlay.patchId && entry.glacierMaskKey);
+  }
+  function glacierVariantOf(base) {
+    let variant = glacierVariants.get(base);
+    if (variant) return variant;
+    variant = base.clone();
+    const [r, g, b] = GLACIER_TINT.color.map((v) => v.toFixed(3));
+    variant.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute float glacierMask;\nvarying float vGlacier;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlacier = glacierMask;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vGlacier;')
+        .replace('#include <color_fragment>', `#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(${r}, ${g}, ${b}), vGlacier * ${GLACIER_TINT.strength.toFixed(3)});`);
+    };
+    variant.customProgramCacheKey = () => `lumi-glacier-tint:${base.type}`;
+    variant.userData.glacierVariant = true;
+    glacierVariants.set(base, variant);
+    return variant;
+  }
+  function disposeGlacierVariant(base) {
+    const variant = glacierVariants.get(base);
+    if (variant) { variant.dispose(); glacierVariants.delete(base); }
+  }
+
+  function clearGlacierOverlay() {
+    glacierToken += 1;
+    for (const line of glacierLines) { glacierGroup.remove(line); line.geometry.dispose(); line.material.dispose(); }
+    for (const item of glacierLabels) { glacierGroup.remove(item.labelObject); item.label.remove(); }
+    glacierLines = [];
+    glacierLabels = [];
+    glacierBuiltFor = null;
+  }
+
+  /** Height (scene km) of the patch surface at a fractional grid point (bilinear on the built mesh). */
+  function surfaceY(entry, meta, col, row) {
+    const y = entry.geometry.attributes.position.array;
+    const i0 = Math.max(0, Math.min(meta.cols - 2, Math.floor(col))); const j0 = Math.max(0, Math.min(meta.rows - 2, Math.floor(row)));
+    const tx = Math.min(1, Math.max(0, col - i0)); const ty = Math.min(1, Math.max(0, row - j0));
+    const at = (j, i) => y[(j * meta.cols + i) * 3 + 1];
+    return (at(j0, i0) * (1 - tx) + at(j0, i0 + 1) * tx) * (1 - ty) + (at(j0 + 1, i0) * (1 - tx) + at(j0 + 1, i0 + 1) * tx) * ty;
+  }
+  function gridPoint(entry, meta, col, row, lift) {
+    const p = projectLonLat((meta.lonLeftArcsec + col) / 3600, (meta.latTopArcsec - row) / 3600, center);
+    return [p.x, surfaceY(entry, meta, col, row) + lift, p.z];
+  }
+
+  function syncGlacierOverlay() {
+    const wanted = glacierOverlay;
+    if (!wanted?.show || !wanted.bytes || !wanted.patchId) return;
+    const entry = patches.peek(wanted.patchId);
+    const meta = getPatchMeta(wanted.patchId);
+    if (!entry || !meta || glacierBuiltFor === entry || !glacierAsset?.decoded) return;
+    const decoded = glacierAsset.decoded;
+    const info = decoded.header.patches[wanted.patchId];
+    if (!info) return;
+    glacierBuiltFor = entry;
+    const token = glacierToken;
+    // Mask -> vertex attribute (grid samples first, then the skirt vertices at 0).
+    if (entry.glacierMaskKey !== glacierAsset.bytes.byteLength) {
+      const mask = decoded.mask(wanted.patchId);
+      const values = new Uint8Array(entry.geometry.attributes.position.count);
+      for (let k = 0; k < mask.length; k++) values[k] = mask[k] ? 255 : 0;
+      entry.geometry.setAttribute('glacierMask', new THREE.BufferAttribute(values, 1, true));
+      entry.glacierMaskKey = glacierAsset.bytes.byteLength;
+    }
+    if (entry.id === activePatchId) applyPatchMaterial(entry);
+    // Outline segments, densified to <= 2 grid steps and draped on the patch surface.
+    const lift = heightKm(GLACIER_LIFT_M) - heightKm(0);
+    const polylines = decoded.lines(wanted.patchId);
+    const segments = [];
+    for (const { points } of polylines) {
+      for (let k = 0; k + 3 < points.length; k += 2) {
+        const c0 = points[k]; const r0 = points[k + 1]; const c1 = points[k + 2]; const r1 = points[k + 3];
+        const steps = Math.max(1, Math.ceil(Math.hypot(c1 - c0, r1 - r0) / 2));
+        for (let s = 0; s < steps; s++) {
+          const a = s / steps; const b = (s + 1) / steps;
+          segments.push(...gridPoint(entry, meta, c0 + (c1 - c0) * a, r0 + (r1 - r0) * a, lift), ...gridPoint(entry, meta, c0 + (c1 - c0) * b, r0 + (r1 - r0) * b, lift));
+        }
+      }
+    }
+    loadSegmentModules().then(({ LineSegments2, LineMaterial, LineSegmentsGeometry }) => {
+      if (disposed || token !== glacierToken) return;
+      const positions = new Float32Array(segments);
+      for (const part of ['casing', 'core']) {
+        const spec = GLACIER_LINE[part];
+        const geometry = new LineSegmentsGeometry();
+        geometry.setPositions(positions);
+        const material = new LineMaterial({ color: spec.color, linewidth: spec.widthPx, worldUnits: false, transparent: true, opacity: spec.opacity, depthWrite: part === 'core' });
+        material.resolution.copy(glacierResolution);
+        const line = new LineSegments2(geometry, material);
+        line.name = `glaciers-${wanted.patchId}-${part}`;
+        line.renderOrder = spec.renderOrder;
+        line.userData = { part, segments: positions.length / 6 };
+        glacierGroup.add(line);
+        glacierLines.push(line);
+      }
+    }).catch((error) => {
+      if (disposed || token !== glacierToken) return;
+      glacierError = error?.message || String(error);
+      console.warn('[Living Himalaya] Glacier outline lines unavailable.', glacierError);
+      onTerrainEvent({ type: 'glaciers-lines-error', error: glacierError });
+    });
+    // Labels: the largest glaciers of the patch, "<name or RGI id> · outline <date>" (+ clipped).
+    const ranked = info.glaciers.filter((e) => e.label).map((e) => ({ e, glacier: decoded.header.glaciers[e.g] }))
+      .sort((a, b) => b.glacier.areaKm2 - a.glacier.areaKm2).slice(0, LABELS_PER_PATCH);
+    for (const { e, glacier } of ranked) {
+      const [x, y, z] = gridPoint(entry, meta, e.label[0], e.label[1], lift);
+      const position = new THREE.Vector3(x, y, z);
+      const label = document.createElement('span');
+      label.className = 'himalaya-camp-label is-glacier';
+      label.dataset.glacierId = glacier.id;
+      label.textContent = glacierLabel(glacier, { clipped: e.clipped });
+      const labelObject = new CSS2DObject(label);
+      labelObject.position.copy(position);
+      labelObject.visible = false;
+      glacierGroup.add(labelObject);
+      glacierLabels.push({ id: glacier.id, label, labelObject, position, labelReason: 'pending' });
+    }
+  }
+
+  /** LOT 26: show the glacier outlines on the patch of `peakId` (bytes = the asset, or null while not loaded). */
+  function setGlacierOverlay({ peakId = null, bytes = null, show = false } = {}) {
+    const patchId = peakId ? getPatchKey(peakId) : null;
+    const key = `${patchId}|${bytes ? bytes.byteLength : 'none'}|${show}`;
+    if (glacierOverlay?.key === key) return;
+    const previous = glacierOverlay?.patchId ? patches.peek(glacierOverlay.patchId) : null;
+    clearGlacierOverlay();
+    glacierOverlay = { key, patchId, show, bytes };
+    if (previous) applyPatchMaterial(previous); // back to the base material when off / another patch
+    if (!show || !bytes || !patchId) return;
+    if (glacierAsset?.bytes === bytes && glacierAsset.decoded) { syncGlacierOverlay(); return; }
+    const token = glacierToken;
+    loadZstd().then((zstd) => {
+      if (disposed || token !== glacierToken) return;
+      glacierAsset = { bytes, decoded: decodeGlaciersAsset(bytes, zstd) };
+      syncGlacierOverlay();
+    }).catch((error) => {
+      if (disposed || token !== glacierToken) return;
+      glacierError = error?.message || String(error);
+      console.warn('[Living Himalaya] Glacier outlines unavailable.', glacierError);
+      onTerrainEvent({ type: 'glaciers-error', error: glacierError });
+    });
+  }
+
+  function glacierOverlayVisible() {
+    if (!glacierOverlay?.show || glacierOverlay.patchId !== activePatchId || terrainMode !== 'glo30' || fade) return false;
+    const entry = activePatchId ? patches.peek(activePatchId) : null;
+    return Boolean(entry?.mesh.visible && glacierBuiltFor === entry);
   }
 
   function requestShadowUpdate(reason) {
@@ -408,6 +594,7 @@ export function createHimalayaScene({
       patches.set(id, entry, { isPinned: (key) => key === activePatchId });
       patchStates.set(id, 'ready');
       onTerrainEvent({ type: 'patch-ready', peakId: id, buildMs: entry.buildMs });
+      syncGlacierOverlay(); // LOT 26: an overlay waiting for this patch
       if (activePatchId === id) showPatch(id);
     } catch (error) {
       if (disposed) return;
@@ -533,7 +720,7 @@ export function createHimalayaScene({
   }
   const overlaps = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-  function updateCampLabelVisibility(now, routesShown) {
+  function updateCampLabelVisibility(now, routesShown, glaciersShown = false) {
     if (now - lastLabelCheck < LABEL_CHECK_MS) return;
     lastLabelCheck = now;
     const entry = activePatchId ? patches.peek(activePatchId) : null;
@@ -554,6 +741,18 @@ export function createHimalayaScene({
       if (!r) { camp.labelReason = 'behind'; continue; }
       if (r.top < labelSafeArea.top || r.bottom > labelSafeArea.bottom) { camp.labelReason = 'safe-area'; continue; }
       if (placed.some((p) => overlaps(r, p))) { camp.labelReason = 'overlap'; continue; }
+      placed.push(r);
+    }
+    // LOT 26: glacier labels after the camps (camps win an overlap), same rules.
+    const glacierOrder = glacierLabels.map((item) => ({ item, d: camera.position.distanceTo(item.position) })).sort((a, b) => a.d - b.d);
+    for (const { item, d } of glacierOrder) {
+      item.labelReason = null;
+      if (!glaciersShown || d > GLACIER_LABEL_MAX_KM) { item.labelReason = 'far'; continue; }
+      if (entry && meta && terrainOccludes({ positions: entry.geometry.attributes.position.array, meta, center }, item.position, camera.position)) { item.labelReason = 'terrain'; continue; }
+      const r = labelRectAt(item.position, item.label, rect);
+      if (!r) { item.labelReason = 'behind'; continue; }
+      if (r.top < labelSafeArea.top || r.bottom > labelSafeArea.bottom) { item.labelReason = 'safe-area'; continue; }
+      if (placed.some((p) => overlaps(r, p))) { item.labelReason = 'overlap'; continue; }
       placed.push(r);
     }
   }
@@ -655,6 +854,8 @@ export function createHimalayaScene({
     labelRenderer.setSize(width, height);
     routeResolution.set(width, height);
     for (const line of routeLines) line.material.resolution.set(width, height);
+    glacierResolution.set(width, height);
+    for (const line of glacierLines) line.material.resolution.set(width, height);
     camera.aspect = width / Math.max(1, height);
     applyViewOffset(width, height);
     camera.updateProjectionMatrix();
@@ -728,7 +929,10 @@ export function createHimalayaScene({
     // LOT 14: routes/camps only on the visible GLO-30 patch of the active peak; camps below CAMP_LABEL_MAX_KM.
     const routesShown = routeOverlayVisible();
     routeGroup.visible = routesShown;
-    updateCampLabelVisibility(now, routesShown);
+    const glaciersShown = glacierOverlayVisible(); // LOT 26
+    glacierGroup.visible = glaciersShown;
+    updateCampLabelVisibility(now, routesShown, glaciersShown);
+    for (const item of glacierLabels) item.labelObject.visible = glaciersShown && item.labelReason === null;
     for (const camp of routeCamps) {
       const d = camera.position.distanceTo(camp.position);
       const near = routesShown && d <= CAMP_LABEL_MAX_KM;
@@ -791,6 +995,10 @@ export function createHimalayaScene({
       showPatch(null);
       if (instant) setView(overviewTarget, overviewPosition);
       else flyTo(overviewTarget, overviewPosition);
+    },
+    /** LOT 26: { peakId, bytes (ArrayBuffer of the glacier asset, or null), show }. */
+    setGlacierOverlay(options) {
+      if (!disposed) setGlacierOverlay(options);
     },
     setRouteOverlay(options) {
       if (!disposed) setRouteOverlay(options);
@@ -879,6 +1087,7 @@ export function createHimalayaScene({
       const peakId = getPatchKey(peakIdIn);
       const previous = satellite.get(peakId);
       previous?.texture.dispose();
+      if (previous) disposeGlacierVariant(previous.material); // LOT 26
       previous?.material.dispose();
       const texture = new THREE.DataTexture(image.rgba, image.width, image.height, THREE.RGBAFormat, THREE.UnsignedByteType);
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -899,7 +1108,9 @@ export function createHimalayaScene({
       if (!sat) return;
       satellite.delete(peakId);
       const entry = patches.peek(peakId);
-      if (entry && entry.mesh.material[0] === sat.material) entry.mesh.material = [patchMaterial, wallMaterial];
+      const variant = glacierVariants.get(sat.material); // LOT 26
+      if (entry && (entry.mesh.material[0] === sat.material || entry.mesh.material[0] === variant)) applyPatchMaterial(entry);
+      disposeGlacierVariant(sat.material);
       sat.texture.dispose();
       sat.material.dispose();
     },
@@ -1019,6 +1230,17 @@ export function createHimalayaScene({
           camps: routeCamps.map((camp) => ({ id: camp.id, visible: camp.labelObject.visible, label: camp.label.textContent, hiddenBy: camp.labelReason })),
           labelSafeArea: { ...labelSafeArea },
         },
+        glaciers: (() => {
+          const entry = activePatchId ? patches.peek(activePatchId) : null;
+          return {
+            patchId: glacierOverlay?.patchId ?? null, show: Boolean(glacierOverlay?.show), assetBytes: glacierOverlay?.bytes?.byteLength ?? null,
+            decoded: Boolean(glacierAsset?.decoded), built: Boolean(glacierBuiltFor), groupVisible: glacierGroup.visible, error: glacierError,
+            tint: Boolean(entry?.mesh.material[0]?.userData?.glacierVariant), maskAttribute: Boolean(entry?.geometry.getAttribute('glacierMask')), variants: glacierVariants.size,
+            segmentModulesRequested: Boolean(segmentModulesPromise),
+            lines: glacierLines.map((line) => ({ part: line.userData.part, segments: line.userData.segments, color: `#${line.material.color.getHexString()}`, linewidth: line.material.linewidth })),
+            labels: glacierLabels.map((item) => ({ id: item.id, label: item.label.textContent, visible: item.labelObject.visible, hiddenBy: item.labelReason })),
+          };
+        })(),
       };
     },
     dispose() {
@@ -1039,6 +1261,11 @@ export function createHimalayaScene({
       sun.shadow.map?.dispose();
       clearRouteOverlay();
       scene.remove(routeGroup);
+      clearGlacierOverlay(); // LOT 26
+      scene.remove(glacierGroup);
+      for (const variant of glacierVariants.values()) variant.dispose();
+      glacierVariants.clear();
+      glacierAsset = null;
       labelRenderer.domElement.remove();
       gridLabels.length = 0;
       markers.clear();

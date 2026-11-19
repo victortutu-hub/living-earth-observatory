@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot21">
+  <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot26">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
@@ -53,6 +53,11 @@
           <button id="himalayaRoutesSwitch" class="himalaya-switch" type="button" role="switch" aria-checked="false"><span class="himalaya-switch-track" aria-hidden="true"></span><span class="himalaya-switch-text">Routes</span></button>
           <button id="himalayaCampsSwitch" class="himalaya-switch" type="button" role="switch" aria-checked="false"><span class="himalaya-switch-track" aria-hidden="true"></span><span class="himalaya-switch-text">Camps (Base Camp + C1…C4)</span></button>
           <p id="himalayaRoutesNote" class="himalaya-mode-note himalaya-routes-note" aria-live="polite" hidden></p>
+        </div>
+        <div class="himalaya-route-switches" role="group" aria-labelledby="himalayaGlaciersLegend">
+          <span id="himalayaGlaciersLegend" class="himalaya-switch-legend">Glaciers</span>
+          <button id="himalayaGlaciersSwitch" class="himalaya-switch" type="button" role="switch" aria-checked="false"><span class="himalaya-switch-track" aria-hidden="true"></span><span class="himalaya-switch-text">Glacier outlines (RGI 7.0)</span></button>
+          <p id="himalayaGlaciersNote" class="himalaya-mode-note himalaya-routes-note" aria-live="polite" hidden></p>
         </div>
         <p class="himalaya-mode-note">Lit terrain: uniform albedo lit by the computed Sun · vertical exaggeration 1.0</p>
         <label id="himalayaTimeLabel" class="himalaya-time" for="himalayaTime">Sun time on the current UTC day</label>

@@ -175,6 +175,6 @@ describe('LOT 17: Himalaya criterion 9 and next threshold', () => {
     const himalaya = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-himalaya');
     expect(himalaya.roadmap.criteria.find((c) => c.id === 'finishing-lot').done).toBe(true);
     expect(himalaya.roadmap.progress).toBe(100);
-    expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)');
+    expect(himalaya.roadmap.next).toBe('All criteria met — next: glacier change (Hugonnet 2021, licence to confirm)');
   });
 });

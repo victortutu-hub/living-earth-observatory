@@ -299,6 +299,22 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     visuals: ['Route lines on the summit terrain', 'Routes & camps section of the summit panel'],
     observatories: ['living-himalaya'],
   }),
+  // LOT 26: glacier outlines (RGI 7.0, regions 14-15), opt-in.
+  himalayaGlaciers: defineSource({
+    title: 'Glacier outlines — RGI 7.0 (Living Himalaya)',
+    provenance: 'observed',
+    provenanceNote: 'Glacier outlines — RGI 7.0 (RGI 7.0 Consortium 2023, NSIDC), mapped from imagery around 2000; each outline keeps its own date. Observed, not current',
+    authority: 'RGI 7.0 Consortium; NSIDC (NASA DAAC); GLIMS analysts (see NOTICE)',
+    endpoint: 'Local asset assets/himalaya/glaciers-<hash>.bin built offline by tools/build-himalaya-glaciers.mjs from the RGI 7.0 region files 14 and 15 (doi:10.5067/f6jmovy5navz)',
+    type: 'Outlines simplified at 15 m and clipped to each GLO-30 summit patch, plus an R8 mask at the GLO-30 grid points',
+    process: 'Loaded only when the Glaciers switch is on; mask tint and outlines on the visible GLO-30 patch, hidden in the Terrarium overview. Outline dates 1992–2010 (per glacier).',
+    scope: 'Living Himalaya, the 19 summit patches; regions 14 (South Asia West) and 15 (South Asia East) only.',
+    access: { kind: 'local-asset', label: 'Bundled glacier outline file', requiresProxy: false },
+    license: 'No explicit license stated by NSIDC/data.gov; distributed openly by NSIDC with citation required. Cite: RGI 7.0 Consortium, 2023, doi:10.5067/f6jmovy5navz; subset: regions 14–15, clipped to the summit patches, simplified at 15 m.',
+    privacyClass: 'local-asset',
+    visuals: ['Glacier tint and outlines on the summit terrain', 'Glaciers section of the summit panel'],
+    observatories: ['living-himalaya'],
+  }),
   himalayaCamps: defineSource({
     title: 'Base camps and high camps (Living Himalaya)',
     provenance: 'reported',
@@ -584,6 +600,7 @@ export const INITIAL_SOURCE_STATUS = Object.freeze({
   himalayanDatabase: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   himalayaRoutes: { value: 'LOCAL ASSET (OPT-IN)', state: 'declared', updated: null },
   himalayaCamps: { value: 'LOCAL ASSET (OPT-IN)', state: 'declared', updated: null },
+  himalayaGlaciers: { value: 'LOCAL ASSET (OPT-IN)', state: 'declared', updated: null }, // LOT 26
   openMeteoMarine: { value: 'OBSERVATORY', state: 'declared', updated: null },
   openMeteoEra5: { value: 'OBSERVATORY', state: 'declared', updated: null },
   openMeteoMarineArchive: { value: 'OBSERVATORY', state: 'declared', updated: null },

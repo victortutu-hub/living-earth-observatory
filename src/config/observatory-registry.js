@@ -83,8 +83,8 @@ const ROADMAP = Object.freeze({
   // Unfrozen 2026-11-15 (Gate 2 closed). Lot 1: peak list, Earth markers, enter/return, scene without terrain.
   // Lot 16: stage and next threshold up to date (production: deploy-himalaya-9); progress computed from the criteria below.
   himalaya: roadmapFromCriteria({
-    stage: 'Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps; measured on GTX 1650 and a real phone', // LOT 21
-    next: 'All criteria met — next: glaciers (research)', // LOT 20
+    stage: 'Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps and RGI 7.0 glacier outlines; measured on GTX 1650 and a real phone', // LOT 21 (+ LOT 26 glaciers)
+    next: 'All criteria met — next: glacier change (Hugonnet 2021, licence to confirm)', // LOT 26
     criteria: [
       { id: 'real-terrain', label: 'Real terrain (GLO-30 + Terrarium)', done: true },
       { id: 'observed-image', label: 'Observed image (Sentinel-2 L2A)', done: true },
@@ -97,6 +97,8 @@ const ROADMAP = Object.freeze({
       { id: 'finishing-lot', label: 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)', done: true }, // LOT 17
       { id: 'night-sky', label: 'Real night sky (Lot 15b)', done: true }, // LOT 15b
       { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real mobile)', done: true }, // LOT 20: docs/perf/, checked by the contract
+      { id: 'glacier-outlines', label: 'Glacier outlines (RGI 7.0, dated)', done: true, // LOT 26
+        evidence: 'tools/build-himalaya-glaciers.mjs, src/himalaya/glaciers-model.js, src/config/himalaya-glaciers.js, assets/himalaya/glaciers-<hash>.bin · test himalaya-lot26 · checked in the browser (Everest, K2, Broad Peak, Nepal peak)' },
     ],
   }),
 });
@@ -177,7 +179,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
   futureObservatory({
     id: 'living-himalaya', title: 'Living Himalaya', subtitle: 'Observatory', family: 'planetary', scale: 'regional', status: 'live', // LOT 21 (was development)
     parent: 'living-earth', // entered from the Earth globe, not from the hero
-    route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay'],
+    route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaGlaciers', 'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay'],
     accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
     description: 'A regional observatory entered from a summit marker on the Earth globe: the 14 eight-thousanders and 6 selected Nepal peaks from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky (night observed, day interpretive), with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported; the 14 only).',
     features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Summit history (reported)', 'Opt-in expedition tracks'],

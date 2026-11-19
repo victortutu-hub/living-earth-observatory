@@ -133,13 +133,14 @@ describe('LOT 24: Blue Marble surface — independent levels, late tiles, deadli
   });
 
   it('"20 s on every request" is no longer a regression: the longer retry gets every tile, no "unavailable"', async () => {
-    // Scaled: every request answers after 50 ms; attempts time out at 40 / 60 / 90 ms (20 / 30 / 45 s).
+    // Scaled: every request answers after 50 ms; the first attempt times out (20 ms), the longer retry
+    // gets it with a wide margin (LOT 26: 40 / 60 / 90 ms was too tight under a loaded test run).
     const loadImage = (url, { signal }) => new Promise((resolve, reject) => {
       const timer = setTimeout(() => resolve(tile(url)), 50);
       signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
     });
     const onUnavailable = vi.fn();
-    const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, tileTimeoutMs: [40, 60, 90] }, onUnavailable, ...quiet });
+    const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, tileTimeoutMs: [20, 400, 600] }, onUnavailable, ...quiet });
     expect(result.z).toBe(3);
     expect(onUnavailable).not.toHaveBeenCalled();
     const z3 = result.stats.find((s) => s.z === 3);

@@ -113,6 +113,7 @@ body.is-bright-sky .himalaya-grid-label { color: #d6e4ef; background: rgba(3, 8,
 .himalaya-routes-note { color: #e8d9b0; }
 .himalaya-camp-label { padding: 1px 5px; border-radius: 3px; background: rgba(12, 16, 22, 0.78); color: #e8d9b0; font-size: 10.5px; white-space: nowrap; pointer-events: none; margin-top: -22px; }
 .himalaya-camp-label.is-flagged { color: #f5c97a; }
+.himalaya-camp-label.is-glacier { color: #9feaff; } /* LOT 26: glacier labels, cold cyan like their outlines */
 @media (prefers-reduced-motion: reduce) { .himalaya-switch-track, .himalaya-switch-track::after { transition: none; } }
 .himalaya-external-link { color: #cfe9f5; text-decoration: underline; text-underline-offset: 2px; }
 .himalaya-external-link:hover, .himalaya-external-link:focus-visible { color: #ffffff; }

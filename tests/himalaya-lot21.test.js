@@ -134,12 +134,12 @@ describe('LOT 21: registry, texts and order', () => {
   });
 
   it('texts as approved', () => {
-    expect(himalaya.roadmap.stage).toBe('Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps; measured on GTX 1650 and a real phone');
-    expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)');
+    expect(himalaya.roadmap.stage).toBe('Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps and RGI 7.0 glacier outlines; measured on GTX 1650 and a real phone');
+    expect(himalaya.roadmap.next).toBe('All criteria met — next: glacier change (Hugonnet 2021, licence to confirm)');
     const html = text('living-himalaya.html');
     expect(html).toContain('<span>Luminomorphism / Regional Scale · Part of Living Earth</span>');
     expect(html).toContain('<meta name="description" content="A regional observatory of Living Luminomorphism: the 14 summits above 8000 m and 6 selected Nepal peaks on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky.">');
-    expect(html).toContain('himalaya.css?v=himalayaLot21');
+    expect(html).toContain('himalaya.css?v=himalayaLot26');
     expect(html).toContain('living-himalaya-module.js?v=himalayaLot21');
     expect(html).not.toMatch(/in development/i);
     expect(text('README.md')).toContain('**Living Himalaya** is a live regional observatory, entered from the Earth\nglobe (see below).');

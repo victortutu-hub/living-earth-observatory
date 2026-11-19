@@ -67,10 +67,11 @@ describe('LOT 16: Living Himalaya capabilities', () => {
     expect(OBSERVATORY_UNMEASURED['living-himalaya'].join(' ')).toMatch(/GPU time per frame on the phone/);
     // Claims only: capabilities, stage, next threshold and the criteria marked done (open criteria may name future work).
     // The next threshold names future work on purpose, so it is not a claim. LOT 15b: the real night sky
-    // (criterion 10) now exists, so it is no longer a forbidden claim; GPS tracks and glaciers still are.
+    // (criterion 10) now exists, so it is no longer a forbidden claim; GPS tracks still are. LOT 26: glacier
+    // outlines (criterion 12) exist now, so 'glacier' is no longer forbidden.
     const { stage, criteria } = himalaya.roadmap;
     const text = JSON.stringify({ capabilities: OBSERVATORY_CAPABILITY_EVIDENCE['living-himalaya'], stage, done: criteria.filter((c) => c.done) }).toLowerCase();
-    for (const word of ['garmin', 'glacier']) expect(text, word).not.toContain(word);
+    for (const word of ['garmin']) expect(text, word).not.toContain(word);
   });
 
   it('inspector: live contract since LOT 21 (development contract before); live and empty records unchanged', () => {
@@ -83,8 +84,8 @@ describe('LOT 16: Living Himalaya capabilities', () => {
   });
 
   it('card: stage and next threshold up to date; progress computed from the criteria', () => {
-    expect(himalaya.roadmap.stage).toBe('Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps; measured on GTX 1650 and a real phone'); // LOT 21
-    expect(himalaya.roadmap.next).toBe('All criteria met — next: glaciers (research)'); // LOT 20
+    expect(himalaya.roadmap.stage).toBe('Live: terrain, Sentinel-2, Sun & Moon, real sky, summit weather, Himalayan Database history, optional routes & camps and RGI 7.0 glacier outlines; measured on GTX 1650 and a real phone'); // LOT 21
+    expect(himalaya.roadmap.next).toBe('All criteria met — next: glacier change (Hugonnet 2021, licence to confirm)'); // LOT 20
     expect(himalaya.roadmap.next).not.toMatch(/Per-field provenance/);
     expect(himalaya.roadmap.progress).toBe(100);
   });
@@ -96,13 +97,13 @@ describe('LOT 16: Living Himalaya capabilities', () => {
       'Real terrain (GLO-30 + Terrarium)', 'Observed image (Sentinel-2 L2A)', 'Real Sun & Moon', 'Summit weather (model)',
       'Summit history (Himalayan Database, approved aggregates)', 'Per-field provenance + source panel', 'Optional routes & camps',
       'Time from Earth + mobile bottom sheet', 'Finishing lot (Lhotse route, camp labels hidden by terrain, checked camp elevations)',
-      'Real night sky (Lot 15b)', 'Measured performance (real GTX 1650, real mobile)',
+      'Real night sky (Lot 15b)', 'Measured performance (real GTX 1650, real mobile)', 'Glacier outlines (RGI 7.0, dated)', // LOT 26
     ]);
-    expect(criteria.map((c) => c.done)).toEqual(Array(11).fill(true));
-    expect(new Set(criteria.map((c) => c.id)).size).toBe(11);
+    expect(criteria.map((c) => c.done)).toEqual(Array(12).fill(true)); // LOT 26: 12 criteria
+    expect(new Set(criteria.map((c) => c.id)).size).toBe(12);
     expect(progressFromCriteria(criteria)).toBe(100);
     expect(himalaya.roadmap.progress).toBe(100);
-    expect(JSON.stringify(criteria).toLowerCase()).not.toMatch(/garmin|glacier/);
+    expect(JSON.stringify(criteria).toLowerCase()).not.toMatch(/garmin/); // LOT 26: glaciers delivered
   });
 
   it('the contract rejects a hand-written progress next to criteria, and computed progress without criteria', () => {
