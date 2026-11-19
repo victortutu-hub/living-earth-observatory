@@ -17,7 +17,7 @@ describe('LOT 19: the measurement code loads only with ?perf=1', () => {
     for (const file of listJs('src')) {
       const source = text(file);
       expect(source, file).not.toMatch(/^\s*import\s[^;]*['"][^'"]*perf\/perf-(run|stats|schema)\.js['"]/m);
-      if (!file.startsWith('src/himalaya/perf/')) expect(source, file).not.toMatch(/from\s+['"][^'"]*\/perf\//);
+      if (!/^src\/(himalaya|earth|core)\/perf\//.test(file)) expect(source, file).not.toMatch(/from\s+['"][^'"]*\/perf\//);
     }
     expect(text('living-himalaya.html')).not.toMatch(/perf-/);
   });
@@ -30,17 +30,18 @@ describe('LOT 19: the measurement code loads only with ?perf=1', () => {
   });
 
   it('zero new requests: no network API in the perf modules; downloads through a Blob URL', () => {
-    for (const file of listJs('src/himalaya/perf')) {
+    for (const file of [...listJs('src/himalaya/perf'), ...listJs('src/core/perf')]) { // LOT 28: + the shared core
       const source = text(file);
       expect(source, file).not.toMatch(/\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|new Image\(|https?:\/\//);
     }
-    const run = text('src/himalaya/perf/perf-run.js');
+    // LOT 28: the panel (Copy / Download JSON, Start) moved to src/core/perf/perf-panel.js, used by perf-run.js.
+    const run = text('src/himalaya/perf/perf-run.js') + text('src/core/perf/perf-panel.js');
     expect(run).toContain("URL.createObjectURL(new Blob([json], { type: 'application/json' }))");
     expect(run).toContain('navigator.clipboard.writeText(json)');
   });
 
   it('the start is manual, with the banner text', () => {
-    const run = text('src/himalaya/perf/perf-run.js');
+    const run = text('src/himalaya/perf/perf-run.js') + text('src/core/perf/perf-panel.js'); // LOT 28: shared panel
     expect(run).toContain("export const PERF_BANNER = 'Performance run — keep this tab visible; do not touch the page.';");
     expect(run).toContain("start.addEventListener('click', async () => {");
     expect(run).not.toMatch(/runner\.run\(\);\s*\n\s*}\s*$/m);

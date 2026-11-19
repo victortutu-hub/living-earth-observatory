@@ -600,6 +600,10 @@ export function createEarthAppRuntime({
         }
     }
 
+    // LOT 28: ?perf=1 only - a frame probe around the render call and the first-frame time.
+    let frameProbe = null;
+    let firstFrameAt = null;
+
     function animate() {
         if (!running || disposed) return;
         performanceSampler.record(performance.now());
@@ -627,7 +631,11 @@ export function createEarthAppRuntime({
         // Pastreaza preview-ul live in timpul exportului. Exportul foloseste
         // un composer separat, insa utilizatorul trebuie sa poata urmari turul
         // pe canvasul principal, nu sa vada un cadru static pana la final.
+        // The composer renders several passes; with a probe, renderer.info counts the whole frame.
+        if (frameProbe) { renderer.info.autoReset = false; renderer.info.reset(); frameProbe.before(renderer); }
         composer.render();
+        if (frameProbe) { frameProbe.after(renderer); renderer.info.autoReset = true; }
+        if (firstFrameAt === null) firstFrameAt = performance.now();
         animationFrameId = requestAnimationFrame(animate);
     }
 
@@ -707,6 +715,14 @@ export function createEarthAppRuntime({
         appLifecycle,
         applyDataDay,
         applySceneTime,
-        performanceSnapshot: performanceSampler.snapshot
+        performanceSnapshot: performanceSampler.snapshot,
+        // LOT 28: performance run hooks (?perf=1 only).
+        setFrameProbe: (probe) => { frameProbe = probe || null; },
+        firstFrameAt: () => firstFrameAt,
+        setFieldLayers: async ({ wind, currents }) => {
+            if (Boolean(wind) !== Boolean(state.windParticles)) await toggleWindLayer();
+            if (Boolean(currents) !== Boolean(state.oceanCurrents)) await toggleOceanLayer();
+        },
+        fieldStatus: () => ({ wind: state.windParticles ? windStatus()?.state || 'off' : 'off', currents: state.oceanCurrents ? oceanStatus()?.state || 'off' : 'off' })
     };
 }

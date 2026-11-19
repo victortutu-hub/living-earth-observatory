@@ -40,6 +40,13 @@ export function isGtx1650DesktopRun(run) {
   return runUsable(run) && run.role === 'desktop' && /GTX 1650/.test(String(run.device || '')) && !/Mobile/.test(String(run.userAgent || ''));
 }
 
+// LOT 28 (prepared for Living Earth; no criterion ticked by it): criterion "mobile" = a real-phone
+// run in the mobile layout (isMobileRun) whose layout checks all passed (report field "layout").
+export const MOBILE_LAYOUT_CRITERION = 'mobile';
+export function isMobileLayoutRun(run) {
+  return isMobileRun(run) && run.layoutAllPass === true;
+}
+
 export function measuredPerformanceStatus(runs = []) {
   const desktop = runs.some(isGtx1650DesktopRun);
   const mobile = runs.some(isMobileRun);
@@ -167,6 +174,10 @@ export function validateObservatoryModule(moduleDefinition, {
       if (!status.done) {
         errors.push(issue('error', 'measured-performance-without-runs', `Criterion ${MEASURED_PERFORMANCE_CRITERION} is done without ${[status.desktop ? null : 'a valid GTX 1650 desktop run', status.mobile ? null : 'a valid real-phone run in the mobile layout'].filter(Boolean).join(' and ')}.`, 'roadmap'));
       }
+    }
+    const mobileCriterion = Array.isArray(roadmap?.criteria) ? roadmap.criteria.find((item) => item?.id === MOBILE_LAYOUT_CRITERION) : null;
+    if (mobileCriterion?.done === true && !measured.some(isMobileLayoutRun)) {
+      errors.push(issue('error', 'mobile-without-layout-run', `Criterion ${MOBILE_LAYOUT_CRITERION} is done without a real-phone run in the mobile layout whose layout checks all passed.`, 'roadmap'));
     }
   }
 

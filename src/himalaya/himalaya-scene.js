@@ -1051,37 +1051,19 @@ export function createHimalayaScene({
     skyReady: () => realSky.ready,
     /** GPU cost of the sky (background + stars) at the current size: TIME_ELAPSED with / without it. */
     async measureSkyCostGpu(samples = 8) {
-      const gl = renderer.getContext();
-      const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2');
-      if (!ext) return { available: false };
+      // LOT 28: the timer-query loop is shared (src/core/perf/perf-gpu.js), imported only here
+      // (the ?perf=1 run calls this): no module is added to a normal page load. Same result shape.
+      const { measureToggleGpuCost } = await import('../core/perf/perf-gpu.js');
       const shown = { background: realSky.background.visible, stars: realSky.stars.visible };
-      const runOne = (withSky) => {
-        realSky.background.visible = withSky && shown.background;
-        realSky.stars.visible = withSky && shown.stars;
-        const query = gl.createQuery();
-        gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
-        renderer.render(scene, camera);
-        gl.endQuery(ext.TIME_ELAPSED_EXT);
-        return query;
-      };
-      const pending = [];
-      for (let i = 0; i < samples; i++) { pending.push(['sky', runOne(true)]); pending.push(['none', runOne(false)]); }
-      realSky.background.visible = shown.background; realSky.stars.visible = shown.stars;
-      const started = performance.now();
-      while (pending.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) && performance.now() - started < 3000) {
-        await new Promise((resolve) => setTimeout(resolve, 16));
-      }
-      const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
-      const results = { sky: [], none: [] };
-      for (const [kind, q] of pending) {
-        if (gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) results[kind].push(gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6);
-        gl.deleteQuery(q);
-      }
-      const median = (values) => (values.length ? values.sort((a, b) => a - b)[Math.floor(values.length / 2)] : null);
-      const withSky = median(results.sky); const without = median(results.none);
+      const cost = await measureToggleGpuCost({
+        gl: renderer.getContext(), samples,
+        setOn: (withSky) => { realSky.background.visible = withSky && shown.background; realSky.stars.visible = withSky && shown.stars; },
+        restore: () => { realSky.background.visible = shown.background; realSky.stars.visible = shown.stars; },
+        renderOnce: () => renderer.render(scene, camera),
+      });
+      if (!cost.available) return { available: false };
       const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-      return { available: true, disjoint, samples: results.sky.length, drawingBuffer: [size.x, size.y], withSkyGpuMs: withSky && +withSky.toFixed(3), withoutSkyGpuMs: without && +without.toFixed(3),
-        skyGpuMs: withSky != null && without != null ? +(withSky - without).toFixed(3) : null };
+      return { available: true, disjoint: cost.disjoint, samples: cost.samples, drawingBuffer: [size.x, size.y], withSkyGpuMs: cost.withGpuMs, withoutSkyGpuMs: cost.withoutGpuMs, skyGpuMs: cost.costGpuMs };
     },
     /** Sentinel-2 mosaic for a summit: { rgba, width, height, level, res, utm: { zone, e0, n0, widthM, heightM } }. */
     setSatelliteImage(peakIdIn, image) {

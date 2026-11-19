@@ -670,6 +670,7 @@ export function createEarthAppServices({
         windParticles,
         oceanCurrents,
         runtimeSignals,
+        realSky: visualFoundation.realSky, // LOT 28: sky cost in the ?perf=1 run
         dispose
     };
 }
