@@ -25,7 +25,8 @@ describe('Earth temporal provenance contract', () => {
 
     it('classifies static, procedural, and latest-only layers truthfully', () => {
         expect(EARTH_TEMPORAL_LAYERS.blueMarble).toMatchObject({ temporalType: 'static-reference', sceneTimeCompatibility: 'static' });
-        expect(EARTH_TEMPORAL_LAYERS.clouds).toMatchObject({ temporalType: 'procedural', sceneTimeCompatibility: 'static' });
+        // LOT 30: the cloud base is a static image (threejs.org), not procedural.
+        expect(EARTH_TEMPORAL_LAYERS.clouds).toMatchObject({ temporalType: 'static-reference', sceneTimeCompatibility: 'static' });
         // LOT 5: EONET follows the chosen day; LOT 9: FIRMS too (one UTC day).
         // Aurora (OVATION) still has only the latest data.
         expect(EARTH_TEMPORAL_LAYERS.eonet).toMatchObject({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' });
@@ -36,7 +37,7 @@ describe('Earth temporal provenance contract', () => {
     it('surfaces stale and fallback state without calling it live', () => {
         expect(formatTemporalBadge({ ...EARTH_TEMPORAL_LAYERS.usgs, sourceTime: '2026-09-10T14:00:00Z', cacheState: 'stale' }))
             .toContain('stale');
-        expect(formatTemporalBadge({ ...EARTH_TEMPORAL_LAYERS.clouds, cacheState: 'fallback' })).toBe('Procedural fallback');
+        expect(formatTemporalBadge({ temporalType: 'procedural', sceneTimeCompatibility: 'static', sourceTime: null, cacheState: 'fallback' })).toBe('Procedural fallback'); // LOT 30: clouds no longer procedural
     });
 
     it('does not change a layer source timestamp when scene time is historical', () => {

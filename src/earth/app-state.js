@@ -21,7 +21,8 @@ export function createInitialEarthState() {
         realClouds: false,
         realCloudDate: null,
         cloudSourceState: 'paused',
-        cloudSourceMessage: 'Clouds: NASA GIBS daily snapshot temporarily paused; stable procedural layer active',
+        // LOT 30: the base layer is a static image from threejs.org (earth-textures.js THREEJS_CLOUDS_LABEL), not procedural.
+        cloudSourceMessage: "Clouds: NASA GIBS daily snapshot temporarily paused; static cloud image earth_clouds_1024.png from threejs.org (source and date undeclared), drifting — not today's clouds",
         dataSourceMode: 'eonet',
         dataSourceState: 'on',
         dataSourceMessage: 'Data source: NASA EONET default',

@@ -1,4 +1,5 @@
 import { GIBS_LAYERS, composeGibsEquirectangularMosaic } from './gibs-tiles.js';
+import { THREEJS_CLOUDS_LABEL } from './earth-textures.js';
 
 const GIBS_FIXED_ZOOM = 1;
 // VIIRS true-colour tiles can contain acquisition swaths with hard data
@@ -38,7 +39,7 @@ export function createCloudSystem({
             btn.textContent = 'Daily clouds: temporarily paused';
             btn.title = 'NASA GIBS daily VIIRS cloud display is paused while its global coverage is validated.';
             state.cloudSourceState = 'paused';
-            state.cloudSourceMessage = 'Clouds: NASA GIBS daily snapshot temporarily paused; stable procedural layer active';
+            state.cloudSourceMessage = `Clouds: NASA GIBS daily snapshot temporarily paused; ${THREEJS_CLOUDS_LABEL}`; // LOT 30
             const status = document.getElementById(statusId);
             if (status) {
                 status.dataset.state = state.cloudSourceState;
@@ -283,10 +284,10 @@ export function createCloudSystem({
         realCloudOverlay.visible = false;
         cloudOverlayMat.uniforms.uOpacity.value = 0;
         state.cloudSourceState = 'error';
-        state.cloudSourceMessage = 'Clouds: NASA GIBS unavailable; using artistic fallback';
+        state.cloudSourceMessage = `Clouds: NASA GIBS unavailable; keeping the ${THREEJS_CLOUDS_LABEL}`; // LOT 30
         applyNightLook(state.night);
         updateButton();
-        console.warn('NASA GIBS cloud layer could not be loaded. Keeping artistic fallback.', errors.slice(0, 3));
+        console.warn(`NASA GIBS cloud layer could not be loaded. Keeping the ${THREEJS_CLOUDS_LABEL}.`, errors.slice(0, 3));
     }
 
     function disable() {
@@ -300,7 +301,7 @@ export function createCloudSystem({
         cloudOverlayMat.uniforms.uDriftScale.value = 0.22;
         cloudOverlayMat.uniforms.uMorphScale.value = 0.03;
         state.cloudSourceState = 'artistic';
-        state.cloudSourceMessage = 'Clouds: artistic procedural layer';
+        state.cloudSourceMessage = `Clouds: ${THREEJS_CLOUDS_LABEL}`; // LOT 30 (the old text called this image procedural)
         applyNightLook(state.night);
         updateButton();
     }

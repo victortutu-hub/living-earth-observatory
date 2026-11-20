@@ -176,7 +176,7 @@ export function createSurfaceVisualLock({
             materialPath,
             surfaceSource: 'current runtime surface texture (no lock override)',
             surfaceResolution: `${SURFACE_VISUAL_ALBEDO_SIZE.width}x${SURFACE_VISUAL_ALBEDO_SIZE.height} (pinned by the lock)`,
-            nightLightsSource: 'stable bundled fallback',
+            nightLightsSource: 'threejs.org earth_lights_2048.png (source undeclared), locked', // LOT 30: not bundled
             clouds: 'off',
             markers: 'off',
             ui: 'hidden (capture mode)',

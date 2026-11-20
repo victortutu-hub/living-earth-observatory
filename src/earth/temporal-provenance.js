@@ -54,7 +54,8 @@ export const EARTH_TEMPORAL_LAYERS = Object.freeze({
     blueMarble: createTemporalDescriptor({ temporalType: 'static-reference', sceneTimeCompatibility: 'static' }),
     blackMarble: createTemporalDescriptor({ temporalType: 'observed', sourceTime: '2016-01-01T00:00:00Z', sceneTimeCompatibility: 'static' }),
     etopo: createTemporalDescriptor({ temporalType: 'static-reference', sceneTimeCompatibility: 'static' }),
-    clouds: createTemporalDescriptor({ temporalType: 'procedural', sceneTimeCompatibility: 'static' }),
+    // LOT 30: a static image (threejs.org earth_clouds_1024.png, source and date undeclared) with animated drift - not procedural.
+    clouds: createTemporalDescriptor({ temporalType: 'static-reference', sceneTimeCompatibility: 'static' }),
     snowIce: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
     eonet: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
     usgs: createTemporalDescriptor({ temporalType: 'observed', sceneTimeCompatibility: 'date-selectable' }),
@@ -255,7 +256,7 @@ export const EARTH_TIME_CAPABILITIES = Object.freeze({
     blackMarble: createTimeCapability({ kind: 'static', note: 'Fixed 2016 annual composite, labelled with its year.' }),
     etopo: createTimeCapability({ kind: 'static' }),
     himalayaPeaks: createTimeCapability({ kind: 'static', note: 'Surveyed summit list; it does not change with the scene day.' }),
-    clouds: createTimeCapability({ kind: 'static', note: 'Procedural cloud layer.' }),
+    clouds: createTimeCapability({ kind: 'static', note: 'Static cloud image from threejs.org (earth_clouds_1024.png, source and date undeclared), drifting; not observed clouds.' }), // LOT 30
     dailyClouds: createTimeCapability({ kind: 'live-only', note: 'NASA GIBS daily VIIRS clouds; paused in the public control.' }),
     snowIce: createTimeCapability({ kind: 'daily', range: { start: '2000-02-24', end: 'latest' }, lagDays: 1, gaps: MODIS_TERRA_SNOW_GAPS }),
     eonet: createTimeCapability({ kind: 'event-range', range: { start: '2015-01-01', end: 'latest' }, windowDays: 7 }),

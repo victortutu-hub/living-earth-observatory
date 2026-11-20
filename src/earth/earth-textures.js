@@ -5,6 +5,13 @@ import { RELIEF_LINEAR_EXAGGERATION, createFlatReliefTexture, createWaterMaskTex
 // GIBS (public domain; see NOTICE.md). No baked hillshade.
 export const BUNDLED_BLUE_MARBLE = 'assets/blue-marble-ng-4096x2048.jpg';
 
+// LOT 30 (PAS 1): three textures still come from threejs.org (three.js examples), with no declared
+// source or date. Every status text that describes them uses these labels (not "local", "bundled" or
+// "procedural") until they are replaced by declared NASA or locally derived assets.
+export const THREEJS_TEXTURE_BASE = 'https://threejs.org/examples/textures/planets/';
+export const THREEJS_NIGHT_LIGHTS_LABEL = 'fallback texture earth_lights_2048.png from threejs.org (source undeclared)';
+export const THREEJS_CLOUDS_LABEL = "static cloud image earth_clouds_1024.png from threejs.org (source and date undeclared), drifting — not today's clouds";
+
 // Relief: a flat 0 m placeholder now, the R16F metres later (KTX2, or the raw
 // .bin; see earth-layers.js). Water mask: MOD44W fraction as R8. Its uniform
 // objects are shared by every Earth material, so swapping the texture and
@@ -29,7 +36,7 @@ function loadReliefAndWaterMask({ THREE }) {
 }
 
 export function loadEarthTextures({ THREE, renderer, textureLoader }) {
-    const textureBase = 'https://threejs.org/examples/textures/planets/';
+    const textureBase = THREEJS_TEXTURE_BASE;
     const earthMap = textureLoader.load(BUNDLED_BLUE_MARBLE);
     const earthSpecular = textureLoader.load(textureBase + 'earth_specular_2048.jpg');
     const earthClouds = textureLoader.load(textureBase + 'earth_clouds_1024.png');
