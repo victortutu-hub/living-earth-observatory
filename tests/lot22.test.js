@@ -21,7 +21,7 @@ const exists = (p) => fs.existsSync(new URL(`../${p}`, import.meta.url));
 
 const EARTH = [
   ['real-relief', 'Real relief & bathymetry (ETOPO 2022 + GIBS surface)', true],
-  ['solar-light', 'Physical Sun lighting + night lights', true],
+  ['solar-light', 'Physical Sun direction + night lights (artistic fill declared)', true], // LOT 31
   ['event-layers', 'Live event layers (EONET, USGS, FIRMS, GDACS, GVP)', true],
   ['geophysical-layers', 'Aurora, ISS, wind, ocean currents', true],
   ['historical-time', 'Time-scrub 365 days (EONET, USGS, FIRMS, snow, ERA5, SMOC)', true],
@@ -58,7 +58,7 @@ function evidenceTests(evidence) {
 
 describe.each([
   ['living-earth', earth, EARTH, 92, 'Surface detail at high zoom (Sprint 2.4, interpretive)', // LOT 29 (LOT 23: 75, LOT 22: 67)
-    'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export'],
+    'Live: real relief & bathymetry, physical Sun direction (artistic fill declared), physical earthshine on the Moon, live event and geophysical layers, 365-day history, real sky, still/video export'], // LOT 31
   ['living-protein', protein, PROTEIN, 58, 'Experimental context beside prediction confidence',
     'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins'],
 ])('LOT 22: %s progress from criteria', (id, item, expected, percent, next, stage) => {

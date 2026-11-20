@@ -20,12 +20,12 @@ const ROADMAP = Object.freeze({
   // LOT 22: was a hand-written 100 ('Live observatory'); 8 of 12 criteria. LOT 23: 9 of 12 (runtime state).
   // LOT 29: 11 of 12 (mobile + measured performance from the docs/perf/ runs).
   earth: roadmapFromCriteria({
-    stage: 'Live: real relief & bathymetry, physical Sun, live event and geophysical layers, 365-day history, real sky, still/video export',
+    stage: 'Live: real relief & bathymetry, physical Sun direction (artistic fill declared), physical earthshine on the Moon, live event and geophysical layers, 365-day history, real sky, still/video export', // LOT 31
     next: 'Surface detail at high zoom (Sprint 2.4, interpretive)', // LOT 29 (LOT 23: mobile layout)
     criteria: [
       { id: 'real-relief', label: 'Real relief & bathymetry (ETOPO 2022 + GIBS surface)', done: true,
         evidence: 'src/earth/relief-linear.js, gibs-surface.js, gibs-tiles.js · tests relief-linear, surface-relief-atmosphere, gibs-tiles · LOT 4b on production 2026-11-13 (Gate 1)' },
-      { id: 'solar-light', label: 'Physical Sun lighting + night lights', done: true,
+      { id: 'solar-light', label: 'Physical Sun direction + night lights (artistic fill declared)', done: true, // LOT 31
         evidence: 'src/earth/solar-runtime.js, atmosphere-physics.js, gibs-night-lights.js · tests surface-relief-atmosphere, gibs-tiles (Black Marble), temporal-provenance · Gate 0 / Gate 2' },
       { id: 'event-layers', label: 'Live event layers (EONET, USGS, FIRMS, GDACS, GVP)', done: true,
         evidence: 'src/earth/eonet-*.js, usgs-earthquakes.js, firms-wildfires.js, gdacs-provider.refactored.js · tests feed-adapter, event-utils, usgs-earthquakes, usgs-single-path, firms-*, gvp-volcanoes, data-time-status' },

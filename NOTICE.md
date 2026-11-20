@@ -194,6 +194,21 @@ licence of this repository:
   product has no baked hillshade; relief shading comes from the ETOPO normals
   lit by the computed Sun position.
 
+## Moon Lighting (Lot 31)
+
+The Moon is lit only by the real Sun direction and a physical earthshine
+(`src/earth/earthshine.js`): E / E_sun = p · (R⊕/d)² · Φ(α⊕), with p = 0.434, the
+Earth's geometric albedo from the NASA Earth Fact Sheet
+(https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html: "Geometric albedo
+0.434"; the Bond albedo 0.294 there is not used), the Lambert-sphere phase function
+Φ (an approximation), the Earth–Moon distance d from Astronomy Engine and the
+Earth's phase angle α⊕ seen from the Moon. The order of magnitude agrees with the
+published value of earthshine at maximum Earth phase, "approximately 0.15 W m−2"
+or "only 0.01% of the radiance from direct Sunlight" (Glenar et al. 2019, as quoted
+by https://en.wikipedia.org/wiki/Earthshine). "Earthshine view" raises the Moon
+exposure by 10 EV (lit side clipped, as in photographs). The Earth keeps a
+declared artistic fill (a cool light opposite the Sun and an ambient light).
+
 ## Local Earth Textures (Lot 30)
 
 These replaced three files that were loaded from threejs.org with no declared source:

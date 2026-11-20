@@ -202,7 +202,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     authority: "NASA's Scientific Visualization Studio (LRO LROC and LOLA data)",
     endpoint: 'Local assets assets/moon/moon-lroc-color-4k-<hash>.jpg and assets/moon/moon-lola-normal-4k-<hash>.jpg, built by tools/build-moon-color.mjs and tools/build-moon-normal.mjs from the CGI Moon Kit (svs.gsfc.nasa.gov/4720; inputs pinned by SHA-256)',
     type: 'Equirectangular colour map (sRGB JPEG) and tangent-space normal map (2.665 km per pixel)',
-    process: 'Wrap the Moon sphere and light it with the real Sun direction plus the declared artistic fill (interpretive); displacement and bump from the LOLA elevation.',
+    process: 'Wrap the Moon sphere and light it with the real Sun direction and the physical earthshine (approximated; no artistic fill on the Moon); displacement and bump from the LOLA elevation.',
     scope: 'Local assets used by the Earth Observatory Moon.',
     access: { kind: 'local-asset', label: 'Bundled NASA SVS asset', requiresProxy: false },
     license: "Credit: NASA's Scientific Visualization Studio. NASA media guidelines: NASA material is generally not subject to copyright in the United States; NASA is acknowledged as the source.",
