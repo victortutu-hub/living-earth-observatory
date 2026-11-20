@@ -194,6 +194,39 @@ licence of this repository:
   product has no baked hillshade; relief shading comes from the ETOPO normals
   lit by the computed Sun position.
 
+## Local Earth Textures (Lot 30)
+
+These replaced three files that were loaded from threejs.org with no declared source:
+
+- `assets/earth/black-marble-2016-3600x1800-<hash>.jpg`: NASA Black Marble 2016
+  colour map, 0.1° global (NASA Earth Observatory, "Earth at Night" flat maps,
+  https://science.nasa.gov/earth/earth-observatory/earth-at-night/maps/: "These
+  images show Earth's night lights as observed in 2016."), byte-for-byte. Used
+  as the night-lights fallback until NASA GIBS Black Marble loads. The page
+  gives no credit line of its own; NASA is acknowledged as the source (NASA
+  media guidelines, quoted in the Moon section).
+- `assets/earth/blue-marble-clouds-2048x1024-<hash>.jpg`: NASA Blue Marble cloud
+  image `cloud_combined_2048.jpg` (The Blue Marble 2002,
+  https://science.nasa.gov/earth/earth-observatory/the-blue-marble-true-color-global-imagery-at-1km-resolution/):
+  "Image by Reto Stöckli (land surface, shallow water, clouds)."; "The cloud image
+  is a composite of two days of imagery collected in visible light wavelengths
+  and a third day of thermal infra-red imagery over the poles."; "These images
+  are freely available to educators, scientists, museums, and the public."
+  Byte-for-byte; shown as a static layer with an animated drift, not the clouds
+  of the scene day.
+- `assets/earth/specular-mod44w-<hash>.png`: ocean specular mask derived from the
+  local MOD44W water fraction (`assets/mod44w-water-2160x1080.png`) by
+  `tools/build-earth-textures.mjs`.
+
+## Fonts
+
+- `assets/fonts/inter-4.1-var-<hash>.woff2`: Inter, Version 4.001 (rsms/inter
+  release v4.1, https://github.com/rsms/inter/releases/tag/v4.1), © 2016 The
+  Inter Project Authors, licensed under the SIL Open Font License, Version 1.1
+  (`assets/fonts/OFL.txt`, copied unchanged from the release). Subset by
+  `tools/build-inter-font.py` (weights 200–600, latin, latin-ext and greek
+  ranges); served locally instead of Google Fonts.
+
 ## Moon Textures And Lunar Assets
 
 Every Moon texture comes from the NASA SVS CGI Moon Kit
