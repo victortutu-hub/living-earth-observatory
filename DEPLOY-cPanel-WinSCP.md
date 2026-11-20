@@ -44,7 +44,7 @@ cPanel sau prin WinSCP Synchronize.
 
   ```bash
   git -c core.autocrlf=false archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
-    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js     assets/himalaya assets/sky
+    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js     assets/himalaya assets/sky assets/moon assets/earth assets/fonts
   ```
 
   Plus un manifest `<sha256>  <cale>`, calculat din conținutul arhivei.
@@ -68,6 +68,26 @@ cPanel sau prin WinSCP Synchronize.
   au hash-ul conținutului, deci nu suprascriu nimic vechi). Listezi separat
   fiecare fișier din `assets/sky/` cu mărime și SHA-256. `tmp/sky/` (EXR-urile
   NASA SVS, HYG brut) nu intră niciodată în arhivă.
+- **Excepție: `assets/moon/`, `assets/earth/` și `assets/fonts/` se promovează la fel**
+  (din Lot 30). `assets/moon/`: culoarea LROC 4K și harta normală LOLA ale Lunii
+  (`moon-lroc-color-4k-<hash>.jpg`, `moon-lola-normal-4k-<hash>.jpg`, ~5,7 MB), la care
+  trimit `src/config/moon-color.js` și `src/config/moon-normal.js`. `assets/earth/`:
+  Black Marble 2016, norii Blue Marble și masca speculară
+  (`black-marble-2016-3600x1800-<hash>.jpg`, `blue-marble-clouds-2048x1024-<hash>.jpg`,
+  `specular-mod44w-2160x1080-<hash>.png`, ~1,9 MB), din `src/config/earth-local-textures.js`.
+  `assets/fonts/`: Inter (`inter-4.1-var-<hash>.woff2`, ~0,2 MB) și `OFL.txt`, din
+  `styles/inter.css`. Fără ele Luna rămâne fără culoare 4K (cade pe LROC 1K), Pământul
+  fără lumini de noapte / nori / speculară, iar textul cade pe fontul de sistem.
+  Pe producție sunt foldere noi la primul deploy; la update-uri se copiază fișier cu
+  fișier (numele au hash-ul conținutului; `OFL.txt` nu se schimbă). Listezi separat
+  fiecare fișier din cele trei foldere cu mărime și SHA-256. Brutul descărcat
+  (`tmp/lot30/raw/`: TIFF-urile SVS, JPEG-urile NASA, arhiva Inter) nu intră niciodată
+  în arhivă. În staging verifici în Network că `.woff2` vine cu `200` și un
+  `Content-Type` de font (`font/woff2`); dacă serverul nu-l recunoaște, oprești deploy-ul
+  și întrebi (nu se adaugă `.htaccess` fără decizie).
+  După promovarea Lot 30 nu devine mort niciun fișier de pe producție: texturile vechi
+  veneau de pe threejs.org / jsDelivr (nu de pe server), iar `assets/moon-lroc-color-1k-1024x512.jpg`
+  (fallback etichetat) și `assets/moon-ldem-elevation-1024x512.jpg` (relief) rămân folosite.
 - Restul `assets/` și `vendor/` (fișiere mari) nu intră în arhivă. Le compari separat
   cu serverul (`git ls-tree -r -l HEAD -- assets vendor` față de lista de pe
   server) și le urci doar dacă diferă.
@@ -75,7 +95,7 @@ cPanel sau prin WinSCP Synchronize.
   HEAD. E sigur doar dacă working tree-ul e identic cu HEAD pe căile site-ului:
 
   ```bash
-  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya assets/sky
+  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya assets/sky assets/moon assets/earth assets/fonts
   ```
 
   Comanda trebuie să nu afișeze nimic. Altfel faci commit sau stash înainte, ori
@@ -96,11 +116,11 @@ import map-ul din HTML (CDN) și nu intră în verificare.
 ### Regula 3 — întâi staging pe server, apoi producția
 
 1. **Backup în afara site-ului:** în cPanel → File Manager, copiază `src/`,
-   `styles/`, `assets/himalaya/`, `assets/sky/` (dacă există deja), cele 4 HTML-uri și `sw.js` în
+   `styles/`, `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/`, `assets/fonts/` (cele care există deja), cele 4 HTML-uri și `sw.js` în
    `/home/luminomorphism/deploy-backups/<lot>-<AAAALLZZ>/`. Nu pune backup-ul
    în `public_html`.
 2. Creează `public_html/_staging-<lot>/` și copiază în el `assets/` și
-   `vendor/` (paginile le referă relativ). `assets/himalaya/` și `assets/sky/` vin
+   `vendor/` (paginile le referă relativ). `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/` și `assets/fonts/` vin
    din arhivă, peste această copie.
 3. Urcă arhiva în `_staging-<lot>/` și dezarhiveaz-o acolo.
 4. Deschide `https://luminomorphism.ro/_staging-<lot>/earth-eonet-relief.html`,
@@ -157,7 +177,7 @@ Politica de cache constatată pe producție (2026-11-19, din antetele răspunsur
   vechi și noi.
 - `.css`: `public, max-age=604800` (7 zile). Un vizitator care a mai fost pe
   site păstrează CSS-ul vechi până la 7 zile, cât timp URL-ul nu se schimbă.
-- Asset-urile din `assets/himalaya/` și `assets/sky/` au hash-ul conținutului
+- Asset-urile din `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/` și `assets/fonts/` au hash-ul conținutului
   în nume: un fișier nou are alt URL.
 
 Regula: dacă `styles/X.css` diferă de deploy-ul anterior, fiecare HTML care îl

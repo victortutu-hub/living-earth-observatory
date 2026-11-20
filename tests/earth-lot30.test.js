@@ -129,3 +129,14 @@ describe('LOT 30 PAS 5: Inter served locally', async () => {
     expect(css).toMatch(/unicode-range: U\+0000-00FF/);
   });
 });
+
+describe('LOT 30 PAS 7: deploy §0b promotes the new asset folders', () => {
+  it('the archive command and the working-tree check list assets/moon, assets/earth and assets/fonts (not tmp/)', () => {
+    const deploy = text('DEPLOY-cPanel-WinSCP.md');
+    const command = deploy.slice(deploy.indexOf('git -c core.autocrlf=false archive'), deploy.indexOf('```', deploy.indexOf('git -c core.autocrlf=false archive')));
+    for (const dir of ['assets/himalaya', 'assets/sky', 'assets/moon', 'assets/earth', 'assets/fonts']) expect(command).toContain(dir);
+    expect(command).not.toMatch(/\btmp\b|\bdocs\b/);
+    expect(deploy).toContain('git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya assets/sky assets/moon assets/earth assets/fonts');
+    expect(deploy).toMatch(/După promovarea Lot 30 nu devine mort niciun fișier de pe producție/);
+  });
+});
