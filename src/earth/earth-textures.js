@@ -1,3 +1,4 @@
+import { EARTH_LOCAL_TEXTURES } from '../config/earth-local-textures.js';
 import { RELIEF_LINEAR_EXAGGERATION, createFlatReliefTexture, createWaterMaskTexture, linearDisplacementScale, loadWaterMaskR8 } from './relief-linear.js';
 
 // Initial surface and fallback when GIBS is unavailable: the same unshaded
@@ -5,12 +6,11 @@ import { RELIEF_LINEAR_EXAGGERATION, createFlatReliefTexture, createWaterMaskTex
 // GIBS (public domain; see NOTICE.md). No baked hillshade.
 export const BUNDLED_BLUE_MARBLE = 'assets/blue-marble-ng-4096x2048.jpg';
 
-// LOT 30 (PAS 1): three textures still come from threejs.org (three.js examples), with no declared
-// source or date. Every status text that describes them uses these labels (not "local", "bundled" or
-// "procedural") until they are replaced by declared NASA or locally derived assets.
-export const THREEJS_TEXTURE_BASE = 'https://threejs.org/examples/textures/planets/';
-export const THREEJS_NIGHT_LIGHTS_LABEL = 'fallback texture earth_lights_2048.png from threejs.org (source undeclared)';
-export const THREEJS_CLOUDS_LABEL = "static cloud image earth_clouds_1024.png from threejs.org (source and date undeclared), drifting — not today's clouds";
+// LOT 30 (step 4): the night-lights fallback, the cloud base layer and the ocean specular mask are local
+// files with declared sources (tools/build-earth-textures.mjs, src/config/earth-local-textures.js); they
+// replaced three threejs.org textures of undeclared origin. The status texts use these labels.
+export const NIGHT_LIGHTS_FALLBACK_LABEL = 'local fallback (NASA Black Marble 2016, Earth Observatory 0.1° map, 3600×1800)';
+export const CLOUDS_STATIC_LABEL = "static image (NASA Blue Marble clouds, 2002 release, MODIS; image by Reto Stöckli) — not today's clouds";
 
 // Relief: a flat 0 m placeholder now, the R16F metres later (KTX2, or the raw
 // .bin; see earth-layers.js). Water mask: MOD44W fraction as R8. Its uniform
@@ -36,11 +36,10 @@ function loadReliefAndWaterMask({ THREE }) {
 }
 
 export function loadEarthTextures({ THREE, renderer, textureLoader }) {
-    const textureBase = THREEJS_TEXTURE_BASE;
     const earthMap = textureLoader.load(BUNDLED_BLUE_MARBLE);
-    const earthSpecular = textureLoader.load(textureBase + 'earth_specular_2048.jpg');
-    const earthClouds = textureLoader.load(textureBase + 'earth_clouds_1024.png');
-    const earthLights = textureLoader.load(textureBase + 'earth_lights_2048.png');
+    const earthSpecular = textureLoader.load(EARTH_LOCAL_TEXTURES.specular.file);
+    const earthClouds = textureLoader.load(EARTH_LOCAL_TEXTURES.clouds.file);
+    const earthLights = textureLoader.load(EARTH_LOCAL_TEXTURES.nightLights.file);
     const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 
     [earthMap, earthSpecular, earthClouds, earthLights].forEach(texture => {
@@ -48,6 +47,9 @@ export function loadEarthTextures({ THREE, renderer, textureLoader }) {
         texture.anisotropy = maxAnisotropy;
     });
     earthSpecular.colorSpace = THREE.NoColorSpace;
+    // The NASA cloud image is greyscale: its brightness is the cloud opacity (cloud-shaders.js uMapLumaAlpha),
+    // read as stored values, not sRGB-decoded.
+    earthClouds.colorSpace = THREE.NoColorSpace;
 
     return {
         earthMap,

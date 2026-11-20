@@ -1,34 +1,54 @@
 // LOT 30 — provenance of the third-party Earth textures and the Moon textures.
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { THREEJS_CLOUDS_LABEL, THREEJS_NIGHT_LIGHTS_LABEL, THREEJS_TEXTURE_BASE } from '../src/earth/earth-textures.js';
+import { CLOUDS_STATIC_LABEL, NIGHT_LIGHTS_FALLBACK_LABEL } from '../src/earth/earth-textures.js';
 import { EARTH_TEMPORAL_LAYERS, EARTH_TIME_CAPABILITIES } from '../src/earth/temporal-provenance.js';
 import { createInitialEarthState } from '../src/earth/app-state.js';
 
 const text = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
-describe('LOT 30 PAS 1: status texts tell where the threejs.org textures come from', () => {
-  it('the labels name threejs.org and the undeclared source', () => {
-    expect(THREEJS_TEXTURE_BASE).toBe('https://threejs.org/examples/textures/planets/');
-    expect(THREEJS_NIGHT_LIGHTS_LABEL).toMatch(/earth_lights_2048\.png from threejs\.org \(source undeclared\)/);
-    expect(THREEJS_CLOUDS_LABEL).toMatch(/static cloud image earth_clouds_1024\.png from threejs\.org .*not today's clouds/);
-  });
+describe('LOT 30 PAS 1 + 4: Earth textures - declared local NASA sources, truthful status texts', async () => {
+  const crypto = await import('node:crypto');
+  const { EARTH_LOCAL_TEXTURES } = await import('../src/config/earth-local-textures.js');
+  const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
-  it('no night-lights or cloud text claims "local", "bundled" or "procedural" any more', () => {
-    const files = ['src/earth/earth-layers.js', 'src/earth/cloud-system.js', 'src/earth/app-state.js', 'src/earth/surface-visual-lock.js', 'src/earth/temporal-provenance.js', 'earth-eonet-relief.html'];
-    const all = files.map(text).join('\n');
-    for (const claim of [/Black Marble: [^'`"]*local fallback/, /stable bundled fallback/, /stable procedural layer/, /artistic procedural layer/, /artistic fallback/, /Procedural cloud layer/, /night lights \(2016\), with local fallback/]) {
-      expect(all).not.toMatch(claim);
+  it('no threejs.org texture is requested any more; the three local files match the config', () => {
+    for (const f of ['src/earth/earth-textures.js', 'src/earth/earth-layers.js', 'src/earth/cloud-system.js', 'earth-eonet-relief.html']) {
+      expect(text(f), f).not.toMatch(/https:\/\/threejs\.org|earth_specular_2048|earth_lights_2048|earth_clouds_1024/);
     }
-    // Every Black Marble fallback message uses the label.
-    expect(text('src/earth/earth-layers.js').match(/\$\{THREEJS_NIGHT_LIGHTS_LABEL\}/g)).toHaveLength(5);
+    const { nightLights, clouds, specular } = EARTH_LOCAL_TEXTURES;
+    for (const [asset, re] of [[nightLights, /^assets\/earth\/black-marble-2016-3600x1800-[0-9a-f]{10}\.jpg$/], [clouds, /^assets\/earth\/blue-marble-clouds-2048x1024-[0-9a-f]{10}\.jpg$/], [specular, /^assets\/earth\/specular-mod44w-2160x1080-[0-9a-f]{10}\.png$/]]) {
+      const b = fs.readFileSync(new URL(`../${asset.file}`, import.meta.url));
+      expect(asset.file).toMatch(re);
+      expect(sha(b)).toBe(asset.sha256);
+      expect(asset.file).toContain(asset.sha256.slice(0, 10));
+      expect(b.length).toBe(asset.bytes);
+      expect(asset.width * asset.height).toBeLessThanOrEqual(4096 * 2048);
+    }
+    // The two NASA images are byte-for-byte the downloaded files.
+    expect(nightLights.sha256).toBe(nightLights.source.sha256);
+    expect(clouds.sha256).toBe(clouds.source.sha256);
+    expect(nightLights.source.url).toBe('https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg');
+    expect(clouds.source).toMatchObject({ credit: 'Image by Reto Stöckli (land surface, shallow water, clouds).', terms: 'These images are freely available to educators, scientists, museums, and the public.' });
+    expect(specular.source.file).toBe('assets/mod44w-water-2160x1080.png');
   });
 
-  it('initial cloud status (state + page) and temporal descriptors match the real source', () => {
-    expect(createInitialEarthState().cloudSourceMessage).toBe(`Clouds: NASA GIBS daily snapshot temporarily paused; ${THREEJS_CLOUDS_LABEL}`);
-    expect(text('earth-eonet-relief.html')).toContain(`<div id="cloudSourceStatus" data-state="paused">Clouds: NASA GIBS daily snapshot temporarily paused; ${THREEJS_CLOUDS_LABEL}</div>`);
+  it('labels: night-lights fallback is local NASA Black Marble 2016; clouds a static NASA image, not today\'s', () => {
+    expect(NIGHT_LIGHTS_FALLBACK_LABEL).toBe('local fallback (NASA Black Marble 2016, Earth Observatory 0.1° map, 3600×1800)');
+    expect(CLOUDS_STATIC_LABEL).toBe("static image (NASA Blue Marble clouds, 2002 release, MODIS; image by Reto Stöckli) — not today's clouds");
+    expect(text('src/earth/earth-layers.js').match(/\$\{NIGHT_LIGHTS_FALLBACK_LABEL\}/g)).toHaveLength(5);
+    const all = ['src/earth/earth-layers.js', 'src/earth/cloud-system.js', 'src/earth/app-state.js', 'src/earth/surface-visual-lock.js', 'src/earth/temporal-provenance.js', 'earth-eonet-relief.html'].map(text).join('\n');
+    for (const claim of [/stable bundled fallback/, /stable procedural layer/, /artistic procedural layer/, /artistic fallback/, /Procedural cloud layer/, /source undeclared/]) expect(all).not.toMatch(claim);
+  });
+
+  it('initial cloud status (state + page), temporal descriptor and the luma-alpha shader switch', () => {
+    expect(createInitialEarthState().cloudSourceMessage).toBe(`Clouds: NASA GIBS daily snapshot temporarily paused; ${CLOUDS_STATIC_LABEL}`);
+    expect(text('earth-eonet-relief.html')).toContain(`<div id="cloudSourceStatus" data-state="paused">Clouds: NASA GIBS daily snapshot temporarily paused; ${CLOUDS_STATIC_LABEL}</div>`);
     expect(EARTH_TEMPORAL_LAYERS.clouds.temporalType).toBe('static-reference');
-    expect(EARTH_TIME_CAPABILITIES.clouds.note).toMatch(/threejs\.org .*not observed clouds/);
+    expect(EARTH_TIME_CAPABILITIES.clouds.note).toMatch(/NASA Blue Marble cloud image .*not the clouds of the chosen day/);
+    expect(text('src/earth/cloud-shaders.js')).toContain('if (uMapLumaAlpha > 0.5) c = vec4(1.0, 1.0, 1.0, c.r);');
+    expect(text('src/earth/cloud-setup.js')).toContain('lumaAlpha: true');
+    expect(text('src/earth/earth-textures.js')).toContain('earthClouds.colorSpace = THREE.NoColorSpace;');
   });
 });
 

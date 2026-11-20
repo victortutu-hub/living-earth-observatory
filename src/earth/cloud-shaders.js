@@ -13,6 +13,7 @@ const CLOUD_FRAG = `
 precision mediump float;
 uniform sampler2D uMap;
 uniform sampler2D uMapNew;
+uniform float uMapLumaAlpha; // LOT 30: 1 = greyscale image, opacity = brightness (NASA Blue Marble clouds)
 uniform float uTime;
 uniform float uCrossfade;
 uniform float uOpacity;
@@ -48,6 +49,7 @@ void main() {
     ) * uMorphScale;
 
     vec4 c = texture2D(uMap, uv);
+    if (uMapLumaAlpha > 0.5) c = vec4(1.0, 1.0, 1.0, c.r);
     if (uCrossfade > 0.001) c = mix(c, texture2D(uMapNew, uv), clamp(uCrossfade, 0.0, 1.0));
 
     float slowA = fbm(uv * 3.0 + vec2(uTime * 0.006, -uTime * 0.004));
@@ -74,11 +76,12 @@ export function createCloudFallbackTexture(THREE) {
     return texture;
 }
 
-export function makeCloudMat({ THREE, texture, opacity, fallbackTexture }) {
+export function makeCloudMat({ THREE, texture, opacity, fallbackTexture, lumaAlpha = false }) {
     return new THREE.ShaderMaterial({
         uniforms: {
             uMap:       { value: texture },
             uMapNew:    { value: fallbackTexture },
+            uMapLumaAlpha: { value: lumaAlpha ? 1 : 0 },
             uTime:      { value: 0 },
             uCrossfade: { value: 0 },
             uOpacity:   { value: opacity },

@@ -3,7 +3,7 @@ import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } 
 import { createEarthRoughnessTexture } from './earth-roughness.js';
 import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
 import { surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
-import { THREEJS_NIGHT_LIGHTS_LABEL } from './earth-textures.js';
+import { NIGHT_LIGHTS_FALLBACK_LABEL } from './earth-textures.js';
 import { makeNightLightsMat } from './night-lights.js';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js';
 import { watchPageVisibility, whenVisible } from './gibs-tiles.js';
@@ -268,13 +268,13 @@ export function createEarthLayers({
 
     // Upgrade the fallback texture only after the observed NASA Black Marble
     // composite has decoded successfully. A network/CORS failure leaves the
-    // fallback texture in place (LOT 30: from threejs.org, source undeclared - not local).
+    // local fallback texture in place (LOT 30: NASA Black Marble 2016, Earth Observatory 0.1° map).
     let blackMarbleSettled = false;
     const blackMarbleWatchdog = setTimeout(() => {
         if (blackMarbleSettled) return;
         publishNightLightsStatus({
             state: 'fallback',
-                message: `Black Marble: annual observed product (2016) still loading from NASA GIBS; meanwhile ${THREEJS_NIGHT_LIGHTS_LABEL}; terminator linked`
+                message: `Black Marble: annual observed product (2016) still loading from NASA GIBS; meanwhile ${NIGHT_LIGHTS_FALLBACK_LABEL}; terminator linked`
         });
     }, 16_000);
 
@@ -298,7 +298,7 @@ export function createEarthLayers({
                 clearTimeout(blackMarbleWatchdog);
                 publishNightLightsStatus({
                     state: 'locked-fallback',
-                    message: `Black Marble: ${THREEJS_NIGHT_LIGHTS_LABEL}, locked for deterministic material comparison`
+                    message: `Black Marble: ${NIGHT_LIGHTS_FALLBACK_LABEL}, locked for deterministic material comparison`
                 });
                 return;
             }
@@ -319,12 +319,12 @@ export function createEarthLayers({
             blackMarbleSettled = true;
             clearTimeout(blackMarbleWatchdog);
             if (isAbort(error)) return; // disposed (LOT 24)
-            console.warn(`[Earth] NASA GIBS Black Marble unavailable; keeping the ${THREEJS_NIGHT_LIGHTS_LABEL}.`, error);
+            console.warn(`[Earth] NASA GIBS Black Marble unavailable; keeping the ${NIGHT_LIGHTS_FALLBACK_LABEL}.`, error);
             publishNightLightsStatus({
                 state: 'fallback',
                 message: error.retryWhenVisible
-                    ? `Black Marble: ${THREEJS_NIGHT_LIGHTS_LABEL} active — NASA GIBS tiles did not finish while the page was hidden; retrying when visible`
-                    : `Black Marble: ${THREEJS_NIGHT_LIGHTS_LABEL} active — terminator linked; NASA GIBS unavailable`
+                    ? `Black Marble: ${NIGHT_LIGHTS_FALLBACK_LABEL} active — NASA GIBS tiles did not finish while the page was hidden; retrying when visible`
+                    : `Black Marble: ${NIGHT_LIGHTS_FALLBACK_LABEL} active — terminator linked; NASA GIBS unavailable`
             });
             if (error.retryWhenVisible) whenVisible().then(() => { if (!layersDisposed) startNightLights(true); });
         });

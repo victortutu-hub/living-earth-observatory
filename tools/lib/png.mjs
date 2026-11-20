@@ -19,8 +19,9 @@ export function decodePng(buffer) {
     else if (type === 'IEND') break;
     offset += 12 + length;
   }
-  if (bitDepth !== 8 || ![2, 6].includes(colorType)) throw new Error(`unsupported PNG ${bitDepth}/${colorType}`);
-  const channels = colorType === 6 ? 4 : 3;
+  // LOT 30: 8-bit grayscale (colour type 0) too, expanded to RGBA like the others.
+  if (bitDepth !== 8 || ![0, 2, 6].includes(colorType)) throw new Error(`unsupported PNG ${bitDepth}/${colorType}`);
+  const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 1;
   const raw = zlib.inflateSync(Buffer.concat(idat));
   const stride = width * channels;
   const out = Buffer.alloc(width * height * 4);
@@ -43,7 +44,7 @@ export function decodePng(buffer) {
       line[x] = value & 0xff;
     }
     for (let x = 0; x < width; x++) {
-      for (let k = 0; k < 3; k++) out[(y * width + x) * 4 + k] = line[x * channels + k];
+      for (let k = 0; k < 3; k++) out[(y * width + x) * 4 + k] = line[x * channels + (channels === 1 ? 0 : k)];
       out[(y * width + x) * 4 + 3] = channels === 4 ? line[x * channels + 3] : 255;
     }
     previous = line;

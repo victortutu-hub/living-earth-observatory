@@ -20,7 +20,7 @@ export function createCloudSetup({
     applyNightLook
 }) {
     const fallbackTexture = createCloudFallbackTexture(THREE);
-    const cloudMat = makeCloudMat({ THREE, texture: earthClouds, opacity: 0.42, fallbackTexture });
+    const cloudMat = makeCloudMat({ THREE, texture: earthClouds, opacity: 0.42, fallbackTexture, lumaAlpha: true }); // LOT 30: NASA greyscale clouds
     const cloudOverlayMat = makeCloudMat({ THREE, texture: fallbackTexture, opacity: 0, fallbackTexture });
     cloudOverlayMat.uniforms.uDriftScale.value = 0.22;
     cloudOverlayMat.uniforms.uMorphScale.value = 0.03;
