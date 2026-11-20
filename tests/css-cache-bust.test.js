@@ -73,9 +73,10 @@ describe('LOT 25: parsing helpers', () => {
 
   it('the real pages link their stylesheets with a ?v=', () => {
     const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-    expect(stylesheetLinks(read('index.html'))).toEqual([{ css: 'styles/main.css', token: 'atlasLot21' }]);
-    expect(stylesheetLinks(read('living-himalaya.html'))).toEqual([{ css: 'styles/himalaya.css', token: 'himalayaLot26' }]);
-    expect(stylesheetLinks(read('living-protein.html'))).toEqual([{ css: 'styles/protein.css', token: 'atlasProteinMount1' }]);
+    // LOT 30: Inter is served locally (styles/inter.css) before each page's own stylesheet.
+    expect(stylesheetLinks(read('index.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/main.css', token: 'atlasLot21' }]);
+    expect(stylesheetLinks(read('living-himalaya.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/himalaya.css', token: 'himalayaLot26' }]);
+    expect(stylesheetLinks(read('living-protein.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/protein.css', token: 'atlasProteinMount1' }]);
   });
 
   it('parses a deploy manifest (sha256, two spaces, path)', () => {

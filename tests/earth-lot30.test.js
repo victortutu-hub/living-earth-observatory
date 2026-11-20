@@ -104,3 +104,28 @@ describe('LOT 30 PAS 2-3: NASA SVS Moon textures (the only Moon textures since P
     expect(text('src/earth/moon-system.js')).toContain("textureSource: 'nasa-svs',");
   });
 });
+
+describe('LOT 30 PAS 5: Inter served locally', async () => {
+  const crypto = await import('node:crypto');
+  const css = text('styles/inter.css');
+  it('no Google Fonts on the three pages; one versioned local stylesheet instead', () => {
+    for (const p of ['index.html', 'living-himalaya.html', 'living-protein.html']) {
+      expect(text(p), p).not.toMatch(/fonts\.googleapis\.com|fonts\.gstatic\.com/);
+      expect(text(p), p).toMatch(/<link rel="stylesheet" href="\.\/styles\/inter\.css\?v=lot30inter1"/);
+    }
+  });
+  it('the @font-face weights are the ones the pages requested (200-600), one hashed woff2 + OFL', () => {
+    expect([...css.matchAll(/font-weight: (\d+);/g)].map((m) => Number(m[1]))).toEqual([200, 300, 400, 500, 600]);
+    const files = [...new Set([...css.matchAll(/url\('\.\.\/(assets\/fonts\/[^']+)'\)/g)].map((m) => m[1]))];
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatch(/^assets\/fonts\/inter-4\.1-var-([0-9a-f]{10})\.woff2$/);
+    const b = fs.readFileSync(new URL(`../${files[0]}`, import.meta.url));
+    const sha = crypto.createHash('sha256').update(b).digest('hex');
+    expect(files[0]).toContain(sha.slice(0, 10));
+    expect(css).toContain(`sha256 ${sha}`);
+    expect(b.subarray(0, 4).toString('latin1')).toBe('wOF2');
+    expect(text('assets/fonts/OFL.txt')).toMatch(/SIL Open Font License, Version 1\.1/);
+    expect(text('tools/build-inter-font.py')).toContain("SOURCE_SHA256 = '9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e'");
+    expect(css).toMatch(/unicode-range: U\+0000-00FF/);
+  });
+});
