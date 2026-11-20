@@ -181,8 +181,8 @@ function createMoonHaloTexture(THREE) {
     return texture;
 }
 
-// Earthshine: lumina reflectata de Pamant pe fata intunecata a Lunii.
-// Aproximare poetica/fizica: glow albastru-cenusiu in jurul discului,
+// "Earthshine" billboard - LOT 31: a decorative additive halo (interpretive), NOT the light of
+// the Earth on the dark side (earthshine is not modelled as light): glow albastru-cenusiu in jurul discului,
 // intensitate legata de (1 - phaseFraction) - maxima la Luna noua,
 // zero la Luna plina. Strat aditiv separat, nu atinge textura principala.
 function createEarthshineTexture(THREE) {
@@ -263,9 +263,10 @@ export function createMoonSystem({
     // aditive care inca trebuie sa priveasca mereu camera).
     const moonBillboardGeometry = new THREE.PlaneGeometry(1, 1, 2, 2);
     // MeshLambertMaterial (difuz, fara specular) - Luna nu are atmosfera care
-    // sa produca luciu; se lumineaza automat, fizic corect, din sunLight-ul
-    // real deja folosit pentru Pamant (aceeasi directie solara, faza corecta
-    // reiese direct din geometrie, nu mai e nevoie de shader custom).
+    // sa produca luciu; directia solara e cea reala (sunLight, ca la Pamant), deci
+    // faza reiese din geometrie. LOT 31: o lumineaza si fill-ul artistic al scenei
+    // (coolFill opus Soarelui, ambient) plus emissive-ul de mai jos - interpretive,
+    // declarate in detaliile Lunii (scene-lighting.js).
     // displacementMap/bumpMap adaugate DOAR daca exista un asset local valid
     // (moonDisplacementTexture non-null) - CORS-ul NASA blocheaza incarcarea
     // directa, deci pana la adaugarea assetului local, Luna ramane cu

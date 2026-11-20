@@ -24,6 +24,7 @@ import { createAppVisualFoundation } from './app-visual-foundation.js';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js';
 import { describeMoonTextures, localDirForSelenographic } from './moon-system.js';
+import { EARTHSHINE_HALO_LABEL, describeMoonIllumination } from './scene-lighting.js';
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
 import { atlasStatus } from '../core/status-store.js';
 import { getAstronomyImportState } from './astronomy-runtime.js';
@@ -453,7 +454,9 @@ export function createEarthAppServices({
             { label: 'Distance', value: Number.isFinite(m.distanceKm) ? `${Math.round(m.distanceKm).toLocaleString()} km` : 'unknown' },
             { label: 'Sublunar point', value: `${m.sublunarLat.toFixed(2)} lat, ${m.sublunarLon.toFixed(2)} lon` },
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
-            { label: 'Illumination', value: 'Real Sun direction (MeshLambertMaterial), same sunLight as Earth' },
+            // LOT 31: every light that reaches the Moon, read from the live objects.
+            { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, coolFill, ambientLight: bootstrap.ambientLight, moonMaterial: moonSystem.moon.material, look: state.earthLook }) },
+            { label: 'Earthshine', value: EARTHSHINE_HALO_LABEL },
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ]);

@@ -164,9 +164,9 @@ export function createCaptionSystem({
                 style,
                 header: 'ASTRONOMY ENGINE - REAL MOON GEOMETRY',
                 title: 'EARTHSHINE',
-                subtitle: 'THE DARK SIDE LIT BY EARTH',
+                subtitle: 'DECORATIVE HALO, STRENGTH FROM THE REAL PHASE', // LOT 31: not modelled light
                 meta: 'Phase, distance and lunar orientation are calculated live',
-                footer: 'Cinematic visibility boost, physically bounded'
+                footer: 'Interpretive glow - earthshine is not modelled as light'
             };
         }
         if (mode === 'iss') {

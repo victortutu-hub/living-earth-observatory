@@ -1,5 +1,5 @@
 // Living Himalaya LOT 2: WebGL2 scene with real terrain, mode "Lit terrain"
-// (uniform albedo, no draped imagery; lit by the real Sun).
+// (uniform albedo, no draped imagery; lit by the real Sun plus a dim hemisphere sky fill, interpretive).
 //   * Overview: Terrarium tiles z6 / z8 / z9 (terrain-overview.js), shading only.
 //   * Detail: the Copernicus GLO-30 patch of the focused summit
 //     (terrain-patch.js), 2048² shadow map recomputed only when the Sun, the

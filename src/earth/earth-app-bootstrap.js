@@ -10,7 +10,9 @@ export function createEarthAppBootstrap({
     const textureLoader = new THREE.TextureLoader();
     const textures = loadEarthTextures({ THREE, renderer, textureLoader });
 
-    scene.add(new THREE.AmbientLight(0x182336, 0.34));
+    // LOT 31: artistic fill (interpretive), described in scene-lighting.js.
+    const ambientLight = new THREE.AmbientLight(0x182336, 0.34);
+    scene.add(ambientLight);
     const sunLight = new THREE.DirectionalLight(0xffe6c9, 2.55);
     scene.add(sunLight);
 
@@ -27,6 +29,7 @@ export function createEarthAppBootstrap({
 
     return {
         ...textures,
-        sunLight
+        sunLight,
+        ambientLight
     };
 }

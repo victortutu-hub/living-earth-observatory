@@ -149,10 +149,10 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     accent: '34,211,238',
     secondaryAccent: '99,102,241',
     provenanceTag: 'earth',
-    description: 'A cinematic real-time Earth built from relief and bathymetry textures, physical solar lighting and live natural-event signals.',
+    description: 'A cinematic real-time Earth built from relief and bathymetry textures, the real Sun direction with a declared artistic fill, and live natural-event signals.',
     features: Object.freeze([
       'NASA EONET events', 'USGS earthquakes', 'NASA FIRMS wildfires', 'GDACS alerts',
-      'NOAA aurora', 'Moon & Earthshine', 'ISS tracking',
+      'NOAA aurora', 'Moon & earthshine halo', 'ISS tracking',
     ]),
     representations: Object.freeze(['observed', 'reconstructed', 'physical-model', 'interpretive', 'fallback']),
     sources: Object.freeze([
@@ -184,7 +184,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     parent: 'living-earth', // entered from the Earth globe, not from the hero
     route: './living-himalaya.html', sources: ['himalayaPeaks', 'himalayaTerrainGlo30', 'terrariumTiles', 'astronomy', 'openMeteoPressureLevels', 'sentinel2L2a', 'himalayanDatabase', 'himalayaRoutes', 'himalayaCamps', 'himalayaGlaciers', 'himalayaSkyNight', 'himalayaSkyTwilight', 'himalayaSkyTransition', 'himalayaSkyDay'],
     accent: '103,232,249', secondaryAccent: '99,102,241', provenanceTag: 'himalaya', roadmap: ROADMAP.himalaya,
-    description: 'A regional observatory entered from a summit marker on the Earth globe: the 14 eight-thousanders and 6 selected Nepal peaks from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky (night observed, day interpretive), with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported; the 14 only).',
+    description: 'A regional observatory entered from a summit marker on the Earth globe: the 14 eight-thousanders and 6 selected Nepal peaks from a cited reference list on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun (plus a dim sky fill) under the real sky (night observed, day interpretive), with the latest clear Sentinel-2 scene, model weather at summit height and per-peak history from The Himalayan Database © (reported; the 14 only).',
     features: ['Terrain from elevation tiles', 'Latest Sentinel-2 scene', 'Pressure-level weather at summit altitude', 'Summit history (reported)', 'Opt-in expedition tracks'],
     representations: ['observed', 'reconstructed', 'prediction', 'reported', 'interpretive', 'fallback'],
   }),

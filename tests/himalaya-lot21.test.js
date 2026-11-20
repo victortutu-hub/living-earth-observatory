@@ -138,7 +138,7 @@ describe('LOT 21: registry, texts and order', () => {
     expect(himalaya.roadmap.next).toBe('All criteria met — next: glacier change (Hugonnet 2021, licence to confirm)');
     const html = text('living-himalaya.html');
     expect(html).toContain('<span>Luminomorphism / Regional Scale · Part of Living Earth</span>');
-    expect(html).toContain('<meta name="description" content="A regional observatory of Living Luminomorphism: the 14 summits above 8000 m and 6 selected Nepal peaks on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky.">');
+    expect(html).toContain('<meta name="description" content="A regional observatory of Living Luminomorphism: the 14 summits above 8000 m and 6 selected Nepal peaks on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun (plus a dim sky fill) under the real sky.">'); // LOT 31
     expect(html).toContain('himalaya.css?v=himalayaLot26');
     expect(html).toContain('living-himalaya-module.js?v=himalayaLot21');
     expect(html).not.toMatch(/in development/i);

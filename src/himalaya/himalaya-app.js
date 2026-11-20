@@ -363,7 +363,7 @@ export function startHimalayaApp({
     if (!peak) {
       details.replaceChildren(
         element('h2', null, '14 summits above 8000 m and 6 selected Nepal peaks'),
-        element('p', 'himalaya-panel-hint', 'Choose a summit from the list or click a marker. Terrain is lit by the Sun for the selected time; vertical exaggeration 1.0.'),
+        element('p', 'himalaya-panel-hint', 'Choose a summit from the list or click a marker. Terrain is lit by the Sun for the selected time, plus a dim sky fill (interpretive); vertical exaggeration 1.0.'),
       );
       return;
     }

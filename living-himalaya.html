@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Living Himalaya Observatory</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M6 52 26 18l9 14 6-8 17 28Z' fill='none' stroke='%2367E8F9' stroke-width='4' stroke-linejoin='round'/%3E%3C/svg%3E" />
-  <meta name="description" content="A regional observatory of Living Luminomorphism: the 14 summits above 8000 m and 6 selected Nepal peaks on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun under the real sky.">
+  <meta name="description" content="A regional observatory of Living Luminomorphism: the 14 summits above 8000 m and 6 selected Nepal peaks on real terrain (Copernicus GLO-30 around each summit, Terrarium overview), lit by the real Sun (plus a dim sky fill) under the real sky.">
   <link rel="stylesheet" href="./styles/inter.css?v=lot30inter1">
   <link rel="stylesheet" href="./styles/himalaya.css?v=himalayaLot26">
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.185.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
-  <canvas id="himalayaStage" aria-label="Terrain of the Himalaya and Karakoram with the summits above 8000 m and 6 selected Nepal peaks, lit by the Sun (vertical exaggeration 1.0)"></canvas>
+  <canvas id="himalayaStage" aria-label="Terrain of the Himalaya and Karakoram with the summits above 8000 m and 6 selected Nepal peaks, lit by the Sun and a dim sky fill (vertical exaggeration 1.0)"></canvas>
   <div id="himalayaLabels"></div>
   <header class="himalaya-header">
     <div class="himalaya-brand">
@@ -57,7 +57,7 @@
           <button id="himalayaGlaciersSwitch" class="himalaya-switch" type="button" role="switch" aria-checked="false"><span class="himalaya-switch-track" aria-hidden="true"></span><span class="himalaya-switch-text">Glacier outlines (RGI 7.0)</span></button>
           <p id="himalayaGlaciersNote" class="himalaya-mode-note himalaya-routes-note" aria-live="polite" hidden></p>
         </div>
-        <p class="himalaya-mode-note">Lit terrain: uniform albedo lit by the computed Sun · vertical exaggeration 1.0</p>
+        <p class="himalaya-mode-note">Lit terrain: uniform albedo lit by the computed Sun and a dim sky fill (hemisphere light, interpretive) · vertical exaggeration 1.0</p>
         <label id="himalayaTimeLabel" class="himalaya-time" for="himalayaTime">Sun time on the current UTC day</label>
         <p id="himalayaTimeSource" class="himalaya-mode-note himalaya-time-source" hidden></p>
         <input id="himalayaTime" type="range" min="0" max="1430" step="10" value="720">
