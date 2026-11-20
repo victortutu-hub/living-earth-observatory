@@ -462,9 +462,10 @@ export function createEarthAppRuntime({
     }
 
     function toggleMoonTexture() {
-        const next = moonSystem?.moonState?.textureSource === 'coryg89' ? 'nasa' : 'coryg89';
+        // LOT 30: 'primary' = CoryG89 (default) or, in the local comparison, the NASA SVS 4K map.
+        const next = moonSystem?.moonState?.textureSource === 'nasa' ? 'primary' : 'nasa';
         moonSystem?.setTextureSource?.(next);
-        updateMoonTextureUi?.(next);
+        updateMoonTextureUi?.(moonSystem?.moonState?.textureSource);
     }
 
     function toggleMoonMarkers() {

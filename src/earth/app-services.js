@@ -23,7 +23,7 @@ import { createEventScene } from './event-scene.js';
 import { createAppVisualFoundation } from './app-visual-foundation.js';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js';
-import { localDirForSelenographic } from './moon-system.js';
+import { describeMoonTextures, localDirForSelenographic } from './moon-system.js';
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
 import { atlasStatus } from '../core/status-store.js';
 import { getAstronomyImportState } from './astronomy-runtime.js';
@@ -455,7 +455,7 @@ export function createEarthAppServices({
             { label: 'Sublunar point', value: `${m.sublunarLat.toFixed(2)} lat, ${m.sublunarLon.toFixed(2)} lon` },
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
             { label: 'Illumination', value: 'Real Sun direction (MeshLambertMaterial), same sunLight as Earth' },
-            { label: 'Texture', value: m.textureSource === 'nasa' ? 'NASA LROC WAC (public domain)' : 'CoryG89 mosaic (default)' },
+            ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ]);
         startMoonTracking?.(moonSystem.moon, moonSystem.moonState?.sunWorldDir);

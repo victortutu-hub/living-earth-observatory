@@ -1,5 +1,7 @@
 import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
+import { MOON_COLOR_ASSET } from '../config/moon-color.js';
+import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -70,6 +72,35 @@ const MOON_TEXTURE_NASA_LOCAL_PATH = 'assets/moon-lroc-color-1k-1024x512.jpg';
 // Apoi seteaza MOON_DISPLACEMENT_LOCAL_PATH mai jos catre acel fisier.
 const MOON_DISPLACEMENT_URL = 'https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_3_8bit.jpg';
 const MOON_DISPLACEMENT_LOCAL_PATH = 'assets/moon-ldem-elevation-1024x512.jpg';
+
+// LOT 30 (step 2, TEMPORARY - removed in step 3 together with the CoryG89 path): local side-by-side
+// comparison of the Moon textures. ?moonCompare=nasa loads the NASA SVS set (LROC WAC colour 4K +
+// normal map reconstructed from LOLA topography, tools/build-moon-*.mjs); without the parameter the
+// page is unchanged (CoryG89). Only one set is loaded, so the texture memory does not grow. Not in the UI.
+export function moonTextureVariantFromSearch(search) {
+    return new URLSearchParams(search || '').get('moonCompare') === 'nasa' ? 'nasa-svs' : 'coryg89';
+}
+
+/** LOT 30: rows of the Moon details card that describe the active textures (no value of their own). */
+export function describeMoonTextures(state) {
+    if (state.textureSource === 'nasa-svs') {
+        const rows = [
+            { label: 'Texture', value: `NASA SVS CGI Moon Kit · LROC WAC colour ${MOON_COLOR_ASSET.width}×${MOON_COLOR_ASSET.height} · observed (SVS: optimized for aesthetics, not science)` },
+            { label: 'Relief shading', value: state.normalAvailable === false
+                ? 'Normal map unavailable (did not load); LOLA displacement only'
+                : `Normal map ${MOON_NORMAL_ASSET.width}×${MOON_NORMAL_ASSET.height} reconstructed from LOLA topography (LDEM 16 px/deg), ${MOON_NORMAL_ASSET.scale.kmPerPixelNS} km/px, vertical exaggeration ${MOON_NORMAL_ASSET.scale.verticalExaggeration}×` },
+            { label: 'Credit', value: MOON_COLOR_ASSET.source.credit },
+        ];
+        return rows;
+    }
+    if (state.textureSource === 'nasa-1k-fallback') {
+        return [
+            { label: 'Texture', value: 'NASA LROC WAC 1024×512 (local fallback: the 4K colour map did not load)' },
+            { label: 'Credit', value: MOON_COLOR_ASSET.source.credit },
+        ];
+    }
+    return [{ label: 'Texture', value: state.textureSource === 'nasa' ? 'NASA LROC WAC (public domain)' : 'CoryG89 mosaic (default)' }];
+}
 
 function handleTextureLoadError(label, url) {
     return error => {
@@ -176,6 +207,14 @@ function createMoonDisplacementTexture(THREE) {
     return texture;
 }
 
+// LOT 30: one local Moon asset (NASA SVS set), with load / error callbacks.
+function loadMoonAsset(THREE, file, colorSpace, onError, onLoad) {
+    const texture = new THREE.TextureLoader().load(file, onLoad, undefined, onError);
+    texture.colorSpace = colorSpace;
+    texture.anisotropy = 4;
+    return texture;
+}
+
 function createMoonHaloTexture(THREE) {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -224,7 +263,8 @@ export function createMoonSystem({
     sunLight,
     lonLatToVec3,
     getDate = () => new Date(),
-    refreshMs = 60000
+    refreshMs = 60000,
+    textureVariant = moonTextureVariantFromSearch(typeof location !== 'undefined' ? location.search : '') // LOT 30, temporary
 }) {
     const MOON_SCENE_DISTANCE = 13.5;
     const MOON_APPARENT_SIZE = 0.032;
@@ -238,16 +278,39 @@ export function createMoonSystem({
         sublunarLat: 0,
         distanceKm: MEAN_MOON_DISTANCE_KM,
         phaseFraction: 0,
-        textureSource: 'coryg89',
+        textureSource: textureVariant,
+        normalAvailable: null,
         librationElon: 0,
         librationElat: 0,
         orientationSource: 'pending',
         moonRollOffsetDeg: 0,
         sunWorldDir: new THREE.Vector3(1, 0, 0)
     };
-    const moonTextureCoryG89 = createMoonTexture(THREE);
+    const nasaSvs = textureVariant === 'nasa-svs';
+    let moonMat = null;
     const moonTextureNasa = createMoonTextureNasa(THREE);
-    const moonNormalTexture = createMoonNormalTexture(THREE);
+    // LOT 30: the primary colour map - CoryG89 (unchanged default) or, for the comparison only, NASA SVS 4K
+    // with the local LROC 1K map as labelled fallback if the 4K file does not load.
+    const moonTexturePrimary = nasaSvs
+        ? loadMoonAsset(THREE, MOON_COLOR_ASSET.file, THREE.SRGBColorSpace, (error) => {
+            console.warn(`[Moon] NASA SVS colour map ${MOON_COLOR_ASSET.file} unavailable; using the local LROC 1K map.`, error);
+            if (state.textureSource === 'nasa-svs' && moonMat) { moonMat.map = moonTextureNasa; moonMat.needsUpdate = true; moonMat.userData.textureSource = MOON_TEXTURE_NASA_LOCAL_PATH; }
+            if (state.textureSource === 'nasa-svs') {
+                state.textureSource = 'nasa-1k-fallback';
+                const button = typeof document !== 'undefined' ? document.getElementById('moonTextureBtn') : null;
+                if (button) button.textContent = 'Moon texture: NASA LROC 1K (fallback)'; // same label as control-panel.js
+            }
+            primaryFailed = true;
+        })
+        : createMoonTexture(THREE);
+    let primaryFailed = false;
+    const moonNormalTexture = nasaSvs
+        ? loadMoonAsset(THREE, MOON_NORMAL_ASSET.file, THREE.NoColorSpace, (error) => {
+            console.warn(`[Moon] NASA SVS normal map ${MOON_NORMAL_ASSET.file} unavailable; material continues without it.`, error);
+            state.normalAvailable = false;
+            if (moonMat) { moonMat.normalMap = null; moonMat.needsUpdate = true; }
+        }, () => { state.normalAvailable = true; })
+        : createMoonNormalTexture(THREE);
     const moonDisplacementTexture = createMoonDisplacementTexture(THREE); // null pana adaugi assetul local
     // Sfera reala (nu billboard plat) - textura echirectangulara se infasoara
     // corect doar pe o sfera. Raza 0.5 => diametru 1, ca sa pastram identic
@@ -268,12 +331,14 @@ export function createMoonSystem({
     // directa, deci pana la adaugarea assetului local, Luna ramane cu
     // culoare + normal map, fara deformare geometrica reala.
     const moonMatParams = {
-        map: moonTextureCoryG89,
+        map: moonTexturePrimary,
         color: 0xffffff,
         emissive: 0x10263a,
         emissiveIntensity: 0.18,
         normalMap: moonNormalTexture,
-        normalScale: new THREE.Vector2(0.6, 0.6)
+        // CoryG89: 0.6 (its normals come from image brightness, arbitrary strength). NASA SVS: 1 - the
+        // normals are computed from the measured slopes (vertical exaggeration 1x, see moon-normal.js).
+        normalScale: nasaSvs ? new THREE.Vector2(1, 1) : new THREE.Vector2(0.6, 0.6)
     };
     if (moonDisplacementTexture) {
         moonMatParams.bumpMap = moonDisplacementTexture;
@@ -282,8 +347,9 @@ export function createMoonSystem({
         moonMatParams.displacementScale = 0.035;
         moonMatParams.displacementBias = -0.017;
     }
-    const moonMat = new THREE.MeshLambertMaterial(moonMatParams);
-    moonMat.userData.textureSource = MOON_TEXTURE_URL;
+    moonMat = new THREE.MeshLambertMaterial(moonMatParams);
+    moonMat.userData.textureSource = nasaSvs ? MOON_COLOR_ASSET.file : MOON_TEXTURE_URL;
+    if (nasaSvs) moonMat.userData.normalSource = MOON_NORMAL_ASSET.file;
     moonMat.userData.displacementSource = moonDisplacementTexture ? MOON_DISPLACEMENT_LOCAL_PATH : 'unavailable (NASA CORS blocked, no local asset yet)';
     const moon = new THREE.Mesh(moonSphereGeometry, moonMat);
     moon.name = 'astronomical-moon';
@@ -300,8 +366,13 @@ export function createMoonSystem({
             moonMat.map = moonTextureNasa;
             moonMat.userData.textureSource = MOON_TEXTURE_NASA_LOCAL_PATH;
             state.textureSource = 'nasa';
+        } else if (nasaSvs) {
+            // LOT 30 comparison: back to the NASA SVS 4K map (or its labelled 1K fallback).
+            moonMat.map = primaryFailed ? moonTextureNasa : moonTexturePrimary;
+            moonMat.userData.textureSource = primaryFailed ? MOON_TEXTURE_NASA_LOCAL_PATH : MOON_COLOR_ASSET.file;
+            state.textureSource = primaryFailed ? 'nasa-1k-fallback' : 'nasa-svs';
         } else {
-            moonMat.map = moonTextureCoryG89;
+            moonMat.map = moonTexturePrimary;
             moonMat.userData.textureSource = MOON_TEXTURE_URL;
             state.textureSource = 'coryg89';
         }

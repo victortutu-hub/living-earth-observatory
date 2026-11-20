@@ -229,7 +229,9 @@ export function createControlPanel({ state }) {
 
     function updateMoonTextureUi(source = 'coryg89') {
         const button = byId('moonTextureBtn');
-        if (button) button.textContent = `Moon texture: ${source === 'nasa' ? 'NASA (public domain)' : 'CoryG89 (default)'}`;
+        // LOT 30: the two NASA SVS labels appear only in the local comparison (?moonCompare=nasa).
+        const label = { nasa: 'NASA (public domain)', 'nasa-svs': 'NASA SVS 4K (comparison)', 'nasa-1k-fallback': 'NASA LROC 1K (fallback)' }[source] || 'CoryG89 (default)';
+        if (button) button.textContent = `Moon texture: ${label}`;
     }
 
     function updateZodiacalIntensityUi() {
