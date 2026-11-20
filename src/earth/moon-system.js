@@ -2,6 +2,7 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
+import { EARTH_GEOMETRIC_ALBEDO, earthPhaseAngleFromElongationCos, earthshineRatio, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -162,6 +163,39 @@ function loadMoonAsset(THREE, file, colorSpace, onError, onLoad) {
     return texture;
 }
 
+// LOT 31: the Moon is lit only by the real Sun and the physical earthshine (earthshine.js), not by the
+// scene lights (the cool fill opposite the Sun and the ambient light stay for the Earth only). The
+// Lambert material keeps its colour map, LOLA normal map, bump and displacement, the fallback swap and
+// the pipeline tone mapping; onBeforeCompile replaces only the light accumulation with two directional
+// terms read from uniforms (view space, set in onBeforeRender from the live sunLight), with the same
+// formula three.js uses for a directional light (irradiance = saturate(N.L) * colour, times
+// BRDF_Lambert). uMoonExposure multiplies the outgoing light before tone mapping (1 = none).
+export const MOON_LIGHTING_CHUNKS = Object.freeze({
+    begin: '#include <lights_fragment_begin>',
+    maps: '#include <lights_fragment_maps>',
+    end: '#include <lights_fragment_end>',
+    output: '#include <opaque_fragment>',
+});
+export function patchMoonLightingShader(shader, uniforms) {
+    for (const [key, chunk] of Object.entries(MOON_LIGHTING_CHUNKS)) {
+        if (!shader.fragmentShader.includes(chunk)) throw new Error(`Moon lighting patch: ${key} chunk not found (three.js changed?)`);
+    }
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = shader.fragmentShader
+        .replace('void main() {', 'uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform float uMoonExposure;\nvoid main() {')
+        .replace(MOON_LIGHTING_CHUNKS.begin, [
+            '// LOT 31: Sun + physical earthshine only (no ambient, no fill lights).',
+            'float moonSunNL = saturate( dot( normal, uMoonSunDir ) );',
+            'reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );',
+            'float moonEarthNL = saturate( dot( normal, uMoonEarthDir ) );',
+            'reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * BRDF_Lambert( material.diffuseColor );',
+        ].join('\n'))
+        .replace(MOON_LIGHTING_CHUNKS.maps, '')
+        .replace(MOON_LIGHTING_CHUNKS.end, '')
+        .replace(MOON_LIGHTING_CHUNKS.output, `outgoingLight *= uMoonExposure;\n${MOON_LIGHTING_CHUNKS.output}`);
+    return shader;
+}
+
 function createMoonHaloTexture(THREE) {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -230,7 +264,10 @@ export function createMoonSystem({
         librationElat: 0,
         orientationSource: 'pending',
         moonRollOffsetDeg: 0,
-        sunWorldDir: new THREE.Vector3(1, 0, 0)
+        sunWorldDir: new THREE.Vector3(1, 0, 0),
+        // LOT 31: physical earthshine (earthshine.js), updated with the Moon position.
+        earthshine: { ratio: 0, stops: Infinity, earthPhaseAngleDeg: null, albedo: EARTH_GEOMETRIC_ALBEDO, distanceKm: MEAN_MOON_DISTANCE_KM },
+        exposureEv: 0
     };
     let moonMat = null;
     let moonTextureFallback = null; // LROC 1K, created only if the 4K colour map fails
@@ -263,10 +300,8 @@ export function createMoonSystem({
     // aditive care inca trebuie sa priveasca mereu camera).
     const moonBillboardGeometry = new THREE.PlaneGeometry(1, 1, 2, 2);
     // MeshLambertMaterial (difuz, fara specular) - Luna nu are atmosfera care
-    // sa produca luciu; directia solara e cea reala (sunLight, ca la Pamant), deci
-    // faza reiese din geometrie. LOT 31: o lumineaza si fill-ul artistic al scenei
-    // (coolFill opus Soarelui, ambient) plus emissive-ul de mai jos - interpretive,
-    // declarate in detaliile Lunii (scene-lighting.js).
+    // sa produca luciu. LOT 31: iluminarea e doar Soarele real + earthshine-ul
+    // fizic (patchMoonLightingShader); fara ambient, fara emissive, fara fill.
     // displacementMap/bumpMap adaugate DOAR daca exista un asset local valid
     // (moonDisplacementTexture non-null) - CORS-ul NASA blocheaza incarcarea
     // directa, deci pana la adaugarea assetului local, Luna ramane cu
@@ -274,8 +309,6 @@ export function createMoonSystem({
     const moonMatParams = {
         map: moonTextureColor,
         color: 0xffffff,
-        emissive: 0x10263a,
-        emissiveIntensity: 0.18,
         normalMap: moonNormalTexture,
         // 1: the normals are computed from the measured slopes (vertical exaggeration 1x, moon-normal.js).
         normalScale: new THREE.Vector2(1, 1)
@@ -288,6 +321,16 @@ export function createMoonSystem({
         moonMatParams.displacementBias = -0.017;
     }
     moonMat = new THREE.MeshLambertMaterial(moonMatParams);
+    const moonLightUniforms = {
+        uMoonSunDir: { value: new THREE.Vector3(1, 0, 0) },
+        uMoonSunColor: { value: new THREE.Color(0, 0, 0) },
+        uMoonEarthDir: { value: new THREE.Vector3(-1, 0, 0) },
+        uMoonEarthshine: { value: 0 },
+        uMoonExposure: { value: 1 },
+    };
+    moonMat.onBeforeCompile = (shader) => patchMoonLightingShader(shader, moonLightUniforms);
+    moonMat.customProgramCacheKey = () => 'lumi-moon-physical-lighting-lot31';
+    moonMat.userData.lighting = 'sun + physical earthshine (LOT 31)';
     moonMat.userData.textureSource = MOON_COLOR_ASSET.file;
     moonMat.userData.normalSource = MOON_NORMAL_ASSET.file;
     moonMat.userData.displacementSource = MOON_DISPLACEMENT_LOCAL_PATH;
@@ -296,6 +339,17 @@ export function createMoonSystem({
     moon.visible = false;
     moon.renderOrder = 6;
     moon.userData.specialId = 'moon';
+    // LOT 31: light uniforms from the live sunLight and the camera that renders this frame.
+    const sunWorld = new THREE.Vector3(); const targetWorld = new THREE.Vector3(); const moonWorld = new THREE.Vector3();
+    moon.onBeforeRender = (renderer, renderScene, renderCamera) => {
+        sunWorld.setFromMatrixPosition(sunLight.matrixWorld);
+        targetWorld.setFromMatrixPosition(sunLight.target.matrixWorld);
+        moonLightUniforms.uMoonSunDir.value.copy(sunWorld).sub(targetWorld).normalize().transformDirection(renderCamera.matrixWorldInverse);
+        moonLightUniforms.uMoonSunColor.value.copy(sunLight.color).multiplyScalar(sunLight.intensity);
+        moonWorld.setFromMatrixPosition(moon.matrixWorld);
+        moonLightUniforms.uMoonEarthDir.value.copy(moonWorld).negate().normalize().transformDirection(renderCamera.matrixWorldInverse); // the Earth is at the origin
+        moonLightUniforms.uMoonEarthshine.value = state.earthshine.ratio;
+    };
     scene.add(moon);
 
     // Offset artistic de roll, in grade, aplicat DUPA orientarea fizica reala
@@ -384,6 +438,10 @@ export function createMoonSystem({
         const sunDir = raDecToUnit(THREE, sunEquatorial.ra, sunEquatorial.dec);
         const elongationCos = THREE.MathUtils.clamp(moonDir.dot(sunDir), -1, 1);
         state.phaseFraction = (1 - elongationCos) * 0.5;
+        // LOT 31: the Earth's phase angle seen from the Moon is this elongation (earthshine.js).
+        const earthPhaseAngle = earthPhaseAngleFromElongationCos(elongationCos);
+        const ratio = earthshineRatio({ earthPhaseAngle, distanceKm: state.distanceKm });
+        state.earthshine = { ratio, stops: stopsBelowSun(ratio), earthPhaseAngleDeg: earthPhaseAngle * 180 / Math.PI, albedo: EARTH_GEOMETRIC_ALBEDO, distanceKm: state.distanceKm };
 
         // Directia reala Soare, in ACELASI frame "world/scena" ca moon.position
         // (lonLatToVec3, ancorat la rotatia Pamantului via siderealHours) - NU

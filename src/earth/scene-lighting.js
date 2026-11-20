@@ -1,9 +1,10 @@
-// LOT 31: what lights the Living Earth scene, described from the live light objects (no value of its
-// own). The Sun is a physical model (direction from Astronomy Engine); every other contribution is an
-// artistic fill (interpretive): the cool directional light opposite the Sun (solar-system.js, intensity
-// by Earth look preset), the ambient light (earth-app-bootstrap.js) and, on the Moon only, the emissive
-// tint of its material (moon-system.js). Earthshine is not modelled as light; the "earthshine" billboard
-// is a decorative halo.
+// LOT 31: what lights the Living Earth scene, described from the live objects (no value of its own).
+// The Sun is a physical model (direction from Astronomy Engine). The Earth also gets an artistic fill
+// (interpretive): the cool directional light opposite the Sun (solar-system.js, intensity by Earth look
+// preset) and the ambient light (earth-app-bootstrap.js). The Moon (ETAPA 2) is lit only by the Sun and
+// the physical earthshine (earthshine.js; moon-system.js patches its material).
+
+import { EARTH_GEOMETRIC_ALBEDO, formatRatio } from './earthshine.js';
 
 const hex = (color) => `#${color.getHexString()}`;
 const n = (value) => String(Number(value.toFixed(2)));
@@ -13,7 +14,7 @@ export function describeSun(sunLight) {
     return `Sun: real direction (physical-model, Astronomy Engine) · directional ${hex(sunLight.color)} × ${n(sunLight.intensity)}`;
 }
 
-/** The artistic fill shared by the Earth and the Moon: cool light opposite the Sun + ambient. */
+/** The artistic fill of the Earth (LOT 31 ETAPA 2: not the Moon): cool light opposite the Sun + ambient. */
 export function describeArtisticFill({ coolFill, ambientLight, look }) {
     const parts = [];
     if (coolFill) parts.push(`cool directional light opposite the Sun ${hex(coolFill.color)} × ${n(coolFill.intensity)}${look ? ` (look: ${look})` : ''}`);
@@ -21,12 +22,12 @@ export function describeArtisticFill({ coolFill, ambientLight, look }) {
     return parts;
 }
 
-export const EARTHSHINE_NOT_MODELLED = 'earthshine not modelled as light';
 export const EARTHSHINE_HALO_LABEL = 'Decorative additive halo around the disc (interpretive): its opacity follows 1 − lit fraction (at most 0.07); it does not light the surface';
 
-/** Moon details, row "Illumination". */
-export function describeMoonIllumination({ sunLight, coolFill, ambientLight, moonMaterial, look }) {
-    const fill = describeArtisticFill({ coolFill, ambientLight, look });
-    if (moonMaterial?.emissive && moonMaterial.emissiveIntensity > 0) fill.push(`emissive tint ${hex(moonMaterial.emissive)} × ${n(moonMaterial.emissiveIntensity)}`);
-    return `${describeSun(sunLight)} · plus artistic fill (interpretive): ${fill.join(', ')} — ${EARTHSHINE_NOT_MODELLED}`;
+/** Moon details, row "Illumination" (LOT 31 ETAPA 2): the Sun and the physical earthshine, no fill. */
+export function describeMoonIllumination({ sunLight, earthshine }) {
+    const es = earthshine || {};
+    const phase = Number.isFinite(es.earthPhaseAngleDeg) ? `Earth phase angle ${Math.round(es.earthPhaseAngleDeg)}°, ` : '';
+    const level = es.ratio > 0 ? `${formatRatio(es.ratio)} of the sunlight (${es.stops.toFixed(1)} stops below)` : '0 (new Earth)';
+    return `${describeSun(sunLight)} · earthshine (physical-model, approximated: p = ${es.albedo ?? EARTH_GEOMETRIC_ALBEDO} geometric albedo, Lambert phase, from the Earth's direction): ${phase}${level} — no artistic fill on the Moon`;
 }

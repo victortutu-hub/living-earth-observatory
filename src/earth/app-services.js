@@ -455,7 +455,7 @@ export function createEarthAppServices({
             { label: 'Sublunar point', value: `${m.sublunarLat.toFixed(2)} lat, ${m.sublunarLon.toFixed(2)} lon` },
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
             // LOT 31: every light that reaches the Moon, read from the live objects.
-            { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, coolFill, ambientLight: bootstrap.ambientLight, moonMaterial: moonSystem.moon.material, look: state.earthLook }) },
+            { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, earthshine: m.earthshine }) },
             { label: 'Earthshine', value: EARTHSHINE_HALO_LABEL },
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
