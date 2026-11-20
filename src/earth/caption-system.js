@@ -164,9 +164,9 @@ export function createCaptionSystem({
                 style,
                 header: 'ASTRONOMY ENGINE - REAL MOON GEOMETRY',
                 title: 'EARTHSHINE',
-                subtitle: 'DECORATIVE HALO, STRENGTH FROM THE REAL PHASE', // LOT 31: not modelled light
+                subtitle: 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED', // LOT 31 ETAPA 2: Earthshine view
                 meta: 'Phase, distance and lunar orientation are calculated live',
-                footer: 'Interpretive glow - earthshine is not modelled as light'
+                footer: 'Physical earthshine (approximated), shown with a declared exposure, as in photographs'
             };
         }
         if (mode === 'iss') {

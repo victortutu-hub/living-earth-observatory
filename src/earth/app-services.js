@@ -24,7 +24,7 @@ import { createAppVisualFoundation } from './app-visual-foundation.js';
 import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js';
 import { describeMoonTextures, localDirForSelenographic } from './moon-system.js';
-import { EARTHSHINE_HALO_LABEL, describeMoonIllumination } from './scene-lighting.js';
+import { describeMoonExposure, describeMoonIllumination } from './scene-lighting.js';
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
 import { atlasStatus } from '../core/status-store.js';
 import { getAstronomyImportState } from './astronomy-runtime.js';
@@ -456,7 +456,7 @@ export function createEarthAppServices({
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
             // LOT 31: every light that reaches the Moon, read from the live objects.
             { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, earthshine: m.earthshine }) },
-            { label: 'Earthshine', value: EARTHSHINE_HALO_LABEL },
+            { label: 'Exposure', value: describeMoonExposure(m.exposureEv) }, // LOT 31 ETAPA 2
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ]);

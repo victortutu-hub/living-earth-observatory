@@ -107,3 +107,31 @@ describe('LOT 31 ETAPA 2: physical earthshine', () => {
     expect(() => patchMoonLightingShader({ uniforms: {}, fragmentShader: 'void main() {}' }, {})).toThrow(/chunk not found/);
   });
 });
+
+describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo removed', async () => {
+  const { describeMoonExposure } = await import('../src/earth/scene-lighting.js');
+  it('the earthshine halo and its boost are gone from code, captions and pages', () => {
+    const moon = text('src/earth/moon-system.js');
+    for (const gone of ['moonEarthshine', 'createEarthshineTexture', 'setEarthshineBoost', 'earthshineBoost']) expect(moon).not.toContain(gone);
+    const all = ['src/earth/reel-timeline.js', 'src/earth/reel-overlay.js', 'src/earth/caption-system.js', 'src/earth/app-services.js', 'src/earth/scene-lighting.js', 'index.html', 'earth-eonet-relief.html', 'src/config/observatory-registry.js', 'src/config/source-registry.js'].map(text).join('\n');
+    expect(all).not.toMatch(/setEarthshineBoost|earthshine halo|EARTHSHINE_HALO|DECORATIVE HALO/i);
+  });
+  it('one exposure for the whole Moon material, declared on the button and in the details; the Earth is not touched', () => {
+    const moon = text('src/earth/moon-system.js');
+    expect(moon).toContain('moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;');
+    expect(moon).toContain('const EARTHSHINE_VIEW_EV = 10;');
+    expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped, as in photographs)');
+    expect(describeMoonExposure(0)).toMatch(/^Normal exposure \(\+0 EV\)/);
+    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: describeMoonExposure(m.exposureEv) },");
+    expect(text('earth-eonet-relief.html')).toContain('<button id="earthshineViewBtn" aria-pressed="false"');
+    expect(text('src/earth/control-panel.js')).toContain("byId('earthshineViewBtn')?.addEventListener('click', () => {");
+    // Only the Moon material reads uMoonExposure.
+    for (const f of ['src/earth/earth-material.js', 'src/earth/earth-layers.js', 'src/earth/cloud-shaders.js']) expect(text(f), f).not.toContain('uMoonExposure');
+  });
+  it('the reel uses the same mechanism and says so', () => {
+    const reel = text('src/earth/reel-timeline.js');
+    expect(reel).toContain('moonSystem.setMoonExposureEv?.(10);');
+    expect(reel.match(/setMoonExposureEv\?\.\(0\)/g)).toHaveLength(2);
+    expect(text('src/earth/caption-system.js')).toContain("subtitle: 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED',");
+  });
+});

@@ -464,6 +464,11 @@ export function createEarthAppRuntime({
         moonMarkers?.toggle?.();
     }
 
+    // LOT 31 ETAPA 2: Moon exposure +10 EV (physical earthshine made visible; lit side clipped).
+    function toggleEarthshineView() {
+        moonSystem?.toggleEarthshineView?.();
+    }
+
     function updateDataSourceMode(value) {
         state.dataSourceMode = value || 'eonet';
     }
@@ -505,6 +510,7 @@ export function createEarthAppRuntime({
             toggleNoctilucentClouds,
             updateNoctilucentSettings,
             toggleMoonMarkers,
+            toggleEarthshineView,
             updateZodiacalIntensity,
             applySocialPreset: socialPresetSystem.applySocialPreset,
             setSocialPresetCustom: socialPresetSystem.setCustom,

@@ -215,29 +215,6 @@ function createMoonHaloTexture(THREE) {
     return texture;
 }
 
-// "Earthshine" billboard - LOT 31: a decorative additive halo (interpretive), NOT the light of
-// the Earth on the dark side (earthshine is not modelled as light): glow albastru-cenusiu in jurul discului,
-// intensitate legata de (1 - phaseFraction) - maxima la Luna noua,
-// zero la Luna plina. Strat aditiv separat, nu atinge textura principala.
-function createEarthshineTexture(THREE) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    const center = canvas.width / 2;
-    const glow = ctx.createRadialGradient(center, center, 10, center, center, 122);
-    glow.addColorStop(0, 'rgba(150,175,205,0.55)');
-    glow.addColorStop(0.32, 'rgba(120,150,190,0.30)');
-    glow.addColorStop(0.68, 'rgba(90,120,165,0.10)');
-    glow.addColorStop(1, 'rgba(90,120,165,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-}
-
 export function createMoonSystem({
     THREE,
     scene,
@@ -296,8 +273,8 @@ export function createMoonSystem({
     // sa aiba suficiente vertecsi ca sa arate neted la zoom apropiat, exact
     // ca la relieful Pamantului.
     const moonSphereGeometry = new THREE.SphereGeometry(0.5, 256, 192);
-    // Geometrie plata separata, doar pentru halo si earthshine (billboard-uri
-    // aditive care inca trebuie sa priveasca mereu camera).
+    // Geometrie plata separata, doar pentru haloul decorativ (billboard aditiv
+    // care trebuie sa priveasca mereu camera).
     const moonBillboardGeometry = new THREE.PlaneGeometry(1, 1, 2, 2);
     // MeshLambertMaterial (difuz, fara specular) - Luna nu are atmosfera care
     // sa produca luciu. LOT 31: iluminarea e doar Soarele real + earthshine-ul
@@ -377,41 +354,24 @@ export function createMoonSystem({
     moonHalo.renderOrder = 5;
     scene.add(moonHalo);
 
-    const moonEarthshine = new THREE.Mesh(moonBillboardGeometry.clone(), new THREE.MeshBasicMaterial({
-        map: createEarthshineTexture(THREE),
-        color: 0xaac0e0,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        depthTest: true,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        toneMapped: false
-    }));
-    moonEarthshine.name = 'astronomical-moon-earthshine';
-    moonEarthshine.visible = false;
-    moonEarthshine.renderOrder = 4;
-    scene.add(moonEarthshine);
-
     let astronomyObserver = null;
     let intervalId = null;
-    let earthshineBoost = 1;
 
-    function currentEarthshineOpacity() {
-        const baseOpacity = THREE.MathUtils.clamp((1 - state.phaseFraction) * 0.16, 0, 0.16);
-        return THREE.MathUtils.clamp(baseOpacity * earthshineBoost, 0, 0.07);
+    // LOT 31 ETAPA 2: "Earthshine view" = a real exposure change of the whole Moon (+10 EV: the
+    // earthshine side becomes visible, the lit side clips, as in photographs). Only the Moon material
+    // (uMoonExposure); the Earth is not affected. Declared in the Moon details and on the button.
+    const EARTHSHINE_VIEW_EV = 10;
+    function setMoonExposureEv(ev = 0) {
+        state.exposureEv = Number.isFinite(Number(ev)) ? Math.max(0, Math.min(EARTHSHINE_VIEW_EV, Number(ev))) : 0;
+        moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;
+        const button = typeof document !== 'undefined' ? document.getElementById('earthshineViewBtn') : null;
+        if (button) {
+            button.textContent = state.exposureEv > 0 ? `Earthshine view: +${state.exposureEv} EV` : 'Earthshine view: off';
+            button.setAttribute('aria-pressed', String(state.exposureEv > 0));
+        }
     }
-
-    function applyEarthshineOpacity() {
-        const opacity = currentEarthshineOpacity();
-        moonEarthshine.material.opacity = opacity;
-        moonEarthshine.userData.visibleByPhase = opacity > 0.01;
-        moonEarthshine.visible = state.visible && moonEarthshine.userData.visibleByPhase;
-    }
-
-    function setEarthshineBoost(boost = 1) {
-        earthshineBoost = THREE.MathUtils.clamp(Number(boost) || 1, 1, 3.2);
-        applyEarthshineOpacity();
+    function toggleEarthshineView() {
+        setMoonExposureEv(state.exposureEv > 0 ? 0 : EARTHSHINE_VIEW_EV);
     }
 
     async function updateMoonPosition(now = getDate()) {
@@ -419,7 +379,6 @@ export function createMoonSystem({
         if (!Astronomy) {
             moon.visible = false;
             moonHalo.visible = false;
-            moonEarthshine.visible = false;
             state.visible = false;
             state.source = 'retrying';
             updateMoonStatus(state);
@@ -490,20 +449,16 @@ export function createMoonSystem({
 
         moonHalo.position.copy(moon.position);
         moonHalo.scale.setScalar(MOON_MIN_SIZE * distanceScale * 1.12);
-        moonEarthshine.position.copy(moon.position);
-        moonEarthshine.scale.setScalar(MOON_MIN_SIZE * distanceScale * 1.24);
         moon.visible = true;
         moonHalo.visible = true;
         state.visible = true;
         state.source = 'astronomy-engine';
-        applyEarthshineOpacity();
         updateMoonStatus(state);
     }
 
     function update(camera) {
         if (!state.visible) return;
         moonHalo.position.copy(moon.position);
-        moonEarthshine.position.copy(moon.position);
         if (!camera) return;
 
         const cameraToMoon = moon.position.clone().sub(camera.position);
@@ -516,11 +471,9 @@ export function createMoonSystem({
         const isEarthOccluded = closestDistanceToEarth < EARTH_OCCLUSION_RADIUS;
         moon.visible = !isEarthOccluded;
         moonHalo.visible = !isEarthOccluded;
-        moonEarthshine.visible = !isEarthOccluded && moonEarthshine.userData.visibleByPhase;
         if (isEarthOccluded) return;
         // moon e sfera reala - nu are nevoie de lookAt, arata identic din orice unghi.
         moonHalo.lookAt(camera.position);
-        moonEarthshine.lookAt(camera.position);
 
         const distanceScale = moon.userData.distanceScale || 1;
         const apparentSize = THREE.MathUtils.clamp(
@@ -530,7 +483,6 @@ export function createMoonSystem({
         );
         moon.scale.setScalar(apparentSize);
         moonHalo.scale.setScalar(apparentSize * 1.08);
-        moonEarthshine.scale.setScalar(apparentSize * 1.2);
     }
 
     function start() {
@@ -548,13 +500,13 @@ export function createMoonSystem({
     return {
         moon,
         moonHalo,
-        moonEarthshine,
         moonState: state,
         start,
         stop,
         update,
         updateMoonPosition,
         setMoonRollOffset,
-        setEarthshineBoost
+        setMoonExposureEv,
+        toggleEarthshineView
     };
 }

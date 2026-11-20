@@ -152,7 +152,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
     description: 'A cinematic real-time Earth built from relief and bathymetry textures, the real Sun direction with a declared artistic fill, and live natural-event signals.',
     features: Object.freeze([
       'NASA EONET events', 'USGS earthquakes', 'NASA FIRMS wildfires', 'GDACS alerts',
-      'NOAA aurora', 'Moon & earthshine halo', 'ISS tracking',
+      'NOAA aurora', 'Moon & physical earthshine', 'ISS tracking',
     ]),
     representations: Object.freeze(['observed', 'reconstructed', 'physical-model', 'interpretive', 'fallback']),
     sources: Object.freeze([

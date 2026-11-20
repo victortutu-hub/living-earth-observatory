@@ -184,7 +184,7 @@ export function createDemoReelTimeline({
                 stopIssTracking?.();
                 updateIssLayerUi?.({ enabled: state.issLayer, tracking: false });
                 deselectAll();
-                moonSystem.setEarthshineBoost?.(1.28);
+                moonSystem.setMoonExposureEv?.(10); // LOT 31: Earthshine view (declared in the caption)
                 if (localCinematic) showReelCodeSnippet?.('moon');
                 startMoonTracking?.(moonSystem.moon, moonSystem.moonState?.sunWorldDir, localCinematic
                     ? { duration: moonFlightSec, distance: 0.62, targetLeadMultiplier: 1.0 }
@@ -300,7 +300,7 @@ export function createDemoReelTimeline({
             updateIssLayerUi?.({ enabled: state.issLayer, tracking: false });
             stopMoonTracking?.();
             startReturnFromMoon?.(6.4);
-            moonSystem?.setEarthshineBoost?.(1);
+            moonSystem?.setMoonExposureEv?.(0);
             applyReelMood(previous.reelMood);
             applyEarthLook(previous.earthLook);
             applyAtmosphereMode(previous.atmosphere);
@@ -347,7 +347,7 @@ export function createDemoReelTimeline({
         hideReelCaption();
         stopIssTracking?.();
         stopMoonTracking?.();
-        moonSystem?.setEarthshineBoost?.(1);
+        moonSystem?.setMoonExposureEv?.(0);
     }
 
     return {

@@ -252,7 +252,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     access: { kind: 'public-module', label: 'Public runtime module + local computation', requiresProxy: false },
     license: 'MIT License; the runtime module version is pinned and provider attribution is retained.',
     privacyClass: 'local-computation',
-    visuals: ['Day/night terminator', 'Solar lighting direction', 'Moon phase, distance and libration', 'Earthshine halo strength (from the phase; decorative)'],
+    visuals: ['Day/night terminator', 'Solar lighting direction', 'Moon phase, distance and libration', 'Earthshine (Earth phase angle and Earth-Moon distance)'],
     observatories: ['living-earth', 'living-himalaya'],
   }),
   celestrak: defineSource({

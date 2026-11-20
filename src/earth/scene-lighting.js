@@ -22,7 +22,12 @@ export function describeArtisticFill({ coolFill, ambientLight, look }) {
     return parts;
 }
 
-export const EARTHSHINE_HALO_LABEL = 'Decorative additive halo around the disc (interpretive): its opacity follows 1 − lit fraction (at most 0.07); it does not light the surface';
+/** Moon details, row "Exposure" (LOT 31 ETAPA 2: Earthshine view). */
+export function describeMoonExposure(exposureEv = 0) {
+    return exposureEv > 0
+        ? `Moon exposure +${exposureEv} EV (lit side clipped, as in photographs)`
+        : 'Normal exposure (+0 EV): the earthshine side is about 13 stops or more below the lit side, so it looks black; use Earthshine view (+10 EV)';
+}
 
 /** Moon details, row "Illumination" (LOT 31 ETAPA 2): the Sun and the physical earthshine, no fill. */
 export function describeMoonIllumination({ sunLight, earthshine }) {
