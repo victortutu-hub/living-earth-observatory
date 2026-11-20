@@ -66,7 +66,6 @@ export function createEarthAppRuntime({
     updateDataRhythmUi,
     updateTerminatorGuideUi,
     updateIssLayerUi,
-    updateMoonTextureUi,
     updateZodiacalIntensityUi,
     updateAirglowUi,
     updateNoctilucentUi,
@@ -461,13 +460,6 @@ export function createEarthAppRuntime({
         updateNoctilucentUi?.();
     }
 
-    function toggleMoonTexture() {
-        // LOT 30: 'primary' = CoryG89 (default) or, in the local comparison, the NASA SVS 4K map.
-        const next = moonSystem?.moonState?.textureSource === 'nasa' ? 'primary' : 'nasa';
-        moonSystem?.setTextureSource?.(next);
-        updateMoonTextureUi?.(moonSystem?.moonState?.textureSource);
-    }
-
     function toggleMoonMarkers() {
         moonMarkers?.toggle?.();
     }
@@ -512,7 +504,6 @@ export function createEarthAppRuntime({
             toggleZodiacalLight,
             toggleNoctilucentClouds,
             updateNoctilucentSettings,
-            toggleMoonTexture,
             toggleMoonMarkers,
             updateZodiacalIntensity,
             applySocialPreset: socialPresetSystem.applySocialPreset,
@@ -523,7 +514,6 @@ export function createEarthAppRuntime({
         });
         controlPanel.initResponsivePanels();
         updateIssLayerUi?.({ enabled: state.issLayer });
-        updateMoonTextureUi?.(moonSystem?.moonState?.textureSource);
         updateDataSourceStatus?.({
             state: state.dataSourceState,
             message: state.dataSourceMessage

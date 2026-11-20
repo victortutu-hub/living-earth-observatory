@@ -227,13 +227,6 @@ export function createControlPanel({ state }) {
         }
     }
 
-    function updateMoonTextureUi(source = 'coryg89') {
-        const button = byId('moonTextureBtn');
-        // LOT 30: the two NASA SVS labels appear only in the local comparison (?moonCompare=nasa).
-        const label = { nasa: 'NASA (public domain)', 'nasa-svs': 'NASA SVS 4K (comparison)', 'nasa-1k-fallback': 'NASA LROC 1K (fallback)' }[source] || 'CoryG89 (default)';
-        if (button) button.textContent = `Moon texture: ${label}`;
-    }
-
     function updateZodiacalIntensityUi() {
         const slider = byId('zodiacalIntensity');
         const value = byId('zodiacalIntensityValue');
@@ -304,7 +297,6 @@ export function createControlPanel({ state }) {
         toggleZodiacalLight,
         toggleNoctilucentClouds,
         updateNoctilucentSettings,
-        toggleMoonTexture,
         toggleMoonMarkers,
         updateZodiacalIntensity,
         applySocialPreset,
@@ -374,9 +366,6 @@ export function createControlPanel({ state }) {
         });
         byId('zodiacalIntensity')?.addEventListener('input', event => {
             updateZodiacalIntensity?.(Number(event.target.value));
-        });
-        byId('moonTextureBtn')?.addEventListener('click', () => {
-            toggleMoonTexture?.();
         });
         byId('moonMarkersBtn')?.addEventListener('click', () => {
             toggleMoonMarkers?.();
@@ -528,7 +517,6 @@ export function createControlPanel({ state }) {
         updateWindLayerStatus,
         updateOceanLayerStatus,
         updateIssLayerUi,
-        updateMoonTextureUi,
         updateZodiacalIntensityUi,
         updateAirglowUi,
         updateNoctilucentUi,

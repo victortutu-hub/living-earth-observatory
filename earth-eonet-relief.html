@@ -808,7 +808,6 @@
             </label>
             <input id="noctilucentIntensity" type="range" min="0.25" max="2.4" step="0.05" value="1">
         </div>
-        <button id="moonTextureBtn" title="Switch Moon color texture between the default (CoryG89 mosaic) and the public-domain NASA LROC WAC map.">Moon texture: CoryG89 (default)</button>
         <button id="moonMarkersBtn" title="Toggle real Moon landmarks (Apollo landing sites, named craters and maria). Click a marker to zoom in and see details.">Moon markers: off</button>
         <button id="atmosphereModeBtn" title="Toggle physical ray-marched atmosphere scattering.">Atmosphere: dot</button>
         <button id="oceanFresnelBtn" title="Fresnel reflectivity on oceans (Schlick approximation) - water becomes mirror-like at grazing view angles, like real ISS photos at the limb.">Fresnel oceans: on</button>
@@ -897,8 +896,7 @@
             <li>NOAA ETOPO 2022 (60″ ice surface, area-averaged 1/6°, linear metres, vertical exaggeration ×10) relief; water mask NASA MODIS MOD44W via GIBS; lake surfaces rendered at 0 m (ETOPO has no lake levels).</li>
             <li>Astronomy Engine: apparent Sun position and Moon position/phase geometry.</li>
             <li>Astronomy Engine: real lunar libration (Astronomy.Libration) and real north-pole axis (Astronomy.RotationAxis) drive the Moon's actual visible-hemisphere orientation and disc roll.</li>
-            <li>Moon color/normal maps: Clementine/LRO satellite mosaic (default, CoryG89) or NASA LROC WAC (public domain, toggle available).</li>
-            <li>Moon relief: NASA SVS CGI Moon Kit — LOLA laser altimeter elevation data (local asset, NASA's CDN blocks direct CORS fetch).</li>
+            <li>Moon: NASA SVS CGI Moon Kit (svs.gsfc.nasa.gov/4720) — LROC WAC colour 4096×2048 (observed; local LROC 1024×512 as labelled fallback), normal map reconstructed from LOLA topography (vertical exaggeration 1×) and LOLA elevation for relief. Credit: NASA's Scientific Visualization Studio (NASA media guidelines).</li>
             <li>CelesTrak + satellite.js (SGP4): ISS orbital position, altitude and velocity.</li>
             <li>Airglow: real upper-atmosphere emission represented procedurally, OI green-dominant, not a live intensity snapshot.</li>
             <li>Real sky: Milky Way from NASA SVS Deep Star Maps 2020 (without the Hipparcos/Tycho stars) and Hipparcos stars to V 6.5 from the HYG database v4.4 (CC BY-SA 4.0), oriented by sidereal time and precession; observed (survey/catalogue), shown at a declared exposure relative to the Earth. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC.</li>

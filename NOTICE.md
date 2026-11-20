@@ -196,23 +196,28 @@ licence of this repository:
 
 ## Moon Textures And Lunar Assets
 
-The Moon system supports multiple visual sources:
+Every Moon texture comes from the NASA SVS CGI Moon Kit
+(https://svs.gsfc.nasa.gov/4720). The page asks: "Please give credit for this
+item to: NASA's Scientific Visualization Studio", and notes that the colour map
+is "optimized for aesthetics, not science". It states no licence of its own and
+links to NASA's media guidelines
+(https://www.nasa.gov/nasa-brand-center/images-and-media/), which say that NASA
+images "generally are not subject to copyright in the United States", that
+"NASA should be acknowledged as the source of the material", and that a use
+"must not explicitly or implicitly convey NASA's endorsement of commercial goods
+or services". No further rights statement was confirmed.
 
-- NASA LROC WAC / NASA SVS material is the preferred public-domain path for
-  clear redistribution and public presentation.
-- CoryG89 MoonDemo imagery is currently used as the default cinematic texture
-  option in the app because it has strong visual quality. However, the upstream
-  source chain includes lunar imagery with wording that may be limited to
-  personal or non-commercial use. Treat this texture path as optional and
-  non-commercial unless you independently verify broader rights.
-
-For public, commercial, packaged, or client-facing distribution, prefer the NASA
-Moon texture option or replace the CoryG89 path with a clearly licensed local
-asset.
-
-The lunar relief/displacement work in this project is intended to be based on
-NASA/LOLA-style public scientific sources where available. Keep source notes
-with any packaged lunar assets.
+- `assets/moon/moon-lroc-color-4k-<hash>.jpg`: LROC WAC colour, 4096×2048,
+  re-encoded from `lroc_color_poles_4k.tif` without resampling or colour change
+  by `tools/build-moon-color.mjs` (input pinned by SHA-256). Observed.
+- `assets/moon/moon-lola-normal-4k-<hash>.jpg`: normal map reconstructed from
+  the LOLA topography `ldem_16_uint.tif` by `tools/build-moon-normal.mjs`
+  (2.665 km per pixel, vertical exaggeration 1×; the east-west step is clamped
+  near the poles, documented in the tool). Reconstructed, not observed.
+- `assets/moon-lroc-color-1k-1024x512.jpg` (LROC WAC colour, used only as the
+  labelled fallback when the 4K colour map does not load) and
+  `assets/moon-ldem-elevation-1024x512.jpg` (LOLA elevation for displacement
+  and bump), from the same kit.
 
 ## Generated Media
 
@@ -222,7 +227,7 @@ respect the same provider/source constraints.
 
 For safest public sharing:
 
-- use NASA/public-domain Moon textures;
+- credit the Moon textures to NASA's Scientific Visualization Studio;
 - keep data-source attribution visible in captions, descriptions, or project
   metadata;
 - avoid presenting procedural layers as exact live measurements when they are

@@ -32,11 +32,11 @@ describe('LOT 30 PAS 1: status texts tell where the threejs.org textures come fr
   });
 });
 
-describe('LOT 30 PAS 2: NASA SVS Moon textures built beside CoryG89 (comparison only)', async () => {
+describe('LOT 30 PAS 2-3: NASA SVS Moon textures (the only Moon textures since PAS 3)', async () => {
   const crypto = await import('node:crypto');
   const { MOON_COLOR_ASSET } = await import('../src/config/moon-color.js');
   const { MOON_NORMAL_ASSET } = await import('../src/config/moon-normal.js');
-  const { describeMoonTextures, moonTextureVariantFromSearch } = await import('../src/earth/moon-system.js');
+  const { describeMoonTextures, MOON_TEXTURE_CREDIT_LABEL } = await import('../src/earth/moon-system.js');
   const bytes = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url));
   const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
@@ -63,23 +63,24 @@ describe('LOT 30 PAS 2: NASA SVS Moon textures built beside CoryG89 (comparison 
     expect(text('tools/build-moon-normal.mjs')).toContain("const SOURCE_SHA256 = '45a2b32d56e81ed30db07fead8abc842b249b6511219d9ca2c53f81bc2dc5d62';");
   });
 
-  it('comparison switch: only ?moonCompare=nasa; default unchanged; not in the page UI', () => {
-    expect(moonTextureVariantFromSearch('')).toBe('coryg89');
-    expect(moonTextureVariantFromSearch('?debug')).toBe('coryg89');
-    expect(moonTextureVariantFromSearch('?moonCompare=nasa')).toBe('nasa-svs');
-    expect(text('earth-eonet-relief.html')).not.toMatch(/moonCompare/);
-    expect(text('earth-eonet-relief.html')).toContain('>Moon texture: CoryG89 (default)</button>');
+  it('PAS 3: CoryG89, the comparison switch and the "Moon texture" button are gone', () => {
+    const files = ['src/earth/moon-system.js', 'src/earth/app-runtime.js', 'src/earth/control-panel.js', 'src/earth/app-services.js', 'earth-eonet-relief.html', 'NOTICE.md'];
+    for (const f of files) expect(text(f), f).not.toMatch(/CoryG89|coryg89|moonCompare|moonTextureBtn|toggleMoonTexture|cdn\.jsdelivr\.net\/gh/);
+    for (const f of files.filter((f) => f !== 'NOTICE.md')) expect(text(f), f).not.toMatch(/public[ -]domain\)?[^.]*Moon|Moon[^.<]*public[ -]domain/i);
+    expect(text('src/earth/moon-system.js')).toContain('normalScale: new THREE.Vector2(1, 1)');
+    expect(text('src/earth/moon-system.js')).not.toMatch(/Vector2\(0\.6, 0\.6\)/);
+    expect(text('src/earth/control-panel.js')).toContain("byId('moonMarkersBtn')?.addEventListener('click', () => {");
   });
 
-  it('Moon details: NASA SVS rows (source, resolution, provenance, credit); 1K fallback labelled; default rows unchanged', () => {
+  it('Moon details: NASA SVS by default (source, resolution, provenance, credit); LROC 1K fallback labelled', () => {
     const svs = describeMoonTextures({ textureSource: 'nasa-svs', normalAvailable: true });
-    expect(svs.map((r) => r.label)).toEqual(['Texture', 'Relief shading', 'Credit']);
-    expect(svs[0].value).toBe('NASA SVS CGI Moon Kit · LROC WAC colour 4096×2048 · observed (SVS: optimized for aesthetics, not science)');
+    expect(svs.map((r) => r.label)).toEqual(['Texture', 'Relief shading', 'Source']);
+    expect(svs[0].value).toBe('LROC WAC colour 4096×2048 · observed (SVS: optimized for aesthetics, not science)');
     expect(svs[1].value).toBe('Normal map 4096×2048 reconstructed from LOLA topography (LDEM 16 px/deg), 2.665 km/px, vertical exaggeration 1×');
-    expect(svs[2].value).toBe("NASA's Scientific Visualization Studio");
+    expect(svs[2].value).toBe("NASA SVS CGI Moon Kit — credit: NASA's Scientific Visualization Studio (NASA media guidelines)");
+    expect(MOON_TEXTURE_CREDIT_LABEL).toBe(svs[2].value);
     expect(describeMoonTextures({ textureSource: 'nasa-svs', normalAvailable: false })[1].value).toMatch(/unavailable/);
-    expect(describeMoonTextures({ textureSource: 'nasa-1k-fallback' })[0].value).toBe('NASA LROC WAC 1024×512 (local fallback: the 4K colour map did not load)');
-    expect(describeMoonTextures({ textureSource: 'coryg89' })).toEqual([{ label: 'Texture', value: 'CoryG89 mosaic (default)' }]);
-    expect(describeMoonTextures({ textureSource: 'nasa' })).toEqual([{ label: 'Texture', value: 'NASA LROC WAC (public domain)' }]);
+    expect(describeMoonTextures({ textureSource: 'nasa-1k-fallback' })[0].value).toMatch(/^NASA LROC 1K \(fallback\): LROC WAC colour 1024×512, local/);
+    expect(text('src/earth/moon-system.js')).toContain("textureSource: 'nasa-svs',");
   });
 });

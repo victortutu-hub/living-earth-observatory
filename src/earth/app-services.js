@@ -187,7 +187,6 @@ export function createEarthAppServices({
         updateSeismicLayerStatus,
         updateFirmsLayerStatus,
         updateIssLayerUi,
-        updateMoonTextureUi,
         updateZodiacalIntensityUi,
         updateAirglowUi,
         updateNoctilucentUi
@@ -556,7 +555,6 @@ export function createEarthAppServices({
         updateDataRhythmUi,
         updateTerminatorGuideUi,
         updateIssLayerUi,
-        updateMoonTextureUi,
         updateZodiacalIntensityUi,
         updateAirglowUi,
         updateNoctilucentUi,
