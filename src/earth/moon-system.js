@@ -2,8 +2,9 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
+import { earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
-import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
+import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -255,7 +256,9 @@ export function createMoonSystem({
         // LOT 31: physical earthshine (earthshine.js), updated with the Moon position.
         earthshine: { ratio: 0, stops: Infinity, earthPhaseAngleDeg: null, albedo: EARTH_GEOMETRIC_ALBEDO, distanceKm: MEAN_MOON_DISTANCE_KM },
         exposureEv: 0,
-        earthshineViewNote: null // LOT 31 ETAPA 2b: why the view is unavailable / was turned off
+        earthshineViewNote: null, // LOT 31 ETAPA 2b: why the view is unavailable / was turned off
+        // LOT 33: next window with the view available ({ start, end, openNow, from }), from the displayed time
+        earthshineWindow: null
     };
     let moonMat = null;
     let moonTextureFallback = null; // LROC 1K, created only if the 4K colour map fails
@@ -401,6 +404,12 @@ export function createMoonSystem({
         button.setAttribute('aria-pressed', String(view.pressed));
         button.textContent = view.text;
         button.title = view.title;
+        // LOT 33: the visible line under the button (the reason and the next window; no hover needed).
+        const note = document.getElementById('earthshineViewNote');
+        if (note) {
+            const w = state.earthshineWindow;
+            note.textContent = earthshineViewNoteText({ available: !view.ariaDisabled, window: w, from: w ? new Date(w.from) : null, astronomy: state.source === 'astronomy-engine' ? 'ok' : state.source === 'retrying' ? 'failed' : 'pending' });
+        }
     }
     /** Returns true when the exposure is applied; false when the Earthshine view is refused at this phase. */
     function setMoonExposureEv(ev = 0) {
@@ -434,6 +443,7 @@ export function createMoonSystem({
             state.visible = false;
             state.source = 'retrying';
             updateMoonStatus(state);
+            updateEarthshineViewButton(); // LOT 33: the note says the phase is not computed
             return;
         }
         if (!astronomyObserver) astronomyObserver = new Astronomy.Observer(0, 0, 0);
@@ -453,6 +463,15 @@ export function createMoonSystem({
         const earthPhaseAngle = earthPhaseAngleFromElongationCos(elongationCos);
         const ratio = earthshineRatio({ earthPhaseAngle, distanceKm: state.distanceKm });
         state.earthshine = { ratio, stops: stopsBelowSun(ratio), earthPhaseAngleDeg: earthPhaseAngle * 180 / Math.PI, albedo: EARTH_GEOMETRIC_ALBEDO, distanceKm: state.distanceKm };
+        // LOT 33: next Earthshine-view window from the displayed time, only while the view is unavailable.
+        // A window found from `from` stays valid for any displayed time between `from` and its start.
+        if (state.phaseFraction > EARTHSHINE_VIEW_MAX_LIT_FRACTION) {
+            const t = now.getTime(); const cached = state.earthshineWindow;
+            if (!cached || t < cached.from || !cached.start || t >= cached.start.getTime()) {
+                const found = nextEarthshineWindow({ litFractionAt: (d) => moonLitFraction(Astronomy, d, astronomyObserver), from: now });
+                state.earthshineWindow = { start: found?.start || null, end: found?.end || null, openNow: Boolean(found?.openNow), from: t };
+            }
+        }
 
         // Directia reala Soare, in ACELASI frame "world/scena" ca moon.position
         // (lonLatToVec3, ancorat la rotatia Pamantului via siderealHours) - NU
