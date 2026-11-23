@@ -22,11 +22,11 @@ export function describeArtisticFill({ coolFill, ambientLight, look }) {
     return parts;
 }
 
-/** Moon details, row "Exposure" (LOT 31 ETAPA 2: Earthshine view). */
-export function describeMoonExposure(exposureEv = 0) {
-    return exposureEv > 0
-        ? `Moon exposure +${exposureEv} EV (lit side clipped, as in photographs)`
-        : 'Normal exposure (+0 EV): the earthshine side is about 13 stops or more below the lit side, so it looks black; use Earthshine view (+10 EV)';
+/** Moon details, row "Exposure" (LOT 31 ETAPA 2 / 2b: Earthshine view). */
+export function describeMoonExposure(exposureEv = 0, note = null) {
+    if (exposureEv > 0) return `Moon exposure +${exposureEv} EV (lit side clipped at sensor white, as in photographs)`;
+    const normal = 'Normal exposure (+0 EV): the earthshine side is about 13 stops or more below the lit side, so it looks black';
+    return note ? `${normal}. ${note}` : `${normal}; use Earthshine view (+10 EV) up to 40 % lit`;
 }
 
 /** Moon details, row "Illumination" (LOT 31 ETAPA 2): the Sun and the physical earthshine, no fill. */

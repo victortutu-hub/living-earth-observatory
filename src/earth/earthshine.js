@@ -44,3 +44,38 @@ export function formatRatio(ratio) {
     const sup = String(exp).replace('-', '⁻').replace(/\d/g, (d) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
     return `${mant.toFixed(1)}×10${sup}`;
 }
+
+// LOT 31 ETAPA 2b: "Earthshine view" (+10 EV on the whole Moon) only makes sense while the earthshine side
+// can be seen. With +10 EV the earthshine side shows at 2^(10 - stops) of the normally exposed sunlit
+// surface: at 5 % lit (about 13.3 stops) that is ~1/10 (clearly visible), at 40 % lit (about 14.3 stops
+// at the mean distance) ~1/20 (faint but readable), at 75 % lit (about 16.5 stops) ~1/90 (black). The
+// threshold is 40 % lit; above it the view is refused, or turned off when the phase crosses it.
+export const EARTHSHINE_VIEW_EV = 10;
+export const EARTHSHINE_VIEW_MAX_LIT_FRACTION = 0.4;
+// Sensor white for the +10 EV view: the Moon output is clipped at this linear value before the tone
+// mapping and the bloom, i.e. no brighter than a white sunlit object (a cloud top is ~0.8), so the
+// clipped sunlit side cannot drive the bloom like the Sun. Not applied at normal exposure.
+export const MOON_SENSOR_WHITE = 1.0;
+
+/** { available, reason } for the Earthshine view at a Moon lit fraction (0-1) and earthshine stops. */
+export function earthshineViewAvailability({ litFraction, stops }) {
+    const lit = Math.round((Number(litFraction) || 0) * 100);
+    if (Number(litFraction) <= EARTHSHINE_VIEW_MAX_LIT_FRACTION) return { available: true, reason: null };
+    const below = Number.isFinite(stops) ? `${stops.toFixed(1)} stops below the sunlight` : 'no earthshine';
+    return { available: false, reason: `Earthshine too faint at this phase — ${lit} % lit, ${below} (Earthshine view needs ≤ ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit)` };
+}
+
+/** A request for an exposure (0 or +10 EV): { ev, applied, note } - refused above the threshold. */
+export function requestEarthshineExposure({ wantedEv, litFraction, stops }) {
+    const wanted = Number.isFinite(Number(wantedEv)) ? Math.max(0, Math.min(EARTHSHINE_VIEW_EV, Number(wantedEv))) : 0;
+    const availability = earthshineViewAvailability({ litFraction, stops });
+    if (wanted > 0 && !availability.available) return { ev: 0, applied: false, note: availability.reason };
+    return { ev: wanted, applied: true, note: null };
+}
+
+/** After a phase change: { ev, turnedOff, note } - an active view above the threshold turns itself off. */
+export function enforceEarthshineExposure({ ev, litFraction, stops }) {
+    const availability = earthshineViewAvailability({ litFraction, stops });
+    if (ev > 0 && !availability.available) return { ev: 0, turnedOff: true, note: `Earthshine view turned off: ${availability.reason}` };
+    return { ev, turnedOff: false, note: null };
+}

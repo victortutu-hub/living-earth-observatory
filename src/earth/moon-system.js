@@ -2,7 +2,7 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
-import { EARTH_GEOMETRIC_ALBEDO, earthPhaseAngleFromElongationCos, earthshineRatio, stopsBelowSun } from './earthshine.js';
+import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewAvailability, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -182,7 +182,7 @@ export function patchMoonLightingShader(shader, uniforms) {
     }
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {', 'uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform float uMoonExposure;\nvoid main() {')
+        .replace('void main() {', 'uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform float uMoonExposure;\nuniform float uMoonSensorWhite;\nvoid main() {')
         .replace(MOON_LIGHTING_CHUNKS.begin, [
             '// LOT 31: Sun + physical earthshine only (no ambient, no fill lights).',
             'float moonSunNL = saturate( dot( normal, uMoonSunDir ) );',
@@ -192,7 +192,9 @@ export function patchMoonLightingShader(shader, uniforms) {
         ].join('\n'))
         .replace(MOON_LIGHTING_CHUNKS.maps, '')
         .replace(MOON_LIGHTING_CHUNKS.end, '')
-        .replace(MOON_LIGHTING_CHUNKS.output, `outgoingLight *= uMoonExposure;\n${MOON_LIGHTING_CHUNKS.output}`);
+        // LOT 31 ETAPA 2b: with an exposure above x1 the output is clipped at sensor white before the tone
+        // mapping and the bloom (a photograph clips; the bloom then sees a white object, not a Sun).
+        .replace(MOON_LIGHTING_CHUNKS.output, `outgoingLight *= uMoonExposure;\nif ( uMoonExposure > 1.0 ) outgoingLight = min( outgoingLight, vec3( uMoonSensorWhite ) );\n${MOON_LIGHTING_CHUNKS.output}`);
     return shader;
 }
 
@@ -244,7 +246,8 @@ export function createMoonSystem({
         sunWorldDir: new THREE.Vector3(1, 0, 0),
         // LOT 31: physical earthshine (earthshine.js), updated with the Moon position.
         earthshine: { ratio: 0, stops: Infinity, earthPhaseAngleDeg: null, albedo: EARTH_GEOMETRIC_ALBEDO, distanceKm: MEAN_MOON_DISTANCE_KM },
-        exposureEv: 0
+        exposureEv: 0,
+        earthshineViewNote: null // LOT 31 ETAPA 2b: why the view is unavailable / was turned off
     };
     let moonMat = null;
     let moonTextureFallback = null; // LROC 1K, created only if the 4K colour map fails
@@ -304,6 +307,7 @@ export function createMoonSystem({
         uMoonEarthDir: { value: new THREE.Vector3(-1, 0, 0) },
         uMoonEarthshine: { value: 0 },
         uMoonExposure: { value: 1 },
+        uMoonSensorWhite: { value: MOON_SENSOR_WHITE },
     };
     moonMat.onBeforeCompile = (shader) => patchMoonLightingShader(shader, moonLightUniforms);
     moonMat.customProgramCacheKey = () => 'lumi-moon-physical-lighting-lot31';
@@ -358,20 +362,44 @@ export function createMoonSystem({
     let intervalId = null;
 
     // LOT 31 ETAPA 2: "Earthshine view" = a real exposure change of the whole Moon (+10 EV: the
-    // earthshine side becomes visible, the lit side clips, as in photographs). Only the Moon material
-    // (uMoonExposure); the Earth is not affected. Declared in the Moon details and on the button.
-    const EARTHSHINE_VIEW_EV = 10;
-    function setMoonExposureEv(ev = 0) {
-        state.exposureEv = Number.isFinite(Number(ev)) ? Math.max(0, Math.min(EARTHSHINE_VIEW_EV, Number(ev))) : 0;
-        moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;
+    // earthshine side becomes visible, the lit side clips at sensor white, as in photographs). Only the
+    // Moon material (uMoonExposure); the Earth is not affected. ETAPA 2b: available only up to
+    // EARTHSHINE_VIEW_MAX_LIT_FRACTION (earthshine.js); refused above it, turned off when the phase crosses it.
+    function updateEarthshineViewButton() {
         const button = typeof document !== 'undefined' ? document.getElementById('earthshineViewBtn') : null;
-        if (button) {
-            button.textContent = state.exposureEv > 0 ? `Earthshine view: +${state.exposureEv} EV` : 'Earthshine view: off';
-            button.setAttribute('aria-pressed', String(state.exposureEv > 0));
-        }
+        if (!button) return;
+        const { available, reason } = earthshineViewAvailability({ litFraction: state.phaseFraction, stops: state.earthshine.stops });
+        button.disabled = !available && !(state.exposureEv > 0);
+        button.setAttribute('aria-pressed', String(state.exposureEv > 0));
+        if (state.exposureEv > 0) button.textContent = `Earthshine view: +${state.exposureEv} EV`;
+        else if (!available) button.textContent = `Earthshine view: unavailable (${Math.round(state.phaseFraction * 100)} % lit)`;
+        else button.textContent = 'Earthshine view: off';
+        button.title = available
+            ? 'Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.'
+            : reason;
+    }
+    /** Returns true when the exposure is applied; false when the Earthshine view is refused at this phase. */
+    function setMoonExposureEv(ev = 0) {
+        const r = requestEarthshineExposure({ wantedEv: ev, litFraction: state.phaseFraction, stops: state.earthshine.stops });
+        state.exposureEv = r.ev;
+        state.earthshineViewNote = r.note;
+        moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;
+        updateEarthshineViewButton();
+        return r.applied;
     }
     function toggleEarthshineView() {
-        setMoonExposureEv(state.exposureEv > 0 ? 0 : EARTHSHINE_VIEW_EV);
+        return setMoonExposureEv(state.exposureEv > 0 ? 0 : EARTHSHINE_VIEW_EV);
+    }
+    /** After a phase change (time scrub / live time): above the threshold the view turns itself off. */
+    function enforceEarthshineViewThreshold() {
+        const r = enforceEarthshineExposure({ ev: state.exposureEv, litFraction: state.phaseFraction, stops: state.earthshine.stops });
+        if (r.turnedOff) {
+            state.exposureEv = 0;
+            moonLightUniforms.uMoonExposure.value = 1;
+            state.earthshineViewNote = r.note;
+            console.info(`[Moon] ${r.note}`);
+        }
+        updateEarthshineViewButton();
     }
 
     async function updateMoonPosition(now = getDate()) {
@@ -453,6 +481,7 @@ export function createMoonSystem({
         moonHalo.visible = true;
         state.visible = true;
         state.source = 'astronomy-engine';
+        enforceEarthshineViewThreshold(); // LOT 31 ETAPA 2b
         updateMoonStatus(state);
     }
 

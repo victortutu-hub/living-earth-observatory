@@ -456,7 +456,7 @@ export function createEarthAppServices({
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
             // LOT 31: every light that reaches the Moon, read from the live objects.
             { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, earthshine: m.earthshine }) },
-            { label: 'Exposure', value: describeMoonExposure(m.exposureEv) }, // LOT 31 ETAPA 2
+            { label: 'Exposure', value: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }, // LOT 31 ETAPA 2 / 2b
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ]);

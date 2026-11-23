@@ -102,7 +102,8 @@ describe('LOT 31 ETAPA 2: physical earthshine', () => {
     for (const gone of ['lights_fragment_begin', 'lights_fragment_maps', 'lights_fragment_end']) expect(shader.fragmentShader).not.toContain(gone);
     expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
     expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
-    expect(shader.fragmentShader).toMatch(/outgoingLight \*= uMoonExposure;\n#include <opaque_fragment>/);
+    // ETAPA 2b: the sensor-white clip sits between the exposure and the output chunk.
+    expect(shader.fragmentShader).toMatch(/outgoingLight \*= uMoonExposure;\n[^\n]*uMoonSensorWhite[^\n]*\n#include <opaque_fragment>/);
     expect(shader.fragmentShader).toMatch(/uniform vec3 uMoonSunDir;[\s\S]*void main\(\) \{/);
     expect(() => patchMoonLightingShader({ uniforms: {}, fragmentShader: 'void main() {}' }, {})).toThrow(/chunk not found/);
   });
@@ -119,10 +120,10 @@ describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo
   it('one exposure for the whole Moon material, declared on the button and in the details; the Earth is not touched', () => {
     const moon = text('src/earth/moon-system.js');
     expect(moon).toContain('moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;');
-    expect(moon).toContain('const EARTHSHINE_VIEW_EV = 10;');
-    expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped, as in photographs)');
+    expect(text('src/earth/earthshine.js')).toContain('export const EARTHSHINE_VIEW_EV = 10;'); // ETAPA 2b: moved next to the threshold
+    expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs)');
     expect(describeMoonExposure(0)).toMatch(/^Normal exposure \(\+0 EV\)/);
-    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: describeMoonExposure(m.exposureEv) },");
+    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: describeMoonExposure(m.exposureEv, m.earthshineViewNote) },");
     expect(text('earth-eonet-relief.html')).toContain('<button id="earthshineViewBtn" aria-pressed="false"');
     expect(text('src/earth/control-panel.js')).toContain("byId('earthshineViewBtn')?.addEventListener('click', () => {");
     // Only the Moon material reads uMoonExposure.
@@ -130,8 +131,51 @@ describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo
   });
   it('the reel uses the same mechanism and says so', () => {
     const reel = text('src/earth/reel-timeline.js');
-    expect(reel).toContain('moonSystem.setMoonExposureEv?.(10);');
+    expect(reel).toContain('moonSystem.setMoonExposureEv?.(10)');
     expect(reel.match(/setMoonExposureEv\?\.\(0\)/g)).toHaveLength(2);
-    expect(text('src/earth/caption-system.js')).toContain("subtitle: 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED',");
+    expect(text('src/earth/caption-system.js')).toContain("'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED AT SENSOR WHITE'");
+  });
+});
+
+describe('LOT 31 ETAPA 2b: Earthshine view - sensor white clip, phase threshold, auto-off', async () => {
+  const es = await import('../src/earth/earthshine.js');
+  it('threshold 40 % lit: available at 5 % / 31 % / 40 %, refused at 41 % / 78 % with the reason', () => {
+    expect(es.EARTHSHINE_VIEW_MAX_LIT_FRACTION).toBe(0.4);
+    for (const k of [0.05, 0.31, 0.4]) expect(es.earthshineViewAvailability({ litFraction: k, stops: 14 }).available, String(k)).toBe(true);
+    expect(es.earthshineViewAvailability({ litFraction: 0.41, stops: 14.4 }).available).toBe(false);
+    expect(es.earthshineViewAvailability({ litFraction: 0.778, stops: 16.5 }).reason).toBe('Earthshine too faint at this phase — 78 % lit, 16.5 stops below the sunlight (Earthshine view needs ≤ 40 % lit)');
+  });
+  it('the threshold matches the stops: at 40 % lit and the mean distance the earthshine is ~14.3 stops below the sunlight', () => {
+    const k = 0.4; const alpha = es.earthPhaseAngleFromElongationCos(1 - 2 * k);
+    expect(es.stopsBelowSun(es.earthshineRatio({ earthPhaseAngle: alpha, distanceKm: 384400 }))).toBeCloseTo(14.3, 1);
+  });
+  it('a request above the threshold is refused (0 EV, note); below it is applied; 0 EV is always allowed', () => {
+    expect(es.requestEarthshineExposure({ wantedEv: 10, litFraction: 0.78, stops: 16.5 })).toMatchObject({ ev: 0, applied: false, note: expect.stringMatching(/^Earthshine too faint/) });
+    expect(es.requestEarthshineExposure({ wantedEv: 10, litFraction: 0.31, stops: 14.1 })).toEqual({ ev: 10, applied: true, note: null });
+    expect(es.requestEarthshineExposure({ wantedEv: 0, litFraction: 0.78, stops: 16.5 })).toEqual({ ev: 0, applied: true, note: null });
+    expect(es.requestEarthshineExposure({ wantedEv: 99, litFraction: 0.1, stops: 13 }).ev).toBe(10);
+  });
+  it('auto-off: an active view turns itself off when the phase crosses the threshold, and says why', () => {
+    expect(es.enforceEarthshineExposure({ ev: 10, litFraction: 0.31, stops: 14.1 })).toEqual({ ev: 10, turnedOff: false, note: null });
+    expect(es.enforceEarthshineExposure({ ev: 10, litFraction: 0.78, stops: 16.5 })).toMatchObject({ ev: 0, turnedOff: true, note: expect.stringMatching(/^Earthshine view turned off: Earthshine too faint at this phase — 78 % lit/) });
+    expect(es.enforceEarthshineExposure({ ev: 0, litFraction: 0.78, stops: 16.5 })).toEqual({ ev: 0, turnedOff: false, note: null });
+    const moon = text('src/earth/moon-system.js');
+    expect(moon).toContain('enforceEarthshineViewThreshold(); // LOT 31 ETAPA 2b');
+    expect(moon).toContain('const r = requestEarthshineExposure({ wantedEv: ev, litFraction: state.phaseFraction, stops: state.earthshine.stops });');
+  });
+  it('the clip at sensor white applies only above x1 exposure, before the output chunk (tone mapping / bloom follow)', () => {
+    expect(es.MOON_SENSOR_WHITE).toBe(1.0);
+    const frag = ['void main() {', MOON_LIGHTING_CHUNKS.begin, MOON_LIGHTING_CHUNKS.maps, MOON_LIGHTING_CHUNKS.end, MOON_LIGHTING_CHUNKS.output, '}'].join('\n');
+    const shader = patchMoonLightingShader({ uniforms: {}, fragmentShader: frag }, { uMoonSensorWhite: { value: 1 } });
+    expect(shader.fragmentShader).toContain('outgoingLight *= uMoonExposure;\nif ( uMoonExposure > 1.0 ) outgoingLight = min( outgoingLight, vec3( uMoonSensorWhite ) );\n#include <opaque_fragment>');
+    expect(shader.fragmentShader).toContain('uniform float uMoonSensorWhite;');
+    expect(text('src/earth/moon-system.js')).toContain('uMoonSensorWhite: { value: MOON_SENSOR_WHITE },');
+  });
+  it('details, button and reel use the same rule and the same wording', async () => {
+    const { describeMoonExposure } = await import('../src/earth/scene-lighting.js');
+    expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs)');
+    expect(describeMoonExposure(0, 'Earthshine view turned off: x')).toMatch(/looks black\. Earthshine view turned off: x$/);
+    expect(text('src/earth/reel-timeline.js')).toContain('state.reelEarthshineView = { on: moonSystem.setMoonExposureEv?.(10) === true, reason: moonSystem.moonState?.earthshineViewNote || null };');
+    expect(text('src/earth/caption-system.js')).toContain("state.reelEarthshineView?.on === false ? 'EARTHSHINE TOO FAINT AT THIS PHASE' : 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED AT SENSOR WHITE'");
   });
 });

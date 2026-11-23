@@ -164,9 +164,10 @@ export function createCaptionSystem({
                 style,
                 header: 'ASTRONOMY ENGINE - REAL MOON GEOMETRY',
                 title: 'EARTHSHINE',
-                subtitle: 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED', // LOT 31 ETAPA 2: Earthshine view
+                // LOT 31 ETAPA 2 / 2b: Earthshine view only up to 40 % lit; otherwise the caption says why.
+                subtitle: state.reelEarthshineView?.on === false ? 'EARTHSHINE TOO FAINT AT THIS PHASE' : 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED AT SENSOR WHITE',
                 meta: 'Phase, distance and lunar orientation are calculated live',
-                footer: 'Physical earthshine (approximated), shown with a declared exposure, as in photographs'
+                footer: state.reelEarthshineView?.on === false ? 'Physical earthshine (approximated): too faint next to the sunlit side above 40 % lit' : 'Physical earthshine (approximated), shown with a declared exposure, as in photographs'
             };
         }
         if (mode === 'iss') {
