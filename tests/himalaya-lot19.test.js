@@ -110,9 +110,13 @@ describe('LOT 19: report schema lumi-himalaya-perf/1', () => {
 });
 
 describe('LOT 19: a scenario is invalidated when the tab becomes hidden', () => {
-  afterEach(() => { vi.unstubAllGlobals(); });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
   it('A hidden mid-measurement -> invalid, no figures; the next scenarios run; state restored', async () => {
+    // LOT 33: simulated time (setTimeout, the stubbed requestAnimationFrame and performance.now all run on the
+    // fake clock). The tab is hidden at t = 100 ms of that clock, inside A's measurement window, whatever the
+    // machine load. With real time, a loaded machine could reach t = 100 ms before A measured, or after it.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance'] });
     const doc = new EventTarget();
     doc.hidden = false;
     doc.querySelectorAll = () => [];
@@ -140,9 +144,16 @@ describe('LOT 19: a scenario is invalidated when the tab becomes hidden', () => 
     };
     const { createPerfRunner } = await import('../src/himalaya/perf/perf-run.js');
     const runner = createPerfRunner({ api, timing: { warmupMs: 40, measureMs: 120 } });
-    setTimeout(() => { doc.hidden = true; doc.dispatchEvent(new Event('visibilitychange')); setTimeout(() => { doc.hidden = false; }, 5); }, 100);
-    const report = await runner.run();
+    // Hidden at t = 100 ms (inside A's window: warm-up 40 ms + measurement 120 ms), visible again 1 ms later, before
+    // A's next frame, so B starts with the tab visible.
+    let hiddenAt = null; let visibleAt = null;
+    setTimeout(() => { hiddenAt = performance.now(); doc.hidden = true; doc.dispatchEvent(new Event('visibilitychange')); setTimeout(() => { visibleAt = performance.now(); doc.hidden = false; }, 1); }, 100);
+    let report = null;
+    const running = runner.run().then((r) => { report = r; });
+    for (let i = 0; i < 20000 && !report; i++) await vi.advanceTimersByTimeAsync(8); // one stubbed frame per step
+    await running;
     runner.dispose();
+    expect([hiddenAt, visibleAt].map((t) => Math.round(t))).toEqual([100, 101]); // the simulated clock drove it
     const byId = Object.fromEntries(report.scenarios.map((s) => [s.id, s]));
     expect(byId.A.valid).toBe(false);
     expect(byId.A.reason).toMatch(/hidden/);
