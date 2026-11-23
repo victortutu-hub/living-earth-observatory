@@ -1,3 +1,5 @@
+import { earthViewCameraPosition, earthViewDistance } from './moon-viewpoint.js';
+
 export function createCameraMotionRuntime({
     THREE,
     state,
@@ -206,7 +208,12 @@ export function createCameraMotionRuntime({
         targetLeadMultiplier: 1.5,
         holdStart: 0,
         moonObjectRef: null,
-        sunDirRef: null
+        sunDirRef: null,
+        // LOT 33b: 'sun' = approach from the sunlit side (the click on the Moon, unchanged); 'earth' = on the
+        // Earth -> Moon line, like an earthshine photograph. hold 'sweep' = the slow orbit after arrival
+        // (unchanged); 'static' = stay on that line.
+        approach: 'sun',
+        hold: 'sweep'
     };
     const _moonTarget = new THREE.Vector3();
     const _moonDesiredPos = new THREE.Vector3();
@@ -231,6 +238,8 @@ export function createCameraMotionRuntime({
         moonCam.targetLeadMultiplier = Number.isFinite(options.targetLeadMultiplier)
             ? options.targetLeadMultiplier
             : 1.5;
+        moonCam.approach = options.approach === 'earth' ? 'earth' : 'sun'; // LOT 33b
+        moonCam.hold = options.hold === 'static' ? 'static' : 'sweep';
         moonCam.moonObjectRef = moonObject;
         moonCam.sunDirRef = sunDirWorld || null; // referinta live (moonState.sunWorldDir), nu clona
         moonCam.fromPos.copy(camera.position);
@@ -239,6 +248,15 @@ export function createCameraMotionRuntime({
         moonCam.transitioning = true;
         moonCam.active = true;
         controls.autoRotate = false;
+    }
+
+    /**
+     * LOT 33b: "View from Earth". The camera flies smoothly to the Earth -> Moon line, looking at the Moon from the
+     * Earth's side (the crescent of an earthshine photograph), with the existing Moon flight. Any user
+     * interaction (controls 'start') stops it, as for the other flights.
+     */
+    function startMoonEarthView(moonObject, options = {}) {
+        startMoonTracking(moonObject, null, { duration: Number.isFinite(options.duration) ? options.duration : 3.2, targetLeadMultiplier: 1.5, approach: 'earth', hold: 'static' });
     }
 
     function stopMoonTracking() {
@@ -256,12 +274,20 @@ export function createCameraMotionRuntime({
         _moonTarget.copy(moonCam.moonObjectRef.position);
         // Directia de apropiere: spre Soare (emisfera iluminata curenta) daca
         // avem directia reala; altfel fallback la radial-Pamant (comportament vechi).
-        if (moonCam.sunDirRef) {
-            _moonRadialDir.copy(moonCam.sunDirRef);
+        if (moonCam.approach === 'earth') {
+            // LOT 33b: on the Earth -> Moon line, on the Earth's side (moon-viewpoint.js). The distance follows the
+            // Moon's current size (the scene scales it with the camera distance), framed like a telephoto photograph.
+            moonCam.distance = earthViewDistance({ moonRadius: moonCam.moonObjectRef.scale.x * 0.5, fovDeg: camera.fov });
+            _moonDesiredPos.fromArray(earthViewCameraPosition({ moonPos: _moonTarget, distance: moonCam.distance }));
+            _moonRadialDir.copy(_moonDesiredPos).sub(_moonTarget).normalize();
         } else {
-            _moonRadialDir.copy(_moonTarget).normalize();
+            if (moonCam.sunDirRef) {
+                _moonRadialDir.copy(moonCam.sunDirRef);
+            } else {
+                _moonRadialDir.copy(_moonTarget).normalize();
+            }
+            _moonDesiredPos.copy(_moonTarget).addScaledVector(_moonRadialDir, moonCam.distance);
         }
-        _moonDesiredPos.copy(_moonTarget).addScaledVector(_moonRadialDir, moonCam.distance);
 
         if (moonCam.transitioning) {
             const k = Math.min(1, (t - moonCam.start) / moonCam.duration);
@@ -283,6 +309,10 @@ export function createCameraMotionRuntime({
             const targetLead = Math.min(1, eased * moonCam.targetLeadMultiplier);
             controls.target.lerpVectors(moonCam.fromTarget, _moonTarget, targetLead);
             if (k >= 1) { moonCam.transitioning = false; moonCam.holdStart = t; }
+        } else if (moonCam.hold === 'static') {
+            // LOT 33b: View from Earth - stay on the Earth -> Moon line (the Moon moves slowly).
+            camera.position.lerp(_moonDesiredPos, 0.08);
+            controls.target.lerp(_moonTarget, 0.08);
         } else {
             // Faza de hold la Luna: zoom lent (dolly-in) + orbita ampla care aduce
             // terminatorul si partea intunecata (luminata doar de earthshine) in
@@ -638,6 +668,7 @@ export function createCameraMotionRuntime({
         stopIssTracking,
         startMoonTracking,
         stopMoonTracking,
+        startMoonEarthView,
         startMoonMarkerFocus,
         stopMoonMarkerFocus,
         startReturnFromMoon,

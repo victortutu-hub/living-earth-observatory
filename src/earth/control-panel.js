@@ -299,6 +299,7 @@ export function createControlPanel({ state }) {
         updateNoctilucentSettings,
         toggleMoonMarkers,
         toggleEarthshineView,
+        viewMoonFromEarth,
         updateZodiacalIntensity,
         applySocialPreset,
         setSocialPresetCustom,
@@ -373,6 +374,9 @@ export function createControlPanel({ state }) {
         });
         byId('earthshineViewBtn')?.addEventListener('click', () => {
             toggleEarthshineView?.();
+        });
+        byId('moonEarthViewBtn')?.addEventListener('click', () => { // LOT 33b
+            viewMoonFromEarth?.();
         });
         byId('brandPresetBtn').addEventListener('click', () => {
             applyBrandPreset(!state.brandPreset);

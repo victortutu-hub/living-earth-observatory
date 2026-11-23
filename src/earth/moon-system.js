@@ -2,6 +2,7 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
+import { CAMERA_VIEW_HINT, cameraLitFraction, cameraViewHint } from './moon-viewpoint.js';
 import { createNoteFlash, earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
 import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
@@ -258,7 +259,10 @@ export function createMoonSystem({
         exposureEv: 0,
         earthshineViewNote: null, // LOT 31 ETAPA 2b: why the view is unavailable / was turned off
         // LOT 33: next window with the view available ({ start, end, openNow, from }), from the displayed time
-        earthshineWindow: null
+        earthshineWindow: null,
+        // LOT 33b: the sunlit fraction of the disc as the CAMERA sees it (moon-viewpoint.js), apart from phaseFraction
+        cameraLitFraction: null,
+        cameraHint: false
     };
     let moonMat = null;
     let moonTextureFallback = null; // LROC 1K, created only if the 4K colour map fails
@@ -408,8 +412,11 @@ export function createMoonSystem({
         const note = document.getElementById('earthshineViewNote');
         if (note) {
             const w = state.earthshineWindow;
-            note.textContent = earthshineViewNoteText({ available: !view.ariaDisabled, window: w, from: w ? new Date(w.from) : null, astronomy: state.source === 'astronomy-engine' ? 'ok' : state.source === 'retrying' ? 'failed' : 'pending' });
+            // LOT 33b: active, but the camera sees a mostly sunlit disc: point at "View from Earth".
+            note.textContent = state.cameraHint ? CAMERA_VIEW_HINT
+                : earthshineViewNoteText({ available: !view.ariaDisabled, window: w, from: w ? new Date(w.from) : null, astronomy: state.source === 'astronomy-engine' ? 'ok' : state.source === 'retrying' ? 'failed' : 'pending' });
         }
+        document.getElementById('moonEarthViewBtn')?.classList.toggle('is-suggested', state.cameraHint);
     }
     /** Returns true when the exposure is applied; false when the Earthshine view is refused at this phase. */
     function setMoonExposureEv(ev = 0) {
@@ -535,10 +542,29 @@ export function createMoonSystem({
         updateMoonStatus(state);
     }
 
+    // LOT 33b: the camera-view fraction (Sun direction from the live sunLight, as in the Moon shader). The DOM
+    // is touched only when the hint state or the rounded percentage changes.
+    const _camSun = new THREE.Vector3();
+    let shownCameraPct = null;
+    function updateCameraView(camera) {
+        sunWorld.setFromMatrixPosition(sunLight.matrixWorld);
+        targetWorld.setFromMatrixPosition(sunLight.target.matrixWorld);
+        _camSun.copy(sunWorld).sub(targetWorld).normalize();
+        state.cameraLitFraction = cameraLitFraction({ sunDir: _camSun, moonPos: moon.position, cameraPos: camera.position });
+        const hint = cameraViewHint({ active: state.exposureEv > 0, cameraLit: state.cameraLitFraction });
+        if (hint !== state.cameraHint) { state.cameraHint = hint; updateEarthshineViewButton(); }
+        const pct = Math.round(state.cameraLitFraction * 100);
+        if (pct !== shownCameraPct && typeof document !== 'undefined') {
+            const cell = document.getElementById('moonCameraViewValue');
+            if (cell) { cell.textContent = `${pct} % of the disc sunlit`; shownCameraPct = pct; }
+        }
+    }
+
     function update(camera) {
         if (!state.visible) return;
         moonHalo.position.copy(moon.position);
         if (!camera) return;
+        updateCameraView(camera); // LOT 33b
 
         const cameraToMoon = moon.position.clone().sub(camera.position);
         const moonDistance = cameraToMoon.length();

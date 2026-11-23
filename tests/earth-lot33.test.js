@@ -140,7 +140,8 @@ describe('LOT 33 step 2: the visible line, in both states', () => {
 
 describe('LOT 33 step 2: the line is visible on the mobile layout too', () => {
   it('a <p> under the button, on the full toolbar row, described-by, 12 px (reading text in #hud .panel), not hidden at ≤ 760 px', () => {
-    expect(html).toMatch(/<button id="earthshineViewBtn"[^>]*aria-describedby="earthshineViewNote"[^>]*>[^<]*<\/button>\s*<p id="earthshineViewNote" class="toolbar-span" aria-live="polite">/);
+    // LOT 33b: the "View from Earth" button sits between them; the note describes both.
+    expect(html).toMatch(/<button id="earthshineViewBtn"[^>]*aria-describedby="earthshineViewNote"[^>]*>[^<]*<\/button>\s*<button id="moonEarthViewBtn"[^>]*aria-describedby="earthshineViewNote"[^>]*>View from Earth<\/button>\s*<p id="earthshineViewNote" class="toolbar-span" aria-live="polite">/);
     expect(html).toMatch(/#earthshineViewNote \{[^}]*font-size: 12px;/);
     expect(html).not.toMatch(/#earthshineViewNote \{[^}]*display: none/);
     const mobile = html.slice(html.indexOf('@media (max-width: 760px)'), html.indexOf('</style>'));

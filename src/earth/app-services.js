@@ -28,6 +28,7 @@ import { describeMoonExposure, describeMoonIllumination } from './scene-lighting
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
 import { atlasStatus } from '../core/status-store.js';
 import { getAstronomyImportState } from './astronomy-runtime.js';
+import { describeCameraView } from './moon-viewpoint.js';
 
 export function createEarthAppServices({
     THREE,
@@ -254,6 +255,7 @@ export function createEarthAppServices({
         stopIssTracking,
         startMoonTracking,
         stopMoonTracking,
+        startMoonEarthView,
         startMoonMarkerFocus,
         stopMoonMarkerFocus,
         startReturnFromMoon,
@@ -451,6 +453,8 @@ export function createEarthAppServices({
         if (!m) return;
         eventUi.renderDetails('The Moon', [
             { label: 'Phase', value: Number.isFinite(m.phaseFraction) ? `${Math.round(m.phaseFraction * 100)}% lit from Earth` : 'unknown' }, // LOT 33: geocentric phase
+            // LOT 33b: the disc as the camera sees it; the span is kept live by moon-system.js (updateCameraView).
+            { label: 'Camera view', value: Object.assign(document.createElement('span'), { id: 'moonCameraViewValue', textContent: describeCameraView(m.cameraLitFraction) }) },
             { label: 'Distance', value: Number.isFinite(m.distanceKm) ? `${Math.round(m.distanceKm).toLocaleString()} km` : 'unknown' },
             { label: 'Sublunar point', value: `${m.sublunarLat.toFixed(2)} lat, ${m.sublunarLon.toFixed(2)} lon` },
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
@@ -459,7 +463,7 @@ export function createEarthAppServices({
             { label: 'Exposure', value: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }, // LOT 31 ETAPA 2 / 2b
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
-        ]);
+        ], { label: 'View from Earth', run: () => startMoonEarthView?.(moonSystem.moon) }); // LOT 33b
         startMoonTracking?.(moonSystem.moon, moonSystem.moonState?.sunWorldDir);
     }
 
@@ -582,6 +586,7 @@ export function createEarthAppServices({
         stopIssTracking,
         startMoonTracking,
         stopMoonTracking,
+        startMoonEarthView,
         startMoonMarkerFocus,
         stopMoonMarkerFocus,
         startReturnFromMoon,

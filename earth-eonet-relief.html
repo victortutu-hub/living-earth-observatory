@@ -180,6 +180,8 @@
     #earthshineViewBtn[aria-disabled="true"]:hover { border-color: rgba(130, 190, 255, 0.22); }
     /* LOT 33: the visible explanation under the button (12 px: reading text in #hud .panel, layout check). */
     #earthshineViewNote { margin: -3px 0 0; padding: 3px 9px; color: var(--muted); font-size: 12px; line-height: 1.35; border-radius: 8px; transition: background-color .25s ease, color .25s ease; }
+    /* LOT 33b: suggested while the Earthshine view is on and the camera sees a mostly sunlit disc. */
+    #moonEarthViewBtn.is-suggested { border-color: rgba(253, 230, 138, 0.75); color: #fde68a; box-shadow: 0 0 0 1px rgba(253, 230, 138, 0.35) inset; }
     #earthshineViewNote.is-flash { background-color: rgba(253, 230, 138, 0.16); color: #fde68a; }
     #cloudSourceStatus,
     #nightLightsStatus,
@@ -817,6 +819,7 @@
             <input id="noctilucentIntensity" type="range" min="0.25" max="2.4" step="0.05" value="1">
         </div>
         <button id="earthshineViewBtn" aria-pressed="false" aria-disabled="false" class="toolbar-span" aria-describedby="earthshineViewNote" title="Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.">Earthshine view: off</button>
+        <button id="moonEarthViewBtn" type="button" class="toolbar-span" aria-describedby="earthshineViewNote" title="Fly the camera to the Earth → Moon line, looking at the Moon from the Earth's side: the crescent and the earthshine as photographed from the Earth. Any interaction stops the flight.">View from Earth</button>
         <p id="earthshineViewNote" class="toolbar-span" aria-live="polite">Visible near new moon (≤ 40&nbsp;% lit as seen from Earth).</p>
         <button id="moonMarkersBtn" title="Toggle real Moon landmarks (Apollo landing sites, named craters and maria). Click a marker to zoom in and see details.">Moon markers: off</button>
         <button id="atmosphereModeBtn" title="Toggle physical ray-marched atmosphere scattering.">Atmosphere: dot</button>

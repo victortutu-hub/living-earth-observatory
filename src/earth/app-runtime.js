@@ -88,6 +88,7 @@ export function createEarthAppRuntime({
     stopIssTracking,
     startMoonTracking,
     stopMoonTracking,
+    startMoonEarthView,
     startReturnFromMoon,
     updateFocus,
     updateMarkerAnimation,
@@ -469,6 +470,14 @@ export function createEarthAppRuntime({
         moonSystem?.toggleEarthshineView?.();
     }
 
+    // LOT 33b: camera on the Earth -> Moon line (the crescent of an earthshine photograph); no-op while the Moon
+    // position is not computed yet.
+    function viewMoonFromEarth() {
+        if (!moonSystem?.moonState?.visible) return false;
+        startMoonEarthView?.(moonSystem.moon);
+        return true;
+    }
+
     function updateDataSourceMode(value) {
         state.dataSourceMode = value || 'eonet';
     }
@@ -511,6 +520,7 @@ export function createEarthAppRuntime({
             updateNoctilucentSettings,
             toggleMoonMarkers,
             toggleEarthshineView,
+            viewMoonFromEarth,
             updateZodiacalIntensity,
             applySocialPreset: socialPresetSystem.applySocialPreset,
             setSocialPresetCustom: socialPresetSystem.setCustom,
