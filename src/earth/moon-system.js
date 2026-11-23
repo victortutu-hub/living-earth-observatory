@@ -3,7 +3,7 @@ import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
-import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewAvailability, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
+import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -394,15 +394,13 @@ export function createMoonSystem({
     function updateEarthshineViewButton() {
         const button = typeof document !== 'undefined' ? document.getElementById('earthshineViewBtn') : null;
         if (!button) return;
-        const { available, reason } = earthshineViewAvailability({ litFraction: state.phaseFraction, stops: state.earthshine.stops });
-        button.disabled = !available && !(state.exposureEv > 0);
-        button.setAttribute('aria-pressed', String(state.exposureEv > 0));
-        if (state.exposureEv > 0) button.textContent = `Earthshine view: +${state.exposureEv} EV`;
-        else if (!available) button.textContent = `Earthshine view: unavailable (${Math.round(state.phaseFraction * 100)} % lit)`;
-        else button.textContent = 'Earthshine view: off';
-        button.title = available
-            ? 'Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.'
-            : reason;
+        // LOT 33: aria-disabled (still clickable), one-line label (earthshine.js: earthshineViewButtonState).
+        const view = earthshineViewButtonState({ litFraction: state.phaseFraction, stops: state.earthshine.stops, exposureEv: state.exposureEv });
+        button.disabled = false;
+        button.setAttribute('aria-disabled', String(view.ariaDisabled));
+        button.setAttribute('aria-pressed', String(view.pressed));
+        button.textContent = view.text;
+        button.title = view.title;
     }
     /** Returns true when the exposure is applied; false when the Earthshine view is refused at this phase. */
     function setMoonExposureEv(ev = 0) {

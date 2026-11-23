@@ -173,6 +173,11 @@
         cursor: pointer;
     }
     button:hover, select:hover { border-color: rgba(127, 214, 255, 0.55); }
+    /* LOT 33: Earthshine view on one line (full toolbar row). Above 40 % lit it is aria-disabled: reduced
+       contrast, dashed border, not-allowed cursor. It stays clickable, so a tap points at the note below it. */
+    #earthshineViewBtn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #earthshineViewBtn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; border-style: dashed; color: var(--muted); background: rgba(18, 32, 55, 0.4); }
+    #earthshineViewBtn[aria-disabled="true"]:hover { border-color: rgba(130, 190, 255, 0.22); }
     #cloudSourceStatus,
     #nightLightsStatus,
     #surfaceStatus,
@@ -808,7 +813,7 @@
             </label>
             <input id="noctilucentIntensity" type="range" min="0.25" max="2.4" step="0.05" value="1">
         </div>
-        <button id="earthshineViewBtn" aria-pressed="false" title="Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.">Earthshine view: off</button>
+        <button id="earthshineViewBtn" aria-pressed="false" aria-disabled="false" class="toolbar-span" title="Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.">Earthshine view: off</button>
         <button id="moonMarkersBtn" title="Toggle real Moon landmarks (Apollo landing sites, named craters and maria). Click a marker to zoom in and see details.">Moon markers: off</button>
         <button id="atmosphereModeBtn" title="Toggle physical ray-marched atmosphere scattering.">Atmosphere: dot</button>
         <button id="oceanFresnelBtn" title="Fresnel reflectivity on oceans (Schlick approximation) - water becomes mirror-like at grazing view angles, like real ISS photos at the limb.">Fresnel oceans: on</button>

@@ -65,6 +65,25 @@ export function earthshineViewAvailability({ litFraction, stops }) {
     return { available: false, reason: `Earthshine too faint at this phase — ${lit} % lit, ${below} (Earthshine view needs ≤ ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit)` };
 }
 
+export const EARTHSHINE_VIEW_TITLE = 'Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.';
+
+/**
+ * LOT 33: the Earthshine view button.
+ * - Above the threshold it is aria-disabled, not `disabled`: it stays focusable and clickable, so a tap on a
+ *   phone can point at the explanation (there is no hover on touch screens).
+ * - "%" is preceded by a no-break space, so the label cannot wrap as "(97 / % lit)".
+ * Returns { ariaDisabled, pressed, text, title }.
+ */
+export function earthshineViewButtonState({ litFraction, stops, exposureEv }) {
+    const { available, reason } = earthshineViewAvailability({ litFraction, stops });
+    const active = exposureEv > 0;
+    const ariaDisabled = !available && !active;
+    const text = active ? `Earthshine view: +${exposureEv} EV`
+        : ariaDisabled ? `Earthshine view: unavailable (${Math.round((Number(litFraction) || 0) * 100)} % lit)`
+            : 'Earthshine view: off';
+    return { ariaDisabled, pressed: active, text, title: available ? EARTHSHINE_VIEW_TITLE : reason };
+}
+
 /** A request for an exposure (0 or +10 EV): { ev, applied, note } - refused above the threshold. */
 export function requestEarthshineExposure({ wantedEv, litFraction, stops }) {
     const wanted = Number.isFinite(Number(wantedEv)) ? Math.max(0, Math.min(EARTHSHINE_VIEW_EV, Number(wantedEv))) : 0;
