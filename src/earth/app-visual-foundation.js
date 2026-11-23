@@ -52,7 +52,8 @@ export function createAppVisualFoundation({
     const updateCoolFillDirection = solarRuntime.updateCoolFillDirection;
     solarRuntime.start();
 
-    const moonSystem = createMoonSystem({ THREE, scene, sunLight, lonLatToVec3, getDate });
+    // LOT 32: renderer / camera / RenderPass target for the Moon's idle GPU warm-up (moon-prewarm.js).
+    const moonSystem = createMoonSystem({ THREE, scene, sunLight, lonLatToVec3, getDate, renderer, camera, getRenderTarget: () => sceneRuntime.composer?.readBuffer || null });
     moonSystem.start();
 
     const issSystem = createIssSystem({ THREE, scene, lonLatToVec3, getDate });

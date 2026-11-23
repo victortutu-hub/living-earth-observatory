@@ -2,6 +2,7 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
+import { createMoonPrewarm, loadTextureBitmapFirst } from './moon-prewarm.js';
 import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewAvailability, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
@@ -127,12 +128,14 @@ function computeAlignedQuaternion(THREE, localForward, worldForward, worldUpHint
 }
 
 // LOT 30: LROC WAC 1024x512 (local), only as the labelled fallback of the 4K colour map.
-function createMoonTextureNasa(THREE) {
+// LOT 32: plain TextureLoader (the previous path), with a settle callback for the GPU warm-up.
+function createMoonTextureNasa(THREE, onSettled = () => {}) {
     const loader = new THREE.TextureLoader();
+    const onError = handleTextureLoadError('LROC 1K fallback texture', MOON_TEXTURE_NASA_LOCAL_PATH);
     const texture = loader.load(
         MOON_TEXTURE_NASA_LOCAL_PATH,
-        undefined, undefined,
-        handleTextureLoadError('LROC 1K fallback texture', MOON_TEXTURE_NASA_LOCAL_PATH)
+        () => onSettled(true), undefined,
+        (error) => { onError(error); onSettled(false); }
     );
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
@@ -143,24 +146,19 @@ function createMoonTextureNasa(THREE) {
 // geometrica reala a sferei) cat si ca bump fin suplimentar, exact ca la
 // Pamant. Returneaza null daca nu exista sursa locala configurata (CDN-ul
 // NASA are CORS blocat pentru origini externe - vezi comentariul de mai sus).
-function createMoonDisplacementTexture(THREE) {
+// LOT 32: decoded off the main thread (moon-prewarm.js); anisotropy stays at the default, as before.
+function createMoonDisplacementTexture(THREE, isActive) {
     if (!MOON_DISPLACEMENT_LOCAL_PATH) return null;
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load(
-        MOON_DISPLACEMENT_LOCAL_PATH,
-        undefined, undefined,
-        handleTextureLoadError('Displacement map', MOON_DISPLACEMENT_LOCAL_PATH)
-    );
-    texture.colorSpace = THREE.NoColorSpace;
-    return texture;
+    return loadTextureBitmapFirst({
+        THREE, file: MOON_DISPLACEMENT_LOCAL_PATH, colorSpace: THREE.NoColorSpace, anisotropy: 1, isActive,
+        onError: handleTextureLoadError('Displacement map', MOON_DISPLACEMENT_LOCAL_PATH),
+    });
 }
 
 // LOT 30: one local Moon asset (NASA SVS set), with load / error callbacks.
-function loadMoonAsset(THREE, file, colorSpace, onError, onLoad) {
-    const texture = new THREE.TextureLoader().load(file, onLoad, undefined, onError);
-    texture.colorSpace = colorSpace;
-    texture.anisotropy = 4;
-    return texture;
+// LOT 32: decoded off the main thread when possible; onError only if the previous <img> path fails too.
+function loadMoonAsset(THREE, file, colorSpace, onError, onLoad, isActive) {
+    return loadTextureBitmapFirst({ THREE, file, colorSpace, anisotropy: 4, onError, onLoad, isActive });
 }
 
 // LOT 31: the Moon is lit only by the real Sun and the physical earthshine (earthshine.js), not by the
@@ -223,7 +221,11 @@ export function createMoonSystem({
     sunLight,
     lonLatToVec3,
     getDate = () => new Date(),
-    refreshMs = 60000
+    refreshMs = 60000,
+    // LOT 32: GPU warm-up at idle (moon-prewarm.js); without a renderer there is no warm-up (previous behaviour).
+    renderer = null,
+    camera = null,
+    getRenderTarget = () => null
 }) {
     const MOON_SCENE_DISTANCE = 13.5;
     const MOON_APPARENT_SIZE = 0.032;
@@ -251,24 +253,30 @@ export function createMoonSystem({
     };
     let moonMat = null;
     let moonTextureFallback = null; // LROC 1K, created only if the 4K colour map fails
+    let stopped = false; // LOT 32: a stopped system ignores late texture results and cancels its warm-up
+    const isActive = () => !stopped;
+    let settleColor;
+    const colorReady = new Promise((resolve) => { settleColor = resolve; });
     // LOT 30: colour = NASA SVS LROC WAC 4K; if it does not load, the local LROC 1K map, labelled.
-    const moonTextureColor = loadMoonAsset(THREE, MOON_COLOR_ASSET.file, THREE.SRGBColorSpace, (error) => {
+    const { texture: moonTextureColor, ready: colorLoaded } = loadMoonAsset(THREE, MOON_COLOR_ASSET.file, THREE.SRGBColorSpace, (error) => {
         console.warn(`[Moon] NASA SVS colour map ${MOON_COLOR_ASSET.file} unavailable; using the local LROC 1K map (fallback).`, error);
-        moonTextureFallback = moonTextureFallback || createMoonTextureNasa(THREE);
+        moonTextureFallback = moonTextureFallback || createMoonTextureNasa(THREE, settleColor);
         state.textureSource = 'nasa-1k-fallback';
         if (moonMat) {
             moonMat.map = moonTextureFallback;
             moonMat.userData.textureSource = MOON_TEXTURE_NASA_LOCAL_PATH;
             moonMat.needsUpdate = true;
         }
-    });
+    }, undefined, isActive);
+    colorLoaded.then((ok) => { if (ok || !isActive()) settleColor(ok); }); // on failure the 1K fallback settles it
     // Normal map reconstructed from LOLA topography (1x); without it, displacement + bump only.
-    const moonNormalTexture = loadMoonAsset(THREE, MOON_NORMAL_ASSET.file, THREE.NoColorSpace, (error) => {
+    const { texture: moonNormalTexture, ready: normalReady } = loadMoonAsset(THREE, MOON_NORMAL_ASSET.file, THREE.NoColorSpace, (error) => {
         console.warn(`[Moon] NASA SVS normal map ${MOON_NORMAL_ASSET.file} unavailable; material continues without it.`, error);
         state.normalAvailable = false;
         if (moonMat) { moonMat.normalMap = null; moonMat.needsUpdate = true; }
-    }, () => { state.normalAvailable = true; });
-    const moonDisplacementTexture = createMoonDisplacementTexture(THREE); // null pana adaugi assetul local
+    }, () => { state.normalAvailable = true; }, isActive);
+    const displacement = createMoonDisplacementTexture(THREE, isActive); // null pana adaugi assetul local
+    const moonDisplacementTexture = displacement?.texture || null;
     // Sfera reala (nu billboard plat) - textura echirectangulara se infasoara
     // corect doar pe o sfera. Raza 0.5 => diametru 1, ca sa pastram identic
     // conventia veche de scalare (scale.setScalar(x) = diametrul aparent).
@@ -357,6 +365,16 @@ export function createMoonSystem({
     moonHalo.visible = false;
     moonHalo.renderOrder = 5;
     scene.add(moonHalo);
+
+    // LOT 32: upload the Moon textures and compile its program at idle, after the page load, so the first view
+    // of the Moon (which depends on the date and the camera) no longer stalls a frame. Nothing visual changes.
+    const prewarm = renderer && camera ? createMoonPrewarm({
+        renderer, scene, camera, getRenderTarget,
+        objects: [moon, moonHalo],
+        ready: Promise.all([colorReady, normalReady, displacement?.ready]),
+        getTextures: () => [moonMat.map, moonMat.normalMap, moonMat.bumpMap, moonMat.displacementMap, moonHalo.material.map],
+    }) : null;
+    prewarm?.start();
 
     let astronomyObserver = null;
     let intervalId = null;
@@ -521,6 +539,8 @@ export function createMoonSystem({
     }
 
     function stop() {
+        stopped = true; // LOT 32: terminal for the warm-up and the pending texture loads
+        prewarm?.cancel();
         if (intervalId === null) return;
         clearInterval(intervalId);
         intervalId = null;
@@ -536,6 +556,7 @@ export function createMoonSystem({
         updateMoonPosition,
         setMoonRollOffset,
         setMoonExposureEv,
-        toggleEarthshineView
+        toggleEarthshineView,
+        prewarmStatus: prewarm ? prewarm.status : null // LOT 32: diagnostics only
     };
 }
