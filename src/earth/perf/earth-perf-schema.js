@@ -1,9 +1,13 @@
 // LOT 28: the Living Earth performance report (schema "lumi-earth-perf/1") and its validator.
+// LOT 32: new reports are "lumi-earth-perf/2" (gpu.vsyncWaitSamples, gpu.meanExclVsyncMs, gpuVsyncNote);
+// the validator accepts both, so the /1 reports in docs/perf/ stay valid.
 // Same shared checks as Living Himalaya (src/core/perf/perf-harness.js), plus page.origin (missing
 // from the Himalaya reports, noted in LOT 20), the page-load times and the "layout" block.
 import { HEADLESS_NOTE, isNum, validateBaseReport } from '../../core/perf/perf-harness.js';
 
-export const EARTH_PERF_SCHEMA = 'lumi-earth-perf/1';
+export const EARTH_PERF_SCHEMA_V1 = 'lumi-earth-perf/1';
+export const EARTH_PERF_SCHEMA = 'lumi-earth-perf/2';
+export const EARTH_PERF_SCHEMAS = Object.freeze([EARTH_PERF_SCHEMA_V1, EARTH_PERF_SCHEMA]);
 export { HEADLESS_NOTE };
 
 export const EARTH_SCENARIOS = Object.freeze([
@@ -23,7 +27,7 @@ const PAGE_LOAD_KEYS = Object.freeze(['firstRenderedFrameMs', 'surfaceShownMs', 
 /** @returns {string[]} problems (empty = valid) */
 export function validateEarthPerfReport(report) {
   return validateBaseReport(report, {
-    schema: EARTH_PERF_SCHEMA, scenarios: EARTH_SCENARIOS, timing: EARTH_RUN_TIMING,
+    schema: EARTH_PERF_SCHEMAS, vsyncFieldsFrom: EARTH_PERF_SCHEMA, scenarios: EARTH_SCENARIOS, timing: EARTH_RUN_TIMING,
     extra: (r, need) => {
       need(typeof r.page?.origin === 'string' && /^https?:\/\//.test(r.page.origin), 'page.origin missing');
       for (const key of PAGE_LOAD_KEYS) need(r.pageLoad && (r.pageLoad[key] === null || isNum(r.pageLoad[key])), `pageLoad.${key} must be a number or null`);

@@ -25,17 +25,36 @@ const STYLE = `
 export const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const fmt = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d));
 
+/**
+ * LOT 32: the GPU value shown for a scenario is the p50. The mean stays in the JSON; a vsync wait lifts
+ * the mean, not the p50. Returns { valueMs, label, meanMs, vsyncWaitSamples, meanExclVsyncMs }, or null without GPU statistics.
+ * vsyncWaitSamples / meanExclVsyncMs are undefined in reports before lumi-*-perf/2.
+ */
+export function gpuHeadline(s) {
+  if (!s?.gpu) return null;
+  return { valueMs: s.gpu.p50Ms, label: 'p50', meanMs: s.gpu.meanMs, vsyncWaitSamples: s.gpu.vsyncWaitSamples, meanExclVsyncMs: s.gpu.meanExclVsyncMs };
+}
+
+/** LOT 32: one note on the vsync-wait samples of the run, or null (none recorded / reports before /2). */
+export function vsyncWaitSummary(report) {
+  const rows = (report.scenarios || []).filter((s) => s.valid && s.gpu && Number.isInteger(s.gpu.vsyncWaitSamples));
+  if (!rows.length) return null;
+  const parts = rows.map((s) => `${s.id} ${s.gpu.vsyncWaitSamples}/${s.gpu.count}${s.gpu.vsyncWaitSamples ? ` (mean without them ${fmt(s.gpu.meanExclVsyncMs, 2)} ms)` : ''}`);
+  return `GPU timer vsync waits (>= 0.9 × the refresh interval; they span the wait for the display, not GPU work): ${parts.join(', ')}. The GPU value shown is the p50; the mean is in the JSON.`;
+}
+
 /** Results table; `customRow(s, row)` may fill the row of a non-frames scenario and return true. */
 export function resultsTable(report, customRow = () => false) {
   const table = el('table');
   const head = el('tr');
-  ['Scenario', 'Valid', 'FPS', 'p50 ms', 'p95 ms', 'p99 ms', 'max ms', '>33 ms', 'GPU p50 ms', 'Sky GPU ms', 'Draws', 'Triangles'].forEach((h) => head.append(el('th', null, h)));
+  ['Scenario', 'Valid', 'FPS', 'p50 ms', 'p95 ms', 'p99 ms', 'max ms', '>33 ms', 'GPU p50 ms', 'GPU vsync waits', 'Sky GPU ms', 'Draws', 'Triangles'].forEach((h) => head.append(el('th', null, h)));
   table.append(head);
   for (const s of report.scenarios) {
     const row = el('tr', s.valid ? null : 'is-invalid');
     if (!customRow(s, row)) {
       const f = s.frames || {};
-      [s.id, s.valid ? 'yes' : `no — ${s.reason}`, fmt(f.meanFps), fmt(f.p50Ms), fmt(f.p95Ms), fmt(f.p99Ms), fmt(f.maxMs), f.over33Ms ?? '—', s.gpu ? fmt(s.gpu.p50Ms, 2) : (s.valid ? 'n/a' : '—'), fmt(s.skyGpuMs, 2), s.drawCalls ?? '—', s.triangles ?? '—']
+      const g = gpuHeadline(s);
+      [s.id, s.valid ? 'yes' : `no — ${s.reason}`, fmt(f.meanFps), fmt(f.p50Ms), fmt(f.p95Ms), fmt(f.p99Ms), fmt(f.maxMs), f.over33Ms ?? '—', g ? fmt(g.valueMs, 2) : (s.valid ? 'n/a' : '—'), g && Number.isInteger(g.vsyncWaitSamples) ? String(g.vsyncWaitSamples) : '—', fmt(s.skyGpuMs, 2), s.drawCalls ?? '—', s.triangles ?? '—']
         .forEach((v) => row.append(el('td', null, String(v))));
     }
     table.append(row);
@@ -99,6 +118,7 @@ export function mountPerfPanel({ schema, scenarios, timing, createRunner, filePr
     const notes = [
       report.environment.headless ? `Note: ${HEADLESS_NOTE}.` : null,
       ...report.scenarios.filter((s) => s.vsync?.likely).map((s) => `${s.id}: ${s.vsync.note}.`),
+      vsyncWaitSummary(report),
       ...extraNotes(report),
       report.validation.length ? `Schema problems: ${report.validation.join('; ')}` : `Report valid (schema ${schema}).`,
     ].filter(Boolean);

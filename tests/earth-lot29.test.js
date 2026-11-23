@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { validateEarthPerfReport } from '../src/earth/perf/earth-perf-schema.js';
-import { PERF_SCHEMA } from '../src/himalaya/perf/perf-schema.js';
+import { PERF_SCHEMA, PERF_SCHEMA_V1 } from '../src/himalaya/perf/perf-schema.js';
 import { OBSERVATORY_REGISTRY } from '../src/config/observatory-registry.js';
 import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
 import { SOURCE_DEFINITIONS } from '../src/config/source-registry.js';
@@ -153,7 +153,8 @@ describe('LOT 29: "Not measured" and the inspector', () => {
   });
 
   it('Living Himalaya unchanged: same schema, same three runs and inspector rows', () => {
-    expect(PERF_SCHEMA).toBe('lumi-himalaya-perf/1');
+    expect(PERF_SCHEMA_V1).toBe('lumi-himalaya-perf/1'); // LOT 32: the registered runs are /1; new reports /2
+    expect(PERF_SCHEMA).toBe('lumi-himalaya-perf/2');
     const himalaya = OBSERVATORY_MEASURED['living-himalaya'];
     expect(himalaya.map((r) => [r.role, r.sha256.slice(0, 8)])).toEqual([['desktop', expect.any(String)], ['mobile', expect.any(String)], ['mobile-desktop-site', expect.any(String)]]);
     for (const run of himalaya) expect(sha(read(run.file))).toBe(run.sha256);

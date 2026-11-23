@@ -6,9 +6,27 @@
 //   - the shared part of the report validator (the error texts of LOT 19 are kept verbatim).
 // No network, no DOM writes.
 import { createFrameProbe, median } from './perf-gpu.js';
-import { frameStats, summarize, vsyncAssessment } from './perf-stats.js';
+import { frameStats, summarize, vsyncAssessment, vsyncWaitNote, vsyncWaitStats } from './perf-stats.js';
 
 export const HEADLESS_NOTE = 'headless — not a real-device measurement';
+
+/**
+ * LOT 32: the GPU part of a frames scenario, as a pure function.
+ * - gpu: statistics plus vsyncWaitSamples / meanExclVsyncMs, or null.
+ * - vsync: the refresh assessment.
+ * - gpuVsyncNote: the note that goes with the two vsync fields.
+ */
+export function gpuScenarioFields(gpuSamplesMs, framesP50Ms) {
+  const stats = gpuSamplesMs?.length ? summarize(gpuSamplesMs) : null;
+  const vsync = vsyncAssessment(framesP50Ms, stats?.p50Ms ?? null);
+  if (!stats) return { gpu: null, vsync, gpuVsyncNote: null };
+  const waits = vsyncWaitStats(gpuSamplesMs, vsync.refreshHz);
+  return {
+    gpu: { ...stats, vsyncWaitSamples: waits.vsyncWaitSamples, meanExclVsyncMs: waits.meanExclVsyncMs },
+    vsync,
+    gpuVsyncNote: vsyncWaitNote(waits, vsync.refreshHz),
+  };
+}
 export const DEFAULT_ORBIT_PERIOD_MS = 20000; // one full turn in 20 s, from the scenario start
 const READY_TIMEOUT_MS = 60000;
 
@@ -99,11 +117,12 @@ export function createScenarioHarness({ gl, setFrameProbe, setView, timing, orbi
     if (aborted) return invalid(id, 'run cancelled');
     const r = probe.results();
     const frames = frameStats(deltas);
-    const gpu = probe.gpuAvailable && r.gpuMs.length ? summarize(r.gpuMs) : null;
+    const { gpu, vsync, gpuVsyncNote } = gpuScenarioFields(probe.gpuAvailable ? r.gpuMs : [], frames?.p50Ms);
     const out = {
       id, valid: Boolean(frames), reason: frames ? null : 'no frames recorded', warmupMs: timing.warmupMs, measureMs: timing.measureMs,
       frames, gpu, gpuNote: gpu ? `GPU TIME_ELAPSED of the WebGL render per frame (${r.disjoint} disjoint samples dropped)` : probe.gpuAvailable ? 'GPU timer gave no samples' : 'GPU timer unavailable',
-      vsync: vsyncAssessment(frames?.p50Ms, gpu?.p50Ms ?? null),
+      ...(gpuVsyncNote ? { gpuVsyncNote } : {}),
+      vsync,
       drawCalls: median(r.calls), triangles: median(r.triangles), switch: null, ...info.extra,
     };
     if (!frames) Object.assign(out, { frames: null, gpu: null });
@@ -138,12 +157,16 @@ export const isStats = (s) => s && ['count', 'meanMs', 'p50Ms', 'p95Ms', 'p99Ms'
  * Checks shared by the perf schemas; `validateOther(s, kind, need)` checks the non-frames
  * scenario kinds. The messages are the LOT 19 messages, unchanged.
  */
-export function validateBaseReport(report, { schema, scenarios: expected, timing, validateOther = () => {}, extra = () => {} }) {
+export function validateBaseReport(report, { schema, scenarios: expected, timing, validateOther = () => {}, extra = () => {}, vsyncFieldsFrom = null }) {
   const errors = [];
   const need = (cond, message) => { if (!cond) errors.push(message); };
   need(report && typeof report === 'object', 'report is not an object');
   if (!report || typeof report !== 'object') return errors;
-  need(report.schema === schema, `schema must be ${schema}`);
+  // LOT 32: `schema` may list several accepted versions (older reports stay valid).
+  const accepted = [].concat(schema);
+  need(accepted.includes(report.schema), `schema must be ${accepted.join(' or ')}`);
+  // LOT 32: from `vsyncFieldsFrom` on, a frames scenario with GPU statistics carries the vsync-wait fields.
+  const wantsVsyncFields = vsyncFieldsFrom !== null && report.schema === vsyncFieldsFrom;
   need(typeof report.createdAt === 'string' && !Number.isNaN(Date.parse(report.createdAt)), 'createdAt must be an ISO date');
   const d = report.device || {};
   need(typeof d.userAgent === 'string', 'device.userAgent missing');
@@ -170,6 +193,11 @@ export function validateBaseReport(report, { schema, scenarios: expected, timing
     if (kind === 'frames') {
       need(isStats(s.frames) && isNum(s.frames.meanFps) && isNum(s.frames.over33Ms), `${s.id}: frame statistics incomplete`);
       need(s.gpu === null ? typeof s.gpuNote === 'string' : isStats(s.gpu), `${s.id}: gpu must be statistics or null with gpuNote`);
+      if (wantsVsyncFields && s.gpu) {
+        const w = s.gpu.vsyncWaitSamples; const m = s.gpu.meanExclVsyncMs;
+        need((w === null || (Number.isInteger(w) && w >= 0 && w <= s.gpu.count)) && (m === null || isNum(m)) && typeof s.gpuVsyncNote === 'string',
+          `${s.id}: gpu.vsyncWaitSamples, gpu.meanExclVsyncMs and gpuVsyncNote required (number or null)`);
+      }
       need(isNum(s.drawCalls) && isNum(s.triangles), `${s.id}: drawCalls and triangles required`);
       need(s.vsync && typeof s.vsync.likely === 'boolean', `${s.id}: vsync assessment missing`);
       need(s.warmupMs === timing.warmupMs && s.measureMs === timing.measureMs, `${s.id}: warm-up / measurement windows must be 3 s / 10 s`);

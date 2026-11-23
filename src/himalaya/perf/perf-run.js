@@ -169,7 +169,7 @@ export function createPerfRunner({ api, onProgress = () => {}, timing = RUN_TIMI
 function switchRow(s, row) {
   if (!s.switch) return false;
   row.append(el('td', null, `${s.id} — K2 ready`), el('td', null, s.valid ? 'yes' : 'no'),
-    Object.assign(el('td', null, `1st ${s.switch.firstReadyMs} ms (${s.switch.firstSource.split(' ')[0]}) · 2nd ${s.switch.secondReadyMs ?? '—'} ms (${(s.switch.secondSource || '').split(' ')[0]})`), { colSpan: 10 }));
+    Object.assign(el('td', null, `1st ${s.switch.firstReadyMs} ms (${s.switch.firstSource.split(' ')[0]}) · 2nd ${s.switch.secondReadyMs ?? '—'} ms (${(s.switch.secondSource || '').split(' ')[0]})`), { colSpan: 11 })); // LOT 32: + the GPU vsync waits column
   return true;
 }
 

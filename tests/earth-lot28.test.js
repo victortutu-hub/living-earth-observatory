@@ -6,7 +6,7 @@ import * as coreStats from '../src/core/perf/perf-stats.js';
 import * as himalayaStats from '../src/himalaya/perf/perf-stats.js';
 import { createFrameProbe, measureToggleGpuCost } from '../src/core/perf/perf-gpu.js';
 import { HEADLESS_NOTE } from '../src/core/perf/perf-harness.js';
-import { PERF_SCHEMA, validatePerfReport } from '../src/himalaya/perf/perf-schema.js';
+import { PERF_SCHEMA, PERF_SCHEMA_V1, validatePerfReport } from '../src/himalaya/perf/perf-schema.js';
 import { EARTH_PERF_SCHEMA, EARTH_PERF_TIMES, EARTH_SCENARIOS, validateEarthPerfReport } from '../src/earth/perf/earth-perf-schema.js';
 import { BASE_TEXT_SELECTOR, runLayoutChecks } from '../src/earth/perf/earth-layout-checks.js';
 import { OBSERVATORY_REGISTRY } from '../src/config/observatory-registry.js';
@@ -24,8 +24,10 @@ afterEach(() => { vi.unstubAllGlobals(); });
 describe('LOT 28: shared perf code (src/core/perf/)', () => {
   it('Himalaya re-exports the same statistics; its schema name is unchanged', () => {
     for (const name of ['percentile', 'summarize', 'frameStats', 'vsyncAssessment']) expect(himalayaStats[name]).toBe(coreStats[name]);
-    expect(PERF_SCHEMA).toBe('lumi-himalaya-perf/1');
-    expect(validatePerfReport({ schema: 'x' })).toContain('schema must be lumi-himalaya-perf/1');
+    // LOT 32: new reports are /2; /1 stays accepted.
+    expect(PERF_SCHEMA_V1).toBe('lumi-himalaya-perf/1');
+    expect(PERF_SCHEMA).toBe('lumi-himalaya-perf/2');
+    expect(validatePerfReport({ schema: 'x' })).toContain('schema must be lumi-himalaya-perf/1 or lumi-himalaya-perf/2');
     expect(validatePerfReport({ schema: PERF_SCHEMA, scenarios: [] })).toContain('scenarios must be A, B, C, D, E in order');
   });
 

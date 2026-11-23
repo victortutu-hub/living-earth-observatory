@@ -1,5 +1,5 @@
 // LOT 19 (moved to src/core/perf/ in LOT 28, unchanged): statistics for the performance runs
-// (Living Himalaya, Living Earth) - pure functions, no DOM.
+// (Living Himalaya, Living Earth) - pure functions, no DOM. LOT 32: vsync-wait samples of the GPU timer.
 // Percentiles use the nearest-rank method on the sorted samples (p in (0, 100]).
 
 export function percentile(sorted, p) {
@@ -28,6 +28,36 @@ export function frameStats(deltasMs) {
   if (!s) return null;
   const total = deltasMs.reduce((a, v) => a + v, 0);
   return { ...s, over33Ms: deltasMs.filter((v) => v > 33.4).length, meanFps: round((1000 * s.count) / total, 1) };
+}
+
+// LOT 32: a GPU TIME_ELAPSED sample can span the wait for the display. On the GTX 1650 (Edge / Chrome 158),
+// 5 to 18 % of the samples in some scenarios were about 16.3 ms at 60 Hz, with an unchanged SM clock.
+// Those samples measure vsync, not GPU work, and they lifted the mean, not the p50. A sample >= 0.9 × the
+// detected refresh interval counts as a vsync wait. meanExclVsyncMs is the mean without these samples. p50
+// stays the headline value.
+export const VSYNC_WAIT_FRACTION = 0.9;
+
+/**
+ * Vsync-wait samples of a GPU timer series (ms). Returns { vsyncWaitSamples, meanExclVsyncMs, thresholdMs };
+ * both values are null when no refresh rate is known. Returns null for no samples.
+ */
+export function vsyncWaitStats(samplesMs, refreshHz) {
+  const values = samplesMs.filter((v) => Number.isFinite(v) && v >= 0);
+  if (!values.length) return null;
+  if (!Number.isFinite(refreshHz) || refreshHz <= 0) return { vsyncWaitSamples: null, meanExclVsyncMs: null, thresholdMs: null };
+  const threshold = (VSYNC_WAIT_FRACTION * 1000) / refreshHz;
+  const kept = values.filter((v) => v < threshold);
+  return {
+    vsyncWaitSamples: values.length - kept.length,
+    meanExclVsyncMs: kept.length ? round(kept.reduce((s, v) => s + v, 0) / kept.length) : null,
+    thresholdMs: round(threshold),
+  };
+}
+
+/** LOT 32: the note that goes with the two fields above. */
+export function vsyncWaitNote(stats, refreshHz) {
+  if (!stats || stats.vsyncWaitSamples === null) return 'vsync-wait samples not separated: no display refresh rate detected (p50 is the headline value)';
+  return `${stats.vsyncWaitSamples} GPU timer samples >= ${stats.thresholdMs} ms (0.9 × the ${refreshHz} Hz interval) counted as vsync waits: the timer then spans the wait for the display, not GPU work; meanExclVsyncMs leaves them out; p50 is the headline value`;
 }
 
 const REFRESH_HZ = [30, 48, 50, 60, 72, 75, 90, 100, 120, 144, 165, 240];

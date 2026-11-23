@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { frameStats, percentile, summarize, vsyncAssessment } from '../src/himalaya/perf/perf-stats.js';
-import { HEADLESS_NOTE, PERF_SCHEMA, RUN_TIMING, SCENARIOS, validatePerfReport } from '../src/himalaya/perf/perf-schema.js';
+import { HEADLESS_NOTE, PERF_SCHEMA_V1, PERF_SCHEMAS, RUN_TIMING, SCENARIOS, validatePerfReport } from '../src/himalaya/perf/perf-schema.js';
 
 const text = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const listJs = (dir) => fs.readdirSync(new URL(`../${dir}/`, import.meta.url), { withFileTypes: true })
@@ -80,7 +80,8 @@ function goodReport() {
   const stats = { count: 600, meanMs: 16.7, p50Ms: 16.7, p95Ms: 17.1, p99Ms: 18, maxMs: 25 };
   const frames = (id) => ({ id, valid: true, reason: null, warmupMs: 3000, measureMs: 10000, frames: { ...stats, over33Ms: 0, meanFps: 59.9 }, gpu: { ...stats, p50Ms: 3 }, gpuNote: 'x', vsync: { likely: true }, drawCalls: 12, triangles: 400000, switch: null });
   return {
-    schema: PERF_SCHEMA, createdAt: '2026-11-18T12:00:00.000Z', environment: { headless: false },
+    // LOT 32: a /1 report (still accepted)
+    schema: PERF_SCHEMA_V1, createdAt: '2026-11-18T12:00:00.000Z', environment: { headless: false },
     device: { userAgent: 'UA', devicePixelRatio: 1, viewport: [1600, 900], canvas: [1600, 900], gpuRenderer: 'not exposed', timerQuery: true },
     page: { url: '/living-himalaya.html?perf=1', version: { module: 'himalayaLot19', stylesheet: 'himalayaLot19' }, assets: [] }, pageLoad: { firstRenderedFrameMs: 900 },
     scenarios: [frames('A'), frames('B'), frames('C'), { id: 'D', valid: true, reason: null, frames: null, gpu: null, switch: { firstReadyMs: 800, firstSource: 'network' } }, frames('E')],
@@ -96,7 +97,7 @@ describe('LOT 19: report schema lumi-himalaya-perf/1', () => {
 
   it('rejects: wrong schema, missing device fields, invalid scenario with numbers, headless without its note', () => {
     const r = goodReport();
-    expect(validatePerfReport({ ...r, schema: 'x' })).toContain(`schema must be ${PERF_SCHEMA}`);
+    expect(validatePerfReport({ ...r, schema: 'x' })).toContain(`schema must be ${PERF_SCHEMAS.join(' or ')}`);
     expect(validatePerfReport({ ...r, device: { ...r.device, gpuRenderer: undefined } })).toContain('device.gpuRenderer missing (or "not exposed")');
     const invalidWithNumbers = { ...r, scenarios: r.scenarios.map((s) => (s.id === 'B' ? { ...s, valid: false, reason: 'tab hidden' } : s)) };
     expect(validatePerfReport(invalidWithNumbers)).toContain('B: an invalid scenario reports no numbers');
