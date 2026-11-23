@@ -2,7 +2,7 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
-import { createMoonPrewarm, loadTextureBitmapFirst } from './moon-prewarm.js';
+import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
 import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewAvailability, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
@@ -225,7 +225,13 @@ export function createMoonSystem({
     // LOT 32: GPU warm-up at idle (moon-prewarm.js); without a renderer there is no warm-up (previous behaviour).
     renderer = null,
     camera = null,
-    getRenderTarget = () => null
+    getRenderTarget = () => null,
+    // LOT 32: warm-up only when the device memory allows it (moonPrewarmDecision).
+    prewarmDecision = moonPrewarmDecision({
+        deviceMemory: typeof navigator !== 'undefined' ? navigator.deviceMemory : undefined,
+        innerWidth: typeof window !== 'undefined' ? window.innerWidth : undefined,
+        mobileMaxPx: MOON_PREWARM_MOBILE_MAX_PX,
+    })
 }) {
     const MOON_SCENE_DISTANCE = 13.5;
     const MOON_APPARENT_SIZE = 0.032;
@@ -368,7 +374,9 @@ export function createMoonSystem({
 
     // LOT 32: upload the Moon textures and compile its program at idle, after the page load, so the first view
     // of the Moon (which depends on the date and the camera) no longer stalls a frame. Nothing visual changes.
-    const prewarm = renderer && camera ? createMoonPrewarm({
+    // Skipped on low-memory devices (moonPrewarmDecision): the Moon then uploads on its first view, as before.
+    if (renderer && camera && !prewarmDecision.warm) console.info(moonPrewarmSkippedMessage(prewarmDecision.reason));
+    const prewarm = renderer && camera && prewarmDecision.warm ? createMoonPrewarm({
         renderer, scene, camera, getRenderTarget,
         objects: [moon, moonHalo],
         ready: Promise.all([colorReady, normalReady, displacement?.ready]),
@@ -557,6 +565,7 @@ export function createMoonSystem({
         setMoonRollOffset,
         setMoonExposureEv,
         toggleEarthshineView,
-        prewarmStatus: prewarm ? prewarm.status : null // LOT 32: diagnostics only
+        // LOT 32: diagnostics only (not shown in the Moon details)
+        prewarmStatus: prewarm ? prewarm.status : { state: 'skipped', reason: prewarmDecision.reason }
     };
 }

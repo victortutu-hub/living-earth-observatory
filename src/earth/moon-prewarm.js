@@ -13,6 +13,36 @@
 //      matches the one RenderPass uses. It never runs work synchronously in start(), it can be cancelled, and
 //      a failure only logs: the Moon then loads on first view, as before.
 
+/**
+ * LOT 32: should the Moon be uploaded to the GPU in advance? The warm-up keeps about 90 MB of Moon textures
+ * on the GPU even if the Moon is never seen, so it runs only when the device can afford it:
+ * - navigator.deviceMemory >= 4 GB: warm up;
+ * - deviceMemory below 4 GB: no warm-up;
+ * - deviceMemory not reported (e.g. Firefox, Safari): warm up only in the desktop layout
+ *   (innerWidth > mobileMaxPx, the same 760 px as the layout checks).
+ * Without the warm-up the Moon uploads on its first view, as before; decoding still happens off the main thread.
+ */
+// The mobile-layout width of the page (= MOBILE_LAYOUT_MAX_PX of src/earth/perf/earth-layout-checks.js, which
+// non-perf code must not import statically; a test keeps the two equal).
+export const MOON_PREWARM_MOBILE_MAX_PX = 760;
+
+export function moonPrewarmDecision({ deviceMemory, innerWidth, mobileMaxPx = MOON_PREWARM_MOBILE_MAX_PX }) {
+    if (Number.isFinite(deviceMemory)) {
+        return deviceMemory >= 4
+            ? { warm: true, reason: `deviceMemory ${deviceMemory} GB` }
+            : { warm: false, reason: `deviceMemory ${deviceMemory} GB (< 4 GB)` };
+    }
+    const mobileLayout = Number.isFinite(innerWidth) && innerWidth <= mobileMaxPx;
+    return mobileLayout
+        ? { warm: false, reason: 'deviceMemory not reported, mobile layout' }
+        : { warm: true, reason: 'deviceMemory not reported, desktop layout' };
+}
+
+/** LOT 32: the single console line when the warm-up is skipped (no change to the Moon details). */
+export function moonPrewarmSkippedMessage(reason) {
+    return `[Moon] GPU warm-up skipped (${reason}): the Moon textures upload on its first view; decoding stays off the main thread.`;
+}
+
 /** LOT 32: createImageBitmap options equivalent to the WebGL unpack state THREE uses for an <img>. */
 export function moonBitmapOptions({ colorTexture }) {
     return { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: colorTexture ? 'default' : 'none' };

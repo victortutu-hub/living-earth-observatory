@@ -1,7 +1,8 @@
 // LOT 32: Moon textures decoded off the main thread + idle GPU warm-up (src/earth/moon-prewarm.js).
 import fs from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { createMoonPrewarm, loadTextureBitmapFirst, moonBitmapOptions } from '../src/earth/moon-prewarm.js';
+import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonBitmapOptions, moonPrewarmDecision, moonPrewarmSkippedMessage } from '../src/earth/moon-prewarm.js';
+import { MOBILE_LAYOUT_MAX_PX } from '../src/earth/perf/earth-layout-checks.js';
 
 const text = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const flush = async (n = 10) => { for (let i = 0; i < n; i++) await Promise.resolve(); };
@@ -174,7 +175,7 @@ describe('LOT 32: createMoonPrewarm', () => {
 describe('LOT 32: wiring in the Moon system', () => {
   const moon = text('src/earth/moon-system.js');
   it('the Moon colour, normal and elevation maps go through the bitmap-first loader; the LROC 1K fallback stays on TextureLoader', () => {
-    expect(moon).toContain("import { createMoonPrewarm, loadTextureBitmapFirst } from './moon-prewarm.js';");
+    expect(moon).toContain("import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';");
     expect(moon).toMatch(/function loadMoonAsset\([^)]*\) \{\n\s+return loadTextureBitmapFirst\(/);
     expect(moon).toMatch(/function createMoonDisplacementTexture\(THREE, isActive\) \{[\s\S]*?loadTextureBitmapFirst\(/);
     expect(moon).toMatch(/function createMoonTextureNasa\(THREE, onSettled = \(\) => \{\}\) \{\n[^\n]*\n[^\n]*\n\s+const texture = loader\.load\(/);
@@ -185,5 +186,34 @@ describe('LOT 32: wiring in the Moon system', () => {
     expect(moon).toContain('prewarm?.start();');
     expect(moon).toMatch(/function stop\(\) \{\n\s+stopped = true;[^\n]*\n\s+prewarm\?\.cancel\(\);/);
     expect(text('src/earth/app-visual-foundation.js')).toContain('createMoonSystem({ THREE, scene, sunLight, lonLatToVec3, getDate, renderer, camera, getRenderTarget: () => sceneRuntime.composer?.readBuffer || null });');
+  });
+});
+
+describe('LOT 32: Moon warm-up only when the device memory allows it', () => {
+  it('deviceMemory >= 4 GB -> warm-up, whatever the layout', () => {
+    expect(moonPrewarmDecision({ deviceMemory: 8, innerWidth: 1528 })).toEqual({ warm: true, reason: 'deviceMemory 8 GB' });
+    expect(moonPrewarmDecision({ deviceMemory: 4, innerWidth: 360 })).toEqual({ warm: true, reason: 'deviceMemory 4 GB' });
+  });
+  it('deviceMemory < 4 GB -> no warm-up (first-view load, as before)', () => {
+    expect(moonPrewarmDecision({ deviceMemory: 2, innerWidth: 1528 })).toEqual({ warm: false, reason: 'deviceMemory 2 GB (< 4 GB)' });
+    expect(moonPrewarmDecision({ deviceMemory: 0.5, innerWidth: 360 }).warm).toBe(false);
+  });
+  it('deviceMemory not reported -> warm-up only in the desktop layout (> 760 px, the layout-check width)', () => {
+    expect(MOON_PREWARM_MOBILE_MAX_PX).toBe(MOBILE_LAYOUT_MAX_PX);
+    expect(moonPrewarmDecision({ deviceMemory: undefined, innerWidth: 1528 })).toEqual({ warm: true, reason: 'deviceMemory not reported, desktop layout' });
+    expect(moonPrewarmDecision({ deviceMemory: undefined, innerWidth: 761 }).warm).toBe(true);
+    expect(moonPrewarmDecision({ deviceMemory: undefined, innerWidth: 760 })).toEqual({ warm: false, reason: 'deviceMemory not reported, mobile layout' });
+    expect(moonPrewarmDecision({ deviceMemory: undefined, innerWidth: 360 }).warm).toBe(false);
+  });
+  it('the skipped branch: one informative console line; the decoding stays off the main thread; nothing new in the Moon details', () => {
+    expect(moonPrewarmSkippedMessage('deviceMemory 2 GB (< 4 GB)')).toBe('[Moon] GPU warm-up skipped (deviceMemory 2 GB (< 4 GB)): the Moon textures upload on its first view; decoding stays off the main thread.');
+    const moon = text('src/earth/moon-system.js');
+    expect(moon).toContain('if (renderer && camera && !prewarmDecision.warm) console.info(moonPrewarmSkippedMessage(prewarmDecision.reason));');
+    expect(moon).toContain('const prewarm = renderer && camera && prewarmDecision.warm ? createMoonPrewarm({');
+    expect(moon.match(/console\.info\(moonPrewarmSkippedMessage\(/g)).toHaveLength(1); // the only new console line
+    // The textures go through loadTextureBitmapFirst in both branches (it does not depend on the decision).
+    expect(moon.indexOf('loadMoonAsset(THREE, MOON_COLOR_ASSET.file')).toBeLessThan(moon.indexOf('prewarmDecision.warm ?'));
+    const details = moon.slice(moon.indexOf('export function describeMoonTextures'), moon.indexOf('function handleTextureLoadError'));
+    expect(details).not.toMatch(/prewarm|warm-up|deviceMemory/);
   });
 });
