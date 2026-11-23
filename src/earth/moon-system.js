@@ -44,7 +44,7 @@ function updateMoonStatus(state) {
         return;
     }
     const phase = Number.isFinite(state.phaseFraction)
-        ? `${Math.round(state.phaseFraction * 100)}% lit`
+        ? `${Math.round(state.phaseFraction * 100)}% lit from Earth` // LOT 33: geocentric phase
         : 'phase unknown';
     const composed = composeProvenanceStatus('astronomy', `Moon: ${phase} · ${formatMoonDistance(state.distanceKm)}`, {
         extraTitle: `Moon position and phase from ${state.source}`,

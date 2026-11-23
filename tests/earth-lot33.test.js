@@ -12,9 +12,13 @@ describe('LOT 33 step 1: a clearly disabled button that stays one line', () => {
     const s = earthshineViewButtonState({ litFraction: 0.97, stops: 17.2, exposureEv: 0 });
     expect(s.ariaDisabled).toBe(true);
     expect(s.pressed).toBe(false);
-    expect(s.text).toBe('Earthshine view: unavailable (97 % lit)');
+    expect(s.text).toBe('Earthshine view: unavailable (97 % lit from Earth)');
     expect(s.text).not.toMatch(/\d %/); // no breakable space between the number and "%"
     expect(s.title).toMatch(/^Earthshine too faint at this phase — 97 % lit/);
+    // LOT 33: why the night-side camera does not help - the Earth's phase seen from the Moon (1 - the Moon's lit fraction).
+    expect(s.title).toMatch(/\. The camera may show more of the night side, but earthshine depends on the Earth's phase seen from the Moon \(now nearly new, 3 % lit\), so the night side is dark from any viewpoint\.$/);
+    expect(earthshineViewButtonState({ litFraction: 0.41, stops: 14.4, exposureEv: 0 }).title).toMatch(/\(now 59 % lit\), so the night side is dark/); // not "nearly new" at 59 %
+    expect(earthshineViewButtonState({ litFraction: 0.98, stops: 17.3, exposureEv: 0 }).text).toBe('Earthshine view: unavailable (98 % lit from Earth)');
   });
   it('at or below 40 % lit: enabled, "off"; active: "+10 EV", pressed', () => {
     expect(earthshineViewButtonState({ litFraction: 0.39, stops: 14, exposureEv: 0 })).toEqual({ ariaDisabled: false, pressed: false, text: 'Earthshine view: off', title: EARTHSHINE_VIEW_TITLE });
@@ -111,10 +115,10 @@ describe('LOT 33 step 2: dates in UTC, day + month', () => {
 describe('LOT 33 step 2: the visible line, in both states', () => {
   const w = { start: new Date('2026-12-03T05:10:00Z'), end: new Date('2026-12-15T19:40:00Z') };
   it('unavailable: the rule and the next window (UTC)', () => {
-    expect(earthshineViewNoteText({ available: false, window: w, from: new Date('2026-11-23T08:00:00Z') })).toBe('Visible near new moon (≤ 40 % lit). Next window: 3⁠–⁠15 Dec (UTC).'); // word joiners: no break after the en dash
+    expect(earthshineViewNoteText({ available: false, window: w, from: new Date('2026-11-23T08:00:00Z') })).toBe('Visible near new moon (≤ 40 % lit as seen from Earth). Next window: 3⁠–⁠15 Dec (UTC).'); // word joiners: no break after the en dash
     // The dates never wrap in the middle: the only break left is before the dash between two dates.
     const two = earthshineViewNoteText({ available: false, window: { start: new Date('2026-11-28T05:10:00Z'), end: new Date('2026-12-09T19:40:00Z') }, from: new Date('2026-11-23T08:00:00Z') });
-    expect(two).toBe('Visible near new moon (≤ 40 % lit). Next window: 28 Nov – 9 Dec (UTC).');
+    expect(two).toBe('Visible near new moon (≤ 40 % lit as seen from Earth). Next window: 28 Nov – 9 Dec (UTC).');
   });
   it('available: what the mode does', () => {
     expect(earthshineViewNoteText({ available: true, window: w })).toBe('Moon exposure +10 EV — lit side clipped, as in photographs.');
@@ -122,8 +126,8 @@ describe('LOT 33 step 2: the visible line, in both states', () => {
   });
   it('before the phase is known only the rule (never "available"); Astronomy Engine missing is said; no window -> said', () => {
     expect(earthshineViewNoteText({ available: true, astronomy: 'pending' })).toBe(EARTHSHINE_NOTE_LIMIT);
-    expect(earthshineViewNoteText({ available: true, astronomy: 'failed' })).toBe('Visible near new moon (≤ 40 % lit). Moon phase not computed (Astronomy Engine not loaded).');
-    expect(earthshineViewNoteText({ available: false, window: { start: null } })).toBe('Visible near new moon (≤ 40 % lit). Next window: none within 40 days.');
+    expect(earthshineViewNoteText({ available: true, astronomy: 'failed' })).toBe('Visible near new moon (≤ 40 % lit as seen from Earth). Moon phase not computed (Astronomy Engine not loaded).');
+    expect(earthshineViewNoteText({ available: false, window: { start: null } })).toBe('Visible near new moon (≤ 40 % lit as seen from Earth). Next window: none within 40 days.');
   });
   it('wiring: the window is computed from the displayed time, only while unavailable, and cached until its start', () => {
     const moon = text('src/earth/moon-system.js');

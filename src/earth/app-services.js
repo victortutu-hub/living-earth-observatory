@@ -450,7 +450,7 @@ export function createEarthAppServices({
         const m = moonSystem?.moonState;
         if (!m) return;
         eventUi.renderDetails('The Moon', [
-            { label: 'Phase', value: Number.isFinite(m.phaseFraction) ? `${Math.round(m.phaseFraction * 100)}% lit` : 'unknown' },
+            { label: 'Phase', value: Number.isFinite(m.phaseFraction) ? `${Math.round(m.phaseFraction * 100)}% lit from Earth` : 'unknown' }, // LOT 33: geocentric phase
             { label: 'Distance', value: Number.isFinite(m.distanceKm) ? `${Math.round(m.distanceKm).toLocaleString()} km` : 'unknown' },
             { label: 'Sublunar point', value: `${m.sublunarLat.toFixed(2)} lat, ${m.sublunarLon.toFixed(2)} lon` },
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },

@@ -76,7 +76,7 @@ export function formatWindowUtc({ start, end }, ref = start) {
 
 export const EARTHSHINE_NOTE_AVAILABLE = 'Moon exposure +10 EV — lit side clipped, as in photographs.';
 
-export const EARTHSHINE_NOTE_LIMIT = `Visible near new moon (≤ ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit).`;
+export const EARTHSHINE_NOTE_LIMIT = `Visible near new moon (≤ ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit as seen from Earth).`;
 
 /**
  * LOT 33: the visible line under the button (no hover needed).

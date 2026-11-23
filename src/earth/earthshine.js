@@ -68,6 +68,17 @@ export function earthshineViewAvailability({ litFraction, stops }) {
 export const EARTHSHINE_VIEW_TITLE = 'Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.';
 
 /**
+ * LOT 33: why a camera on the night side does not help. Earthshine depends on the Earth's phase seen from the
+ * Moon. Its phase angle is the elongation (earthPhaseAngleFromElongationCos), so the Earth's lit fraction is
+ * 1 - the Moon's. "nearly new" is used only at <= 10 %; above that the sentence gives the percentage.
+ */
+export function earthshineViewpointNote(litFraction) {
+    const earthLit = Math.round((1 - Math.min(1, Math.max(0, Number(litFraction) || 0))) * 100);
+    const phase = earthLit <= 10 ? `now nearly new, ${earthLit} % lit` : `now ${earthLit} % lit`;
+    return `The camera may show more of the night side, but earthshine depends on the Earth's phase seen from the Moon (${phase}), so the night side is dark from any viewpoint.`;
+}
+
+/**
  * LOT 33: the Earthshine view button.
  * - Above the threshold it is aria-disabled, not `disabled`: it stays focusable and clickable, so a tap on a
  *   phone can point at the explanation (there is no hover on touch screens).
@@ -79,9 +90,9 @@ export function earthshineViewButtonState({ litFraction, stops, exposureEv }) {
     const active = exposureEv > 0;
     const ariaDisabled = !available && !active;
     const text = active ? `Earthshine view: +${exposureEv} EV`
-        : ariaDisabled ? `Earthshine view: unavailable (${Math.round((Number(litFraction) || 0) * 100)} % lit)`
+        : ariaDisabled ? `Earthshine view: unavailable (${Math.round((Number(litFraction) || 0) * 100)} % lit from Earth)`
             : 'Earthshine view: off';
-    return { ariaDisabled, pressed: active, text, title: available ? EARTHSHINE_VIEW_TITLE : reason };
+    return { ariaDisabled, pressed: active, text, title: available ? EARTHSHINE_VIEW_TITLE : `${reason}. ${earthshineViewpointNote(litFraction)}` };
 }
 
 /** A request for an exposure (0 or +10 EV): { ev, applied, note } - refused above the threshold. */
