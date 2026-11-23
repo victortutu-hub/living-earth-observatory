@@ -119,7 +119,7 @@ describe('LOT 28: Living Earth ?perf=1', () => {
     expect(skyCostResult({ available: true, costGpuMs: 0.4, samples: 8, disjoint: true }).skyGpuMs).toBeNull();
     expect(skyCostResult({ available: false })).toBeNull();
     expect(report.pageLoad).toMatchObject({ firstRenderedFrameMs: 900, surfaceShownMs: 2400, runtimeLiveMs: 3100 });
-    expect(report.layout.checks.map((c) => c.id)).toEqual(['viewport', 'no-horizontal-scroll', 'hud-toggle', 'buttons-in-viewport', 'base-text-px']);
+    expect(report.layout.checks.map((c) => c.id)).toEqual(['viewport', 'no-horizontal-scroll', 'hud-toggle', 'hidden-panels-pass-taps', 'buttons-in-viewport', 'base-text-px']); // LOT 33c: + hidden-panels-pass-taps
     // Only the shortened test windows differ from the schema.
     expect(report.validation.every((e) => /warm-up \/ measurement windows/.test(e))).toBe(true);
   }, 30000);
@@ -148,7 +148,7 @@ describe('LOT 28: report schema lumi-earth-perf/1', () => {
 });
 
 describe('LOT 28: layout checks (headless — not a real-device measurement)', () => {
-  function fakePage({ width, toggleShown, fontPx = 16, panelPx = 13, smallPx = 10, overflow = 0 }) {
+  function fakePage({ width, toggleShown, fontPx = 16, panelPx = 13, smallPx = 10, overflow = 0, hiddenPanelsBlock = false }) {
     const body = { classList: new Set(), style: {} };
     body.classList.contains = (c) => body.classList.has(c);
     const el = (props) => ({ childNodes: [{ nodeType: 3, textContent: 'text' }], textContent: 'text', style: {}, getBoundingClientRect: () => ({ left: 10, right: 60, width: 50, height: 20 }), ...props });
@@ -160,6 +160,8 @@ describe('LOT 28: layout checks (headless — not a real-device measurement)', (
       body, documentElement: { scrollWidth: width + overflow },
       getElementById: (id) => (id === 'hudToggle' ? toggle : null),
       querySelectorAll: (q) => (q.includes('button') ? [...buttons, toggle] : q === BASE_TEXT_SELECTOR ? [paragraph] : [paragraph, small]),
+      // LOT 33c: the screen centre is the canvas, unless the panels are shown (or, simulating the old bug, hidden but still taking taps).
+      elementFromPoint: () => (!body.classList.has('panels-hidden') || hiddenPanelsBlock ? { id: 'title', closest: () => ({}) } : { tagName: 'CANVAS', closest: () => null }),
     };
     const win = {
       innerWidth: width, innerHeight: 844,
@@ -172,6 +174,11 @@ describe('LOT 28: layout checks (headless — not a real-device measurement)', (
     const result = runLayoutChecks({ ...fakePage({ width: 390, toggleShown: true }), headlessNote: HEADLESS_NOTE });
     expect(result.mobileLayout).toBe(true);
     expect(result.checks.find((c) => c.id === 'hud-toggle')).toMatchObject({ pass: true, value: { before: false, afterFirst: true, afterSecond: false } });
+    // LOT 33c: with the panels hidden, the screen centre is the canvas; the old bug (hidden panels still taking taps) fails.
+    expect(result.checks.find((c) => c.id === 'hidden-panels-pass-taps')).toMatchObject({ pass: true, value: { element: 'CANVAS', inPanels: false } });
+    const blocked = runLayoutChecks(fakePage({ width: 390, toggleShown: true, hiddenPanelsBlock: true }));
+    expect(blocked.checks.find((c) => c.id === 'hidden-panels-pass-taps')).toMatchObject({ pass: false, value: { element: 'title', inPanels: true } });
+    expect(blocked.allPass).toBe(false);
     expect(result.allPass).toBe(true);
     expect(result.note).toBe(HEADLESS_NOTE);
     expect(result.smallTextPx).toEqual([{ sizePx: 10, count: 1 }]); // listed, not a check
@@ -189,6 +196,7 @@ describe('LOT 28: layout checks (headless — not a real-device measurement)', (
 
   it('missing toggle on mobile and small base text fail', () => {
     expect(runLayoutChecks(fakePage({ width: 390, toggleShown: false })).checks.find((c) => c.id === 'hud-toggle').pass).toBe(false);
+    expect(runLayoutChecks(fakePage({ width: 390, toggleShown: false })).checks.find((c) => c.id === 'hidden-panels-pass-taps').pass).toBe(false);
     expect(runLayoutChecks(fakePage({ width: 390, toggleShown: true, panelPx: 11 })).checks.find((c) => c.id === 'base-text-px')).toMatchObject({ pass: false, value: { minPx: 11 } });
   });
 });

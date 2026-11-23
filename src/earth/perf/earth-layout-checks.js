@@ -6,6 +6,8 @@
 //   no-horizontal-scroll  documentElement.scrollWidth <= innerWidth
 //   hud-toggle          mobile layout (<= 760 px): #hudToggle shown and it hides / shows the panels;
 //                       wider: not shown (desktop layout), pass
+//   hidden-panels-pass-taps  LOT 33c, mobile layout: with the panels hidden, the element under the screen centre
+//                       is not inside #hud / #details (a tap reaches the scene); desktop: not applicable, pass
 //   buttons-in-viewport every visible button of the toolbar / HUD lies within [0, innerWidth]
 //   base-text-px        computed font size of the body and of the reading text (BASE_TEXT_SELECTOR:
 //                       subtitle, panel / details paragraphs) >= 12 px
@@ -32,16 +34,26 @@ export function runLayoutChecks({ doc = document, win = window, headlessNote = n
   add('no-horizontal-scroll', scrollW <= w, { scrollWidth: scrollW, innerWidth: w });
 
   const toggle = doc.getElementById('hudToggle');
+  // LOT 33c: while the panels are hidden, a tap in the screen centre must reach the scene, not an invisible panel.
+  const centreTarget = () => {
+    const e = typeof doc.elementFromPoint === 'function' ? doc.elementFromPoint(w / 2, h / 2) : null;
+    return e ? { element: e.id || e.tagName || null, inPanels: Boolean(e.closest?.('#hud, #details')) } : { element: null, inPanels: null };
+  };
   if (!mobile) {
     add('hud-toggle', true, { present: Boolean(toggle), shown: Boolean(toggle && visible(toggle, win)) }, 'desktop layout: the panels are always shown (not applicable)');
+    add('hidden-panels-pass-taps', true, null, 'desktop layout: the panels are never hidden (not applicable)');
   } else if (!toggle || !visible(toggle, win)) {
     add('hud-toggle', false, { present: Boolean(toggle), shown: false }, '#hudToggle missing or hidden in the mobile layout');
+    add('hidden-panels-pass-taps', false, null, 'the panels cannot be hidden without #hudToggle');
   } else {
     const hidden = () => doc.body.classList.contains('panels-hidden');
     const before = hidden();
     toggle.click(); const afterFirst = hidden();
+    const centre = afterFirst ? centreTarget() : (toggle.click(), centreTarget()); // measured with the panels hidden
+    if (!afterFirst) toggle.click();
     toggle.click(); const afterSecond = hidden();
     add('hud-toggle', afterFirst !== before && afterSecond === before, { before, afterFirst, afterSecond }, 'clicked twice: the panels change, then come back');
+    add('hidden-panels-pass-taps', centre.inPanels === false, centre, 'panels hidden: the element under the screen centre is not inside #hud / #details');
   }
 
   const buttons = [...doc.querySelectorAll('#hud button, #toolbar button, #hudToggle')].filter((b) => visible(b, win));

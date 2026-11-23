@@ -678,6 +678,13 @@
         transform: translateY(12px);
         pointer-events: none;
     }
+    /* LOT 33c: .panel, .toolbar-range and #details .details-action set pointer-events: auto, which overrode the
+       parent's none: the invisible panels took the taps meant for the globe / the Moon (mobile). #hudToggle is
+       outside #hud and stays tappable. */
+    body.panels-hidden #hud *,
+    body.panels-hidden #details * {
+        pointer-events: none;
+    }
     body.capture-mode #hudToggle {
         opacity: 0;
         pointer-events: none;

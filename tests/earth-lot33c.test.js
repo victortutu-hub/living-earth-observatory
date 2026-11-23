@@ -33,3 +33,19 @@ describe('LOT 33c fix 1: the Moon card rows are live', () => {
     expect(moon).toContain('if (pct !== shownCameraPct) { shownCameraPct = pct; refreshMoonCard(); }');
   });
 });
+
+describe('LOT 33c fix 2: hidden panels no longer take the taps (mobile)', () => {
+  it('the CSS rule covers every child of the hidden #hud / #details, with a specificity above the pointer-events: auto rules', () => {
+    expect(html).toMatch(/body\.panels-hidden #hud \*,\s*body\.panels-hidden #details \* \{\s*pointer-events: none;\s*\}/);
+    // The rules it overrides: .panel / .toolbar-range (0,1,0) and #details .details-action (1,1,0) < (1,1,1).
+    expect(html).toMatch(/\.panel \{[^}]*pointer-events: auto;/);
+    expect(html).toMatch(/#details \.details-action \{[^}]*pointer-events: auto;/);
+    // #hudToggle is outside #hud, so it is not covered and still brings the panels back.
+    expect(html.indexOf('<button id="hudToggle"')).toBeLessThan(html.indexOf('<div id="hud">'));
+    expect(html.slice(html.indexOf('<div id="hud">'))).not.toContain('id="hudToggle"');
+  });
+  it('the CSS is inline in earth-eonet-relief.html (no linked stylesheet of this page changed, so no ?v= to bump)', () => {
+    expect(html).not.toMatch(/<link[^>]*rel="stylesheet"/);
+    expect(html).toMatch(/<style>[\s\S]*body\.panels-hidden #hud \*[\s\S]*<\/style>/);
+  });
+});
