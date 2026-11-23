@@ -95,6 +95,6 @@ describe('LOT 33b: the hint when the camera sees a mostly sunlit disc', () => {
     expect(camera).toBeGreaterThan(phase);
     expect(services.slice(phase, camera)).not.toContain("{ label: 'Distance'"); // right after Phase
     expect(services).toContain("{ label: 'Camera view', value: Object.assign(document.createElement('span'), { id: 'moonCameraViewValue', textContent: describeCameraView(m.cameraLitFraction) }) },");
-    expect(text('src/earth/moon-system.js')).toContain("const cell = document.getElementById('moonCameraViewValue');");
+    expect(text('src/earth/moon-system.js')).toContain('if (pct !== shownCameraPct) { shownCameraPct = pct; refreshMoonCard(); }'); // LOT 33c: one live path
   });
 });

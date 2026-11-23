@@ -2,7 +2,8 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
-import { CAMERA_VIEW_HINT, cameraLitFraction, cameraViewHint } from './moon-viewpoint.js';
+import { CAMERA_VIEW_HINT, cameraLitFraction, cameraViewHint, moonCardLiveRows } from './moon-viewpoint.js';
+import { describeMoonExposure } from './scene-lighting.js';
 import { createNoteFlash, earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
 import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
@@ -417,6 +418,17 @@ export function createMoonSystem({
                 : earthshineViewNoteText({ available: !view.ariaDisabled, window: w, from: w ? new Date(w.from) : null, astronomy: state.source === 'astronomy-engine' ? 'ok' : state.source === 'retrying' ? 'failed' : 'pending' });
         }
         document.getElementById('moonEarthViewBtn')?.classList.toggle('is-suggested', state.cameraHint);
+        refreshMoonCard(); // LOT 33c
+    }
+    // LOT 33c: the open "The Moon" card follows the state. This runs on every exposure / phase change (through
+    // updateEarthshineViewButton) and when the camera-view percentage changes.
+    function refreshMoonCard() {
+        if (typeof document === 'undefined') return;
+        const rows = moonCardLiveRows(state, describeMoonExposure);
+        for (const [id, value] of Object.entries(rows)) {
+            const cell = document.getElementById(id);
+            if (cell && cell.textContent !== value) cell.textContent = value;
+        }
     }
     /** Returns true when the exposure is applied; false when the Earthshine view is refused at this phase. */
     function setMoonExposureEv(ev = 0) {
@@ -554,10 +566,7 @@ export function createMoonSystem({
         const hint = cameraViewHint({ active: state.exposureEv > 0, cameraLit: state.cameraLitFraction });
         if (hint !== state.cameraHint) { state.cameraHint = hint; updateEarthshineViewButton(); }
         const pct = Math.round(state.cameraLitFraction * 100);
-        if (pct !== shownCameraPct && typeof document !== 'undefined') {
-            const cell = document.getElementById('moonCameraViewValue');
-            if (cell) { cell.textContent = `${pct} % of the disc sunlit`; shownCameraPct = pct; }
-        }
+        if (pct !== shownCameraPct) { shownCameraPct = pct; refreshMoonCard(); } // LOT 33c: one path for the live card rows
     }
 
     function update(camera) {

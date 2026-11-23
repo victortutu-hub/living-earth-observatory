@@ -123,7 +123,8 @@ describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo
     expect(text('src/earth/earthshine.js')).toContain('export const EARTHSHINE_VIEW_EV = 10;'); // ETAPA 2b: moved next to the threshold
     expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs)');
     expect(describeMoonExposure(0)).toMatch(/^Normal exposure \(\+0 EV\)/);
-    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: describeMoonExposure(m.exposureEv, m.earthshineViewNote) },");
+    // LOT 33c: the same text, in a span kept live by moon-system.js (the card follows the mode on / off).
+    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }) },");
     expect(text('earth-eonet-relief.html')).toContain('<button id="earthshineViewBtn" aria-pressed="false"');
     expect(text('src/earth/control-panel.js')).toContain("byId('earthshineViewBtn')?.addEventListener('click', () => {");
     // Only the Moon material reads uMoonExposure.

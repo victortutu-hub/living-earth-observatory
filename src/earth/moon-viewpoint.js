@@ -42,6 +42,23 @@ export function cameraViewHint({ active, cameraLit }) {
     return Boolean(active) && Number.isFinite(cameraLit) && cameraLit > CAMERA_HINT_MAX_LIT;
 }
 
+/** Moon details row "Phase" (geocentric). */
+export function describePhaseFromEarth(phaseFraction) {
+    return Number.isFinite(phaseFraction) ? `${Math.round(phaseFraction * 100)}% lit from Earth` : 'unknown';
+}
+
+/**
+ * LOT 33c: the live rows of the open "The Moon" card. The card is rendered once, on the click; these rows follow
+ * the state (the Earthshine view on / off, the phase, the camera). Returns { id: text }.
+ */
+export function moonCardLiveRows({ phaseFraction, exposureEv, earthshineViewNote, cameraLitFraction }, describeMoonExposure) {
+    return {
+        moonPhaseValue: describePhaseFromEarth(phaseFraction),
+        moonExposureValue: describeMoonExposure(exposureEv, earthshineViewNote),
+        moonCameraViewValue: describeCameraView(cameraLitFraction),
+    };
+}
+
 /** Moon details row. */
 export function describeCameraView(cameraLit) {
     return Number.isFinite(cameraLit) ? `${Math.round(cameraLit * 100)} % of the disc sunlit` : 'unknown';

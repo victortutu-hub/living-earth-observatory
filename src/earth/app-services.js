@@ -28,7 +28,7 @@ import { describeMoonExposure, describeMoonIllumination } from './scene-lighting
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
 import { atlasStatus } from '../core/status-store.js';
 import { getAstronomyImportState } from './astronomy-runtime.js';
-import { describeCameraView } from './moon-viewpoint.js';
+import { describeCameraView, describePhaseFromEarth } from './moon-viewpoint.js';
 
 export function createEarthAppServices({
     THREE,
@@ -452,7 +452,8 @@ export function createEarthAppServices({
         const m = moonSystem?.moonState;
         if (!m) return;
         eventUi.renderDetails('The Moon', [
-            { label: 'Phase', value: Number.isFinite(m.phaseFraction) ? `${Math.round(m.phaseFraction * 100)}% lit from Earth` : 'unknown' }, // LOT 33: geocentric phase
+            // LOT 33 / 33c: geocentric phase; Phase, Camera view and Exposure are spans kept live by moon-system.js.
+            { label: 'Phase', value: Object.assign(document.createElement('span'), { id: 'moonPhaseValue', textContent: describePhaseFromEarth(m.phaseFraction) }) },
             // LOT 33b: the disc as the camera sees it; the span is kept live by moon-system.js (updateCameraView).
             { label: 'Camera view', value: Object.assign(document.createElement('span'), { id: 'moonCameraViewValue', textContent: describeCameraView(m.cameraLitFraction) }) },
             { label: 'Distance', value: Number.isFinite(m.distanceKm) ? `${Math.round(m.distanceKm).toLocaleString()} km` : 'unknown' },
@@ -460,7 +461,7 @@ export function createEarthAppServices({
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
             // LOT 31: every light that reaches the Moon, read from the live objects.
             { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, earthshine: m.earthshine }) },
-            { label: 'Exposure', value: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }, // LOT 31 ETAPA 2 / 2b
+            { label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }) }, // LOT 31 ETAPA 2 / 2b; LOT 33c live
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ], { label: 'View from Earth', run: () => startMoonEarthView?.(moonSystem.moon) }); // LOT 33b
