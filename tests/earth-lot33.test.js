@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EARTHSHINE_VIEW_TITLE, earthshineViewButtonState } from '../src/earth/earthshine.js';
-import { EARTHSHINE_NOTE_AVAILABLE, EARTHSHINE_NOTE_LIMIT, earthshineViewNoteText, formatWindowUtc, moonLitFraction, nextEarthshineWindow } from '../src/earth/earthshine-window.js';
+import { EARTHSHINE_NOTE_AVAILABLE, EARTHSHINE_NOTE_LIMIT, NOTE_FLASH_CLASS, NOTE_FLASH_MS, createNoteFlash, earthshineViewNoteText, formatWindowUtc, moonLitFraction, nextEarthshineWindow } from '../src/earth/earthshine-window.js';
 
 const text = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const html = text('earth-eonet-relief.html');
@@ -111,7 +111,10 @@ describe('LOT 33 step 2: dates in UTC, day + month', () => {
 describe('LOT 33 step 2: the visible line, in both states', () => {
   const w = { start: new Date('2026-12-03T05:10:00Z'), end: new Date('2026-12-15T19:40:00Z') };
   it('unavailable: the rule and the next window (UTC)', () => {
-    expect(earthshineViewNoteText({ available: false, window: w, from: new Date('2026-11-23T08:00:00Z') })).toBe('Visible near new moon (≤ 40 % lit). Next window: 3–15 Dec (UTC).');
+    expect(earthshineViewNoteText({ available: false, window: w, from: new Date('2026-11-23T08:00:00Z') })).toBe('Visible near new moon (≤ 40 % lit). Next window: 3⁠–⁠15 Dec (UTC).'); // word joiners: no break after the en dash
+    // The dates never wrap in the middle: the only break left is before the dash between two dates.
+    const two = earthshineViewNoteText({ available: false, window: { start: new Date('2026-11-28T05:10:00Z'), end: new Date('2026-12-09T19:40:00Z') }, from: new Date('2026-11-23T08:00:00Z') });
+    expect(two).toBe('Visible near new moon (≤ 40 % lit). Next window: 28 Nov – 9 Dec (UTC).');
   });
   it('available: what the mode does', () => {
     expect(earthshineViewNoteText({ available: true, window: w })).toBe('Moon exposure +10 EV — lit side clipped, as in photographs.');
@@ -138,5 +141,42 @@ describe('LOT 33 step 2: the line is visible on the mobile layout too', () => {
     expect(html).not.toMatch(/#earthshineViewNote \{[^}]*display: none/);
     const mobile = html.slice(html.indexOf('@media (max-width: 760px)'), html.indexOf('</style>'));
     expect(mobile).not.toMatch(/earthshineViewNote|#toolbar/);
+  });
+});
+
+function fakeTimers() {
+  const pending = new Map(); let id = 0;
+  return { schedule: (fn, ms) => { pending.set(++id, { fn, ms }); return id; }, cancel: (i) => pending.delete(i), pending, fire() { for (const [i, t] of [...pending]) { pending.delete(i); t.fn(); } } };
+}
+const fakeEl = () => { const set = new Set(); return { classList: { add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c) }, offsetWidth: 0, set }; };
+
+describe('LOT 33 step 3: a tap on the disabled button only highlights the note', () => {
+  it('flash adds the class for NOTE_FLASH_MS, then removes it', () => {
+    const t = fakeTimers(); const f = createNoteFlash({ schedule: t.schedule, cancel: t.cancel }); const el = fakeEl();
+    expect(f.flash(el)).toBe(true);
+    expect(el.classList.contains(NOTE_FLASH_CLASS)).toBe(true);
+    expect([...t.pending.values()][0].ms).toBe(NOTE_FLASH_MS);
+    t.fire();
+    expect(el.classList.contains(NOTE_FLASH_CLASS)).toBe(false);
+    expect(f.pending()).toBe(false);
+  });
+  it('a second tap restarts it (one timer only); dispose() cancels it and is terminal', () => {
+    const t = fakeTimers(); const f = createNoteFlash({ schedule: t.schedule, cancel: t.cancel }); const el = fakeEl();
+    f.flash(el); f.flash(el);
+    expect(t.pending.size).toBe(1);
+    f.dispose();
+    expect(t.pending.size).toBe(0);
+    expect(el.classList.contains(NOTE_FLASH_CLASS)).toBe(false);
+    expect(f.flash(el)).toBe(false); // after the module stopped
+    expect(f.flash(null)).toBe(false);
+  });
+  it('wiring: when aria-disabled, toggle changes no exposure and only flashes; stop() disposes the flash; the style exists', () => {
+    const moon = text('src/earth/moon-system.js');
+    const toggle = moon.slice(moon.indexOf('function toggleEarthshineView()'), moon.indexOf('/** After a phase change'));
+    expect(toggle).toMatch(/if \(view\.ariaDisabled\) \{\s*noteFlash\.flash\([^)]*getElementById\('earthshineViewNote'\)[^;]*;\s*return false;\s*\}/);
+    expect(toggle.indexOf('noteFlash.flash')).toBeLessThan(toggle.indexOf('setMoonExposureEv'));
+    expect(moon).toMatch(/function stop\(\) \{[\s\S]*?noteFlash\.dispose\(\);[\s\S]*?\n    \}/);
+    expect(html).toContain('#earthshineViewNote.is-flash { background-color: rgba(253, 230, 138, 0.16); color: #fde68a; }');
+    expect(text('src/earth/control-panel.js')).toContain("byId('earthshineViewBtn')?.addEventListener('click', () => {"); // the click (also a tap) reaches toggle
   });
 });

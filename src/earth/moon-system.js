@@ -2,7 +2,7 @@ import { loadAstronomyEngine } from './astronomy-runtime.js';
 import { composeProvenanceStatus } from './temporal-provenance.js';
 import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
-import { earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
+import { createNoteFlash, earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
 import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
@@ -420,7 +420,14 @@ export function createMoonSystem({
         updateEarthshineViewButton();
         return r.applied;
     }
+    // LOT 33: a tap on the disabled (aria-disabled) button changes nothing; it only highlights the note briefly.
+    const noteFlash = createNoteFlash();
     function toggleEarthshineView() {
+        const view = earthshineViewButtonState({ litFraction: state.phaseFraction, stops: state.earthshine.stops, exposureEv: state.exposureEv });
+        if (view.ariaDisabled) {
+            noteFlash.flash(typeof document !== 'undefined' ? document.getElementById('earthshineViewNote') : null);
+            return false;
+        }
         return setMoonExposureEv(state.exposureEv > 0 ? 0 : EARTHSHINE_VIEW_EV);
     }
     /** After a phase change (time scrub / live time): above the threshold the view turns itself off. */
@@ -566,6 +573,7 @@ export function createMoonSystem({
     function stop() {
         stopped = true; // LOT 32: terminal for the warm-up and the pending texture loads
         prewarm?.cancel();
+        noteFlash.dispose(); // LOT 33: no flash timer outlives the module
         if (intervalId === null) return;
         clearInterval(intervalId);
         intervalId = null;

@@ -90,5 +90,35 @@ export function earthshineViewNoteText({ available, window = null, from = null, 
     if (astronomy === 'failed') return `${limit} Moon phase not computed (Astronomy Engine not loaded).`;
     if (available) return EARTHSHINE_NOTE_AVAILABLE;
     if (!window?.start) return `${limit} Next window: none within 40 days.`;
-    return `${limit} Next window: ${formatWindowUtc(window, from || window.start)} (UTC).`;
+    // No-break spaces inside the dates and before "(UTC)": the window never wraps in the middle (mobile width).
+    // A word joiner (U+2060) on both sides of the dash in "2–16" stops the break browsers allow after an en dash.
+    const dates = formatWindowUtc(window, from || window.start).replace(/ (?!– )(?<! –)/g, ' ').replace(/(\d)–(\d)/g, '$1⁠–⁠$2');
+    return `${limit} Next window: ${dates} (UTC).`;
+}
+
+export const NOTE_FLASH_CLASS = 'is-flash';
+export const NOTE_FLASH_MS = 1200;
+
+/**
+ * LOT 33: a tap on the disabled button only highlights the note briefly. flash(el) adds NOTE_FLASH_CLASS and
+ * removes it after `durationMs`; a new flash restarts it. dispose() cancels the pending timer and clears the class,
+ * so no timer outlives the module.
+ */
+export function createNoteFlash({ durationMs = NOTE_FLASH_MS, schedule = (fn, ms) => setTimeout(fn, ms), cancel = (id) => clearTimeout(id) } = {}) {
+    let timer = null; let current = null; let disposed = false;
+    const clear = () => { if (timer !== null) cancel(timer); timer = null; current?.classList.remove(NOTE_FLASH_CLASS); current = null; };
+    return {
+        flash(el) {
+            if (disposed || !el) return false;
+            clear();
+            current = el;
+            el.classList.remove(NOTE_FLASH_CLASS);
+            void el.offsetWidth; // restart the CSS transition when tapped again
+            el.classList.add(NOTE_FLASH_CLASS);
+            timer = schedule(() => { timer = null; el.classList.remove(NOTE_FLASH_CLASS); if (current === el) current = null; }, durationMs);
+            return true;
+        },
+        dispose() { disposed = true; clear(); },
+        pending: () => timer !== null,
+    };
 }
