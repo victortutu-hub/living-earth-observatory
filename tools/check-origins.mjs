@@ -1,6 +1,6 @@
 // LOT 30: allow-list of external origins per page (tools/external-origins.mjs).
 // Every http(s):// URL written in the four pages, in src/ and in styles/ must belong to a declared origin
-// (role library / data / proxy / doc-link) that is declared for every page whose module graph reaches the
+// (role data / proxy / doc-link; LOT 37: no library role, the libraries are local under lib/) that is declared for every page whose module graph reaches the
 // file (static imports, literal dynamic imports, the pages' inline module scripts). Static assets
 // (textures, fonts, stylesheets, images) may not be external any more: an URL with such an extension is
 // accepted only for a data origin that serves tiles, or as a doc-link (never requested). styles/*.css may

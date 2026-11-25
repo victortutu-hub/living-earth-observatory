@@ -1,9 +1,9 @@
 import { fetchEarthCelesTrakTle } from './earth-data-runtime.js';
 import { EARTH_TEMPORAL_LAYERS, composeProvenanceStatus, createTemporalDescriptor, formatTemporalBadge } from './temporal-provenance.js';
 
+// LOT 37: one local source (lib/, from the npm tarball, see lib/MANIFEST.json); no CDN fallback.
 const SATELLITE_JS_URLS = [
-    'https://cdn.jsdelivr.net/npm/satellite.js@6.0.2/+esm',
-    'https://esm.sh/satellite.js@6.0.2'
+    new URL('../../lib/satellite.js@6.0.2/dist/satellite.es.js', import.meta.url).href,
 ];
 const ISS_TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE';
 const NETWORK_TIMEOUT_MS = 8500;

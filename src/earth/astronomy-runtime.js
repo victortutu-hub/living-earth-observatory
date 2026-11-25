@@ -1,8 +1,8 @@
 import { atlasStatus } from '../core/status-store.js';
 
+// LOT 37: one local source (lib/, from the npm tarball, see lib/MANIFEST.json); no CDN fallback.
 const ASTRONOMY_ENGINE_URLS = Object.freeze([
-    'https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/+esm',
-    'https://esm.sh/astronomy-engine@2.1.19',
+    new URL('../../lib/astronomy-engine@2.1.19/esm/astronomy.js', import.meta.url).href,
 ]);
 const RETRY_DELAY_MS = 30_000;
 

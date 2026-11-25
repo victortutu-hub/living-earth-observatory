@@ -1,7 +1,10 @@
 // LOT 30: the external origins the pages may use, per page and role (checked by tools/check-origins.mjs
 // and tests/check-origins.test.js; the headless probe tmp/lot30 checks the requests at runtime).
-// Roles: library (pinned versions only), data (APIs and tile services), proxy (our own proxy), doc-link
-// (written in code or pages but never requested: links, citations, provenance notes, XML namespaces).
+// Roles: data (APIs and tile services), proxy (our own proxy), doc-link (written in code or pages but never
+// requested: links, citations, provenance notes, XML namespaces).
+// LOT 37: there is no library role any more. three.js, earcut, Astronomy Engine and satellite.js are served
+// from lib/<package>@<version>/ (tools/vendor-libs.mjs, lib/MANIFEST.json); unpkg.com, cdn.jsdelivr.net and
+// esm.sh are not allowed (tests/check-origins.test.js fails if they come back).
 // Static assets (textures, fonts, stylesheets, images) are always local; there is no role for them.
 // A new origin, or a known origin on a new page, needs an entry here first.
 export const PAGES = Object.freeze({
@@ -18,10 +21,6 @@ export const DESCRIPTIVE_FILES = Object.freeze(['src/config/source-registry.js',
 const e = (entry) => Object.freeze({ ...entry, pages: Object.freeze(entry.pages || []) });
 
 export const EXTERNAL_ORIGINS = Object.freeze([
-  // --- Libraries (pinned; SRI and local copies: Lot 31).
-  e({ origin: 'https://unpkg.com', role: 'library', paths: ['/three@0.185.1/'], pages: ['earth', 'himalaya', 'protein'], note: 'three.js 0.185.1 through the import maps' }),
-  e({ origin: 'https://cdn.jsdelivr.net', role: 'library', paths: ['/npm/earcut@2.2.4/', '/npm/astronomy-engine@2.1.19/', '/npm/satellite.js@6.0.2/'], pages: ['earth', 'himalaya'], note: 'earcut, Astronomy Engine (also Living Himalaya: Sun and Moon), satellite.js (pinned)' }),
-  e({ origin: 'https://esm.sh', role: 'library', paths: ['/astronomy-engine@2.1.19', '/satellite.js@6.0.2'], pages: ['earth', 'himalaya'], note: 'second CDN of the same pinned versions' }),
   // --- Data.
   e({ origin: 'https://eonet.gsfc.nasa.gov', role: 'data', pages: ['index', 'earth', 'himalaya', 'protein'], note: 'NASA EONET events (requested by index and Earth; the shared src/core/data-broker.js default URL is reachable from every page)' }),
   e({ origin: 'https://gibs.earthdata.nasa.gov', role: 'data', tiles: true, templates: ['https://${host}.earthdata.nasa.gov'], paths: ['/wmts/', '/wms/'], pages: ['index', 'earth'], note: 'NASA GIBS WMTS / WMS tiles (Blue Marble, Black Marble, snow, daily clouds)' }),
