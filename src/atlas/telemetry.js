@@ -35,6 +35,49 @@ const contexts = Object.freeze({
   },
 });
 
+// LOT 35 (fix by Codex, finished here): the scroll state is written only where it is used and only when it
+// changes. Writing custom properties on :root every scroll frame restyled the whole document.
+// - The hero values (--hero-*) go on #hero, whose descendants are the only consumers (styles/main.css).
+// - The page progress is one property on the fixed .atlas-spine (--atlas-spine-progress, 0-1). The bar scales with
+//   it (transform: scaleY), and the end dot (.atlas-spine::after) moves with translateY, so the dot is not scaled
+//   with the bar.
+
+/** The values of a scroll position (pure): { spine: { prop: value }, hero: { prop: value } | null }. */
+export function scrollStyles({ scrollY, innerHeight, scrollHeight, heroOffsetHeight = null }) {
+  const maxScroll = Math.max(1, scrollHeight - innerHeight);
+  const documentProgress = Math.max(0, Math.min(1, scrollY / maxScroll));
+  const spine = { '--atlas-spine-progress': documentProgress.toFixed(3) };
+  if (heroOffsetHeight === null) return { spine, hero: null };
+  const heroRange = Math.max(1, heroOffsetHeight * 0.82);
+  const progress = Math.max(0, Math.min(1, scrollY / heroRange));
+  return {
+    spine,
+    hero: {
+      '--hero-stage-scale': (1 - progress * 0.105).toFixed(4),
+      '--hero-stage-blur': `${(progress * 3.6).toFixed(2)}px`,
+      '--hero-stage-saturation': (1 - progress * 0.16).toFixed(3),
+      '--hero-stage-brightness': (1 - progress * 0.22).toFixed(3),
+      '--hero-stage-opacity': (1 - progress * 0.38).toFixed(3),
+      '--hero-retreat-veil': (progress * 0.58).toFixed(3),
+      '--hero-hud-opacity': (1 - progress * 0.92).toFixed(3),
+      '--hero-hud-shift': `${(-progress * 38).toFixed(2)}px`,
+    },
+  };
+}
+
+/** Writes each property only when its value changed. Returns the number of writes. */
+export function applyScrollStyles(element, values) {
+  if (!element || !values) return 0;
+  let writes = 0;
+  for (const [property, value] of Object.entries(values)) {
+    if (element.style.getPropertyValue(property) !== value) {
+      element.style.setProperty(property, value);
+      writes += 1;
+    }
+  }
+  return writes;
+}
+
 function tickAtlasClock() {
   const element = document.getElementById('atlasStatusUtc');
   if (element) element.textContent = new Date().toISOString().slice(11, 19);
@@ -43,8 +86,8 @@ function tickAtlasClock() {
 export function initTelemetry() {
   const links = [...document.querySelectorAll('.atlas-index a[data-section]')];
   const sections = links.map((link) => document.getElementById(link.dataset.section)).filter(Boolean);
-  const root = document.documentElement;
   const hero = document.getElementById('hero');
+  const spine = document.querySelector('.atlas-spine');
   const panel = document.getElementById('atlasTelemetry');
   const toggle = document.getElementById('atlasTelemetryToggle');
   const close = document.getElementById('atlasTelemetryClose');
@@ -126,22 +169,14 @@ export function initTelemetry() {
   let scrollFrame = 0;
   function updateScrollState() {
     scrollFrame = 0;
-    const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    const documentProgress = Math.max(0, Math.min(1, window.scrollY / maxScroll));
-    root.style.setProperty('--atlas-progress-height', `${(documentProgress * 100).toFixed(3)}%`);
-
-    if (hero) {
-      const heroRange = Math.max(1, hero.offsetHeight * 0.82);
-      const progress = Math.max(0, Math.min(1, window.scrollY / heroRange));
-      root.style.setProperty('--hero-stage-scale', (1 - progress * 0.105).toFixed(4));
-      root.style.setProperty('--hero-stage-blur', `${(progress * 3.6).toFixed(2)}px`);
-      root.style.setProperty('--hero-stage-saturation', (1 - progress * 0.16).toFixed(3));
-      root.style.setProperty('--hero-stage-brightness', (1 - progress * 0.22).toFixed(3));
-      root.style.setProperty('--hero-stage-opacity', (1 - progress * 0.38).toFixed(3));
-      root.style.setProperty('--hero-retreat-veil', (progress * 0.58).toFixed(3));
-      root.style.setProperty('--hero-hud-opacity', (1 - progress * 0.92).toFixed(3));
-      root.style.setProperty('--hero-hud-shift', `${(-progress * 38).toFixed(2)}px`);
-    }
+    const values = scrollStyles({
+      scrollY: window.scrollY,
+      innerHeight: window.innerHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+      heroOffsetHeight: hero ? hero.offsetHeight : null,
+    });
+    applyScrollStyles(spine, values.spine);
+    applyScrollStyles(hero, values.hero);
   }
 
   function scheduleScrollState() {

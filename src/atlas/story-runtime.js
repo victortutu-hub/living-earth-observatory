@@ -168,7 +168,10 @@ export function initStoryRuntime() {
 
     const points = lastEventCoords.map(e => projectEventCoord(e, w, h));
     ctx.save();
-    ctx.globalCompositeOperation = 'screen';
+    // Keep the glow and the outer CSS screen blend, but use the canvas default
+    // source-over for individual points. Internal screen compositing across a
+    // section-sized canvas stalls GPU presentation during scroll on desktop.
+    ctx.globalCompositeOperation = 'source-over';
 
     const maxPoints = mapMobile ? Math.min(points.length, 55) : points.length;
     for (let i = 0; i < maxPoints; i++) {

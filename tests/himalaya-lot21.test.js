@@ -172,6 +172,6 @@ describe('LOT 21: inspector "Measured" view (same typography, one key-value list
     expect(inspector).not.toContain("createElement('p', 'capability-evidence-note'");
     const css = text('styles/main.css');
     expect(css).toContain('.capability-list .capability-measured{display:grid;grid-template-columns:minmax(0,1fr);margin:6px 0 0;font-size:9px;line-height:1.5}');
-    expect(text('index.html')).toContain('./styles/main.css?v=atlasLot21');
+    expect(text('index.html')).toContain('./styles/main.css?v=lot35scroll1'); // LOT 35: main.css changed (scroll fix)
   });
 });

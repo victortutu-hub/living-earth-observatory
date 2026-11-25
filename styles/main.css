@@ -591,8 +591,7 @@
       .roadmap-module{min-height:0;}
     }
 
-    :root{
-      --atlas-progress-height:0%;
+    #hero{
       --hero-stage-scale:1;
       --hero-stage-blur:0px;
       --hero-stage-saturation:1;
@@ -628,23 +627,30 @@
       left:0;
       top:0;
       width:1px;
-      height:var(--atlas-progress-height);
+      height:100%;
       max-height:100%;
+      /* LOT 35: page progress from --atlas-spine-progress (0-1, written on .atlas-spine by telemetry.js), as a
+         compositor transform instead of a height driven by a :root variable. */
+      transform:scaleY(var(--atlas-spine-progress,0));
+      transform-origin:top;
       background:linear-gradient(180deg,rgba(var(--cyan-rgb),.22),rgba(var(--cyan-rgb),.92) 52%,rgba(var(--magenta-rgb),.72));
       box-shadow:0 0 12px rgba(var(--cyan-rgb),.32);
-      transition:height .12s linear;
+      transition:transform .12s linear;
     }
-    .atlas-spine-progress::after{
+    /* LOT 35: the end dot is on the spine, not on the scaled bar (scaleY would flatten it). The spine is 66vh tall
+       (top / bottom 17vh), so the bar end is at progress x 66vh; -4px = the old bottom:-3px of a 7px dot. */
+    .atlas-spine::after{
       content:"";
       position:absolute;
       left:50%;
-      bottom:-3px;
+      top:0;
       width:7px;
       height:7px;
       border-radius:50%;
-      transform:translateX(-50%);
+      transform:translate(-50%,calc(var(--atlas-spine-progress,0) * 66vh - 4px));
       background:rgba(var(--cyan-light-rgb),.96);
       box-shadow:0 0 13px rgba(var(--cyan-rgb),.85),0 0 28px rgba(var(--violet-rgb),.3);
+      transition:transform .12s linear;
     }
 
     body[data-atlas-section="observatories"] .atlas-telemetry::before,
@@ -744,7 +750,7 @@
     @media (max-width:900px){.atlas-spine{display:none}.atlas-index{bottom:calc(10px + env(safe-area-inset-bottom));transition:opacity .25s ease,visibility .25s ease}.atlas-telemetry-toggle{right:14px;top:auto;bottom:calc(66px + env(safe-area-inset-bottom));width:42px;height:42px;padding:0;transform:none;border-radius:50%}.atlas-telemetry-toggle:hover,.atlas-telemetry-toggle:focus-visible{transform:translateY(-3px)}body.telemetry-open .atlas-telemetry-toggle{transform:translateY(10px)}.atlas-telemetry-toggle-label{display:none}.atlas-telemetry{left:10px;right:10px;top:auto!important;bottom:calc(72px + env(safe-area-inset-bottom));width:auto;max-height:min(66svh,560px);transform:translateY(22px) scale(.985);transform-origin:center bottom}.telemetry-open .atlas-telemetry{transform:none!important}.telemetry-open .atlas-index{opacity:0;visibility:hidden;pointer-events:none}}
     @media (max-width:760px){.scroll-cue{bottom:8px;}}
     @media (max-width:480px){.atlas-index a{width:32px}.atlas-telemetry-grid{grid-template-columns:1fr}.atlas-layer-key{grid-template-columns:repeat(4,1fr)}.source-inspector-grid{grid-template-columns:1fr}.provenance-flow{grid-template-columns:1fr}.provenance-flow>.flow-arrow{display:none}.flow-process{border-left:0;border-top:1px solid rgba(220,232,255,.06)}.flow-output{grid-column:auto}.atlas-telemetry{left:8px;right:8px}}
-    @media (prefers-reduced-motion:reduce){.atlas-spine-progress,.atlas-telemetry,.atlas-telemetry-toggle,.atlas-telemetry-close,.provenance-flow{transition:none}.atlas-telemetry-live::before{animation:none}body:not(.is-exiting) #stage{transform:none;filter:none;opacity:1}body:not(.is-exiting) #hero .hud{transform:none;opacity:1}}
+    @media (prefers-reduced-motion:reduce){.atlas-spine-progress,.atlas-spine::after,.atlas-telemetry,.atlas-telemetry-toggle,.atlas-telemetry-close,.provenance-flow{transition:none}.atlas-telemetry-live::before{animation:none}body:not(.is-exiting) #stage{transform:none;filter:none;opacity:1}body:not(.is-exiting) #hero .hud{transform:none;opacity:1}}
     @media (max-width:760px){.provenance-toolbar{margin-top:34px}.provenance-toolbar>span{width:100%}.provenance-filter{flex:1;min-width:64px;padding:0 8px}.provenance-flow{grid-template-columns:1fr 20px 1fr}.flow-output{grid-column:1/-1;border-top:1px solid rgba(220,232,255,.06)}.provenance-flow>.flow-arrow:nth-of-type(2){display:none}.flow-source,.flow-process,.flow-output{padding:13px}.flow-process{border-right:0}.source-inspector{max-height:none}.source-inspector-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}}
 
 
