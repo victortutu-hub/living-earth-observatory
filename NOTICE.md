@@ -13,16 +13,31 @@ Copyright (c) 2026 Mihai / Victor Daniel. All rights reserved.
 
 ## Open-Source Libraries
 
-The project currently uses browser/CDN imports rather than local npm packages.
-Each library remains governed by its own upstream license:
+Since LOT 37 the browser libraries are served from this repository, under
+`lib/<package>@<version>/`; no CDN is used at runtime (no unpkg.com,
+cdn.jsdelivr.net or esm.sh). The files were extracted unchanged from the npm
+registry tarballs by `tools/vendor-libs.mjs`, after checking each tarball against
+the registry `dist.integrity` (sha512); `lib/MANIFEST.json` records every file
+with its size, SHA-256 and source path, and `tests/lib-vendor.test.js` checks
+`lib/` against it. Each library remains governed by its own upstream license,
+whose text is kept next to the code:
 
-- Three.js: 3D rendering framework.
-- Earcut: polygon triangulation.
-- Astronomy Engine: solar and lunar astronomical calculations.
-- satellite.js: TLE/SGP4 orbital propagation for ISS tracking.
+| Library | Version | Use | License (file) | npm integrity (sha512) |
+| --- | --- | --- | --- | --- |
+| three.js (Three.js Authors) | 0.185.1 | 3D rendering, OrbitControls, post-processing, KTX2 loader, Line2 | MIT (`lib/three@0.185.1/LICENSE`) | `sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==` |
+| earcut (Mapbox) | 2.2.4 | polygon triangulation | ISC (`lib/earcut@2.2.4/LICENSE`) | `sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==` |
+| Astronomy Engine (Don Cross) | 2.1.19 | Sun and Moon ephemerides | MIT (`lib/astronomy-engine@2.1.19/LICENSE`) | `sha512-8yWKNf7UeNbH458h3sAJ6ZgAjE5jTXp/mNNRFoC20j2SHwZIjAQeEsBB2Q3uCFRaTCCJRv33K2XhkhZQMXoX6w==` |
+| satellite.js | 6.0.2 | TLE / SGP4 propagation for ISS tracking | MIT (`lib/satellite.js@6.0.2/LICENSE.md`) | `sha512-XWKxtqVF5xiJ1xAeiYeT/oSSzsukoCLWvk6nO/WFy4un0M3g4djAU9TAtOCqJLtYW9vxx9pkPJ1L9ITOc607GA==` |
 
-When packaging this project for production, keep library license files or links
-with the distributed build.
+Two files in `lib/` are derived, not copied: `lib/earcut@2.2.4/earcut.esm.js`
+(an ES-module wrapper around the verbatim CommonJS `src/earcut.js`, which is
+also kept) and `lib/astronomy-engine@2.1.19/LICENSE` (the MIT notice from the
+header of `esm/astronomy.js`; the package ships no separate licence file).
+`vendor/basis/` (the Basis Universal transcoder used by the KTX2 loader) is
+unchanged by LOT 37.
+
+When packaging this project for production, keep the `lib/` licence files with
+the distributed build.
 
 ## Scientific And Disaster Data Sources
 

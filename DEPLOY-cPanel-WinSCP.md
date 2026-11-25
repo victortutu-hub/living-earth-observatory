@@ -44,7 +44,7 @@ cPanel sau prin WinSCP Synchronize.
 
   ```bash
   git -c core.autocrlf=false archive --format=zip -o exports/deploy-<lot>.zip HEAD -- \
-    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js     assets/himalaya assets/sky assets/moon assets/earth assets/fonts
+    src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js     assets/himalaya assets/sky assets/moon assets/earth assets/fonts lib
   ```
 
   Plus un manifest `<sha256>  <cale>`, calculat din conținutul arhivei.
@@ -88,6 +88,24 @@ cPanel sau prin WinSCP Synchronize.
   După promovarea Lot 30 nu devine mort niciun fișier de pe producție: texturile vechi
   veneau de pe threejs.org / jsDelivr (nu de pe server), iar `assets/moon-lroc-color-1k-1024x512.jpg`
   (fallback etichetat) și `assets/moon-ldem-elevation-1024x512.jpg` (relief) rămân folosite.
+- **Excepție: `lib/` intră în arhivă și se promovează ca folder** (din Lot 37).
+  Conține bibliotecile JS servite local, în loc de unpkg / jsDelivr / esm.sh:
+  `lib/three@0.185.1/`, `lib/earcut@2.2.4/`, `lib/astronomy-engine@2.1.19/`,
+  `lib/satellite.js@6.0.2/` (35 de fișiere, ~2,97 MB, plus `lib/MANIFEST.json`
+  cu SHA-256 pentru fiecare fișier și integritatea npm a fiecărui pachet). Import
+  map-urile din `earth-eonet-relief.html`, `living-himalaya.html` și
+  `living-protein.html`, plus `src/earth/astronomy-runtime.js` și
+  `src/earth/iss-system.js`, trimit **doar** acolo, fără fallback pe CDN: un cod
+  nou fără `lib/` dă `404` la `three` și pagina rămâne neagră. Folderele au versiunea
+  în nume, deci o versiune nouă e un folder nou și nu suprascrie nimic vechi; la
+  primul deploy `lib/` e un folder nou pe producție. Fișierele se refac doar cu
+  `node tools/vendor-libs.mjs <tarball-uri>` (vezi `tests/lib-vendor.test.js`), niciodată
+  de mână. În raportul de deploy listezi separat fiecare fișier din `lib/` cu mărime
+  și SHA-256 (sunt deja în `lib/MANIFEST.json`) și verifici că sunt identice.
+  `LICENSE` / `LICENSE.md` din fiecare `lib/<pachet>@<versiune>/` trebuie să
+  ajungă pe server (licențele MIT / ISC cer păstrarea notiței cu codul distribuit).
+- `vendor/` rămâne exact ca până acum (Lot 37 nu îl atinge): `vendor/basis/`
+  (transcoderul Basis pentru KTX2) nu intră în arhivă.
 - Restul `assets/` și `vendor/` (fișiere mari) nu intră în arhivă. Le compari separat
   cu serverul (`git ls-tree -r -l HEAD -- assets vendor` față de lista de pe
   server) și le urci doar dacă diferă.
@@ -95,7 +113,7 @@ cPanel sau prin WinSCP Synchronize.
   HEAD. E sigur doar dacă working tree-ul e identic cu HEAD pe căile site-ului:
 
   ```bash
-  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya assets/sky assets/moon assets/earth assets/fonts
+  git status --porcelain -- src styles index.html earth-eonet-relief.html living-protein.html living-himalaya.html sw.js assets/himalaya assets/sky assets/moon assets/earth assets/fonts lib
   ```
 
   Comanda trebuie să nu afișeze nimic. Altfel faci commit sau stash înainte, ori
@@ -111,16 +129,19 @@ fișier care există fie în arhivă, fie deja pe server. Un singur `404` pe un
 modul oprește tot graful de module, iar pagina rămâne neagră.
 
 Specificatorii simpli (`three`, `three/addons/…`, `earcut`) se rezolvă prin
-import map-ul din HTML (CDN) și nu intră în verificare.
+import map-ul din HTML în `./lib/…` (din Lot 37) și **intră** în verificare: fiecare
+țintă a import map-ului și fiecare import relativ din `lib/` trebuie să existe în
+arhivă. `npm run check:origins` pică dacă reapare un CDN de biblioteci (unpkg.com,
+cdn.jsdelivr.net, esm.sh).
 
 ### Regula 3 — întâi staging pe server, apoi producția
 
 1. **Backup în afara site-ului:** în cPanel → File Manager, copiază `src/`,
-   `styles/`, `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/`, `assets/fonts/` (cele care există deja), cele 4 HTML-uri și `sw.js` în
+   `styles/`, `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/`, `assets/fonts/`, `lib/` (cele care există deja), cele 4 HTML-uri și `sw.js` în
    `/home/luminomorphism/deploy-backups/<lot>-<AAAALLZZ>/`. Nu pune backup-ul
    în `public_html`.
 2. Creează `public_html/_staging-<lot>/` și copiază în el `assets/` și
-   `vendor/` (paginile le referă relativ). `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/` și `assets/fonts/` vin
+   `vendor/` (paginile le referă relativ). `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/`, `assets/fonts/` și `lib/` vin
    din arhivă, peste această copie.
 3. Urcă arhiva în `_staging-<lot>/` și dezarhiveaz-o acolo.
 4. Deschide `https://luminomorphism.ro/_staging-<lot>/earth-eonet-relief.html`,
@@ -179,6 +200,9 @@ Politica de cache constatată pe producție (2026-11-19, din antetele răspunsur
   site păstrează CSS-ul vechi până la 7 zile, cât timp URL-ul nu se schimbă.
 - Asset-urile din `assets/himalaya/`, `assets/sky/`, `assets/moon/`, `assets/earth/` și `assets/fonts/` au hash-ul conținutului
   în nume: un fișier nou are alt URL.
+- `lib/<pachet>@<versiune>/…` (din Lot 37) are versiunea în cale: o versiune nouă are
+  alt URL. Ca orice `.js`, vine cu `no-cache` (revalidare la fiecare încărcare).
+  `sw.js` le trece prin `networkFirstShell` (scripturi same-origin), ca pe `src/`.
 
 Regula: dacă `styles/X.css` diferă de deploy-ul anterior, fiecare HTML care îl
 referea trebuie să îl refere acum cu alt `?v=` decât în snapshot-ul anterior.
@@ -283,9 +307,14 @@ lipește exact:
 ```
 
 Ce face: urcă tot site-ul (`index.html`, `earth-eonet-relief.html`,
-`living-protein.html`, `living-himalaya.html`, `sw.js`, `src/`, `assets/`, `styles/`, `vendor/`),
+`living-protein.html`, `living-himalaya.html`, `sw.js`, `src/`, `assets/`, `styles/`, `vendor/`, `lib/`),
 dar **NU** urcă `.env` (are secrete!), folderul `.git`, documentația,
 arhivele zip, folderele de dev și `nasa-proxy-server.js`.
+
+> ⚠️ Masca exclude `LICENSE` și `*.md` în orice folder, deci și licențele din `lib/`
+> (`lib/*/LICENSE`, `lib/satellite.js@6.0.2/LICENSE.md`). Pentru `lib/` folosești
+> arhiva (Regula 1), sau urci acele patru fișiere separat și verifici că sunt pe
+> server. Masca nu se schimbă fără decizie.
 
 > `.env` conține chei/secrete — de-aia e prima în listă. Nu trebuie NICIODATĂ
 > să ajungă în `public_html`, unde ar putea fi accesat public.
