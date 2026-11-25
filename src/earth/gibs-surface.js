@@ -83,6 +83,26 @@ function outputSizeFor(width, height) {
     return width > SURFACE_MAX_SIZE.width ? { ...SURFACE_MAX_SIZE } : { width, height };
 }
 
+/** Width in px of the texture a level produces (z2 -> 2560, z3 -> 4096 after resampling). */
+export function surfaceLevelWidth(z) {
+    const crop = gibsGlobeCoverage(BLUE_MARBLE_SURFACE_LAYER.matrixSet, z);
+    return outputSizeFor(crop.width, crop.height).width;
+}
+
+/**
+ * LOT 41: the levels worth requesting over a texture `currentWidth` px wide of the same product. The bundled
+ * Blue Marble NG is 4096 x 2048, so the z2 "preview" (2560 x 1280) only ever replaced a sharper image with a
+ * blurrier one while z3 was loading; only levels at least as wide are kept (-> [3]).
+ */
+export function surfaceLevelsAbove(currentWidth, levels = SURFACE_LEVELS) {
+    return levels.filter((z) => surfaceLevelWidth(z) >= currentWidth);
+}
+
+/** LOT 41: a level replaces the texture on screen only if it is at least as wide (never a downgrade). */
+export function shouldApplySurfaceLevel(currentWidth, levelWidth) {
+    return Number(levelWidth) >= (Number(currentWidth) || 0);
+}
+
 /**
  * A bounded pool of async jobs (LOT 24): a higher priority runs first, and a
  * group (one surface level) never holds more than groupLimit slots.

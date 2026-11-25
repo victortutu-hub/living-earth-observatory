@@ -3,11 +3,11 @@ import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } 
 import { createEarthRoughnessTexture } from './earth-roughness.js';
 import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
 import { surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
-import { NIGHT_LIGHTS_FALLBACK_LABEL } from './earth-textures.js';
+import { BUNDLED_BLUE_MARBLE_WIDTH, NIGHT_LIGHTS_FALLBACK_LABEL } from './earth-textures.js';
 import { makeNightLightsMat } from './night-lights.js';
 import { loadBlackMarbleTexture } from './gibs-night-lights.js';
 import { watchPageVisibility, whenVisible } from './gibs-tiles.js';
-import { loadBlueMarbleSurfaceTexture, surfaceStatus as surfaceStatusFor } from './gibs-surface.js';
+import { loadBlueMarbleSurfaceTexture, shouldApplySurfaceLevel, surfaceLevelsAbove, surfaceStatus as surfaceStatusFor } from './gibs-surface.js';
 import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
 import {
     RELIEF_LINEAR_ASSETS,
@@ -357,7 +357,9 @@ export function createEarthLayers({
 
     // A visual lock never selects an albedo source; it loads only z3 so every
     // capture uses the same 4096x2048 albedo (never the z2 preview).
-    const surfaceLevels = surfaceVisualCase ? [3] : [2, 3];
+    // LOT 41: the same for every page now — the z2 preview (2560x1280) is narrower than the bundled
+    // 4096x2048 of the same product, so it is no longer requested: bundled, then z3.
+    const surfaceLevels = surfaceVisualCase ? [3] : surfaceLevelsAbove(BUNDLED_BLUE_MARBLE_WIDTH);
     const finalSurfaceLevel = surfaceLevels[surfaceLevels.length - 1];
     // levels: all on the first attempt; a retry (page hidden during the first
     // attempt) asks only for what is still missing.
@@ -369,6 +371,12 @@ export function createEarthLayers({
             levels,
             signal: gibsController.signal, // LOT 24: stops on dispose
             onLevel: (texture, { z, resolution, tiles, elapsedMs, final }) => {
+                // LOT 41: never replace a wider texture on screen with a narrower one.
+                const currentWidth = activeSurfaceMap?.image?.naturalWidth || activeSurfaceMap?.image?.width || 0;
+                if (!shouldApplySurfaceLevel(currentWidth, texture.image?.width)) {
+                    texture.dispose();
+                    return;
+                }
                 surfaceLevelApplied = true;
                 applySurfaceTexture(texture);
                 performance.mark?.(`lea:surface:wmts-z${z}`, { detail: { tiles, elapsedMs, resolution } });

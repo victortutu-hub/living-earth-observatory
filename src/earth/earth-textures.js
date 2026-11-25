@@ -5,6 +5,7 @@ import { RELIEF_LINEAR_EXAGGERATION, createFlatReliefTexture, createWaterMaskTex
 // NASA Blue Marble Next Generation product as the live layer, saved once from
 // GIBS (public domain; see NOTICE.md). No baked hillshade.
 export const BUNDLED_BLUE_MARBLE = 'assets/blue-marble-ng-4096x2048.jpg';
+export const BUNDLED_BLUE_MARBLE_WIDTH = 4096; // LOT 41: GIBS levels narrower than this are not requested
 
 // LOT 30 (step 4): the night-lights fallback, the cloud base layer and the ocean specular mask are local
 // files with declared sources (tools/build-earth-textures.mjs, src/config/earth-local-textures.js); they
