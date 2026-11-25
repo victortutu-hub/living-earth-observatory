@@ -224,6 +224,22 @@ by https://en.wikipedia.org/wiki/Earthshine). "Earthshine view" raises the Moon
 exposure by 10 EV (lit side clipped, as in photographs). The Earth keeps a
 declared artistic fill (a cool light opposite the Sun and an ambient light).
 
+## Moon Reflectance And Earthshine Colour (Lot 38)
+
+- Reflectance: McEwen's lunar-Lambert photometric function with the coefficients
+  of USGS ISIS `LunarLambertMcEwen`
+  (https://isis.astrogeology.usgs.gov/8.1.0/Object/Programmer/_lunar_lambert_mc_ewen_8cpp_source.html,
+  CC0; McEwen 1991, Icarus 92), L(g) clamped to [0, 1], scaled by 2/3 so the
+  full-Moon disc mean of the previous Lambert rendering is kept
+  (`src/earth/moon-photometry.js`; physical-model, approximated).
+- Moon exposure "auto" (default) is interpretive: one exposure for the whole Moon,
+  from the phase seen by the camera, up to +3 EV; "fixed" keeps +0 EV.
+- Earthshine colour: the earthlit side of the Moon is 0.150 ± 0.005 mag bluer in
+  B−V than the sunlit side (Thejll et al. 2014, "On the colour of the dark side of
+  the Moon", A&A 563, A38, arXiv:1401.1994; observed). Applied as a power-law
+  spectral tilt through the Johnson B and V bands, evaluated at the sRGB primaries
+  and scaled to keep the luminance (`src/earth/earthshine.js`; approximated).
+
 ## Local Earth Textures (Lot 30)
 
 These replaced three files that were loaded from threejs.org with no declared source:

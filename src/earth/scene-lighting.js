@@ -4,7 +4,7 @@
 // preset) and the ambient light (earth-app-bootstrap.js). The Moon (ETAPA 2) is lit only by the Sun and
 // the physical earthshine (earthshine.js; moon-system.js patches its material).
 
-import { EARTH_GEOMETRIC_ALBEDO, formatRatio } from './earthshine.js';
+import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_COLOUR, earthshineTint, formatRatio } from './earthshine.js';
 import { describeMoonAutoExposure } from './moon-photometry.js';
 
 const hex = (color) => `#${color.getHexString()}`;
@@ -39,5 +39,8 @@ export function describeMoonIllumination({ sunLight, earthshine }) {
     const es = earthshine || {};
     const phase = Number.isFinite(es.earthPhaseAngleDeg) ? `Earth phase angle ${Math.round(es.earthPhaseAngleDeg)}°, ` : '';
     const level = es.ratio > 0 ? `${formatRatio(es.ratio)} of the sunlight (${es.stops.toFixed(1)} stops below)` : '0 (new Earth)';
-    return `${describeSun(sunLight)} · earthshine (physical-model, approximated: p = ${es.albedo ?? EARTH_GEOMETRIC_ALBEDO} geometric albedo, Lambert phase, from the Earth's direction): ${phase}${level} — no artistic fill on the Moon`;
+    // LOT 38: the earthshine colour (observed difference, approximated to RGB); nothing to colour at new Earth.
+    const t = earthshineTint().map((v) => v.toFixed(3));
+    const colour = !(es.ratio > 0) ? '' : `; colour: bluer than the sunlight by Δ(B−V) = ${EARTHSHINE_COLOUR.deltaBV.toFixed(3)} ± ${EARTHSHINE_COLOUR.deltaBVUncertainty} mag on the Moon (observed, ${EARTHSHINE_COLOUR.source}), applied as linear RGB × ${t.join(' / ')} (approximated, luminance kept)`;
+    return `${describeSun(sunLight)} · earthshine (physical-model, approximated: p = ${es.albedo ?? EARTH_GEOMETRIC_ALBEDO} geometric albedo, Lambert phase, from the Earth's direction): ${phase}${level}${colour} — no artistic fill on the Moon`;
 }

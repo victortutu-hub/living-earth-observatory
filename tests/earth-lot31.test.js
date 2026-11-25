@@ -19,7 +19,7 @@ describe('LOT 31: Moon and Earth lighting, declared', () => {
 
   it('ETAPA 2: Moon "Illumination" = Sun + physical earthshine (value, stops), no fill', () => {
     const value = describeMoonIllumination({ sunLight: light('ffe6c9', 2.55), earthshine: { ratio: 1.0107e-4, stops: 13.27, earthPhaseAngleDeg: 26.06, albedo: 0.434 } });
-    expect(value).toBe("Sun: real direction (physical-model, Astronomy Engine) · directional #ffe6c9 × 2.55 · earthshine (physical-model, approximated: p = 0.434 geometric albedo, Lambert phase, from the Earth's direction): Earth phase angle 26°, 1.0×10⁻⁴ of the sunlight (13.3 stops below) — no artistic fill on the Moon");
+    expect(value).toBe("Sun: real direction (physical-model, Astronomy Engine) · directional #ffe6c9 × 2.55 · earthshine (physical-model, approximated: p = 0.434 geometric albedo, Lambert phase, from the Earth's direction): Earth phase angle 26°, 1.0×10⁻⁴ of the sunlight (13.3 stops below); colour: bluer than the sunlight by Δ(B−V) = -0.150 ± 0.005 mag on the Moon (observed, Thejll et al. 2014, A&A 563, A38 (arXiv:1401.1994)), applied as linear RGB × 0.941 / 1.006 / 1.116 (approximated, luminance kept) — no artistic fill on the Moon"); // LOT 38: + colour
     expect(describeMoonIllumination({ sunLight: light('ffe6c9', 2.55), earthshine: { ratio: 0, stops: Infinity, earthPhaseAngleDeg: 180, albedo: 0.434 } }))
       .toMatch(/Earth phase angle 180°, 0 \(new Earth\) — no artistic fill on the Moon$/);
     const services = text('src/earth/app-services.js');
@@ -102,7 +102,7 @@ describe('LOT 31 ETAPA 2: physical earthshine', () => {
     for (const gone of ['lights_fragment_begin', 'lights_fragment_maps', 'lights_fragment_end']) expect(shader.fragmentShader).not.toContain(gone);
     // LOT 38: moonSunNL / moonEarthNL are now the McEwen lunar-Lambert factor (tests/earth-lot38.test.js), same accumulation.
     expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
-    expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
+    expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * uMoonEarthshineTint * BRDF_Lambert( material.diffuseColor );'); // LOT 38: + colour
     expect(shader.fragmentShader).toContain('float moonSunNL = moonLunarLambert( saturate( dot( normal, uMoonSunDir ) ), moonMu, moonPhaseDeg( uMoonSunDir, moonViewDir ) );');
     // ETAPA 2b: the sensor-white clip sits between the exposure and the output chunk.
     expect(shader.fragmentShader).toMatch(/outgoingLight \*= uMoonExposure;\n[^\n]*uMoonSensorWhite[^\n]*\n#include <opaque_fragment>/);

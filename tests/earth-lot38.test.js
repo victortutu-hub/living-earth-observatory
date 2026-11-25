@@ -128,3 +128,34 @@ describe('LOT 38: Moon exposure auto (interpretive) / fixed', () => {
     expect(text('src/earth/moon-system.js')).toMatch(/exposureMode: MOON_EXPOSURE_DEFAULT_MODE,/);
   });
 });
+
+describe('LOT 38 PAS 2: the earthshine colour (Thejll et al. 2014, observed; RGB approximated)', async () => {
+  const { EARTHSHINE_COLOUR, earthshineTint } = await import('../src/earth/earthshine.js');
+  const { describeMoonIllumination } = await import('../src/earth/scene-lighting.js');
+  it('the measured difference: the earthlit side is 0.150 +/- 0.005 mag bluer in B-V than the sunlit side', () => {
+    expect(EARTHSHINE_COLOUR).toMatchObject({ deltaBV: -0.150, deltaBVUncertainty: 0.005, earthlightBV: 0.44, source: 'Thejll et al. 2014, A&A 563, A38 (arXiv:1401.1994)' });
+  });
+  it('the tilt reproduces F_B / F_V = 10^(0.4 x 0.150) between the B and V bands, keeps the luminance and is bluer (B > G > R)', () => {
+    const k = Math.log(10 ** 0.06) / Math.log(0.55 / 0.44);
+    const t = (um) => (um / 0.55) ** -k;
+    expect(t(0.44) / t(0.55)).toBeCloseTo(10 ** (0.4 * 0.150), 10);
+    const [r, g, b] = earthshineTint();
+    expect(0.2126 * r + 0.7152 * g + 0.0722 * b).toBeCloseTo(1, 12); // the earthshine ratio (illuminance) is unchanged
+    expect(b).toBeGreaterThan(g); expect(g).toBeGreaterThan(r);
+    expect([r, g, b].map((v) => +v.toFixed(3))).toEqual([0.941, 1.006, 1.116]);
+    expect(earthshineTint({ deltaBV: 0 })).toEqual([1, 1, 1]); // no measured difference -> the sunlight colour
+  });
+  it('the shader multiplies only the earthshine term by the tint; the uniform comes from earthshineTint()', () => {
+    const frag = ['void main() {', MOON_LIGHTING_CHUNKS.begin, MOON_LIGHTING_CHUNKS.maps, MOON_LIGHTING_CHUNKS.end, 'vec3 outgoingLight = reflectedLight.directDiffuse;', MOON_LIGHTING_CHUNKS.output, '}'].join('\n');
+    const f = patchMoonLightingShader({ uniforms: {}, fragmentShader: frag }, {}).fragmentShader;
+    expect(f).toContain('uniform vec3 uMoonEarthshineTint;');
+    expect(f).toContain('reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
+    expect(f.match(/uMoonEarthshineTint \*/g)).toHaveLength(1);
+    expect(text('src/earth/moon-system.js')).toContain('uMoonEarthshineTint: { value: new THREE.Vector3(...earthshineTint()) },');
+  });
+  it('declared in "Illumination": observed difference, source, RGB factors, approximated', () => {
+    const light = { color: { getHexString: () => 'ffe6c9' }, intensity: 2.55 };
+    const v = describeMoonIllumination({ sunLight: light, earthshine: { ratio: 1e-4, stops: 13.3, earthPhaseAngleDeg: 26, albedo: 0.434 } });
+    expect(v).toContain('colour: bluer than the sunlight by Δ(B−V) = -0.150 ± 0.005 mag on the Moon (observed, Thejll et al. 2014, A&A 563, A38 (arXiv:1401.1994)), applied as linear RGB × 0.941 / 1.006 / 1.116 (approximated, luminance kept)');
+  });
+});

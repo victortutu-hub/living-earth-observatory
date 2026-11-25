@@ -6,9 +6,32 @@
 // glint, is not a Lambert sphere). alpha_earth = the phase angle of the Earth seen from the Moon = the
 // Moon's elongation from the Sun seen from the Earth (0 at new Moon: full Earth; 180 deg at full Moon:
 // new Earth). d = the Earth-Moon distance from Astronomy Engine. The light comes from the Earth's
-// direction (Moon -> Earth), with the colour of the scene sunlight (Earth's spectral reflectance not
-// modelled). Pure functions, no DOM.
+// direction (Moon -> Earth). LOT 38: its colour is the scene sunlight tilted bluer by the measured earthshine
+// colour (EARTHSHINE_COLOUR below; before LOT 38 it was the sunlight colour). Pure functions, no DOM.
 export const EARTH_GEOMETRIC_ALBEDO = 0.434;
+
+// LOT 38: the colour of the earthshine (observed, then approximated to RGB). Thejll et al. 2014, "On the colour of
+// the dark side of the Moon", A&A 563, A38 (arXiv:1401.1994): "The earthlit dark side of the Moon is observed to be
+// 0.150 +/- 0.005 mag bluer in B-V than the sunlit bright side" (earthlight B-V = 0.44 +/- 0.02, no phase-dependent
+// reddening correction). The same lunar surface is lit once by the Sun and once by the Earth, so the Moon's own
+// colour (already in the texture) cancels: the earthshine is the sunlight times a spectral tilt with
+// F_B / F_V = 10^(0.4 * 0.150). Approximation: a power law t(l) = (l / lV)^-k through the Johnson B (0.44 um) and
+// V (0.55 um) effective wavelengths, evaluated at the dominant wavelengths of the sRGB primaries (611, 549, 464 nm),
+// then scaled to luminance Y = 1 (Rec. 709 weights), so the earthshine ratio (illuminance) is unchanged.
+export const EARTHSHINE_COLOUR = Object.freeze({
+    deltaBV: -0.150, deltaBVUncertainty: 0.005, earthlightBV: 0.44,
+    source: 'Thejll et al. 2014, A&A 563, A38 (arXiv:1401.1994)',
+    bandsUm: Object.freeze({ B: 0.44, V: 0.55 }), primariesNm: Object.freeze([611, 549, 464]),
+});
+
+/** Linear-RGB multipliers (luminance 1) that turn the sunlight colour into the earthshine colour. */
+export function earthshineTint({ deltaBV = EARTHSHINE_COLOUR.deltaBV, bandsUm = EARTHSHINE_COLOUR.bandsUm, primariesNm = EARTHSHINE_COLOUR.primariesNm } = {}) {
+    const ratioBV = 10 ** (-0.4 * deltaBV); // flux ratio B / V relative to the sunlight (1.148 for -0.150 mag)
+    const k = Math.log(ratioBV) / Math.log(bandsUm.V / bandsUm.B);
+    const raw = primariesNm.map((nm) => (nm / (bandsUm.V * 1000)) ** -k);
+    const y = 0.2126 * raw[0] + 0.7152 * raw[1] + 0.0722 * raw[2];
+    return raw.map((v) => v / y);
+}
 export const EARTH_RADIUS_KM = 6371.0;
 
 /** Lambert-sphere phase function, alpha in radians (clamped to [0, pi]); 1 at alpha 0, 0 at pi. */

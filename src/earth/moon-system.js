@@ -7,7 +7,7 @@ import { describeMoonExposure } from './scene-lighting.js';
 import { LUNAR_LAMBERT_FULL_MOON_NORMALISATION, MCEWEN_LUNAR_LAMBERT, MOON_EXPOSURE_DEFAULT_MODE, MOON_EXPOSURE_MODES, effectiveMoonExposureEv, moonAutoExposureEv, phaseAngleFromLitFraction } from './moon-photometry.js';
 import { createNoteFlash, earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
-import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
+import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, earthshineTint, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
 const AU_KM = 149597870.7;
 const MEAN_MOON_DISTANCE_KM = 384400;
 
@@ -195,7 +195,7 @@ export function patchMoonLightingShader(shader, uniforms) {
     }
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {', `uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform float uMoonExposure;\nuniform float uMoonSensorWhite;\n${MOON_LUNAR_LAMBERT_GLSL}\nvoid main() {`)
+        .replace('void main() {', `uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform vec3 uMoonEarthshineTint;\nuniform float uMoonExposure;\nuniform float uMoonSensorWhite;\n${MOON_LUNAR_LAMBERT_GLSL}\nvoid main() {`)
         .replace(MOON_LIGHTING_CHUNKS.begin, [
             '// LOT 31: Sun + physical earthshine only (no ambient, no fill lights).',
             '// LOT 38: McEwen lunar-Lambert instead of Lambert (moon-photometry.js); mu = cos(emission), g per pixel.',
@@ -204,7 +204,8 @@ export function patchMoonLightingShader(shader, uniforms) {
             'float moonSunNL = moonLunarLambert( saturate( dot( normal, uMoonSunDir ) ), moonMu, moonPhaseDeg( uMoonSunDir, moonViewDir ) );',
             'reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );',
             'float moonEarthNL = moonLunarLambert( saturate( dot( normal, uMoonEarthDir ) ), moonMu, moonPhaseDeg( uMoonEarthDir, moonViewDir ) );',
-            'reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * BRDF_Lambert( material.diffuseColor );',
+            '// LOT 38: the earthshine colour (earthshine.js: earthshineTint, Thejll et al. 2014).',
+            'reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * uMoonEarthshineTint * BRDF_Lambert( material.diffuseColor );',
         ].join('\n'))
         .replace(MOON_LIGHTING_CHUNKS.maps, '')
         .replace(MOON_LIGHTING_CHUNKS.end, '')
@@ -348,6 +349,7 @@ export function createMoonSystem({
         uMoonSunColor: { value: new THREE.Color(0, 0, 0) },
         uMoonEarthDir: { value: new THREE.Vector3(-1, 0, 0) },
         uMoonEarthshine: { value: 0 },
+        uMoonEarthshineTint: { value: new THREE.Vector3(...earthshineTint()) }, // LOT 38 (earthshine.js, luminance 1)
         uMoonExposure: { value: 1 },
         uMoonSensorWhite: { value: MOON_SENSOR_WHITE },
     };
