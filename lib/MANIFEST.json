@@ -1,0 +1,251 @@
+{
+  "generatedBy": "tools/vendor-libs.mjs (LOT 37)",
+  "packages": [
+    {
+      "name": "three",
+      "version": "0.185.1",
+      "license": "MIT",
+      "tarball": "https://registry.npmjs.org/three/-/three-0.185.1.tgz",
+      "integrity": "sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==",
+      "files": [
+        {
+          "path": "three@0.185.1/build/three.core.js",
+          "bytes": 1443056,
+          "sha256": "3718df126d69c125362a03340913204470d8c50238605150e57f808840fb7759",
+          "source": "tarball:package/build/three.core.js"
+        },
+        {
+          "path": "three@0.185.1/build/three.module.js",
+          "bytes": 650153,
+          "sha256": "bbf5ed13fe4373f5bd38b14ea8e62e9f157327da5638edc6d3863e08b167c9c7",
+          "source": "tarball:package/build/three.module.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/controls/OrbitControls.js",
+          "bytes": 40504,
+          "sha256": "faabb4e8dfd9235ee4a9fd7c9a3d75f90f1689dbd4944bd6fd32117dacec5f93",
+          "source": "tarball:package/examples/jsm/controls/OrbitControls.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/libs/ktx-parse.module.js",
+          "bytes": 19932,
+          "sha256": "f40c491f6c44dde511268121f778a0050e73b1a15fd844c1ae2c78c73213eafc",
+          "source": "tarball:package/examples/jsm/libs/ktx-parse.module.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/libs/zstddec.module.js",
+          "bytes": 39754,
+          "sha256": "5cbf818e842628a4464e748594a6deae18ceddda3c2f541e7b3a0ff5fc7611e2",
+          "source": "tarball:package/examples/jsm/libs/zstddec.module.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/lines/Line2.js",
+          "bytes": 1486,
+          "sha256": "69dd2120d4df14208796acf199f80a64d37e042cfa65dc2b98286694b2954194",
+          "source": "tarball:package/examples/jsm/lines/Line2.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/lines/LineGeometry.js",
+          "bytes": 3479,
+          "sha256": "b7ec6b0011e3b09dc72e17cfd8e8945295cb2bc8c8aa9aa19e47119680bdad7e",
+          "source": "tarball:package/examples/jsm/lines/LineGeometry.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/lines/LineMaterial.js",
+          "bytes": 14020,
+          "sha256": "d4517001f9d7b3e885ea5baa930de0077351e885db52ef4565cde4c7dd17eb23",
+          "source": "tarball:package/examples/jsm/lines/LineMaterial.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/lines/LineSegments2.js",
+          "bytes": 11477,
+          "sha256": "fcbc20f576e88343cea12131f49b7003d7ab44ede422fcb694e567456022f7a0",
+          "source": "tarball:package/examples/jsm/lines/LineSegments2.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/lines/LineSegmentsGeometry.js",
+          "bytes": 6893,
+          "sha256": "471f0a954a0c9c59d3d151392f424142a9164a722802f63b371971378a84a1b1",
+          "source": "tarball:package/examples/jsm/lines/LineSegmentsGeometry.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/loaders/KTX2Loader.js",
+          "bytes": 36567,
+          "sha256": "3a3233ce3409443076d3414b78832e1405fcfac5ecb34d367365fd0781127d6c",
+          "source": "tarball:package/examples/jsm/loaders/KTX2Loader.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/math/ColorSpaces.js",
+          "bytes": 4290,
+          "sha256": "cc35c01c793cd17ccded7bc8142abffd3ce0d60dd6de8d5d216983bd05aee262",
+          "source": "tarball:package/examples/jsm/math/ColorSpaces.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/misc/GPUComputationRenderer.js",
+          "bytes": 14157,
+          "sha256": "1a580add8398e969a63336ed99a8d3ef33705b059132c0ee9914c83b688177a6",
+          "source": "tarball:package/examples/jsm/misc/GPUComputationRenderer.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/EffectComposer.js",
+          "bytes": 8501,
+          "sha256": "4e079a5886152d7e529a59aef644e968ab4d32c6a33ce016b36bf29b2eac26f7",
+          "source": "tarball:package/examples/jsm/postprocessing/EffectComposer.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/MaskPass.js",
+          "bytes": 4694,
+          "sha256": "7cd08eee9d5d6f5578beaddbdcbe9c384f6873810af27f22ab7db3ceeb127aa3",
+          "source": "tarball:package/examples/jsm/postprocessing/MaskPass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/OutputPass.js",
+          "bytes": 4184,
+          "sha256": "02e4a261af34de71338185e9e87f0cbe5cba9115608d984363e1269dec1d2272",
+          "source": "tarball:package/examples/jsm/postprocessing/OutputPass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/Pass.js",
+          "bytes": 4218,
+          "sha256": "444b409c235ead986893c472e720da1b779a56985c7d10b279c7944b52bd61c5",
+          "source": "tarball:package/examples/jsm/postprocessing/Pass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/RenderPass.js",
+          "bytes": 4280,
+          "sha256": "817f6c3cdcd0fd41515d112359ea0532568eefb5aabd3b33903957ebca1b8a6a",
+          "source": "tarball:package/examples/jsm/postprocessing/RenderPass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/ShaderPass.js",
+          "bytes": 3228,
+          "sha256": "e2500a5913b26bbf5148ceaae644c6edcff06a18b01494ee37bf856353d2ab9d",
+          "source": "tarball:package/examples/jsm/postprocessing/ShaderPass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/SMAAPass.js",
+          "bytes": 50379,
+          "sha256": "1a96804b8cb33ba76a67f9a8e77f2d5e2bf47b1a5c9a8476901aa75e24acb85c",
+          "source": "tarball:package/examples/jsm/postprocessing/SMAAPass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/postprocessing/UnrealBloomPass.js",
+          "bytes": 14921,
+          "sha256": "1158bb02f6467889aba19c1a788b9107054d7f6a558498b5e2152db5873bb859",
+          "source": "tarball:package/examples/jsm/postprocessing/UnrealBloomPass.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/renderers/CSS2DRenderer.js",
+          "bytes": 7384,
+          "sha256": "dc5f4c5075a3a330b7e679da943343dd86a0f2d745422194b5287e48d7204197",
+          "source": "tarball:package/examples/jsm/renderers/CSS2DRenderer.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/shaders/CopyShader.js",
+          "bytes": 729,
+          "sha256": "a33057d5ac91c43304c186ac0e8816e62bb2ed471d3a00ff3018dfd5c0389718",
+          "source": "tarball:package/examples/jsm/shaders/CopyShader.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/shaders/LuminosityHighPassShader.js",
+          "bytes": 1291,
+          "sha256": "5044f780b6e6cf863947f64c36fe1587132f7fbe395ada863cd1e5f0388dcf1e",
+          "source": "tarball:package/examples/jsm/shaders/LuminosityHighPassShader.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/shaders/OutputShader.js",
+          "bytes": 1876,
+          "sha256": "353479f77a8d7e2629d49ccac9fc2f5dbfdda5442e0adf867b00377a2fcb0cb2",
+          "source": "tarball:package/examples/jsm/shaders/OutputShader.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/shaders/SMAAShader.js",
+          "bytes": 15002,
+          "sha256": "48ce320a6bf5c33806c4fa13ade7e3ab199f7856838d36b05ae82204db8a1c15",
+          "source": "tarball:package/examples/jsm/shaders/SMAAShader.js"
+        },
+        {
+          "path": "three@0.185.1/examples/jsm/utils/WorkerPool.js",
+          "bytes": 3110,
+          "sha256": "5ac7095fd566bc9ae48376055fd66edf27cb9ebbf9e1269dc206bfd4933ae9eb",
+          "source": "tarball:package/examples/jsm/utils/WorkerPool.js"
+        },
+        {
+          "path": "three@0.185.1/LICENSE",
+          "bytes": 1081,
+          "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc",
+          "source": "tarball:package/LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "earcut",
+      "version": "2.2.4",
+      "license": "ISC",
+      "tarball": "https://registry.npmjs.org/earcut/-/earcut-2.2.4.tgz",
+      "integrity": "sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==",
+      "files": [
+        {
+          "path": "earcut@2.2.4/earcut.esm.js",
+          "bytes": 21862,
+          "sha256": "48260dd0d936f19a0a2d11f785766dc61d104d4878734019b69842386e3e615b",
+          "source": "derived:hand-written ESM wrapper around package/src/earcut.js"
+        },
+        {
+          "path": "earcut@2.2.4/LICENSE",
+          "bytes": 738,
+          "sha256": "cd661c432ea8243974e6fde6fc433ebee3e96525ca8b66321b9d9971674ede60",
+          "source": "tarball:package/LICENSE"
+        },
+        {
+          "path": "earcut@2.2.4/src/earcut.js",
+          "bytes": 20816,
+          "sha256": "de601e32e96778444b45bcb9ccf57f423a453df43ebc50bfaf8236bd5284083e",
+          "source": "tarball:package/src/earcut.js"
+        }
+      ]
+    },
+    {
+      "name": "astronomy-engine",
+      "version": "2.1.19",
+      "license": "MIT",
+      "tarball": "https://registry.npmjs.org/astronomy-engine/-/astronomy-engine-2.1.19.tgz",
+      "integrity": "sha512-8yWKNf7UeNbH458h3sAJ6ZgAjE5jTXp/mNNRFoC20j2SHwZIjAQeEsBB2Q3uCFRaTCCJRv33K2XhkhZQMXoX6w==",
+      "files": [
+        {
+          "path": "astronomy-engine@2.1.19/esm/astronomy.js",
+          "bytes": 412025,
+          "sha256": "068f1445ed0c636c94818fe6d20d7d125120e605e0bab9fc4675c3d531be5ad7",
+          "source": "tarball:package/esm/astronomy.js"
+        },
+        {
+          "path": "astronomy-engine@2.1.19/LICENSE",
+          "bytes": 1095,
+          "sha256": "690dd98cb13ba4db77c6327deea852a816892bb9debbad5943405c66972f8023",
+          "source": "derived:header of package/esm/astronomy.js"
+        }
+      ]
+    },
+    {
+      "name": "satellite.js",
+      "version": "6.0.2",
+      "license": "MIT",
+      "tarball": "https://registry.npmjs.org/satellite.js/-/satellite.js-6.0.2.tgz",
+      "integrity": "sha512-XWKxtqVF5xiJ1xAeiYeT/oSSzsukoCLWvk6nO/WFy4un0M3g4djAU9TAtOCqJLtYW9vxx9pkPJ1L9ITOc607GA==",
+      "files": [
+        {
+          "path": "satellite.js@6.0.2/dist/satellite.es.js",
+          "bytes": 99090,
+          "sha256": "34f95ebd07f6ae947e73b441ad23e0c93693f1d610530a8bcf18fabb9c8e189f",
+          "source": "tarball:package/dist/satellite.es.js"
+        },
+        {
+          "path": "satellite.js@6.0.2/LICENSE.md",
+          "bytes": 1135,
+          "sha256": "1432ff8b94b91db9f242d908e09f2ecb1a0804a03f76ba844cf052c7bb614d9e",
+          "source": "tarball:package/LICENSE.md"
+        }
+      ]
+    }
+  ]
+}
