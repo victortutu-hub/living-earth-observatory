@@ -1,0 +1,386 @@
+{
+ "schema": "lumi-earth-perf/2",
+ "createdAt": "2026-11-25T14:38:31.393Z",
+ "environment": {
+  "headless": false
+ },
+ "device": {
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36 Edg/158.0.0.0",
+  "devicePixelRatio": 1.25,
+  "viewport": [
+   1528,
+   698
+  ],
+  "canvas": [
+   1910,
+   872
+  ],
+  "gpuRenderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 (0x00001F91) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "gpuVendor": "Google Inc. (NVIDIA)",
+  "timerQuery": true
+ },
+ "page": {
+  "url": "/earth-eonet-relief.html?perf=1",
+  "origin": "https://luminomorphism.ro",
+  "version": {
+   "module": "lot1-single-url",
+   "stylesheet": null
+  },
+  "assets": [
+   {
+    "role": "sky luminance",
+    "file": "assets/sky/milkyway-2020-luminance-e04b3ab3ba.ktx2",
+    "sha256": "e04b3ab3ba897aed917022e24d413169f54335bca03d7b0a9a4f66708e59377d"
+   },
+   {
+    "role": "sky chroma",
+    "file": "assets/sky/milkyway-2020-chroma-dd5892e120.ktx2",
+    "sha256": "dd5892e120750ba1d4c0b39dd519cbda793ec6da483144518ca7cfcd1458a80d"
+   },
+   {
+    "role": "sky stars",
+    "file": "assets/sky/hyg-v44-stars-01ebd16c2b.bin",
+    "sha256": "01ebd16c2b57ed97309f5f6887bbae089ecef45e618767a1e023d15078bbc8f0"
+   }
+  ]
+ },
+ "pageLoad": {
+  "clock": "ms since the navigation start (performance.now)",
+  "responseEndMs": 71,
+  "domContentLoadedMs": 775,
+  "loadEventMs": 1271,
+  "firstRenderedFrameMs": 915,
+  "surfaceShownMs": 2147,
+  "runtimeLiveMs": 3764,
+  "note": "surface shown = first NASA GIBS level on the globe (performance mark lea:surface:wmts-z*); runtime LIVE = first LIVE state of the page (LOT 23)"
+ },
+ "times": {
+  "historicalDay": "2026-06-21T06:00:00Z",
+  "night": "2026-06-21T21:36:00Z"
+ },
+ "timing": {
+  "warmupMs": 3000,
+  "measureMs": 10000
+ },
+ "scenarios": [
+  {
+   "id": "A",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 16.8,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 6.449,
+    "p50Ms": 6.756,
+    "p95Ms": 7.883,
+    "p99Ms": 8.78,
+    "maxMs": 9.148,
+    "vsyncWaitSamples": 0,
+    "meanExclVsyncMs": 6.449
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "gpuVsyncNote": "0 GPU timer samples >= 15 ms (0.9 × the 60 Hz interval) counted as vsync waits: the timer then spans the wait for the display, not GPU work; meanExclVsyncMs leaves them out; p50 is the headline value",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 35,
+   "triangles": 363610,
+   "switch": null,
+   "time": {
+    "mode": "live",
+    "iso": "2026-11-25T14:38:31.544Z",
+    "dataDay": null
+   },
+   "fields": {
+    "wind": "off",
+    "currents": "off"
+   },
+   "runtime": {
+    "state": "live",
+    "reasons": [],
+    "secondary": [],
+    "pending": []
+   },
+   "skyGpuMs": 0.304,
+   "skyDetail": {
+    "withGpuMs": 3.691,
+    "withoutGpuMs": 3.387,
+    "rawCostGpuMs": 0.304,
+    "samples": 8,
+    "disjoint": false
+   },
+   "skyNote": "sky (background + stars) GPU cost: renders with / without it, measured after the window",
+   "memory": {
+    "usedJSHeapSize": 46992125,
+    "totalJSHeapSize": 49382725
+   }
+  },
+  {
+   "id": "B",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 16.9,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 3.614,
+    "p50Ms": 3.366,
+    "p95Ms": 5.852,
+    "p99Ms": 6.108,
+    "maxMs": 7.848,
+    "vsyncWaitSamples": 0,
+    "meanExclVsyncMs": 3.614
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "gpuVsyncNote": "0 GPU timer samples >= 15 ms (0.9 × the 60 Hz interval) counted as vsync waits: the timer then spans the wait for the display, not GPU work; meanExclVsyncMs leaves them out; p50 is the headline value",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 37,
+   "triangles": 375642,
+   "switch": null,
+   "time": {
+    "mode": "live",
+    "iso": "2026-11-25T14:38:45.595Z",
+    "dataDay": null
+   },
+   "fields": {
+    "wind": "on",
+    "currents": "on"
+   },
+   "runtime": {
+    "state": "live",
+    "reasons": [],
+    "secondary": [],
+    "pending": []
+   },
+   "memory": {
+    "usedJSHeapSize": 52404600,
+    "totalJSHeapSize": 55814960
+   }
+  },
+  {
+   "id": "C",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 599,
+    "meanMs": 16.695,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 33.2,
+    "over33Ms": 0,
+    "meanFps": 59.9
+   },
+   "gpu": {
+    "count": 599,
+    "meanMs": 5.989,
+    "p50Ms": 5.955,
+    "p95Ms": 7.254,
+    "p99Ms": 8.024,
+    "maxMs": 8.422,
+    "vsyncWaitSamples": 0,
+    "meanExclVsyncMs": 5.989
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "gpuVsyncNote": "0 GPU timer samples >= 15 ms (0.9 × the 60 Hz interval) counted as vsync waits: the timer then spans the wait for the display, not GPU work; meanExclVsyncMs leaves them out; p50 is the headline value",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 39,
+   "triangles": 410522,
+   "switch": null,
+   "time": {
+    "mode": "historical",
+    "iso": "2026-06-21T06:00:00.000Z",
+    "dataDay": "2026-06-21"
+   },
+   "fields": {
+    "wind": "off",
+    "currents": "off"
+   },
+   "runtime": {
+    "state": "live",
+    "reasons": [],
+    "secondary": [],
+    "pending": []
+   },
+   "memory": {
+    "usedJSHeapSize": 51659022,
+    "totalJSHeapSize": 60289930
+   }
+  },
+  {
+   "id": "D",
+   "valid": true,
+   "reason": null,
+   "warmupMs": 3000,
+   "measureMs": 10000,
+   "frames": {
+    "count": 600,
+    "meanMs": 16.667,
+    "p50Ms": 16.7,
+    "p95Ms": 16.8,
+    "p99Ms": 16.8,
+    "maxMs": 16.8,
+    "over33Ms": 0,
+    "meanFps": 60
+   },
+   "gpu": {
+    "count": 600,
+    "meanMs": 6.121,
+    "p50Ms": 5.999,
+    "p95Ms": 7.704,
+    "p99Ms": 8.326,
+    "maxMs": 9.206,
+    "vsyncWaitSamples": 0,
+    "meanExclVsyncMs": 6.121
+   },
+   "gpuNote": "GPU TIME_ELAPSED of the WebGL render per frame (0 disjoint samples dropped)",
+   "gpuVsyncNote": "0 GPU timer samples >= 15 ms (0.9 × the 60 Hz interval) counted as vsync waits: the timer then spans the wait for the display, not GPU work; meanExclVsyncMs leaves them out; p50 is the headline value",
+   "vsync": {
+    "likely": true,
+    "refreshHz": 60,
+    "note": "vsync-limited: median ≈ 16.7 ms (60 Hz); frame times show the display refresh, not the rendering cost (GPU time well below the interval)"
+   },
+   "drawCalls": 39,
+   "triangles": 410522,
+   "switch": null,
+   "time": {
+    "mode": "historical",
+    "iso": "2026-06-21T21:36:00.000Z",
+    "dataDay": "2026-06-21"
+   },
+   "fields": {
+    "wind": "off",
+    "currents": "off"
+   },
+   "runtime": {
+    "state": "live",
+    "reasons": [],
+    "secondary": [],
+    "pending": []
+   },
+   "skyGpuMs": 0.294,
+   "skyDetail": {
+    "withGpuMs": 4.212,
+    "withoutGpuMs": 3.917,
+    "rawCostGpuMs": 0.294,
+    "samples": 8,
+    "disjoint": false
+   },
+   "skyNote": "sky (background + stars) GPU cost: renders with / without it, measured after the window",
+   "memory": {
+    "usedJSHeapSize": 52618882,
+    "totalJSHeapSize": 60552386
+   }
+  }
+ ],
+ "layout": {
+  "viewport": [
+   1528,
+   698
+  ],
+  "mobileLayout": false,
+  "checks": [
+   {
+    "id": "viewport",
+    "pass": true,
+    "value": [
+     1528,
+     698
+    ],
+    "note": "desktop layout"
+   },
+   {
+    "id": "no-horizontal-scroll",
+    "pass": true,
+    "value": {
+     "scrollWidth": 1528,
+     "innerWidth": 1528
+    },
+    "note": null
+   },
+   {
+    "id": "hud-toggle",
+    "pass": true,
+    "value": {
+     "present": true,
+     "shown": false
+    },
+    "note": "desktop layout: the panels are always shown (not applicable)"
+   },
+   {
+    "id": "hidden-panels-pass-taps",
+    "pass": true,
+    "value": null,
+    "note": "desktop layout: the panels are never hidden (not applicable)"
+   },
+   {
+    "id": "buttons-in-viewport",
+    "pass": true,
+    "value": {
+     "checked": 45,
+     "outside": []
+    },
+    "note": null
+   },
+   {
+    "id": "base-text-px",
+    "pass": true,
+    "value": {
+     "minPx": 12,
+     "elements": 4,
+     "bodyPx": 16
+    },
+    "note": null
+   }
+  ],
+  "allPass": true,
+  "smallTextPx": [
+   {
+    "sizePx": 9,
+    "count": 15
+   },
+   {
+    "sizePx": 10,
+    "count": 61
+   },
+   {
+    "sizePx": 11,
+    "count": 82
+   }
+  ]
+ },
+ "validation": []
+}

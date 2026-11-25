@@ -13,10 +13,46 @@ the registry have their SHA-256 there.
 | 2026-11-23-earth-desktop-gtx1650-edge158-run1.json | GTX 1650, Edge 158 | production (deploy-himalaya-24) | `97e9d9900866f79ef6ccf0a389bf7dffce84ff3e7f460add653dce99c4a7b49c` |
 | 2026-11-23-earth-desktop-gtx1650-edge158-run2.json | GTX 1650, Edge 158 | production (deploy-himalaya-24) | `645b3f02539245c958fd058c58f8d9b5d223a73e703808aec3da9bb497d6f96a` |
 | 2026-11-23-earth-desktop-gtx1650-edge158-run3.json | GTX 1650, Edge 158 | production (deploy-himalaya-24) | `00d8b1c749ddee44be9c761bf212f8c9bec41b3bae38339889634cee2093e1e8` |
+| 2026-11-25-earth-desktop-gtx1650-edge158-lot41.json | GTX 1650, Edge 158 | production (deploy-himalaya-31, LOT 41) | `ef2a3efd7d8cbf9b3718b22bd4d605bae7e82761488733663369364f4e7fcff3` |
+| 2026-11-25-earth-mobile-adreno740-edgea158-lot41.json | Adreno 740, Edge Android 158 | production (deploy-himalaya-31, LOT 41) | `ba6a35537ca6f769edfd6a425fb54bb28114bc7c82dfec04e5023cf6974375e1` |
 
 The three 2026-11-23 reports reached the repository as text pasted into the chat, not as the downloaded files.
 They pass `validateEarthPerfReport` (0 errors, embedded `validation: []`), but they may not be byte-identical
 to the original downloads. The SHA-256 values above are those of the files as committed.
+
+## 2026-11-25 (after LOT 41): production deploy-himalaya-31
+
+Two `/2` reports, delivered as files and committed byte for byte. Both pass `validateEarthPerfReport` (0 errors,
+embedded `validation: []`), real devices (`headless: false`), origin `https://luminomorphism.ro`. They are not in the
+registry: `OBSERVATORY_MEASURED` still cites the 2026-11-19 reports.
+
+**Desktop** (GTX 1650, Edge 158, devicePixelRatio 1.25):
+
+| Scenario | Mean FPS | Longest frame | GPU p50 | GPU mean | vsync-wait samples |
+| --- | --- | --- | --- | --- | --- |
+| A | 60 | 16.8 ms | 6.76 ms | 6.45 ms | 0 |
+| B | 60 | 16.9 ms | 3.37 ms | 3.61 ms | 0 |
+| C | 59.9 | 33.2 ms | 5.96 ms | 5.99 ms | 0 |
+| D | 60 | 16.8 ms | 6.00 ms | 6.12 ms | 0 |
+
+- No vsync-wait sample, so the high A/C/D values are not the ~16.3 ms waits described below.
+- A controlled measurement after the window gave 3.69 ms (A) and 4.21 ms (D) (reported with the delivery, not in
+  the JSON). The difference from the in-run p50 is still under investigation; it matches the "about 7 ms at the
+  same clock" state of the 2026-11-23 runs.
+- Page: surface shown at 2147 ms, runtime LIVE at 3764 ms.
+
+**Phone** (Adreno 740, Edge Android 158, devicePixelRatio 4, 360 x 615 viewport):
+
+| Scenario | Mean FPS | Longest frame | Runtime state |
+| --- | --- | --- | --- |
+| A | 60 | 16.8 ms | live, EONET pending |
+| B | 60 | 16.8 ms | live, EONET pending |
+| C | 60 | 16.8 ms | fallback (`eonet-error`) |
+| D | 59.8 | 41.6 ms (one frame over 33 ms) | live |
+
+- EONET did not answer during the run, so `runtimeLiveMs` is null. This was the external source; the page reported
+  it correctly (pending, then FALLBACK `eonet-error`).
+- No GPU timer on this device: `gpu` is null, `gpuNote` "GPU timer unavailable".
 
 ## 2026-11-23 (LOT 32): a measurement artefact, not a regression
 

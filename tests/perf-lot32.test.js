@@ -1,6 +1,7 @@
 // LOT 32: the GPU timer's vsync-wait samples (src/core/perf/), lumi-earth-perf/2 + lumi-himalaya-perf/2,
 // p50 as the headline value, and the /1 reports in docs/perf/ still valid.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { VSYNC_WAIT_FRACTION, vsyncWaitNote, vsyncWaitStats } from '../src/core/perf/perf-stats.js';
 import { gpuScenarioFields } from '../src/core/perf/perf-harness.js';
@@ -55,13 +56,28 @@ describe('LOT 32: schema versions /2 (new) and /1 (still valid)', () => {
     expect([PERF_SCHEMA_V1, PERF_SCHEMA]).toEqual(['lumi-himalaya-perf/1', 'lumi-himalaya-perf/2']);
   });
 
-  it('every report in docs/perf/ (all /1) still validates, Earth and Himalaya', () => {
+  // LOT 42 (intentional): + the two 2026-11-25 production runs, the first /2 reports in docs/perf/.
+  const V2_REPORTS = {
+    '2026-11-25-earth-desktop-gtx1650-edge158-lot41.json': 'ef2a3efd7d8cbf9b3718b22bd4d605bae7e82761488733663369364f4e7fcff3',
+    '2026-11-25-earth-mobile-adreno740-edgea158-lot41.json': 'ba6a35537ca6f769edfd6a425fb54bb28114bc7c82dfec04e5023cf6974375e1',
+  };
+  it('every report in docs/perf/ still validates, Earth and Himalaya (the 8 older ones /1, the 2026-11-25 ones /2)', () => {
     const files = fs.readdirSync(new URL('../docs/perf/', import.meta.url)).filter((f) => f.endsWith('.json'));
-    expect(files.length).toBe(8);
+    expect(files.length).toBe(10);
     for (const f of files) {
       const r = read(`docs/perf/${f}`);
       const errors = r.schema.startsWith('lumi-earth-perf/') ? validateEarthPerfReport(r) : validatePerfReport(r);
-      expect([f, r.schema, errors]).toEqual([f, r.schema.startsWith('lumi-earth') ? EARTH_PERF_SCHEMA_V1 : PERF_SCHEMA_V1, []]);
+      const expected = V2_REPORTS[f] ? EARTH_PERF_SCHEMA : r.schema.startsWith('lumi-earth') ? EARTH_PERF_SCHEMA_V1 : PERF_SCHEMA_V1;
+      expect([f, r.schema, errors]).toEqual([f, expected, []]);
+    }
+  });
+
+  it('the 2026-11-25 /2 reports are byte for byte as delivered (SHA-256), from real devices on production', () => {
+    for (const [f, hash] of Object.entries(V2_REPORTS)) {
+      const buf = fs.readFileSync(new URL(`../docs/perf/${f}`, import.meta.url));
+      expect(crypto.createHash('sha256').update(buf).digest('hex'), f).toBe(hash);
+      const r = JSON.parse(buf);
+      expect([r.environment.headless, r.page.origin, r.validation]).toEqual([false, 'https://luminomorphism.ro', []]);
     }
   });
 
