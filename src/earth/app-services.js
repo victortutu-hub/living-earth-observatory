@@ -46,6 +46,7 @@ export function createEarthAppServices({
         earthGroup,
         composer,
         bloomPass,
+        afterBloom, // LOT 38 PAS 3
         bloomResolutionScale,
         smaaPass
     } = sceneRuntime;
@@ -214,6 +215,7 @@ export function createEarthAppServices({
         controls,
         renderer,
         bloomPass,
+        afterBloom,
         smaaPass,
         state,
         getTime: () => timer.getElapsed(),

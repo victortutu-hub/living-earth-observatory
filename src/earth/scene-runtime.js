@@ -4,6 +4,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { Pass } from 'three/addons/postprocessing/Pass.js';
+import { createAfterBloom } from './after-bloom.js';
 
 const BLOOM_RESOLUTION_SCALE = 0.5;
 
@@ -46,6 +48,10 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
+    // LOT 38 PAS 3: an object drawn after the bloom (the Moon in the Earthshine view); disabled = previous rendering.
+    const afterBloom = createAfterBloom();
+    const afterBloomPasses = afterBloom.createPasses({ Pass, scene, camera });
+    composer.insertPass(afterBloomPasses.hide, 0);
     // Bloom is a blur, so half-resolution preserves the intended look while
     // reducing its render-target cost on the GTX 1650 performance target.
     // Reglaj "realist": in spatiul real, in jurul unei Luni/al unui Pamant expus
@@ -61,6 +67,7 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
         0.55  // threshold (era 0.30) - doar corpurile foarte luminoase inforesc
     );
     composer.addPass(bloomPass);
+    composer.addPass(afterBloomPasses.after); // LOT 38 PAS 3
     const smaaPass = new SMAAPass(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
     composer.addPass(smaaPass);
     composer.addPass(new OutputPass());
@@ -106,6 +113,7 @@ export function createSceneRuntime({ THREE, mount = document.body } = {}) {
         earthGroup,
         composer,
         bloomPass,
+        afterBloom, // LOT 38 PAS 3
         bloomResolutionScale: BLOOM_RESOLUTION_SCALE,
         smaaPass,
         dispose,

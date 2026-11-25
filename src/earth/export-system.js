@@ -3,6 +3,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { applyVerticalDirectorCameraFraming, getVerticalBloomParams } from './vertical-director.js';
 
 function getSupportedVideoMimeType() {
@@ -34,6 +35,7 @@ export function createExportSystem({
     controls,
     renderer,
     bloomPass,
+    afterBloom = null, // LOT 38 PAS 3: the same after-bloom target as the live view
     smaaPass,
     state,
     getTime,
@@ -104,6 +106,8 @@ export function createExportSystem({
         const bloomParams = getVerticalBloomParams(state, exportCamera.aspect, bloomPass);
         const exportBloom = new UnrealBloomPass(new THREE.Vector2(width, height), bloomParams.strength, bloomParams.radius, bloomParams.threshold);
         exportComposer.addPass(exportBloom);
+        const exportAfterBloom = afterBloom ? afterBloom.createPasses({ Pass, scene, camera: exportCamera }) : null; // LOT 38 PAS 3
+        if (exportAfterBloom) { exportComposer.insertPass(exportAfterBloom.hide, 0); exportComposer.addPass(exportAfterBloom.after); }
         const exportSmaa = new SMAAPass(width, height);
         exportSmaa.enabled = smaaPass?.enabled !== false;
         exportComposer.addPass(exportSmaa);
@@ -124,6 +128,7 @@ export function createExportSystem({
             exportComposer,
             syncCamera,
             dispose() {
+                if (exportAfterBloom) afterBloom.removePasses(exportAfterBloom); // LOT 38 PAS 3
                 exportComposer.renderTarget1?.dispose?.();
                 exportComposer.renderTarget2?.dispose?.();
                 exportSmaa.dispose?.();

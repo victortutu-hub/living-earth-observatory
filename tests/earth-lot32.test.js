@@ -185,7 +185,7 @@ describe('LOT 32: wiring in the Moon system', () => {
     expect(moon).toContain('objects: [moon, moonHalo],');
     expect(moon).toContain('prewarm?.start();');
     expect(moon).toMatch(/function stop\(\) \{\n\s+stopped = true;[^\n]*\n\s+prewarm\?\.cancel\(\);/);
-    expect(text('src/earth/app-visual-foundation.js')).toContain('createMoonSystem({ THREE, scene, sunLight, lonLatToVec3, getDate, renderer, camera, getRenderTarget: () => sceneRuntime.composer?.readBuffer || null });');
+    expect(text('src/earth/app-visual-foundation.js')).toContain('createMoonSystem({ THREE, scene, sunLight, lonLatToVec3, getDate, renderer, camera, getRenderTarget: () => sceneRuntime.composer?.readBuffer || null, afterBloom: sceneRuntime.afterBloom || null });'); // LOT 38 PAS 3: + afterBloom
   });
 });
 

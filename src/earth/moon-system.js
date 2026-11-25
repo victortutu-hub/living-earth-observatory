@@ -245,6 +245,8 @@ export function createMoonSystem({
     renderer = null,
     camera = null,
     getRenderTarget = () => null,
+    // LOT 38 PAS 3: draws the Moon after the bloom while the Earthshine view is on (after-bloom.js); null = never.
+    afterBloom = null,
     // LOT 32: warm-up only when the device memory allows it (moonPrewarmDecision).
     prewarmDecision = moonPrewarmDecision({
         deviceMemory: typeof navigator !== 'undefined' ? navigator.deviceMemory : undefined,
@@ -279,6 +281,7 @@ export function createMoonSystem({
         exposureMode: MOON_EXPOSURE_DEFAULT_MODE,
         autoExposureEv: 0,
         effectiveExposureEv: 0,
+        afterBloom: false, // LOT 38 PAS 3: drawn after the bloom (only with the Earthshine view)
         earthshineViewNote: null, // LOT 31 ETAPA 2b: why the view is unavailable / was turned off
         // LOT 33: next window with the view available ({ start, end, openNow, from }), from the displayed time
         earthshineWindow: null,
@@ -456,6 +459,9 @@ export function createMoonSystem({
     function applyMoonExposure() {
         state.effectiveExposureEv = effectiveMoonExposureEv({ mode: state.exposureMode, earthshineViewEv: state.exposureEv, autoEv: state.autoExposureEv });
         moonLightUniforms.uMoonExposure.value = 2 ** state.effectiveExposureEv;
+        // LOT 38 PAS 3: only the Earthshine view takes the Moon out of the bloom; auto / fixed keep the previous path.
+        state.afterBloom = Boolean(afterBloom) && state.exposureEv > 0;
+        afterBloom?.setTarget(state.afterBloom ? moon : null);
     }
     // LOT 38: the auto exposure follows the phase seen by the camera (View from Earth: the geocentric phase).
     function updateAutoExposure() {
@@ -667,6 +673,7 @@ export function createMoonSystem({
         stopped = true; // LOT 32: terminal for the warm-up and the pending texture loads
         prewarm?.cancel();
         noteFlash.dispose(); // LOT 33: no flash timer outlives the module
+        if (afterBloom?.target === moon) afterBloom.setTarget(null); // LOT 38 PAS 3: the stopped Moon leaves the after-bloom pass
         if (intervalId === null) return;
         clearInterval(intervalId);
         intervalId = null;

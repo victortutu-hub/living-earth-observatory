@@ -159,3 +159,55 @@ describe('LOT 38 PAS 2: the earthshine colour (Thejll et al. 2014, observed; RGB
     expect(v).toContain('colour: bluer than the sunlight by Δ(B−V) = -0.150 ± 0.005 mag on the Moon (observed, Thejll et al. 2014, A&A 563, A38 (arXiv:1401.1994)), applied as linear RGB × 0.941 / 1.006 / 1.116 (approximated, luminance kept)');
   });
 });
+
+describe('LOT 38 PAS 3: the Moon after the bloom, only in the Earthshine view', async () => {
+  const { AFTER_BLOOM_LAYER, createAfterBloom } = await import('../src/earth/after-bloom.js');
+  class FakePass { constructor() { this.enabled = true; this.needsSwap = true; this.renderToScreen = false; } }
+  const layers = () => ({ mask: 1, enable(l) { this.mask |= 1 << l; }, disable(l) { this.mask &= ~(1 << l); }, set(l) { this.mask = 1 << l; } });
+  const node = (children = []) => { const o = { visible: true, layers: layers(), children, traverse(fn) { fn(o); for (const c of children) c.traverse(fn); } }; return o; };
+  const setup = () => {
+    const ab = createAfterBloom(); const camera = { layers: layers() }; const scene = { id: 'scene' };
+    const calls = []; const renderer = { autoClear: true, setRenderTarget(t) { calls.push(['target', t]); }, render(s, c) { calls.push(['render', s, c.layers.mask, this.autoClear]); } };
+    const { hide, after } = ab.createPasses({ Pass: FakePass, scene, camera });
+    return { ab, camera, scene, renderer, calls, hide, after };
+  };
+  it('disabled while there is no target (the composer skips them: default rendering unchanged); no swap', () => {
+    const { hide, after } = setup();
+    expect([hide.enabled, after.enabled, hide.needsSwap, after.needsSwap]).toEqual([false, false, false, false]);
+    expect(AFTER_BLOOM_LAYER).toBe(5);
+  });
+  it('active: hidden for the RenderPass + bloom, then drawn alone (its layer only) into the same buffer, no clear; state restored', () => {
+    const { ab, camera, scene, renderer, calls, hide, after } = setup();
+    const marker = node(); const moon = node([marker]);
+    ab.setTarget(moon);
+    expect([hide.enabled, after.enabled]).toEqual([true, true]);
+    hide.render(renderer);
+    expect(moon.visible).toBe(false);
+    const readBuffer = { id: 'read' };
+    after.render(renderer, { id: 'write' }, readBuffer);
+    expect(moon.visible).toBe(true);
+    expect(calls).toEqual([['target', readBuffer], ['render', scene, 1 << 5, false]]);
+    expect(camera.layers.mask).toBe(1); expect(renderer.autoClear).toBe(true);
+    expect(moon.layers.mask).toBe(1 | (1 << 5)); expect(marker.layers.mask).toBe(1 | (1 << 5)); // markers drawn with the Moon; still on layer 0
+    ab.setTarget(null);
+    expect([hide.enabled, after.enabled, moon.layers.mask, marker.layers.mask]).toEqual([false, false, 1, 1]);
+  });
+  it('an occluded Moon (invisible before the frame) stays invisible and is not drawn', () => {
+    const { ab, renderer, calls, hide, after } = setup();
+    const moon = node(); moon.visible = false; ab.setTarget(moon);
+    hide.render(renderer); after.render(renderer, {}, {});
+    expect(moon.visible).toBe(false); expect(calls).toEqual([]);
+  });
+  it('wiring: hide before the RenderPass, draw right after the bloom (live view and export); only the Earthshine view sets the target; stop() releases it', () => {
+    const rt = text('src/earth/scene-runtime.js');
+    expect(rt).toMatch(/composer\.addPass\(new RenderPass\(scene, camera\)\);[\s\S]*composer\.insertPass\(afterBloomPasses\.hide, 0\);[\s\S]*composer\.addPass\(bloomPass\);\n    composer\.addPass\(afterBloomPasses\.after\); \/\/ LOT 38 PAS 3\n    const smaaPass/);
+    const ex = text('src/earth/export-system.js');
+    expect(ex).toContain('exportComposer.addPass(exportBloom);\n        const exportAfterBloom = afterBloom ? afterBloom.createPasses({ Pass, scene, camera: exportCamera }) : null;');
+    expect(ex).toContain('if (exportAfterBloom) { exportComposer.insertPass(exportAfterBloom.hide, 0); exportComposer.addPass(exportAfterBloom.after); }');
+    expect(ex).toContain('if (exportAfterBloom) afterBloom.removePasses(exportAfterBloom);');
+    const moon = text('src/earth/moon-system.js');
+    expect(moon).toContain('state.afterBloom = Boolean(afterBloom) && state.exposureEv > 0;');
+    expect(moon).toContain('afterBloom?.setTarget(state.afterBloom ? moon : null);');
+    expect(moon).toContain('if (afterBloom?.target === moon) afterBloom.setTarget(null);');
+  });
+});
