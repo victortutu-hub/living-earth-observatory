@@ -177,7 +177,7 @@ export function createReelOverlay({
             lines: Object.freeze([
                 'const terminator = solarTerminator(sunDirection);',
                 'nightLights.uniforms.uTerminator.value = terminator;',
-                'moonSystem.setMoonExposureEv(10); // earthshine view',
+                'moonSystem.setMoonExposureEv(11); // earthshine view',
                 'atmosphere.syncSunDirection(sunDirection);'
             ]),
             accent: '#b4c8ff'

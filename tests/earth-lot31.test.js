@@ -124,11 +124,11 @@ describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo
     // LOT 38: one writer (applyMoonExposure): the Earthshine view over the fixed exposure, else auto / fixed.
     expect(moon).toContain('moonLightUniforms.uMoonExposure.value = 2 ** state.effectiveExposureEv;');
     expect(moon.match(/uMoonExposure\.value =/g)).toHaveLength(1);
-    expect(text('src/earth/earthshine.js')).toContain('export const EARTHSHINE_VIEW_EV = 10;'); // ETAPA 2b: moved next to the threshold
+    expect(text('src/earth/earthshine.js')).toContain('export const EARTHSHINE_VIEW_EV = 11;'); // ETAPA 2b: moved next to the threshold; LOT 38: 11
     expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs)');
     expect(describeMoonExposure(0)).toMatch(/^Normal exposure \(\+0 EV\)/);
     // LOT 33c: the same text, in a span kept live by moon-system.js (the card follows the mode on / off).
-    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote, { mode: m.exposureMode, autoEv: m.autoExposureEv }) }) },"); // LOT 38: + mode
+    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote, { mode: m.exposureMode, autoEv: m.autoExposureEv, stops: m.earthshine?.stops }) }) },"); // LOT 38: + mode, stops
     expect(text('earth-eonet-relief.html')).toContain('<button id="earthshineViewBtn" aria-pressed="false"');
     expect(text('src/earth/control-panel.js')).toContain("byId('earthshineViewBtn')?.addEventListener('click', () => {");
     // Only the Moon material reads uMoonExposure.
@@ -136,9 +136,9 @@ describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo
   });
   it('the reel uses the same mechanism and says so', () => {
     const reel = text('src/earth/reel-timeline.js');
-    expect(reel).toContain('moonSystem.setMoonExposureEv?.(10)');
+    expect(reel).toContain('moonSystem.setMoonExposureEv?.(EARTHSHINE_VIEW_EV)'); // LOT 38: the constant (11)
     expect(reel.match(/setMoonExposureEv\?\.\(0\)/g)).toHaveLength(2);
-    expect(text('src/earth/caption-system.js')).toContain("'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED AT SENSOR WHITE'");
+    expect(text('src/earth/caption-system.js')).toContain('`MOON EXPOSURE +${EARTHSHINE_VIEW_EV} EV, LIT SIDE CLIPPED AT SENSOR WHITE`'); // LOT 38
   });
 });
 
@@ -158,7 +158,7 @@ describe('LOT 31 ETAPA 2b: Earthshine view - sensor white clip, phase threshold,
     expect(es.requestEarthshineExposure({ wantedEv: 10, litFraction: 0.78, stops: 16.5 })).toMatchObject({ ev: 0, applied: false, note: expect.stringMatching(/^Earthshine too faint/) });
     expect(es.requestEarthshineExposure({ wantedEv: 10, litFraction: 0.31, stops: 14.1 })).toEqual({ ev: 10, applied: true, note: null });
     expect(es.requestEarthshineExposure({ wantedEv: 0, litFraction: 0.78, stops: 16.5 })).toEqual({ ev: 0, applied: true, note: null });
-    expect(es.requestEarthshineExposure({ wantedEv: 99, litFraction: 0.1, stops: 13 }).ev).toBe(10);
+    expect(es.requestEarthshineExposure({ wantedEv: 99, litFraction: 0.1, stops: 13 }).ev).toBe(11); // LOT 38: EARTHSHINE_VIEW_EV = 11
   });
   it('auto-off: an active view turns itself off when the phase crosses the threshold, and says why', () => {
     expect(es.enforceEarthshineExposure({ ev: 10, litFraction: 0.31, stops: 14.1 })).toEqual({ ev: 10, turnedOff: false, note: null });
@@ -180,7 +180,7 @@ describe('LOT 31 ETAPA 2b: Earthshine view - sensor white clip, phase threshold,
     const { describeMoonExposure } = await import('../src/earth/scene-lighting.js');
     expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs)');
     expect(describeMoonExposure(0, 'Earthshine view turned off: x')).toMatch(/looks black\. Earthshine view turned off: x$/);
-    expect(text('src/earth/reel-timeline.js')).toContain('state.reelEarthshineView = { on: moonSystem.setMoonExposureEv?.(10) === true, reason: moonSystem.moonState?.earthshineViewNote || null };');
-    expect(text('src/earth/caption-system.js')).toContain("state.reelEarthshineView?.on === false ? 'EARTHSHINE TOO FAINT AT THIS PHASE' : 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED AT SENSOR WHITE'");
+    expect(text('src/earth/reel-timeline.js')).toContain('state.reelEarthshineView = { on: moonSystem.setMoonExposureEv?.(EARTHSHINE_VIEW_EV) === true, reason: moonSystem.moonState?.earthshineViewNote || null };'); // LOT 38
+    expect(text('src/earth/caption-system.js')).toContain("state.reelEarthshineView?.on === false ? 'EARTHSHINE TOO FAINT AT THIS PHASE' : `MOON EXPOSURE +${EARTHSHINE_VIEW_EV} EV, LIT SIDE CLIPPED AT SENSOR WHITE`"); // LOT 38
   });
 });

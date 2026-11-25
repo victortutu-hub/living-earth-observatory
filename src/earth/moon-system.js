@@ -420,7 +420,7 @@ export function createMoonSystem({
     let astronomyObserver = null;
     let intervalId = null;
 
-    // LOT 31 ETAPA 2: "Earthshine view" = a real exposure change of the whole Moon (+10 EV: the
+    // LOT 31 ETAPA 2: "Earthshine view" = a real exposure change of the whole Moon (+EARTHSHINE_VIEW_EV, 11 since LOT 38: the
     // earthshine side becomes visible, the lit side clips at sensor white, as in photographs). Only the
     // Moon material (uMoonExposure); the Earth is not affected. ETAPA 2b: available only up to
     // EARTHSHINE_VIEW_MAX_LIT_FRACTION (earthshine.js); refused above it, turned off when the phase crosses it.

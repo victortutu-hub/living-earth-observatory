@@ -110,7 +110,7 @@ describe('LOT 38: Moon exposure auto (interpretive) / fixed', () => {
     expect(moon).toContain('moonLightUniforms.uMoonExposure.value = 2 ** state.effectiveExposureEv;');
   });
 
-  it('the Earthshine view (+10 EV) applies over the fixed exposure, never over the auto one; clipping unchanged', () => {
+  it('the Earthshine view applies over the fixed exposure, never over the auto one; clipping unchanged', () => {
     expect(effectiveMoonExposureEv({ mode: 'auto', earthshineViewEv: 10, autoEv: 2.45 })).toBe(10);
     expect(effectiveMoonExposureEv({ mode: 'fixed', earthshineViewEv: 10, autoEv: 2.45 })).toBe(10);
     expect(describeMoonExposure(10, null, { mode: 'auto', autoEv: 2.45 })).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs); applied over the fixed exposure (the auto compensation is suspended)');
@@ -209,5 +209,37 @@ describe('LOT 38 PAS 3: the Moon after the bloom, only in the Earthshine view', 
     expect(moon).toContain('state.afterBloom = Boolean(afterBloom) && state.exposureEv > 0;');
     expect(moon).toContain('afterBloom?.setTarget(state.afterBloom ? moon : null);');
     expect(moon).toContain('if (afterBloom?.target === moon) afterBloom.setTarget(null);');
+  });
+});
+
+describe('LOT 38 (approval): Earthshine view +11 EV, threshold kept at 40 % lit', async () => {
+  const es = await import('../src/earth/earthshine.js');
+  const { EARTHSHINE_NOTE_AVAILABLE } = await import('../src/earth/earthshine-window.js');
+  const stopsAt = (k, d = 384400) => es.stopsBelowSun(es.earthshineRatio({ earthPhaseAngle: Math.acos(1 - 2 * k), distanceKm: d }));
+  it('+11 EV, threshold 40 %; the requested value is clamped to it; one value everywhere (button, note, caption, reel, details)', () => {
+    expect([es.EARTHSHINE_VIEW_EV, es.EARTHSHINE_VIEW_MAX_LIT_FRACTION]).toEqual([11, 0.4]);
+    expect(es.requestEarthshineExposure({ wantedEv: 99, litFraction: 0.1, stops: 13.3 })).toEqual({ ev: 11, applied: true, note: null });
+    expect(es.requestEarthshineExposure({ wantedEv: 11, litFraction: 0.41, stops: 14.4 }).applied).toBe(false);
+    expect(es.EARTHSHINE_VIEW_TITLE).toMatch(/^Moon exposure \+11 EV on the whole Moon: .*\(drawn after the bloom: no glow\)\. Available up to 40 % lit\./);
+    expect(EARTHSHINE_NOTE_AVAILABLE).toBe('Moon exposure +11 EV — lit side clipped, as in photographs.');
+    expect(describeMoonExposure(0)).toMatch(/use Earthshine view \(\+11 EV\) up to 40 % lit$/);
+    expect(text('earth-eonet-relief.html')).toContain('title="Moon exposure +11 EV on the whole Moon:');
+    expect(text('earth-eonet-relief.html')).toContain('Earthshine view raises the Moon exposure by 11 EV');
+    expect(text('src/earth/reel-overlay.js')).toContain("'moonSystem.setMoonExposureEv(11); // earthshine view',");
+    for (const f of ['src/earth/earthshine.js', 'src/earth/earthshine-window.js', 'src/earth/caption-system.js', 'src/earth/reel-timeline.js', 'src/earth/scene-lighting.js', 'earth-eonet-relief.html']) {
+      expect(text(f).replace(/it was 1\/19 at \+10 EV/, ''), f).not.toMatch(/\+10 EV|setMoonExposureEv\?\.\(10\)|by 10 EV/);
+    }
+  });
+  it('stops below sensor white = stops - EV; at +11 the earthshine side of a 10 % crescent sits ~2.3 stops below (it was ~3.3 at +10)', () => {
+    expect(es.earthshineStopsBelowSensorWhite({ stops: 13.31 })).toBeCloseTo(2.31, 2);
+    expect(es.earthshineStopsBelowSensorWhite({ stops: 13.31, ev: 10 })).toBeCloseTo(3.31, 2);
+    expect(es.earthshineStopsBelowSensorWhite({ stops: Infinity })).toBe(Infinity);
+    expect(describeMoonExposure(11, null, { mode: 'auto', autoEv: 2.4, stops: 13.31 })).toBe('Moon exposure +11 EV (lit side clipped at sensor white, as in photographs); applied over the fixed exposure (the auto compensation is suspended); earthshine side 2.3 stops below sensor white');
+    expect(moonCardLiveRows({ phaseFraction: 0.1, exposureEv: 11, cameraLitFraction: 0.1, exposureMode: 'fixed', autoExposureEv: 0, earthshine: { stops: 13.31 } }, describeMoonExposure).moonExposureValue).toMatch(/earthshine side 2\.3 stops below sensor white$/);
+  });
+  it('the threshold: at 40 % lit the earthshine side is 1/9.6 of the normally exposed sunlit surface at +11 EV (1/19 at +10); the LOT 31 criterion would have moved it to ~61 %', () => {
+    expect(2 ** (stopsAt(0.4) - 11)).toBeCloseTo(9.6, 0);
+    expect(2 ** (stopsAt(0.4) - 10)).toBeCloseTo(19.3, 0);
+    expect(2 ** (stopsAt(0.6143) - 11)).toBeCloseTo(2 ** (stopsAt(0.4) - 10), 1);
   });
 });

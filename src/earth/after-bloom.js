@@ -1,5 +1,5 @@
 // LOT 38 PAS 3: an object drawn AFTER the bloom (it is not part of the bloom input), used for the Moon while the
-// Earthshine view (+10 EV) is on: the clipped disc stays white and sharp instead of spreading a halo of several radii
+// Earthshine view (+11 EV) is on: the clipped disc stays white and sharp instead of spreading a halo of several radii
 // (the threshold filter lets the whole saturated pixel through).
 //
 // Two passes per composer, both disabled while there is no target, so the default rendering is exactly the previous

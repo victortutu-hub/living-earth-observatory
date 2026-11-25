@@ -7,7 +7,7 @@
 //     14.1 days), which keeps one search near 5 to 10 ms on the GTX 1650 desktop;
 //   - then a bisection of each edge down to 1 minute.
 // Dates are shown in UTC, as day + month (year only when it differs).
-import { EARTHSHINE_VIEW_MAX_LIT_FRACTION } from './earthshine.js';
+import { EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION } from './earthshine.js';
 
 const HOUR_MS = 3600e3;
 const DAY_MS = 24 * HOUR_MS;
@@ -74,7 +74,7 @@ export function formatWindowUtc({ start, end }, ref = start) {
     return `${a.d} ${a.m} – ${b.d} ${b.m}`;
 }
 
-export const EARTHSHINE_NOTE_AVAILABLE = 'Moon exposure +10 EV — lit side clipped, as in photographs.';
+export const EARTHSHINE_NOTE_AVAILABLE = `Moon exposure +${EARTHSHINE_VIEW_EV} EV — lit side clipped, as in photographs.`;
 
 export const EARTHSHINE_NOTE_LIMIT = `Visible near new moon (≤ ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit as seen from Earth).`;
 

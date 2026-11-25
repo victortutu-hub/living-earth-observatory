@@ -68,14 +68,23 @@ export function formatRatio(ratio) {
     return `${mant.toFixed(1)}×10${sup}`;
 }
 
-// LOT 31 ETAPA 2b: "Earthshine view" (+10 EV on the whole Moon) only makes sense while the earthshine side
-// can be seen. With +10 EV the earthshine side shows at 2^(10 - stops) of the normally exposed sunlit
-// surface: at 5 % lit (about 13.3 stops) that is ~1/10 (clearly visible), at 40 % lit (about 14.3 stops
-// at the mean distance) ~1/20 (faint but readable), at 75 % lit (about 16.5 stops) ~1/90 (black). The
-// threshold is 40 % lit; above it the view is refused, or turned off when the phase crosses it.
-export const EARTHSHINE_VIEW_EV = 10;
+// LOT 31 ETAPA 2b: "Earthshine view" (+EARTHSHINE_VIEW_EV on the whole Moon) only makes sense while the
+// earthshine side can be seen. The earthshine side shows at 2^(EV - stops) of the normally exposed sunlit surface,
+// i.e. (stops - EV) stops below sensor white (earthshineStopsBelowSensorWhite).
+// LOT 38: +11 EV (was +10). Since the Moon is drawn after the bloom in this view (after-bloom.js), the bloom haze
+// no longer brightens the dark side; one more stop gives it back. At the mean distance, with +11 EV: 5 % lit
+// (13.2 stops) -> 1/4.5, 10 % (13.3) -> 1/5, 40 % (14.3) -> 1/9.6 (it was 1/19 at +10 EV), 75 % (~16.5) -> 1/45.
+// The threshold stays at 40 % lit: the LOT 31 criterion ("faint but readable", 1/19 at the threshold) would move it
+// to 61 % at +11 EV, which would spend the extra stop on fainter phases instead of a clearer earthshine.
+// Above the threshold the view is refused, or turned off when the phase crosses it.
+export const EARTHSHINE_VIEW_EV = 11;
 export const EARTHSHINE_VIEW_MAX_LIT_FRACTION = 0.4;
-// Sensor white for the +10 EV view: the Moon output is clipped at this linear value before the tone
+
+/** LOT 38: how many stops the earthshine side sits below sensor white at an exposure of `ev` (stops - ev). */
+export function earthshineStopsBelowSensorWhite({ stops, ev = EARTHSHINE_VIEW_EV }) {
+    return Number.isFinite(stops) ? stops - ev : Infinity;
+}
+// Sensor white for the Earthshine view: the Moon output is clipped at this linear value before the tone
 // mapping and the bloom, i.e. no brighter than a white sunlit object (a cloud top is ~0.8), so the
 // clipped sunlit side cannot drive the bloom like the Sun. Not applied at normal exposure.
 export const MOON_SENSOR_WHITE = 1.0;
@@ -88,7 +97,7 @@ export function earthshineViewAvailability({ litFraction, stops }) {
     return { available: false, reason: `Earthshine too faint at this phase — ${lit} % lit, ${below} (Earthshine view needs ≤ ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit)` };
 }
 
-export const EARTHSHINE_VIEW_TITLE = 'Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.';
+export const EARTHSHINE_VIEW_TITLE = `Moon exposure +${EARTHSHINE_VIEW_EV} EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs (drawn after the bloom: no glow). Available up to ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit. The Earth is not affected.`;
 
 /**
  * LOT 33: why a camera on the night side does not help. Earthshine depends on the Earth's phase seen from the
@@ -118,7 +127,7 @@ export function earthshineViewButtonState({ litFraction, stops, exposureEv }) {
     return { ariaDisabled, pressed: active, text, title: available ? EARTHSHINE_VIEW_TITLE : `${reason}. ${earthshineViewpointNote(litFraction)}` };
 }
 
-/** A request for an exposure (0 or +10 EV): { ev, applied, note } - refused above the threshold. */
+/** A request for an exposure (0 or +EARTHSHINE_VIEW_EV): { ev, applied, note } - refused above the threshold. */
 export function requestEarthshineExposure({ wantedEv, litFraction, stops }) {
     const wanted = Number.isFinite(Number(wantedEv)) ? Math.max(0, Math.min(EARTHSHINE_VIEW_EV, Number(wantedEv))) : 0;
     const availability = earthshineViewAvailability({ litFraction, stops });

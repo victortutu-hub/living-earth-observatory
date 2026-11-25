@@ -465,7 +465,7 @@ export function createEarthAppRuntime({
         moonMarkers?.toggle?.();
     }
 
-    // LOT 31 ETAPA 2: Moon exposure +10 EV (physical earthshine made visible; lit side clipped).
+    // LOT 31 ETAPA 2: Moon exposure +EARTHSHINE_VIEW_EV (+11 EV since LOT 38; physical earthshine made visible; lit side clipped).
     function toggleEarthshineView() {
         moonSystem?.toggleEarthshineView?.();
     }

@@ -1,3 +1,4 @@
+import { EARTHSHINE_VIEW_EV } from './earthshine.js'; // LOT 38: one value
 export function editorialSelection(events, limit = 3, helpers = {}) {
     const {
         eventSortAge,
@@ -185,7 +186,7 @@ export function createDemoReelTimeline({
                 updateIssLayerUi?.({ enabled: state.issLayer, tracking: false });
                 deselectAll();
                 // LOT 31: Earthshine view, same threshold as the button (ETAPA 2b); the caption says the result.
-                state.reelEarthshineView = { on: moonSystem.setMoonExposureEv?.(10) === true, reason: moonSystem.moonState?.earthshineViewNote || null };
+                state.reelEarthshineView = { on: moonSystem.setMoonExposureEv?.(EARTHSHINE_VIEW_EV) === true, reason: moonSystem.moonState?.earthshineViewNote || null };
                 if (localCinematic) showReelCodeSnippet?.('moon');
                 startMoonTracking?.(moonSystem.moon, moonSystem.moonState?.sunWorldDir, localCinematic
                     ? { duration: moonFlightSec, distance: 0.62, targetLeadMultiplier: 1.0 }

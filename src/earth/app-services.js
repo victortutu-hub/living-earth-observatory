@@ -465,7 +465,7 @@ export function createEarthAppServices({
             // LOT 31: every light that reaches the Moon, read from the live objects.
             { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, earthshine: m.earthshine }) },
             { label: 'Reflectance', value: describeMoonReflectance() }, // LOT 38
-            { label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote, { mode: m.exposureMode, autoEv: m.autoExposureEv }) }) }, // LOT 31 ETAPA 2 / 2b; LOT 33c live
+            { label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote, { mode: m.exposureMode, autoEv: m.autoExposureEv, stops: m.earthshine?.stops }) }) }, // LOT 31 ETAPA 2 / 2b; LOT 33c live
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ], { label: 'View from Earth', run: () => startMoonEarthView?.(moonSystem.moon) }); // LOT 33b

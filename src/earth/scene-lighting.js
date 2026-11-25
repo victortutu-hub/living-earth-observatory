@@ -4,7 +4,7 @@
 // preset) and the ambient light (earth-app-bootstrap.js). The Moon (ETAPA 2) is lit only by the Sun and
 // the physical earthshine (earthshine.js; moon-system.js patches its material).
 
-import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_COLOUR, earthshineTint, formatRatio } from './earthshine.js';
+import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_COLOUR, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, earthshineStopsBelowSensorWhite, earthshineTint, formatRatio } from './earthshine.js';
 import { describeMoonAutoExposure } from './moon-photometry.js';
 
 const hex = (color) => `#${color.getHexString()}`;
@@ -27,11 +27,15 @@ export function describeArtisticFill({ coolFill, ambientLight, look }) {
 // LOT 38: with `exposure` ({ mode, autoEv }) the auto / fixed exposure leads the text; the Earthshine view applies
 // over the fixed exposure. Without it, the LOT 31 text.
 export function describeMoonExposure(exposureEv = 0, note = null, exposure = null) {
-    if (exposureEv > 0) return `Moon exposure +${exposureEv} EV (lit side clipped at sensor white, as in photographs)${exposure ? '; applied over the fixed exposure (the auto compensation is suspended)' : ''}`;
+    if (exposureEv > 0) {
+        // LOT 38: + where the earthshine side sits (stops below sensor white) when the earthshine is known.
+        const below = exposure && Number.isFinite(exposure.stops) ? `; earthshine side ${earthshineStopsBelowSensorWhite({ stops: exposure.stops, ev: exposureEv }).toFixed(1)} stops below sensor white` : '';
+        return `Moon exposure +${exposureEv} EV (lit side clipped at sensor white, as in photographs)${exposure ? `; applied over the fixed exposure (the auto compensation is suspended)${below}` : ''}`;
+    }
     const normal = exposure
         ? `${describeMoonAutoExposure(exposure)}. The earthshine side stays far below the lit side, so it looks black`
         : 'Normal exposure (+0 EV): the earthshine side is about 13 stops or more below the lit side, so it looks black';
-    return note ? `${normal}. ${note}` : `${normal}; use Earthshine view (+10 EV) up to 40 % lit`;
+    return note ? `${normal}. ${note}` : `${normal}; use Earthshine view (+${EARTHSHINE_VIEW_EV} EV) up to ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit`;
 }
 
 /** Moon details, row "Illumination" (LOT 31 ETAPA 2): the Sun and the physical earthshine, no fill. */

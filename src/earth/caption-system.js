@@ -1,3 +1,4 @@
+import { EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION } from './earthshine.js'; // LOT 38: one value
 export const captionStyles = {
     minimal: {
         label: 'Minimal',
@@ -165,9 +166,9 @@ export function createCaptionSystem({
                 header: 'ASTRONOMY ENGINE - REAL MOON GEOMETRY',
                 title: 'EARTHSHINE',
                 // LOT 31 ETAPA 2 / 2b: Earthshine view only up to 40 % lit; otherwise the caption says why.
-                subtitle: state.reelEarthshineView?.on === false ? 'EARTHSHINE TOO FAINT AT THIS PHASE' : 'MOON EXPOSURE +10 EV, LIT SIDE CLIPPED AT SENSOR WHITE',
+                subtitle: state.reelEarthshineView?.on === false ? 'EARTHSHINE TOO FAINT AT THIS PHASE' : `MOON EXPOSURE +${EARTHSHINE_VIEW_EV} EV, LIT SIDE CLIPPED AT SENSOR WHITE`,
                 meta: 'Phase, distance and lunar orientation are calculated live',
-                footer: state.reelEarthshineView?.on === false ? 'Physical earthshine (approximated): too faint next to the sunlit side above 40 % lit' : 'Physical earthshine (approximated), shown with a declared exposure, as in photographs'
+                footer: state.reelEarthshineView?.on === false ? `Physical earthshine (approximated): too faint next to the sunlit side above ${Math.round(EARTHSHINE_VIEW_MAX_LIT_FRACTION * 100)} % lit` : 'Physical earthshine (approximated), shown with a declared exposure, as in photographs'
             };
         }
         if (mode === 'iss') {

@@ -90,7 +90,7 @@ export function moonAutoExposureEv(phaseDeg) {
 }
 
 /**
- * The exposure applied to the Moon. The Earthshine view (+10 EV) is a fixed photographic exposure: it applies over
+ * The exposure applied to the Moon. The Earthshine view (+11 EV) is a fixed photographic exposure: it applies over
  * the fixed exposure, never over the auto one (its threshold and the "stops below" figures are relative to +0 EV).
  */
 export function effectiveMoonExposureEv({ mode = MOON_EXPOSURE_DEFAULT_MODE, earthshineViewEv = 0, autoEv = 0 }) {

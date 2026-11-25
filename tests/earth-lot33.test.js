@@ -20,11 +20,11 @@ describe('LOT 33 step 1: a clearly disabled button that stays one line', () => {
     expect(earthshineViewButtonState({ litFraction: 0.41, stops: 14.4, exposureEv: 0 }).title).toMatch(/\(now 59 % lit\), so the night side is dark/); // not "nearly new" at 59 %
     expect(earthshineViewButtonState({ litFraction: 0.98, stops: 17.3, exposureEv: 0 }).text).toBe('Earthshine view: unavailable (98 % lit from Earth)');
   });
-  it('at or below 40 % lit: enabled, "off"; active: "+10 EV", pressed', () => {
+  it('at or below 40 % lit: enabled, "off"; active: "+11 EV" (LOT 38), pressed', () => {
     expect(earthshineViewButtonState({ litFraction: 0.39, stops: 14, exposureEv: 0 })).toEqual({ ariaDisabled: false, pressed: false, text: 'Earthshine view: off', title: EARTHSHINE_VIEW_TITLE });
     expect(earthshineViewButtonState({ litFraction: 0.4, stops: 14, exposureEv: 0 }).ariaDisabled).toBe(false);
     expect(earthshineViewButtonState({ litFraction: 0.41, stops: 14.4, exposureEv: 0 }).ariaDisabled).toBe(true);
-    expect(earthshineViewButtonState({ litFraction: 0.2, stops: 13, exposureEv: 10 })).toMatchObject({ ariaDisabled: false, pressed: true, text: 'Earthshine view: +10 EV' });
+    expect(earthshineViewButtonState({ litFraction: 0.2, stops: 13, exposureEv: 11 })).toMatchObject({ ariaDisabled: false, pressed: true, text: 'Earthshine view: +11 EV' });
   });
   it('the button is never `disabled` (a tap must reach it); aria-disabled drives the style', () => {
     const moon = text('src/earth/moon-system.js');
@@ -121,8 +121,8 @@ describe('LOT 33 step 2: the visible line, in both states', () => {
     expect(two).toBe('Visible near new moon (≤ 40 % lit as seen from Earth). Next window: 28 Nov – 9 Dec (UTC).');
   });
   it('available: what the mode does', () => {
-    expect(earthshineViewNoteText({ available: true, window: w })).toBe('Moon exposure +10 EV — lit side clipped, as in photographs.');
-    expect(EARTHSHINE_NOTE_AVAILABLE).toBe('Moon exposure +10 EV — lit side clipped, as in photographs.');
+    expect(earthshineViewNoteText({ available: true, window: w })).toBe('Moon exposure +11 EV — lit side clipped, as in photographs.'); // LOT 38
+    expect(EARTHSHINE_NOTE_AVAILABLE).toBe('Moon exposure +11 EV — lit side clipped, as in photographs.');
   });
   it('before the phase is known only the rule (never "available"); Astronomy Engine missing is said; no window -> said', () => {
     expect(earthshineViewNoteText({ available: true, astronomy: 'pending' })).toBe(EARTHSHINE_NOTE_LIMIT);

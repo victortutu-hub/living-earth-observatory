@@ -5,7 +5,7 @@
 //   the Moon between the Sun and the camera, so the camera at the Earth gives the geocentric phase and the
 //   camera beyond the Moon gives 1 - phase.
 //   Earthshine photographs are taken from the Earth, so they show the crescent. A camera on the sunward side
-//   sees a mostly sunlit disc, and at +10 EV that disc clips to white.
+//   sees a mostly sunlit disc, and in the Earthshine view (+11 EV since LOT 38) that disc clips to white.
 // "View from Earth": a camera on the Earth → Moon line. It looks at the Moon from the Earth's side, framed like
 // a telephoto earthshine photograph.
 
@@ -51,11 +51,11 @@ export function describePhaseFromEarth(phaseFraction) {
  * LOT 33c: the live rows of the open "The Moon" card. The card is rendered once, on the click; these rows follow
  * the state (the Earthshine view on / off, the phase, the camera). Returns { id: text }.
  */
-export function moonCardLiveRows({ phaseFraction, exposureEv, earthshineViewNote, cameraLitFraction, exposureMode, autoExposureEv }, describeMoonExposure) {
+export function moonCardLiveRows({ phaseFraction, exposureEv, earthshineViewNote, cameraLitFraction, exposureMode, autoExposureEv, earthshine }, describeMoonExposure) {
     return {
         moonPhaseValue: describePhaseFromEarth(phaseFraction),
         // LOT 38: the auto / fixed mode when the state has one
-        moonExposureValue: describeMoonExposure(exposureEv, earthshineViewNote, exposureMode ? { mode: exposureMode, autoEv: autoExposureEv } : null),
+        moonExposureValue: describeMoonExposure(exposureEv, earthshineViewNote, exposureMode ? { mode: exposureMode, autoEv: autoExposureEv, stops: earthshine?.stops } : null),
         moonCameraViewValue: describeCameraView(cameraLitFraction),
     };
 }

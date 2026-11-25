@@ -221,7 +221,8 @@ Earth's phase angle α⊕ seen from the Moon. The order of magnitude agrees with
 published value of earthshine at maximum Earth phase, "approximately 0.15 W m−2"
 or "only 0.01% of the radiance from direct Sunlight" (Glenar et al. 2019, as quoted
 by https://en.wikipedia.org/wiki/Earthshine). "Earthshine view" raises the Moon
-exposure by 10 EV (lit side clipped, as in photographs). The Earth keeps a
+exposure by 11 EV (10 EV before Lot 38; lit side clipped, as in photographs; drawn after
+the bloom since Lot 38). The Earth keeps a
 declared artistic fill (a cool light opposite the Sun and an ambient light).
 
 ## Moon Reflectance And Earthshine Colour (Lot 38)
