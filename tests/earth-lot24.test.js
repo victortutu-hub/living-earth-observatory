@@ -25,6 +25,16 @@ const fast = { tileTimeoutMs: 40, retries: 2, backoffMs: [1, 1], backgroundRetry
 const hang = (signal) => new Promise((_, reject) => signal?.addEventListener('abort', () => reject(signal.reason), { once: true }));
 const isZ = (url, z) => url.includes(`/500m/${z}/`);
 const quiet = { log: () => {} };
+// LOT 39: the scaled surface timings (tens of ms) under FAKE time. setTimeout, Date and performance are faked, so a
+// loaded machine cannot make an attempt "time out" early or a response arrive late: the same scenarios, the same
+// counts, independent of the CPU load (they failed under a parallel test run: "expected 2 to be 3").
+// Time advances 1 ms at a time until the load settles (bounded: 200 000 fake ms).
+async function settleUnderFakeTime(promise) {
+  let settled = false;
+  promise.then(() => { settled = true; }, () => { settled = true; });
+  for (let ms = 0; ms < 200_000 && !settled; ms++) await vi.advanceTimersByTimeAsync(1);
+  return promise;
+}
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
@@ -135,12 +145,13 @@ describe('LOT 24: Blue Marble surface — independent levels, late tiles, deadli
   it('"20 s on every request" is no longer a regression: the longer retry gets every tile, no "unavailable"', async () => {
     // Scaled: every request answers after 50 ms; the first attempt times out (20 ms), the longer retry
     // gets it with a wide margin (LOT 26: 40 / 60 / 90 ms was too tight under a loaded test run).
+    vi.useFakeTimers(); // LOT 39
     const loadImage = (url, { signal }) => new Promise((resolve, reject) => {
       const timer = setTimeout(() => resolve(tile(url)), 50);
       signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
     });
     const onUnavailable = vi.fn();
-    const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, tileTimeoutMs: [20, 400, 600] }, onUnavailable, ...quiet });
+    const result = await settleUnderFakeTime(loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, tileTimeoutMs: [20, 400, 600] }, onUnavailable, ...quiet }));
     expect(result.z).toBe(3);
     expect(onUnavailable).not.toHaveBeenCalled();
     const z3 = result.stats.find((s) => s.z === 3);
@@ -157,12 +168,13 @@ describe('LOT 24: Blue Marble surface — independent levels, late tiles, deadli
   });
 
   it('a slow but alive source (every request 80 ms, attempts 40 ms): the longer background attempts get it', async () => {
+    vi.useFakeTimers(); // LOT 39
     const loadImage = (url, { signal }) => new Promise((resolve, reject) => {
       const timer = setTimeout(() => resolve(tile(url)), 80);
       signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
     });
     const events = [];
-    const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, backgroundTimeoutMs: 200, deadlineMs: 5000 }, onUnavailable: () => events.push('unavailable'), onLevel: (t, info) => events.push(info.z), ...quiet });
+    const result = await settleUnderFakeTime(loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, backgroundTimeoutMs: 200, deadlineMs: 5000 }, onUnavailable: () => events.push('unavailable'), onLevel: (t, info) => events.push(info.z), ...quiet }));
     expect(events[0]).toBe('unavailable');
     expect(result.z).toBe(3);
   });
@@ -187,10 +199,11 @@ describe('LOT 24: Blue Marble surface — independent levels, late tiles, deadli
   });
 
   it('z3 does not wait for z2: a z2 tile hanging until the deadline does not stop z3; z2 is then dropped', async () => {
+    vi.useFakeTimers(); // LOT 39: Date.now() below is fake time, so "< 5000" still means "not waited until the 60 s deadline"
     const loadImage = (url, { signal }) => (url.endsWith('/500m/2/0/0.jpeg') ? hang(signal) : Promise.resolve(tile(url)));
     const levels = [];
     const started = Date.now();
-    const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, tileTimeoutMs: 400, deadlineMs: 60_000 }, onLevel: (t, info) => levels.push(info), ...quiet });
+    const result = await settleUnderFakeTime(loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, tileTimeoutMs: 400, deadlineMs: 60_000 }, onLevel: (t, info) => levels.push(info), ...quiet }));
     expect(levels.map((l) => [l.z, l.final])).toEqual([[3, true]]);
     expect(result.z).toBe(3);
     expect(Date.now() - started).toBeLessThan(5000); // z2 superseded and aborted, not waited for
@@ -198,13 +211,14 @@ describe('LOT 24: Blue Marble surface — independent levels, late tiles, deadli
   });
 
   it('"35 s on every tile": unavailable first, then back to GIBS when the tiles start to come', async () => {
+    vi.useFakeTimers(); // LOT 39: "the first 250 ms" in fake time
     const t0 = Date.now();
     const loadImage = (url, { signal }) => (Date.now() - t0 < 250 ? hang(signal) : Promise.resolve(tile(url)));
     const events = [];
-    const result = await loadBlueMarbleSurfaceTexture({
+    const result = await settleUnderFakeTime(loadBlueMarbleSurfaceTexture({
       THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, retries: 0, backoffMs: [] },
       onUnavailable: (e) => events.push(['unavailable', e.retrying]), onLevel: (t, info) => events.push(['level', info.z]), ...quiet,
-    });
+    }));
     expect(events[0]).toEqual(['unavailable', true]);
     expect(events.at(-1)).toEqual(['level', 3]);
     expect(result.z).toBe(3);
@@ -213,7 +227,8 @@ describe('LOT 24: Blue Marble surface — independent levels, late tiles, deadli
   it('a tile that never arrives: background rounds stop at the deadline; the level fails with its first reason', async () => {
     const loadImage = (url) => (isZ(url, 3) && url.endsWith('/3/4.jpeg') ? Promise.reject(Object.assign(new Error('HTTP 503'), { status: 503 })) : Promise.resolve(tile(url)));
     const lines = [];
-    const result = await loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, deadlineMs: 300 }, log: (l) => lines.push(l) });
+    vi.useFakeTimers(); // LOT 39: the 300 ms deadline and the background rounds in fake time
+    const result = await settleUnderFakeTime(loadBlueMarbleSurfaceTexture({ THREE, renderer, loadImage, createCanvas: canvases().create, policy: { ...fast, deadlineMs: 300 }, log: (l) => lines.push(l) }));
     expect(result.z).toBe(2);
     expect(result.failures).toEqual([`z3: HTTP 503`]);
     const z3 = result.stats.find((s) => s.z === 3);

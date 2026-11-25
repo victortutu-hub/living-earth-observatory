@@ -51,14 +51,12 @@ describe('LOT 37: the earcut ESM wrapper', () => {
     expect(wrapper).toBe(earcutWrapper(PACKAGES.find((p) => p.name === 'earcut'), source)); // reproducible
   });
   it('exports the triangulation function as default (what earth-eonet-relief.html uses) and as earcut', async () => {
-    const tmp = new URL('../tmp/lot37-earcut-test.mjs', import.meta.url);
-    fs.mkdirSync(new URL('.', tmp), { recursive: true }); fs.writeFileSync(tmp, wrapper);
-    try {
-      const m = await import(tmp.href);
-      expect(m.default).toBe(m.earcut);
-      expect(m.default([0, 0, 1, 0, 1, 1, 0, 1])).toEqual([2, 3, 0, 0, 1, 2]);
-      expect(typeof m.flatten).toBe('function');
-    } finally { fs.rmSync(tmp, { force: true }); }
+    // LOT 39: the shipped file itself (checked byte for byte against MANIFEST.json above), not a fresh copy written to
+    // tmp/ on every run: a new .mjs file took 0.3-5.3 s to import (timeouts even with the file run alone).
+    const m = await import(new URL('earcut@2.2.4/earcut.esm.js', LIB).href);
+    expect(m.default).toBe(m.earcut);
+    expect(m.default([0, 0, 1, 0, 1, 1, 0, 1])).toEqual([2, 3, 0, 0, 1, 2]);
+    expect(typeof m.flatten).toBe('function');
   });
 });
 
