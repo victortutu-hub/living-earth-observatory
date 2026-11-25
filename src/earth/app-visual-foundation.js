@@ -172,6 +172,7 @@ export function createAppVisualFoundation({
         setSurfaceStatusListener,
         getEarthLayerSignals: earthLayers.getRuntimeSignals, // LOT 23
         getRegionalSurfaceDebug: earthLayers.getRegionalSurfaceDebug, // LOT 41
+        getTerrainReliefDebug: earthLayers.getTerrainReliefDebug, // LOT 42
         setTerminatorGuideVisible,
         atmosphereMat,
         applyAtmosphereLayerMode,

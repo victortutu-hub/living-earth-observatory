@@ -127,8 +127,8 @@ describe('LOT 23: secondary layers never touch the state', () => {
 describe('LOT 23: signal wiring (no visual change)', () => {
   it('earth-layers reports relief / surface / night lights; ktx2-support reports each outcome', () => {
     const layers = text('src/earth/earth-layers.js');
-    // LOT 41 (intentional): + the regional surface detail status.
-    expect(layers).toContain("getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })), regional: regionalSurface?.getStatus() ?? null }), // LOT 23 (+ LOT 24 stats, LOT 41 regional)");
+    // LOT 41 / 42 (intentional): + the regional surface detail and the Terrarium relief detail statuses.
+    expect(layers).toContain("getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })), regional: regionalSurface?.getStatus() ?? null, terrain: terrainRelief?.getStatus() ?? null }), // LOT 23 (+ LOT 24 stats, LOT 41 regional, LOT 42 terrain)");
     expect(layers.match(/reportSurface\(\{ kind: '/g)).toHaveLength(5); // LOT 24: + 'unavailable' while retrying in the background
     expect(layers).not.toMatch(/publishSurfaceStatus\(surfaceStatusFor\(\{/); // every event goes through reportSurface()
     expect(layers.match(/publishSurfaceStatus\(surfaceStatusFor\(event\)\)/g)).toHaveLength(1);

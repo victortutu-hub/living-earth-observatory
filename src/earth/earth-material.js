@@ -2,6 +2,7 @@ import { createSurfaceMaterialLodConfig } from './surface-material-lod.js';
 import { ATMOSPHERE, ATMOSPHERE_GLSL } from './atmosphere-physics.js';
 import { RELIEF_LINEAR_EXAGGERATION, RELIEF_SHADING_GAIN, RELIEF_SOURCE, linearDisplacementScale } from './relief-linear.js';
 import { injectRegionalSurface } from './gibs-regional-surface.js';
+import { TERRAIN_SLOPE_MARKER, injectTerrainRelief } from './terrarium-relief.js';
 
 // Relief (LOT 4b-B): ETOPO 2022 60" ice surface in metres, area-averaged to
 // 1/6 deg, displaced linearly (x E) with water flat at 0 m, and normals computed
@@ -51,6 +52,7 @@ const linearReliefNormalBody = () => `
                 vec2 reliefSlopeTw = uShadingGainTw * vec2(
                     (hETw - hWTw) / (4.0 * PI * R_E * reliefCosLatTw * reliefTexelTw.x),
                     (hNTw - hSTw) / (2.0 * PI * R_E * reliefTexelTw.y));
+                ${TERRAIN_SLOPE_MARKER}
                 normal = normalize(normal - reliefSlopeTw.x * normalize(vReliefEastTw) - reliefSlopeTw.y * normalize(vReliefNorthTw));
             }`;
 
@@ -337,7 +339,9 @@ export function createEarthMaterial({
     // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
     overrides = {},
     // LOT 41: regional Blue Marble NG detail (gibs-regional-surface.js); null = none.
-    regionalSurface = null
+    regionalSurface = null,
+    // LOT 42: Terrarium relief slopes near the globe (terrarium-relief.js); null = none.
+    terrainRelief = null
 }) {
     const material = new THREE.MeshPhongMaterial({
         map: earthMap,
@@ -461,6 +465,7 @@ export function createEarthMaterial({
             ${RELIEF_NORMAL_BODY}`
         );
         injectRegionalSurface(shader, regionalSurface); // LOT 41
+        injectTerrainRelief(shader, terrainRelief); // LOT 42
 
         material.userData.shader = shader;
     };
@@ -490,7 +495,9 @@ export function createEarthMaterialPBR({
     // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
     overrides = {},
     // LOT 41: regional Blue Marble NG detail (gibs-regional-surface.js); null = none.
-    regionalSurface = null
+    regionalSurface = null,
+    // LOT 42: Terrarium relief slopes near the globe (terrarium-relief.js); null = none.
+    terrainRelief = null
 }) {
     const material = new THREE.MeshStandardMaterial({
         map: earthMap,
@@ -531,6 +538,7 @@ export function createEarthMaterialPBR({
             ${surfaceMaterialPbrRoughnessBody()}`
         );
         injectRegionalSurface(shader, regionalSurface); // LOT 41
+        injectTerrainRelief(shader, terrainRelief); // LOT 42
 
         material.userData.shader = shader;
     };

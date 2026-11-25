@@ -633,6 +633,7 @@ export function createEarthAppServices({
             sky: sky?.phase === 'ready' ? sky.value : 'loading',
             nightLights: layers.nightLights || null,
             regional: layers.regional || null, // LOT 41
+            terrain: layers.terrain || null, // LOT 42
             layers: [
                 providerLayer('usgs', usgsProvider?.getStatus?.()),
                 providerLayer('firms', firmsProvider?.getStatus?.()),
@@ -684,6 +685,7 @@ export function createEarthAppServices({
         runtimeSignals,
         realSky: visualFoundation.realSky, // LOT 28: sky cost in the ?perf=1 run
         regionalSurfaceDebug: visualFoundation.getRegionalSurfaceDebug, // LOT 41: read-only (diagnostics, probes)
+        terrainReliefDebug: visualFoundation.getTerrainReliefDebug, // LOT 42: idem
         dispose
     };
 }

@@ -30,7 +30,7 @@ export const EXTERNAL_ORIGINS = Object.freeze([
   e({ origin: 'https://api.open-meteo.com', role: 'data', pages: ['earth', 'himalaya'], note: 'Open-Meteo forecast (wind; summit weather) and model metadata' }),
   e({ origin: 'https://marine-api.open-meteo.com', role: 'data', pages: ['earth'], note: 'Open-Meteo Marine currents' }),
   e({ origin: 'https://earth-search.aws.element84.com', role: 'data', pages: ['himalaya'], note: 'Sentinel-2 L2A STAC search' }),
-  e({ origin: 'https://s3.amazonaws.com', role: 'data', tiles: true, paths: ['/elevation-tiles-prod/terrarium'], pages: ['himalaya'], note: 'AWS Terrarium elevation tiles' }),
+  e({ origin: 'https://s3.amazonaws.com', role: 'data', tiles: true, paths: ['/elevation-tiles-prod/terrarium'], pages: ['himalaya', 'earth'], note: 'AWS Terrarium elevation tiles (Himalaya terrain; Earth relief detail near the globe, LOT 42)' }),
   e({ origin: 'https://alphafold.ebi.ac.uk', role: 'data', paths: ['/api/'], pages: ['index', 'protein'], note: 'AlphaFold DB prediction API' }),
   e({ origin: 'https://rest.uniprot.org', role: 'data', pages: ['protein'], note: 'UniProt REST' }),
   // --- Proxy (our own).

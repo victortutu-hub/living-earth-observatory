@@ -83,14 +83,34 @@ export function regionalTileKey(level, x, y) {
     return `${level}/${x}/${y}`;
 }
 
+/** LOT 42: the Blue Marble NG tiles as a source of the shared tile-window selection (geographic tiles). */
+export const GIBS_WINDOW_SOURCE = Object.freeze({
+    levelFor: (footprintKm, lat, maxLevel, minLevel) => regionalLevelFor(footprintKm, maxLevel, minLevel),
+    needs: (hit) => hit.footprintKm < REGIONAL_BASE_TEXEL_KM, // z3 is enough elsewhere
+    grid: (level) => regionalLevelGeometry(level),
+    tileOf: (level, hit) => {
+        const { columns, rows, tileSpanDeg } = regionalLevelGeometry(level);
+        return { x: Math.min(columns - 1, Math.floor((hit.lon + 180) / tileSpanDeg)), y: Math.min(rows - 1, Math.floor((90 - hit.lat) / tileSpanDeg)) };
+    },
+});
+
 /**
  * Which tiles the view needs (pure). Vectors are [x, y, z] in the Earth mesh frame (radius `earthRadius`):
  * camera position, unit forward / right / up. Returns { active: false, reason } or
  * { active: true, level, window: { x0, y0, w, h, columns, rows }, tiles: [{ x, y, key, priority }], ... }.
  */
-export function selectRegionalView({
+export function selectRegionalView(options) {
+    return selectTileWindow({ policy: REGIONAL_POLICY, source: GIBS_WINDOW_SOURCE, ...options });
+}
+
+/**
+ * LOT 42: the selection shared by the tile-window layers (Blue Marble NG detail, Terrarium relief). `source`
+ * gives the level for a footprint (levelFor), whether a hit needs detail (needs), the grid of a level (grid) and
+ * the tile of a hit (tileOf); optional covers(hit) drops the hits where the source has no data.
+ */
+export function selectTileWindow({
     camera, forward, right, up, fovDeg, aspect, heightPx, pixelRatio = 1, maxLevel, slots,
-    earthRadius = 2, kmPerUnit = 3185.5, policy = REGIONAL_POLICY,
+    earthRadius = 2, kmPerUnit = 3185.5, policy, source,
 }) {
     const distance = Math.hypot(...camera);
     if (!(distance < policy.activationDistance)) return { active: false, reason: 'distance', distance };
@@ -119,17 +139,18 @@ export function selectRegionalView({
         const lon = wrap(Math.atan2(n[2], -n[0]), 2 * Math.PI) / (2 * Math.PI) * 360 - 180;
         hits.push({ lat, lon, footprintKm, screen: Math.hypot(nx, ny) });
     }
-    if (!hits.length) return { active: false, reason: 'no-surface', distance };
-    const finest = hits.reduce((a, b) => (b.footprintKm < a.footprintKm ? b : a));
-    const level = regionalLevelFor(finest.footprintKm, maxLevel, policy.minLevel);
+    const covered = source.covers ? hits.filter((h) => source.covers(h)) : hits; // e.g. Web Mercator: |lat| <= 85.05
+    if (!covered.length) return { active: false, reason: 'no-surface', distance };
+    const finest = covered.reduce((a, b) => (b.footprintKm < a.footprintKm ? b : a));
+    const level = source.levelFor(finest.footprintKm, finest.lat, maxLevel, policy.minLevel);
     if (level === null) return { active: false, reason: 'base-sufficient', distance, footprintKm: finest.footprintKm };
-    const { columns, rows, tileSpanDeg } = regionalLevelGeometry(level);
-    const tileOf = (h) => ({ x: Math.min(columns - 1, Math.floor((h.lon + 180) / tileSpanDeg)), y: Math.min(rows - 1, Math.floor((90 - h.lat) / tileSpanDeg)) });
+    const { columns, rows } = source.grid(level);
+    const tileOf = (h) => source.tileOf(level, h);
     const centre = tileOf(finest);
     const half = (n) => wrap(n + columns / 2, columns) - columns / 2; // signed column offset in [-cols/2, cols/2)
     const wanted = new Map();
-    for (const h of hits) {
-        if (!(h.footprintKm < REGIONAL_BASE_TEXEL_KM)) continue; // z3 is enough there
+    for (const h of covered) {
+        if (!source.needs(h)) continue; // the global layer is enough there
         const { x, y } = tileOf(h);
         const key = regionalTileKey(level, x, y);
         const entry = wanted.get(key);
@@ -217,25 +238,67 @@ export function injectRegionalSurface(shader, regional) {
 
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
+/** LOT 41: the Blue Marble NG tiles: sRGB RGBA8 atlas of 512 px tiles, decoded bitmaps, GPU mipmaps. */
+export function gibsTileSource({ loadImage = loadGibsTileBitmap } = {}) {
+    return {
+        ...GIBS_WINDOW_SOURCE,
+        tileSize: GIBS_TILE_SIZE,
+        url: (level, x, y) => gibsTileUrl(REGIONAL_LAYER, null, level, x, y),
+        load: loadImage,
+        alive: (payload) => payload?.width > 0, // a bitmap closed by the LRU has width 0
+        release: (payload) => payload?.close?.(),
+        gridUniform: (level) => regionalLevelGeometry(level).tileSpanDeg,
+        baseLod: (level) => regionalBaseLod(level),
+        atlasBytes: (size) => Math.round(size * size * 4 * 4 / 3),
+        createAtlas(THREE, renderer, size) {
+            const atlas = new THREE.DataTexture(null, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+            atlas.source.dataReady = false; // storage only (texStorage2D); tiles are copied in
+            atlas.colorSpace = THREE.SRGBColorSpace; // as the z3 map: sampled linear
+            atlas.generateMipmaps = true;
+            atlas.minFilter = THREE.LinearMipmapLinearFilter;
+            atlas.magFilter = THREE.LinearFilter;
+            atlas.wrapS = atlas.wrapT = THREE.ClampToEdgeWrapping;
+            atlas.flipY = false; // row 0 = the north edge of a tile
+            // The full mip chain declared explicitly, without data: texStorage2D allocates every level (it is immutable,
+            // so an allocation made while generateMipmaps is off would hold one level only) and nothing is generated
+            // on the empty texture. three.js then turns generateMipmaps off; upload() switches it on for the last
+            // copy of each frame, so copyTextureToTexture rebuilds the chain once per frame.
+            for (let s = size; s >= 1; s >>= 1) atlas.mipmaps.push({ data: null, width: s, height: s });
+            atlas.needsUpdate = true;
+            renderer.initTexture?.(atlas);
+            return atlas;
+        },
+        upload({ THREE, renderer, atlas, payload, x, y, last }) {
+            atlas.generateMipmaps = last; // one mip rebuild per frame
+            renderer.copyTextureToTexture(new THREE.Texture(payload), atlas, null, { x, y, z: 0 });
+            atlas.generateMipmaps = false;
+        },
+    };
+}
+
 /**
- * The runtime of the layer. update(camera, earthMesh) once per frame (selection, debounce, uploads, fades);
- * bindRenderer(renderer) from the mesh's onBeforeRender (the atlas lives in the page renderer only: an export
- * renderer draws z3). Owned: requests (AbortControllers under `signal`), LRU bitmaps, GPU textures; dispose().
+ * LOT 42: the runtime shared by the tile-window layers (LOT 41 createRegionalSurface, LOT 42 Terrarium relief).
+ * update(camera, earthMesh) once per frame (selection, debounce, uploads, fades); bindRenderer(renderer) from the
+ * mesh's onBeforeRender (the atlas lives in the page renderer only). Owned: requests (AbortControllers under
+ * `signal`), LRU payloads, GPU textures; dispose(). The source gives the tiles: url / load / prepare (optional,
+ * run at upload time, at most uploadsPerFrame per frame) / alive / release, the atlas and its upload.
  */
-export function createRegionalSurface({
+export function createTileWindowLayer({
     THREE,
     renderer,
-    touch = false,
+    source,
+    prefix,
+    profileFor,
     pixelRatio = () => renderer.getPixelRatio?.() ?? 1,
-    loadImage = loadGibsTileBitmap,
     signal = null,
     now = () => performance.now(),
-    policy = REGIONAL_POLICY,
+    policy,
+    describe = () => '',
     onStatus = null,
 }) {
-    let profile = regionalProfile({ touch, pixelRatio: pixelRatio(), policy });
+    let profile = profileFor(pixelRatio());
     const slots = profile.slots;
-    const atlasSize = slots * GIBS_TILE_SIZE;
+    const atlasSize = slots * source.tileSize;
     const limiter = createPriorityLimiter(profile.concurrency);
     const lru = new LruTileCache(profile.lruTiles);
     const tableData = new Uint8Array(slots * slots * 4);
@@ -247,19 +310,20 @@ export function createRegionalSurface({
     const placeholder = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat, THREE.UnsignedByteType);
     placeholder.needsUpdate = true;
     let atlas = null; // allocated on first use
+    const U = (name) => `${prefix}${name}Tw`;
     const uniforms = {
-        uRegionalOnTw: { value: 0 },
-        uRegionalFadeTw: { value: 0 },
-        uRegionalBaseLodTw: { value: 0 },
-        uRegionalAtlasTw: { value: placeholder },
-        uRegionalTableTw: { value: table },
-        uRegionalGridTw: { value: new THREE.Vector4(0, 1, slots, 0) },
-        uRegionalWindowTw: { value: new THREE.Vector4(0, 0, 0, 0) },
+        [U('On')]: { value: 0 },
+        [U('Fade')]: { value: 0 },
+        [U('BaseLod')]: { value: 0 },
+        [U('Atlas')]: { value: placeholder },
+        [U('Table')]: { value: table },
+        [U('Grid')]: { value: new THREE.Vector4(0, 1, slots, 0) },
+        [U('Window')]: { value: new THREE.Vector4(0, 0, 0, 0) },
     };
     const slotState = Array.from({ length: slots * slots }, () => ({ key: null, fadeStart: 0, fading: false }));
     const inflight = new Map(); // key -> AbortController
     const failing = new Set();
-    let uploads = []; // { key, level, x, y, bitmap }
+    let uploads = []; // { key, level, x, y, payload, prepared }
     let current = null; // applied selection
     let pending = null; // { key, since, selection }
     let enabled = false; // the page renderer may draw the layer
@@ -271,22 +335,8 @@ export function createRegionalSurface({
 
     function ensureAtlas() {
         if (atlas) return atlas;
-        atlas = new THREE.DataTexture(null, atlasSize, atlasSize, THREE.RGBAFormat, THREE.UnsignedByteType);
-        atlas.source.dataReady = false; // storage only (texStorage2D); tiles are copied in
-        atlas.colorSpace = THREE.SRGBColorSpace; // as the z3 map: sampled linear
-        atlas.generateMipmaps = true;
-        atlas.minFilter = THREE.LinearMipmapLinearFilter;
-        atlas.magFilter = THREE.LinearFilter;
-        atlas.wrapS = atlas.wrapT = THREE.ClampToEdgeWrapping;
-        atlas.flipY = false; // row 0 = the north edge of a tile
-        // The full mip chain declared explicitly, without data: texStorage2D allocates every level (it is immutable,
-        // so an allocation made while generateMipmaps is off would hold one level only) and nothing is generated
-        // on the empty texture. three.js then turns generateMipmaps off; flushUploads switches it on for the last
-        // copy of each frame, so copyTextureToTexture rebuilds the chain once per frame.
-        for (let size = atlasSize; size >= 1; size >>= 1) atlas.mipmaps.push({ data: null, width: size, height: size });
-        atlas.needsUpdate = true;
-        renderer.initTexture?.(atlas);
-        uniforms.uRegionalAtlasTw.value = atlas;
+        atlas = source.createAtlas(THREE, renderer, atlasSize);
+        uniforms[U('Atlas')].value = atlas;
         return atlas;
     }
 
@@ -296,7 +346,7 @@ export function createRegionalSurface({
 
     function abortWhere(test) {
         for (const [key, controller] of inflight) {
-            if (test(key)) controller.abort(new DOMException('regional tile no longer needed', 'AbortError'));
+            if (test(key)) controller.abort(new DOMException('tile no longer needed', 'AbortError'));
         }
         uploads = uploads.filter((u) => !test(u.key));
     }
@@ -304,6 +354,10 @@ export function createRegionalSurface({
     function slotIndexFor(tile) {
         const { sx, sy } = regionalSlot(current.window, tile.x, tile.y, slots);
         return sy * slots + sx;
+    }
+
+    function remember(key, payload, prepared) {
+        lru.set(key, { payload, prepared, dispose: () => source.release?.(payload) });
     }
 
     function request(tile, level) {
@@ -314,19 +368,20 @@ export function createRegionalSurface({
         inflight.set(tile.key, controller);
         stats.maxInflight = Math.max(stats.maxInflight, inflight.size);
         stats.requested++;
-        const url = gibsTileUrl(REGIONAL_LAYER, null, level, tile.x, tile.y);
+        const url = source.url(level, tile.x, tile.y);
         limiter.run(-tile.priority, () => {
             stats.maxActiveRequests = Math.max(stats.maxActiveRequests, limiter.active); // <= concurrency
-            return loadTileWithRetry(loadImage, url, {
+            return loadTileWithRetry(source.load, url, {
                 timeoutMs: policy.tileTimeoutMs, retries: policy.retries, backoffMs: policy.backoffMs, signal: controller.signal,
             });
         })
-            .then((bitmap) => {
-                if (disposed || controller.signal.aborted) { bitmap?.close?.(); return; }
+            .then((payload) => {
+                if (disposed || controller.signal.aborted) { source.release?.(payload); return; }
                 stats.arrived++;
                 failing.delete(tile.key);
-                lru.set(tile.key, { bitmap, dispose: () => bitmap?.close?.() });
-                if (wantedKeys().has(tile.key)) uploads.push({ key: tile.key, level, x: tile.x, y: tile.y, bitmap });
+                const prepared = !source.prepare;
+                remember(tile.key, payload, prepared);
+                if (wantedKeys().has(tile.key)) uploads.push({ key: tile.key, level, x: tile.x, y: tile.y, payload, prepared });
             })
             .catch((error) => {
                 if (controller.signal.aborted || error?.name === 'AbortError') { stats.aborted++; return; }
@@ -342,17 +397,16 @@ export function createRegionalSurface({
     function apply(selection) {
         current = selection;
         const { level, window } = selection;
-        const { tileSpanDeg } = regionalLevelGeometry(level);
-        uniforms.uRegionalGridTw.value.set(tileSpanDeg, window.columns, slots, level);
-        uniforms.uRegionalWindowTw.value.set(window.x0, window.y0, window.w, window.h);
-        uniforms.uRegionalBaseLodTw.value = regionalBaseLod(level);
+        uniforms[U('Grid')].value.set(source.gridUniform(level), window.columns, slots, level);
+        uniforms[U('Window')].value.set(window.x0, window.y0, window.w, window.h);
+        uniforms[U('BaseLod')].value = source.baseLod?.(level) ?? 0;
         const keep = wantedKeys();
         abortWhere((key) => !keep.has(key));
         for (const tile of selection.tiles) {
             if (slotState[slotIndexFor(tile)].key === tile.key) continue; // already on the GPU
             if (uploads.some((u) => u.key === tile.key)) continue;
             const cached = lru.get(tile.key);
-            if (cached) { stats.cacheHits++; uploads.push({ key: tile.key, level, x: tile.x, y: tile.y, bitmap: cached.bitmap }); continue; }
+            if (cached) { stats.cacheHits++; uploads.push({ key: tile.key, level, x: tile.x, y: tile.y, payload: cached.payload, prepared: cached.prepared }); continue; }
             request(tile, level);
         }
         uploads.sort((a, b) => priorityOf(a.key) - priorityOf(b.key));
@@ -365,10 +419,10 @@ export function createRegionalSurface({
     function flushUploads(t) {
         if (!uploads.length || !current) return;
         const wanted = wantedKeys();
-        // A bitmap closed by the LRU while queued (width 0) is requested again; a tile no longer wanted is dropped.
+        // A payload released by the LRU while queued is requested again; a tile no longer wanted is dropped.
         uploads = uploads.filter((u) => {
             if (!wanted.has(u.key)) return false;
-            if (u.bitmap?.width > 0) return true;
+            if (source.alive(u.payload)) return true;
             const tile = current.tiles.find((x) => x.key === u.key);
             if (tile) request(tile, u.level);
             return false;
@@ -377,11 +431,13 @@ export function createRegionalSurface({
         if (!batch.length) return;
         const target = ensureAtlas();
         batch.forEach((u, i) => {
+            if (!u.prepared) { // e.g. Terrarium: heights -> cleaned -> slopes -> mip chain, at most uploadsPerFrame per frame
+                u.payload = source.prepare(u.payload, u);
+                u.prepared = true;
+                remember(u.key, u.payload, true);
+            }
             const slot = slotIndexFor(u);
-            const source = new THREE.Texture(u.bitmap);
-            target.generateMipmaps = i === batch.length - 1; // one mip rebuild per frame
-            renderer.copyTextureToTexture(source, target, null, { x: (slot % slots) * GIBS_TILE_SIZE, y: Math.floor(slot / slots) * GIBS_TILE_SIZE, z: 0 });
-            target.generateMipmaps = false;
+            source.upload({ THREE, renderer, atlas: target, payload: u.payload, x: (slot % slots) * source.tileSize, y: Math.floor(slot / slots) * source.tileSize, last: i === batch.length - 1 });
             slotState[slot] = { key: u.key, fadeStart: t, fading: true };
             tableData.set([u.x, u.y, u.level, 0], slot * 4);
             stats.uploaded++;
@@ -412,7 +468,7 @@ export function createRegionalSurface({
 
     function publishStatus() {
         const s = status();
-        const text = `${s.state}|${describeRegionalStatus(s)}`;
+        const text = `${s.state}|${describe(s)}`;
         if (text === lastStatusText) return;
         lastStatusText = text;
         onStatus?.(s);
@@ -421,7 +477,7 @@ export function createRegionalSurface({
     function update(camera, earthMesh) {
         if (disposed) return;
         const t = now();
-        profile = regionalProfile({ touch, pixelRatio: pixelRatio(), policy });
+        profile = profileFor(pixelRatio());
         earthMesh.updateMatrixWorld();
         inv.copy(earthMesh.matrixWorld).invert();
         const cam = v.setFromMatrixPosition(camera.matrixWorld).applyMatrix4(inv).toArray();
@@ -430,12 +486,12 @@ export function createRegionalSurface({
         const up = axis(1);
         const forward = axis(2).map((c) => -c);
         const height = renderer.domElement?.clientHeight || renderer.domElement?.height || 1;
-        const selection = selectRegionalView({
+        const selection = selectTileWindow({
             camera: cam, forward, right, up, fovDeg: camera.fov, aspect: camera.aspect, heightPx: height,
-            pixelRatio: profile.pixelRatio, maxLevel: profile.maxLevel, slots, policy,
+            pixelRatio: profile.pixelRatio, maxLevel: profile.maxLevel, slots, policy, source,
         });
         const distance = selection.distance;
-        uniforms.uRegionalFadeTw.value = 1 - smoothstep(policy.fullWeightDistance, policy.activationDistance, distance);
+        uniforms[U('Fade')].value = 1 - smoothstep(policy.fullWeightDistance, policy.activationDistance, distance);
         if (!selection.active) {
             if (selection.reason === 'distance') {
                 enabled = false; // nothing drawn, nothing requested
@@ -462,7 +518,7 @@ export function createRegionalSurface({
 
     /** From the Earth mesh's onBeforeRender: the layer is drawn only by the page renderer. */
     function bindRenderer(activeRenderer) {
-        uniforms.uRegionalOnTw.value = enabled && current && activeRenderer === renderer && uniforms.uRegionalFadeTw.value > 0 ? 1 : 0;
+        uniforms[U('On')].value = enabled && current && activeRenderer === renderer && uniforms[U('Fade')].value > 0 ? 1 : 0;
     }
 
     function dispose() {
@@ -472,10 +528,11 @@ export function createRegionalSurface({
         abortWhere(() => true);
         lru.clear();
         uploads = [];
-        uniforms.uRegionalOnTw.value = 0;
+        uniforms[U('On')].value = 0;
         atlas?.dispose();
         table.dispose();
         placeholder.dispose();
+        source.dispose?.(); // e.g. the Terrarium worker
     }
 
     return {
@@ -493,12 +550,35 @@ export function createRegionalSurface({
             slots,
             atlasSize,
             atlasAllocated: Boolean(atlas),
-            atlasBytes: atlas ? Math.round(atlasSize * atlasSize * 4 * 4 / 3) : 0,
+            atlasBytes: atlas ? source.atlasBytes(atlasSize) : 0,
             profile: { ...profile },
             stats: { ...stats },
             enabled,
-            on: uniforms.uRegionalOnTw.value,
-            fade: uniforms.uRegionalFadeTw.value,
+            on: uniforms[U('On')].value,
+            fade: uniforms[U('Fade')].value,
+            source: source.debugState?.() ?? null, // e.g. { worker: true } for Terrarium
         }),
     };
+}
+
+/**
+ * The Blue Marble NG detail layer (LOT 41) on the shared runtime: uniforms uRegional*Tw, status suffix
+ * describeRegionalStatus. Same behaviour as before LOT 42 (tests/earth-lot41-regional.test.js).
+ */
+export function createRegionalSurface({
+    THREE,
+    renderer,
+    touch = false,
+    pixelRatio = () => renderer.getPixelRatio?.() ?? 1,
+    loadImage = loadGibsTileBitmap,
+    signal = null,
+    now = () => performance.now(),
+    policy = REGIONAL_POLICY,
+    onStatus = null,
+}) {
+    return createTileWindowLayer({
+        THREE, renderer, source: gibsTileSource({ loadImage }), prefix: 'uRegional',
+        profileFor: (ratio) => regionalProfile({ touch, pixelRatio: ratio, policy }),
+        pixelRatio, signal, now, policy, describe: describeRegionalStatus, onStatus,
+    });
 }
