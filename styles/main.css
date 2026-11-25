@@ -32,7 +32,8 @@
 
     #hero{position:relative;height:100svh;min-height:560px;overflow:hidden;background:var(--bg);}
 
-    #stage{position:absolute;inset:0;width:100%;height:100%;display:block;background:var(--bg);cursor:default;touch-action:none;z-index:1;}
+    /* LOT 36: a vertical drag on the hero scrolls the page and pinch-zoom stays available; the globe has no drag / pinch gesture of its own, and a portal opens only on a tap (portal-interaction.js). */
+    #stage{position:absolute;inset:0;width:100%;height:100%;display:block;background:var(--bg);cursor:default;touch-action:pan-y pinch-zoom;z-index:1;}
     #stage.is-actionable{cursor:pointer;}
 
     .hud{position:absolute;inset:0;pointer-events:none;z-index:3;}

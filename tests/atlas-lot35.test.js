@@ -103,6 +103,6 @@ describe('LOT 35: the "Data sources" map keeps its glow without the internal scr
     expect(css).toMatch(/\.data-sources-bg\{[^}]*mix-blend-mode:screen;/);
   });
   it('main.css carries a new cache-bust token in index.html (served with max-age=604800)', () => {
-    expect(html).toContain('<link rel="stylesheet" href="./styles/main.css?v=lot35scroll1" />');
+    expect(html).toMatch(/<link rel="stylesheet" href="\.\/styles\/main\.css\?v=(?!atlasLot21)[\w-]+" \/>/); // LOT 36 bumped it again
   });
 });

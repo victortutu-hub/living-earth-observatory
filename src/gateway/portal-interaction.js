@@ -3,6 +3,26 @@ import { consumeAtlasReturn, markPortalEntry } from '../portal-continuity.js';
 
 const INTRO_DURATION_MS = 2400;
 
+// LOT 36: on touch / pen a portal opens only on a TAP, so a drag that starts on the hero scrolls the page
+// (#stage is touch-action: pan-y pinch-zoom) instead of opening an observatory:
+// - pointerup on the same portal as the pointerdown;
+// - moved less than TAP_MAX_MOVE_PX (CSS px);
+// - held less than TAP_MAX_MS;
+// - the page did not scroll in between.
+// A pointercancel, a page scroll or a move past the threshold ends the candidate tap. The hover highlight still
+// follows the touch but opens nothing. A mouse keeps the previous behaviour (opens on pointerdown).
+export const TAP_MAX_MOVE_PX = 10;
+export const TAP_MAX_MS = 500;
+
+/** LOT 36: does a pointerdown -> pointerup pair count as a tap that may open the portal under it? */
+export function isPortalTap({ down, up, scrolled }) {
+  if (!down || !up || scrolled) return false;
+  if (up.pointerId !== down.pointerId) return false;
+  if (Math.hypot(up.x - down.x, up.y - down.y) >= TAP_MAX_MOVE_PX) return false;
+  if (up.t - down.t >= TAP_MAX_MS) return false;
+  return Boolean(down.slotId) && up.slotId === down.slotId;
+}
+
 function easeInOutCubic(value) {
   return value < 0.5
     ? 4 * value * value * value
@@ -118,7 +138,13 @@ export function createPortalInteraction({
     }, cleanupDelay);
   }
 
+  // LOT 36: the pending touch / pen tap ({ pointerId, x, y, t, slotId, scrollY }), or null.
+  let pendingTap = null;
+  function cancelTap() { pendingTap = null; }
+
   function onPointerMove(event) {
+    if (pendingTap && event.pointerId === pendingTap.pointerId
+      && Math.hypot(event.clientX - pendingTap.x, event.clientY - pendingTap.y) >= TAP_MAX_MOVE_PX) cancelTap();
     updateHover(event.clientX, event.clientY);
     const x = (event.clientX / window.innerWidth) * 2 - 1;
     const y = (event.clientY / window.innerHeight) * 2 - 1;
@@ -132,7 +158,24 @@ export function createPortalInteraction({
 
   function onPointerDown(event) {
     const slotId = updateHover(event.clientX, event.clientY);
-    if (interactiveSlotIds.has(slotId)) activate(slotId);
+    if (event.pointerType === 'mouse') {
+      // Desktop: unchanged - a mouse press on a portal opens it.
+      if (interactiveSlotIds.has(slotId)) activate(slotId);
+      return;
+    }
+    // Touch / pen: highlight only; the decision waits for pointerup (isPortalTap).
+    pendingTap = interactiveSlotIds.has(slotId)
+      ? { pointerId: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, slotId, scrollY: window.scrollY }
+      : null;
+  }
+
+  function onPointerUp(event) {
+    if (!pendingTap || event.pointerType === 'mouse') return;
+    const down = pendingTap;
+    pendingTap = null;
+    const slotId = updateHover(event.clientX, event.clientY);
+    const up = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, slotId };
+    if (isPortalTap({ down, up, scrolled: window.scrollY !== down.scrollY })) activate(slotId);
   }
 
   function onClick(event) {
@@ -180,6 +223,9 @@ export function createPortalInteraction({
   canvas.addEventListener('pointermove', onPointerMove, { passive: true });
   canvas.addEventListener('pointerleave', onPointerLeave, { passive: true });
   canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointerup', onPointerUp, { passive: true }); // LOT 36: the tap
+  canvas.addEventListener('pointercancel', cancelTap, { passive: true }); // the browser took the gesture (scroll)
+  window.addEventListener('scroll', cancelTap, { passive: true }); // the page scrolled during the touch
   canvas.addEventListener('click', onClick);
   canvas.addEventListener('keydown', onKeyDown);
   canvas.addEventListener('focus', onFocus);
@@ -222,12 +268,17 @@ export function createPortalInteraction({
       state.parallaxTarget[0] = state.parallaxTarget[1] = 0;
       state.parallaxCurrent[0] = state.parallaxCurrent[1] = 0;
       document.body.classList.remove('is-exiting');
+      cancelTap();
       setHover(null);
     },
     dispose() {
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', cancelTap);
+      window.removeEventListener('scroll', cancelTap);
+      cancelTap();
       canvas.removeEventListener('click', onClick);
       canvas.removeEventListener('keydown', onKeyDown);
       canvas.removeEventListener('focus', onFocus);
