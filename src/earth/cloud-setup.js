@@ -16,6 +16,7 @@ export function createCloudSetup({
     earthMat,
     getEarthMatPBR,
     updateTerminatorGuide,
+    updateRegionalSurface = null, // LOT 41
     getTime,
     applyNightLook
 }) {
@@ -47,6 +48,7 @@ export function createCloudSetup({
         earthMat,
         getEarthMatPBR,
         updateTerminatorGuide,
+        updateRegionalSurface,
         cloudFallbackTexture: fallbackTexture
     });
 

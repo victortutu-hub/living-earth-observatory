@@ -126,6 +126,7 @@ export function createAppVisualFoundation({
         earthMat,
         getEarthMatPBR,
         updateTerminatorGuide,
+        updateRegionalSurface: earthLayers.updateRegionalSurface, // LOT 41
         getTime,
         applyNightLook
     });
@@ -170,6 +171,7 @@ export function createAppVisualFoundation({
         setNightLightsStatusListener,
         setSurfaceStatusListener,
         getEarthLayerSignals: earthLayers.getRuntimeSignals, // LOT 23
+        getRegionalSurfaceDebug: earthLayers.getRegionalSurfaceDebug, // LOT 41
         setTerminatorGuideVisible,
         atmosphereMat,
         applyAtmosphereLayerMode,

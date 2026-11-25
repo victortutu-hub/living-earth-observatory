@@ -632,6 +632,7 @@ export function createEarthAppServices({
             eonet: { state: eonet?.state || null, phase: eonet?.phase || null, mode: state.dataSourceMode || 'eonet', activeProvider: dataSourceProvider },
             sky: sky?.phase === 'ready' ? sky.value : 'loading',
             nightLights: layers.nightLights || null,
+            regional: layers.regional || null, // LOT 41
             layers: [
                 providerLayer('usgs', usgsProvider?.getStatus?.()),
                 providerLayer('firms', firmsProvider?.getStatus?.()),
@@ -682,6 +683,7 @@ export function createEarthAppServices({
         oceanCurrents,
         runtimeSignals,
         realSky: visualFoundation.realSky, // LOT 28: sky cost in the ?perf=1 run
+        regionalSurfaceDebug: visualFoundation.getRegionalSurfaceDebug, // LOT 41: read-only (diagnostics, probes)
         dispose
     };
 }

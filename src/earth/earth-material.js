@@ -1,6 +1,7 @@
 import { createSurfaceMaterialLodConfig } from './surface-material-lod.js';
 import { ATMOSPHERE, ATMOSPHERE_GLSL } from './atmosphere-physics.js';
 import { RELIEF_LINEAR_EXAGGERATION, RELIEF_SHADING_GAIN, RELIEF_SOURCE, linearDisplacementScale } from './relief-linear.js';
+import { injectRegionalSurface } from './gibs-regional-surface.js';
 
 // Relief (LOT 4b-B): ETOPO 2022 60" ice surface in metres, area-averaged to
 // 1/6 deg, displaced linearly (x E) with water flat at 0 m, and normals computed
@@ -334,7 +335,9 @@ export function createEarthMaterial({
     reliefTextureRef = { current: earthRelief },
     surfaceMaterial = createSurfaceMaterialLodConfig(),
     // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
-    overrides = {}
+    overrides = {},
+    // LOT 41: regional Blue Marble NG detail (gibs-regional-surface.js); null = none.
+    regionalSurface = null
 }) {
     const material = new THREE.MeshPhongMaterial({
         map: earthMap,
@@ -457,6 +460,7 @@ export function createEarthMaterial({
             `#include <normal_fragment_maps>
             ${RELIEF_NORMAL_BODY}`
         );
+        injectRegionalSurface(shader, regionalSurface); // LOT 41
 
         material.userData.shader = shader;
     };
@@ -484,7 +488,9 @@ export function createEarthMaterialPBR({
     reliefTextureRef = { current: earthRelief },
     surfaceMaterial = createSurfaceMaterialLodConfig(),
     // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
-    overrides = {}
+    overrides = {},
+    // LOT 41: regional Blue Marble NG detail (gibs-regional-surface.js); null = none.
+    regionalSurface = null
 }) {
     const material = new THREE.MeshStandardMaterial({
         map: earthMap,
@@ -524,6 +530,7 @@ export function createEarthMaterialPBR({
             ${RELIEF_NORMAL_BODY}
             ${surfaceMaterialPbrRoughnessBody()}`
         );
+        injectRegionalSurface(shader, regionalSurface); // LOT 41
 
         material.userData.shader = shader;
     };

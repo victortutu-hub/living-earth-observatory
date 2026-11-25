@@ -12,6 +12,8 @@
 //                reason); served from the stale-if-error cache -> STALE
 //     real sky   without the map, without the stars or without both -> FALLBACK
 //   A core signal still loading after CORE_GRACE_MS (surface: SURFACE_GRACE_MS) -> FALLBACK core-timeout.
+//   LOT 41: regional surface detail (deeper Blue Marble NG tiles near the globe) missing or partly missing ->
+//     secondary surface-detail-fallback: z3 (itself live GIBS) is shown there, so the state is not lowered.
 //   Secondary (listed in `secondary`, never in the state), only for layers the user turned on:
 //     night lights fallback, USGS, aurora, ISS, FIRMS (404 no-coverage: nothing; 429: budget;
 //     proxy / unreachable), ERA5 / SMOC days (202 queued and 404 not published: nothing),
@@ -39,6 +41,7 @@ export const EARTH_RUNTIME_REASONS = Object.freeze({
   nightLights: 'night-lights-fallback',
   firmsBudget: 'firms-budget',
   firmsProxy: 'firms-proxy',
+  surfaceDetail: 'surface-detail-fallback', // LOT 41
 });
 
 const CORE = Object.freeze(['relief', 'surface', 'sun', 'eonet', 'sky']);
@@ -109,6 +112,7 @@ function secondaryFor(layer) {
  * @param {{state?: string, mode?: string, activeProvider?: string}} [s.eonet] runtime record + data source mode
  * @param {'MAP + STARS'|'STARS ONLY'|'MAP ONLY'|'UNAVAILABLE'|'loading'|null} [s.sky]
  * @param {string} [s.nightLights] earth-layers night-lights state
+ * @param {{state: string}} [s.regional] LOT 41 regional surface detail (gibs-regional-surface.js)
  * @param {Array<{id:string, enabled:boolean, state:string, errorKind?:string}>} [s.layers] optional layers
  * @param {number} [s.elapsedMs] time since the module started
  * @returns {{ state: string, reasons: string[], secondary: string[], pending: string[] }}
@@ -131,6 +135,7 @@ export function earthRuntimeState(s = {}) {
   }
   const secondary = [];
   if (s.nightLights === 'fallback') secondary.push(EARTH_RUNTIME_REASONS.nightLights);
+  if (s.regional?.state === 'partial' || s.regional?.state === 'unavailable') secondary.push(EARTH_RUNTIME_REASONS.surfaceDetail);
   for (const layer of s.layers || []) {
     const reason = secondaryFor(layer);
     if (reason) secondary.push(reason);

@@ -15,6 +15,7 @@ export function createFrameRuntime({
     earthMat,
     getEarthMatPBR,
     updateTerminatorGuide,
+    updateRegionalSurface = null, // LOT 41
     cloudFallbackTexture
 }) {
     const sunDir = new THREE.Vector3();
@@ -88,6 +89,7 @@ export function createFrameRuntime({
         sky?.update();
         updateSunUniforms(t);
         updateCloudOverlayCrossfade(t);
+        updateRegionalSurface?.(camera); // LOT 41
     }
 
     return {

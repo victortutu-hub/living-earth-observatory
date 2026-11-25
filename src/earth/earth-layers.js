@@ -9,6 +9,7 @@ import { loadBlackMarbleTexture } from './gibs-night-lights.js';
 import { watchPageVisibility, whenVisible } from './gibs-tiles.js';
 import { loadBlueMarbleSurfaceTexture, shouldApplySurfaceLevel, surfaceLevelsAbove, surfaceStatus as surfaceStatusFor } from './gibs-surface.js';
 import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
+import { createRegionalSurface, describeRegionalStatus } from './gibs-regional-surface.js';
 import {
     RELIEF_LINEAR_ASSETS,
     RELIEF_LINEAR_EXAGGERATION,
@@ -80,8 +81,13 @@ export function createEarthLayers({
         publishSurfaceStatus(surfaceStatusFor(event));
     }
 
+    // LOT 41: the regional detail (level, tiles, label) is appended to the surface line.
+    let surfaceBaseMessage = surfaceStatus.message;
+    let regionalStatus = null;
     function publishSurfaceStatus(next) {
         Object.assign(surfaceStatus, next);
+        if (next.message !== undefined) surfaceBaseMessage = next.message;
+        surfaceStatus.message = `${surfaceBaseMessage}${describeRegionalStatus(regionalStatus)}`;
         surfaceStatusListener?.({ ...surfaceStatus });
     }
 
@@ -89,6 +95,18 @@ export function createEarthLayers({
         surfaceStatusListener = typeof listener === 'function' ? listener : null;
         surfaceStatusListener?.({ ...surfaceStatus });
     }
+
+    // LOT 41: deeper Blue Marble NG tiles for the visible area when the camera is close (none in a visual lock).
+    const regionalSurface = surfaceVisualCase ? null : createRegionalSurface({
+        THREE,
+        renderer,
+        touch: Boolean(window.matchMedia?.('(pointer: coarse)').matches),
+        signal: gibsController.signal,
+        onStatus: (status) => {
+            regionalStatus = status;
+            publishSurfaceStatus({});
+        },
+    });
 
     const earthMat = createEarthMaterial({
         THREE,
@@ -99,6 +117,7 @@ export function createEarthLayers({
         reliefTextureRef: activeReliefRef,
         surfaceMaterial,
         overrides: materialOverrides,
+        regionalSurface,
         ...reliefMaterialOptions
     });
 
@@ -106,6 +125,7 @@ export function createEarthLayers({
     const earthWorldPosition = new THREE.Vector3();
     const cameraWorldPosition = new THREE.Vector3();
     earth.onBeforeRender = (_renderer, _scene, camera) => {
+        regionalSurface?.bindRenderer(_renderer); // LOT 41: the atlas lives in the page renderer only
         earth.getWorldPosition(earthWorldPosition);
         camera.getWorldPosition(cameraWorldPosition);
         const cameraDistance = cameraWorldPosition.distanceTo(earthWorldPosition);
@@ -144,6 +164,7 @@ export function createEarthLayers({
                     reliefTextureRef: activeReliefRef,
                     surfaceMaterial,
                     overrides: materialOverrides,
+                    regionalSurface,
                     ...reliefMaterialOptions
                 });
                 return earthMatPBR;
@@ -439,12 +460,16 @@ export function createEarthLayers({
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
-        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })) }), // LOT 23 (+ LOT 24 stats)
+        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })), regional: regionalSurface?.getStatus() ?? null }), // LOT 23 (+ LOT 24 stats, LOT 41 regional)
+        // LOT 41: once per frame (frame-runtime.js); selection, debounce, uploads.
+        updateRegionalSurface: (camera) => regionalSurface?.update(camera, earth),
+        getRegionalSurfaceDebug: () => regionalSurface?.getDebugState() ?? null,
         // LOT 24: stops the GIBS loads and their timers (DESTROYED_IS_TERMINAL).
         dispose() {
             if (layersDisposed) return;
             layersDisposed = true;
             gibsController.abort(new DOMException('earth layers disposed', 'AbortError'));
+            regionalSurface?.dispose(); // LOT 41: requests, LRU bitmaps, atlas
             clearTimeout(blackMarbleWatchdog);
             clearTimeout(surfaceWatchdog);
         },
