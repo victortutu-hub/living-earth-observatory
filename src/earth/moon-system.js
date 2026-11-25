@@ -4,6 +4,7 @@ import { MOON_COLOR_ASSET } from '../config/moon-color.js';
 import { MOON_NORMAL_ASSET } from '../config/moon-normal.js';
 import { CAMERA_VIEW_HINT, cameraLitFraction, cameraViewHint, moonCardLiveRows } from './moon-viewpoint.js';
 import { describeMoonExposure } from './scene-lighting.js';
+import { LUNAR_LAMBERT_FULL_MOON_NORMALISATION, MCEWEN_LUNAR_LAMBERT, MOON_EXPOSURE_DEFAULT_MODE, MOON_EXPOSURE_MODES, effectiveMoonExposureEv, moonAutoExposureEv, phaseAngleFromLitFraction } from './moon-photometry.js';
 import { createNoteFlash, earthshineViewNoteText, moonLitFraction, nextEarthshineWindow } from './earthshine-window.js';
 import { MOON_PREWARM_MOBILE_MAX_PX, createMoonPrewarm, loadTextureBitmapFirst, moonPrewarmDecision, moonPrewarmSkippedMessage } from './moon-prewarm.js';
 import { EARTH_GEOMETRIC_ALBEDO, EARTHSHINE_VIEW_EV, EARTHSHINE_VIEW_MAX_LIT_FRACTION, MOON_SENSOR_WHITE, earthPhaseAngleFromElongationCos, earthshineRatio, earthshineViewButtonState, enforceEarthshineExposure, requestEarthshineExposure, stopsBelowSun } from './earthshine.js';
@@ -171,6 +172,17 @@ function loadMoonAsset(THREE, file, colorSpace, onError, onLoad, isActive) {
 // terms read from uniforms (view space, set in onBeforeRender from the live sunLight), with the same
 // formula three.js uses for a directional light (irradiance = saturate(N.L) * colour, times
 // BRDF_Lambert). uMoonExposure multiplies the outgoing light before tone mapping (1 = none).
+// LOT 38: the lunar-Lambert function in GLSL, with the constants of moon-photometry.js (one source). g in degrees
+// from the angle between the light direction and the view direction; the denominator guard matches the JS one.
+const glslFloat = (x) => (Number.isInteger(x) ? `${x}.0` : String(x));
+export const MOON_LUNAR_LAMBERT_GLSL = [
+    'float moonPhaseDeg( vec3 l, vec3 v ) { return degrees( acos( clamp( dot( l, v ), -1.0, 1.0 ) ) ); }',
+    'float moonLunarLambert( float mu0, float mu, float g ) {',
+    '\tif ( mu0 <= 0.0 ) return 0.0;',
+    `\tfloat L = clamp( 1.0 + ( ${glslFloat(MCEWEN_LUNAR_LAMBERT.m1)} ) * g + ( ${glslFloat(MCEWEN_LUNAR_LAMBERT.m2)} ) * g * g + ( ${glslFloat(MCEWEN_LUNAR_LAMBERT.m3)} ) * g * g * g, 0.0, 1.0 );`,
+    `\treturn ${LUNAR_LAMBERT_FULL_MOON_NORMALISATION.toFixed(8)} * ( 2.0 * L * mu0 / max( mu0 + mu, 1e-4 ) + ( 1.0 - L ) * mu0 );`,
+    '}',
+].join('\n');
 export const MOON_LIGHTING_CHUNKS = Object.freeze({
     begin: '#include <lights_fragment_begin>',
     maps: '#include <lights_fragment_maps>',
@@ -183,12 +195,15 @@ export function patchMoonLightingShader(shader, uniforms) {
     }
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {', 'uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform float uMoonExposure;\nuniform float uMoonSensorWhite;\nvoid main() {')
+        .replace('void main() {', `uniform vec3 uMoonSunDir;\nuniform vec3 uMoonSunColor;\nuniform vec3 uMoonEarthDir;\nuniform float uMoonEarthshine;\nuniform float uMoonExposure;\nuniform float uMoonSensorWhite;\n${MOON_LUNAR_LAMBERT_GLSL}\nvoid main() {`)
         .replace(MOON_LIGHTING_CHUNKS.begin, [
             '// LOT 31: Sun + physical earthshine only (no ambient, no fill lights).',
-            'float moonSunNL = saturate( dot( normal, uMoonSunDir ) );',
+            '// LOT 38: McEwen lunar-Lambert instead of Lambert (moon-photometry.js); mu = cos(emission), g per pixel.',
+            'vec3 moonViewDir = isOrthographic ? vec3( 0.0, 0.0, 1.0 ) : normalize( vViewPosition );',
+            'float moonMu = max( dot( normal, moonViewDir ), 0.0 );',
+            'float moonSunNL = moonLunarLambert( saturate( dot( normal, uMoonSunDir ) ), moonMu, moonPhaseDeg( uMoonSunDir, moonViewDir ) );',
             'reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );',
-            'float moonEarthNL = saturate( dot( normal, uMoonEarthDir ) );',
+            'float moonEarthNL = moonLunarLambert( saturate( dot( normal, uMoonEarthDir ) ), moonMu, moonPhaseDeg( uMoonEarthDir, moonViewDir ) );',
             'reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * BRDF_Lambert( material.diffuseColor );',
         ].join('\n'))
         .replace(MOON_LIGHTING_CHUNKS.maps, '')
@@ -257,7 +272,12 @@ export function createMoonSystem({
         sunWorldDir: new THREE.Vector3(1, 0, 0),
         // LOT 31: physical earthshine (earthshine.js), updated with the Moon position.
         earthshine: { ratio: 0, stops: Infinity, earthPhaseAngleDeg: null, albedo: EARTH_GEOMETRIC_ALBEDO, distanceKm: MEAN_MOON_DISTANCE_KM },
-        exposureEv: 0,
+        exposureEv: 0, // the Earthshine view (0 or EARTHSHINE_VIEW_EV)
+        // LOT 38: auto / fixed exposure (moon-photometry.js). auto: one exposure for the whole Moon from the phase seen by
+        // the camera (interpretive); fixed: +0 EV. The Earthshine view applies over the fixed exposure.
+        exposureMode: MOON_EXPOSURE_DEFAULT_MODE,
+        autoExposureEv: 0,
+        effectiveExposureEv: 0,
         earthshineViewNote: null, // LOT 31 ETAPA 2b: why the view is unavailable / was turned off
         // LOT 33: next window with the view available ({ start, end, openNow, from }), from the displayed time
         earthshineWindow: null,
@@ -430,14 +450,48 @@ export function createMoonSystem({
             if (cell && cell.textContent !== value) cell.textContent = value;
         }
     }
+    // LOT 38: the one place that writes the Moon exposure (Earthshine view over fixed, else auto / fixed).
+    function applyMoonExposure() {
+        state.effectiveExposureEv = effectiveMoonExposureEv({ mode: state.exposureMode, earthshineViewEv: state.exposureEv, autoEv: state.autoExposureEv });
+        moonLightUniforms.uMoonExposure.value = 2 ** state.effectiveExposureEv;
+    }
+    // LOT 38: the auto exposure follows the phase seen by the camera (View from Earth: the geocentric phase).
+    function updateAutoExposure() {
+        const lit = Number.isFinite(state.cameraLitFraction) ? state.cameraLitFraction : state.phaseFraction;
+        const ev = moonAutoExposureEv(phaseAngleFromLitFraction(lit));
+        if (ev === state.autoExposureEv) return false;
+        state.autoExposureEv = ev;
+        applyMoonExposure();
+        return true;
+    }
     /** Returns true when the exposure is applied; false when the Earthshine view is refused at this phase. */
     function setMoonExposureEv(ev = 0) {
         const r = requestEarthshineExposure({ wantedEv: ev, litFraction: state.phaseFraction, stops: state.earthshine.stops });
         state.exposureEv = r.ev;
         state.earthshineViewNote = r.note;
-        moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;
+        applyMoonExposure();
         updateEarthshineViewButton();
         return r.applied;
+    }
+    /** LOT 38: 'auto' (default) or 'fixed'. Returns the mode in force. */
+    function setMoonExposureMode(mode) {
+        if (!MOON_EXPOSURE_MODES.includes(mode)) return state.exposureMode;
+        state.exposureMode = mode;
+        updateAutoExposure();
+        applyMoonExposure();
+        updateMoonExposureModeButton();
+        refreshMoonCard();
+        return state.exposureMode;
+    }
+    function toggleMoonExposureMode() {
+        return setMoonExposureMode(state.exposureMode === 'auto' ? 'fixed' : 'auto');
+    }
+    function updateMoonExposureModeButton() {
+        const button = typeof document !== 'undefined' ? document.getElementById('moonExposureModeBtn') : null;
+        if (!button) return;
+        const text = `Moon exposure: ${state.exposureMode}`;
+        if (button.textContent !== text) button.textContent = text;
+        button.setAttribute('aria-pressed', String(state.exposureMode === 'auto'));
     }
     // LOT 33: a tap on the disabled (aria-disabled) button changes nothing; it only highlights the note briefly.
     const noteFlash = createNoteFlash();
@@ -454,7 +508,7 @@ export function createMoonSystem({
         const r = enforceEarthshineExposure({ ev: state.exposureEv, litFraction: state.phaseFraction, stops: state.earthshine.stops });
         if (r.turnedOff) {
             state.exposureEv = 0;
-            moonLightUniforms.uMoonExposure.value = 1;
+            applyMoonExposure(); // LOT 38: back to the auto / fixed exposure
             state.earthshineViewNote = r.note;
             console.info(`[Moon] ${r.note}`);
         }
@@ -565,8 +619,10 @@ export function createMoonSystem({
         state.cameraLitFraction = cameraLitFraction({ sunDir: _camSun, moonPos: moon.position, cameraPos: camera.position });
         const hint = cameraViewHint({ active: state.exposureEv > 0, cameraLit: state.cameraLitFraction });
         if (hint !== state.cameraHint) { state.cameraHint = hint; updateEarthshineViewButton(); }
+        const evChanged = updateAutoExposure(); // LOT 38
         const pct = Math.round(state.cameraLitFraction * 100);
         if (pct !== shownCameraPct) { shownCameraPct = pct; refreshMoonCard(); } // LOT 33c: one path for the live card rows
+        else if (evChanged) refreshMoonCard(); // LOT 38: the auto EV shown in the card
     }
 
     function update(camera) {
@@ -624,6 +680,8 @@ export function createMoonSystem({
         updateMoonPosition,
         setMoonRollOffset,
         setMoonExposureEv,
+        setMoonExposureMode, // LOT 38
+        toggleMoonExposureMode,
         toggleEarthshineView,
         // LOT 32: diagnostics only (not shown in the Moon details)
         prewarmStatus: prewarm ? prewarm.status : { state: 'skipped', reason: prewarmDecision.reason }

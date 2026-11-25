@@ -51,10 +51,11 @@ export function describePhaseFromEarth(phaseFraction) {
  * LOT 33c: the live rows of the open "The Moon" card. The card is rendered once, on the click; these rows follow
  * the state (the Earthshine view on / off, the phase, the camera). Returns { id: text }.
  */
-export function moonCardLiveRows({ phaseFraction, exposureEv, earthshineViewNote, cameraLitFraction }, describeMoonExposure) {
+export function moonCardLiveRows({ phaseFraction, exposureEv, earthshineViewNote, cameraLitFraction, exposureMode, autoExposureEv }, describeMoonExposure) {
     return {
         moonPhaseValue: describePhaseFromEarth(phaseFraction),
-        moonExposureValue: describeMoonExposure(exposureEv, earthshineViewNote),
+        // LOT 38: the auto / fixed mode when the state has one
+        moonExposureValue: describeMoonExposure(exposureEv, earthshineViewNote, exposureMode ? { mode: exposureMode, autoEv: autoExposureEv } : null),
         moonCameraViewValue: describeCameraView(cameraLitFraction),
     };
 }

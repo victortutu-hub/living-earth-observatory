@@ -47,6 +47,7 @@ export const EXTERNAL_ORIGINS = Object.freeze([
     ['https://svs.gsfc.nasa.gov', 'NASA SVS source pages and file URLs in provenance'], ['https://codeberg.org', 'HYG catalogue source'],
     ['https://assets.science.nasa.gov', 'NASA Earth Observatory source files named in provenance'], ['https://science.nasa.gov', 'NASA Earth Observatory pages'],
     ['https://www.nasa.gov', 'NASA media guidelines'], ['https://github.com', 'licence / source links'], ['https://copernicus-dem-30m.s3.amazonaws.com', 'GLO-30 source bucket in provenance'],
+    ['https://isis.astrogeology.usgs.gov', 'USGS ISIS photometric model source (LOT 38 citation)'],
     ['http://www.w3.org', 'XML / SVG namespaces'], ['https://luminomorphism.local', 'URL parsing base placeholder'],
   ].map(([origin, note]) => e({ origin, role: 'doc-link', note })),
 ]);

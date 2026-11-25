@@ -825,6 +825,7 @@
             </label>
             <input id="noctilucentIntensity" type="range" min="0.25" max="2.4" step="0.05" value="1">
         </div>
+        <button id="moonExposureModeBtn" type="button" aria-pressed="true" class="toolbar-span" title="Moon exposure. auto (default, interpretive): one exposure for the whole Moon, set from the phase seen by the camera, up to +3 EV, as an eye or a photographer would expose for the crescent. fixed: +0 EV, the physical photometry (McEwen lunar-Lambert) without compensation. The Earthshine view (+10 EV) applies over the fixed exposure.">Moon exposure: auto</button>
         <button id="earthshineViewBtn" aria-pressed="false" aria-disabled="false" class="toolbar-span" aria-describedby="earthshineViewNote" title="Moon exposure +10 EV on the whole Moon: the side lit only by the Earth (physical earthshine) becomes visible and the sunlit side clips at sensor white, as in photographs. Available up to 40 % lit. The Earth is not affected.">Earthshine view: off</button>
         <button id="moonEarthViewBtn" type="button" class="toolbar-span" aria-describedby="earthshineViewNote" title="Fly the camera to the Earth → Moon line, looking at the Moon from the Earth's side: the crescent and the earthshine as photographed from the Earth. Any interaction stops the flight.">View from Earth</button>
         <p id="earthshineViewNote" class="toolbar-span" aria-live="polite">Visible near new moon (≤ 40&nbsp;% lit as seen from Earth).</p>

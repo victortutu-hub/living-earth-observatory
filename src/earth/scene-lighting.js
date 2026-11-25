@@ -5,6 +5,7 @@
 // the physical earthshine (earthshine.js; moon-system.js patches its material).
 
 import { EARTH_GEOMETRIC_ALBEDO, formatRatio } from './earthshine.js';
+import { describeMoonAutoExposure } from './moon-photometry.js';
 
 const hex = (color) => `#${color.getHexString()}`;
 const n = (value) => String(Number(value.toFixed(2)));
@@ -23,9 +24,13 @@ export function describeArtisticFill({ coolFill, ambientLight, look }) {
 }
 
 /** Moon details, row "Exposure" (LOT 31 ETAPA 2 / 2b: Earthshine view). */
-export function describeMoonExposure(exposureEv = 0, note = null) {
-    if (exposureEv > 0) return `Moon exposure +${exposureEv} EV (lit side clipped at sensor white, as in photographs)`;
-    const normal = 'Normal exposure (+0 EV): the earthshine side is about 13 stops or more below the lit side, so it looks black';
+// LOT 38: with `exposure` ({ mode, autoEv }) the auto / fixed exposure leads the text; the Earthshine view applies
+// over the fixed exposure. Without it, the LOT 31 text.
+export function describeMoonExposure(exposureEv = 0, note = null, exposure = null) {
+    if (exposureEv > 0) return `Moon exposure +${exposureEv} EV (lit side clipped at sensor white, as in photographs)${exposure ? '; applied over the fixed exposure (the auto compensation is suspended)' : ''}`;
+    const normal = exposure
+        ? `${describeMoonAutoExposure(exposure)}. The earthshine side stays far below the lit side, so it looks black`
+        : 'Normal exposure (+0 EV): the earthshine side is about 13 stops or more below the lit side, so it looks black';
     return note ? `${normal}. ${note}` : `${normal}; use Earthshine view (+10 EV) up to 40 % lit`;
 }
 

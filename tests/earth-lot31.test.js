@@ -100,8 +100,10 @@ describe('LOT 31 ETAPA 2: physical earthshine', () => {
     patchMoonLightingShader(shader, { uMoonExposure: { value: 1 } });
     expect(shader.uniforms.uMoonExposure.value).toBe(1);
     for (const gone of ['lights_fragment_begin', 'lights_fragment_maps', 'lights_fragment_end']) expect(shader.fragmentShader).not.toContain(gone);
+    // LOT 38: moonSunNL / moonEarthNL are now the McEwen lunar-Lambert factor (tests/earth-lot38.test.js), same accumulation.
     expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonSunNL * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
     expect(shader.fragmentShader).toContain('reflectedLight.directDiffuse += moonEarthNL * uMoonEarthshine * uMoonSunColor * BRDF_Lambert( material.diffuseColor );');
+    expect(shader.fragmentShader).toContain('float moonSunNL = moonLunarLambert( saturate( dot( normal, uMoonSunDir ) ), moonMu, moonPhaseDeg( uMoonSunDir, moonViewDir ) );');
     // ETAPA 2b: the sensor-white clip sits between the exposure and the output chunk.
     expect(shader.fragmentShader).toMatch(/outgoingLight \*= uMoonExposure;\n[^\n]*uMoonSensorWhite[^\n]*\n#include <opaque_fragment>/);
     expect(shader.fragmentShader).toMatch(/uniform vec3 uMoonSunDir;[\s\S]*void main\(\) \{/);
@@ -119,12 +121,14 @@ describe('LOT 31 ETAPA 2 PAS 2: Earthshine view (+10 EV on the whole Moon), halo
   });
   it('one exposure for the whole Moon material, declared on the button and in the details; the Earth is not touched', () => {
     const moon = text('src/earth/moon-system.js');
-    expect(moon).toContain('moonLightUniforms.uMoonExposure.value = 2 ** state.exposureEv;');
+    // LOT 38: one writer (applyMoonExposure): the Earthshine view over the fixed exposure, else auto / fixed.
+    expect(moon).toContain('moonLightUniforms.uMoonExposure.value = 2 ** state.effectiveExposureEv;');
+    expect(moon.match(/uMoonExposure\.value =/g)).toHaveLength(1);
     expect(text('src/earth/earthshine.js')).toContain('export const EARTHSHINE_VIEW_EV = 10;'); // ETAPA 2b: moved next to the threshold
     expect(describeMoonExposure(10)).toBe('Moon exposure +10 EV (lit side clipped at sensor white, as in photographs)');
     expect(describeMoonExposure(0)).toMatch(/^Normal exposure \(\+0 EV\)/);
     // LOT 33c: the same text, in a span kept live by moon-system.js (the card follows the mode on / off).
-    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }) },");
+    expect(text('src/earth/app-services.js')).toContain("{ label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote, { mode: m.exposureMode, autoEv: m.autoExposureEv }) }) },"); // LOT 38: + mode
     expect(text('earth-eonet-relief.html')).toContain('<button id="earthshineViewBtn" aria-pressed="false"');
     expect(text('src/earth/control-panel.js')).toContain("byId('earthshineViewBtn')?.addEventListener('click', () => {");
     // Only the Moon material reads uMoonExposure.

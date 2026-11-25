@@ -470,6 +470,11 @@ export function createEarthAppRuntime({
         moonSystem?.toggleEarthshineView?.();
     }
 
+    // LOT 38: Moon exposure auto (interpretive compensation from the phase) / fixed (+0 EV, physical photometry).
+    function toggleMoonExposureMode() {
+        moonSystem?.toggleMoonExposureMode?.();
+    }
+
     // LOT 33b: camera on the Earth -> Moon line (the crescent of an earthshine photograph); no-op while the Moon
     // position is not computed yet.
     function viewMoonFromEarth() {
@@ -520,6 +525,7 @@ export function createEarthAppRuntime({
             updateNoctilucentSettings,
             toggleMoonMarkers,
             toggleEarthshineView,
+            toggleMoonExposureMode,
             viewMoonFromEarth,
             updateZodiacalIntensity,
             applySocialPreset: socialPresetSystem.applySocialPreset,

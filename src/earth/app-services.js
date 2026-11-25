@@ -25,6 +25,7 @@ import { createDataRhythmCamera } from './data-rhythm-camera.js';
 import { createMoonMarkers } from './moon-markers.js';
 import { describeMoonTextures, localDirForSelenographic } from './moon-system.js';
 import { describeMoonExposure, describeMoonIllumination } from './scene-lighting.js';
+import { describeMoonReflectance } from './moon-photometry.js';
 import { createSurfaceVisualLock, surfaceVisualMaterialDebugFromSearch } from './surface-visual-lock.js';
 import { atlasStatus } from '../core/status-store.js';
 import { getAstronomyImportState } from './astronomy-runtime.js';
@@ -461,7 +462,8 @@ export function createEarthAppServices({
             { label: 'Libration', value: Number.isFinite(m.librationElon) ? `${m.librationElon.toFixed(2)}° lon, ${m.librationElat.toFixed(2)}° lat` : 'unknown' },
             // LOT 31: every light that reaches the Moon, read from the live objects.
             { label: 'Illumination', value: describeMoonIllumination({ sunLight: bootstrap.sunLight, earthshine: m.earthshine }) },
-            { label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote) }) }, // LOT 31 ETAPA 2 / 2b; LOT 33c live
+            { label: 'Reflectance', value: describeMoonReflectance() }, // LOT 38
+            { label: 'Exposure', value: Object.assign(document.createElement('span'), { id: 'moonExposureValue', textContent: describeMoonExposure(m.exposureEv, m.earthshineViewNote, { mode: m.exposureMode, autoEv: m.autoExposureEv }) }) }, // LOT 31 ETAPA 2 / 2b; LOT 33c live
             ...describeMoonTextures(m), // LOT 30
             { label: 'Source', value: m.source || 'unknown' }
         ], { label: 'View from Earth', run: () => startMoonEarthView?.(moonSystem.moon) }); // LOT 33b
