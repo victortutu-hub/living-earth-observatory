@@ -182,7 +182,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
   etopo: defineSource({
     title: 'NOAA ETOPO 2022',
     provenance: 'reconstructed',
-    provenanceNote: 'Gridded relief and bathymetry compiled and interpolated from measurements (ETOPO 2022 60″ ice surface, area-averaged 1/6°, DOI 10.25921/fd45-gt74); water mask from NASA MODIS MOD44W, also the ocean specular mask (LOT 30, assets/earth/specular-mod44w-<hash>.png); lake surfaces rendered at 0 m (ETOPO has no lake levels)',
+    provenanceNote: 'Gridded relief and bathymetry compiled and interpolated from measurements (ETOPO 2022 60″ ice surface, area-averaged 1/6°, DOI 10.25921/fd45-gt74); water mask from NASA MODIS MOD44W, also the ocean specular mask (LOT 30, assets/earth/specular-mod44w-<hash>.png); near the coast the land / water weight comes from the Natural Earth 10m coast field (LOT 43, source naturalEarthLand), MOD44W keeps inland water and the far field; lake surfaces rendered at 0 m (ETOPO has no lake levels)',
     authority: 'NOAA National Centers for Environmental Information',
     endpoint: 'Local assets built by tools/build-relief.mjs from the ETOPO 2022 60″ ice-surface GeoTIFF and GIBS MODIS_Water_Mask',
     type: 'Surface elevation in metres (ice-sheet top, bedrock elsewhere; R16F, area-averaged 1/6°) and water fraction per texel (R8)',
@@ -192,6 +192,22 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     license: 'NOAA public-domain data policy; source attribution retained.',
     privacyClass: 'local-asset',
     visuals: ['Relief displacement', 'Bathymetric structure', 'Surface light response'],
+    observatories: ['living-earth'],
+  }),
+  // LOT 43: the coastline near the coast (signed distance field, rasterized locally).
+  naturalEarthLand: defineSource({
+    title: 'Natural Earth 10m land v5.1.1',
+    provenance: 'reconstructed',
+    provenanceNote: 'Coastline: Natural Earth 10m land v5.1.1 (public domain), rasterized locally — cartographic land polygons compiled at 1:10 million ("Land polygons including major islands. Derived from 10m coastline."), not an observation; signed distance to the coast (8192 x 4096, ±32 km in 8 bits) used for the land / water weight near the coast; inland water (lakes, rivers) and the far field stay on NASA MODIS MOD44W; Antarctic ice shelves are water in both',
+    authority: 'Natural Earth (NACIS)',
+    endpoint: 'Local asset assets/earth/coast-distance-ne10m-8192x4096-<hash>.png, built by tools/build-coast-distance.mjs from ne_10m_land.zip (naciscdn.org, SHA-256 e547d749…22dc)',
+    type: 'Signed distance to the coast (km, + land, - water), 8-bit equirectangular grey PNG',
+    process: 'Edge of the land weight, one screen pixel wide, for the relief shading (ETOPO and Terrarium slopes), the Phong ocean specular and the PBR ocean roughness.',
+    scope: 'Local asset used by the Earth Observatory (main view and the PNG / video export renderers).',
+    access: { kind: 'local-asset', label: 'Bundled derived asset', requiresProxy: false },
+    license: 'Public domain: "No permission is needed to use Natural Earth. Crediting the authors is unnecessary." (naturalearthdata.com terms of use); credited anyway as Natural Earth.',
+    privacyClass: 'local-asset',
+    visuals: ['Coastline of the relief shading', 'Ocean specular edge', 'Ocean roughness edge (PBR)'],
     observatories: ['living-earth'],
   }),
   // LOT 30: local textures with declared NASA sources (they replaced CoryG89 and threejs.org files).
@@ -665,4 +681,5 @@ export const INITIAL_SOURCE_STATUS = Object.freeze({
   moonTextures: { value: 'LOCAL ASSET', state: 'declared', updated: null }, // LOT 30
   earthNightLightsLocal: { value: 'LOCAL ASSET', state: 'declared', updated: null }, // LOT 30
   earthCloudsStatic: { value: 'LOCAL ASSET', state: 'declared', updated: null }, // LOT 30
+  naturalEarthLand: { value: 'LOCAL ASSET', state: 'declared', updated: null }, // LOT 43
 });

@@ -98,6 +98,25 @@ system. Always consult the original providers for authoritative data.
   texture at runtime. NASA data are public domain; attribution to NASA is
   retained.
 
+## Earth Coastline (Lot 43)
+
+- Coastline: Natural Earth 10m land v5.1.1 (public domain), rasterized locally.
+  `assets/earth/coast-distance-ne10m-8192x4096-<hash>.png` is the signed
+  distance to the coast (km, + land, - water, ±32 km in 8 bits) built by
+  `tools/build-coast-distance.mjs` from `ne_10m_land.zip`
+  (https://naciscdn.org/naturalearth/10m/physical/ne_10m_land.zip, 3,269,070
+  bytes, SHA-256
+  `e547d749445eaa0964aba76738090ec88f5e63c4585122170f98c67a7ea922dc`; page
+  https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-land/:
+  "Land polygons including major islands. Derived from 10m coastline.").
+  Terms (https://www.naturalearthdata.com/about/terms-of-use/): "No
+  permission is needed to use Natural Earth. Crediting the authors is
+  unnecessary." and "All versions of Natural Earth raster + vector map data
+  found on this website are in the public domain." Made with Natural Earth.
+- It sets the land / water weight near the coast only. The inland water mask
+  MOD44W (`assets/mod44w-water-2160x1080.png`, above) remains: lakes, rivers
+  and the far field keep the MOD44W water fraction.
+
 ## Living Himalaya Terrain
 
 - `assets/himalaya/glo30-<peak>-<hash>.ktx2` (metadata in

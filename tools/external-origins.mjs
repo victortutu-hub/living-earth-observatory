@@ -16,7 +16,7 @@ export const PAGES = Object.freeze({
 
 // Files whose URLs only describe sources (registry endpoints and provenance shown in the inspectors,
 // generated asset configs): every URL still needs a declared origin, but they are not requests.
-export const DESCRIPTIVE_FILES = Object.freeze(['src/config/source-registry.js', 'src/config/earth-local-textures.js', 'src/config/moon-color.js', 'src/config/moon-normal.js', 'src/config/sky-map.js', 'src/config/sky-stars.js']);
+export const DESCRIPTIVE_FILES = Object.freeze(['src/config/source-registry.js', 'src/config/earth-local-textures.js', 'src/config/moon-color.js', 'src/config/moon-normal.js', 'src/config/sky-map.js', 'src/config/sky-stars.js', 'src/config/earth-coast-distance.js']); // LOT 43: + the coast field config
 
 const e = (entry) => Object.freeze({ ...entry, pages: Object.freeze(entry.pages || []) });
 
@@ -48,6 +48,7 @@ export const EXTERNAL_ORIGINS = Object.freeze([
     ['https://assets.science.nasa.gov', 'NASA Earth Observatory source files named in provenance'], ['https://science.nasa.gov', 'NASA Earth Observatory pages'],
     ['https://www.nasa.gov', 'NASA media guidelines'], ['https://github.com', 'licence / source links'], ['https://copernicus-dem-30m.s3.amazonaws.com', 'GLO-30 source bucket in provenance'],
     ['https://isis.astrogeology.usgs.gov', 'USGS ISIS photometric model source (LOT 38 citation)'],
+    ['https://naciscdn.org', 'Natural Earth 10m land download named in the coast field provenance (LOT 43; fetched once offline, never by a page)'], ['https://www.naturalearthdata.com', 'Natural Earth pages and terms of use (LOT 43)'],
     ['http://www.w3.org', 'XML / SVG namespaces'], ['https://luminomorphism.local', 'URL parsing base placeholder'],
   ].map(([origin, note]) => e({ origin, role: 'doc-link', note })),
 ]);

@@ -159,6 +159,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
       'eonet', 'gibs', 'usgs', 'firms', 'gdacs', 'ovation', 'etopo', 'astronomy', 'celestrak',
       'openMeteo', 'openMeteoMarine', 'openMeteoEra5', 'openMeteoMarineArchive', 'gvp', 'airglow', 'zodiacal', 'noctilucent', 'realSky',
       'himalayaPeaks', 'moonTextures', 'earthNightLightsLocal', 'earthCloudsStatic', // LOT 30
+      'naturalEarthLand', // LOT 43
       'terrariumTiles', // LOT 42
     ]),
     roadmap: ROADMAP.earth,
