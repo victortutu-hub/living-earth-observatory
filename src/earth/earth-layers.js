@@ -11,6 +11,7 @@ import { loadBlueMarbleSurfaceTexture, shouldApplySurfaceLevel, surfaceLevelsAbo
 import { upgradeEarthTexturesToKtx2 } from './ktx2-support.js';
 import { createRegionalSurface, describeRegionalStatus } from './gibs-regional-surface.js';
 import { createTerrainRelief, describeTerrainStatus } from './terrarium-relief.js';
+import { loadCoastMask } from './coast-mask.js';
 import {
     RELIEF_LINEAR_ASSETS,
     RELIEF_LINEAR_EXAGGERATION,
@@ -40,8 +41,20 @@ export function createEarthLayers({
     const reliefExaggeration = materialOverrides.reliefExaggeration ?? RELIEF_LINEAR_EXAGGERATION;
     const shadingGain = materialOverrides.shadingGain ?? RELIEF_SHADING_GAIN;
     const earthReliefScale = linearDisplacementScale(reliefExaggeration);
-    const reliefTitle = linearReliefLabel(reliefExaggeration, shadingGain);
-    const reliefMaterialOptions = { waterMask: earthWaterMask, reliefExaggeration, shadingGain };
+    // LOT 43: the Natural Earth coast field (owned here: aborted and released on dispose); the coastline note in the
+    // relief title follows its state (MOD44W while loading or if it fails).
+    let coastStatus = { state: 'loading' };
+    const coastMask = loadCoastMask({
+        THREE,
+        touch: Boolean(window.matchMedia?.('(pointer: coarse)').matches),
+        maxTextureSize: renderer.capabilities?.maxTextureSize ?? 16384,
+        onStatus: (status) => {
+            coastStatus = status;
+            publishSurfaceStatus({ title: linearReliefLabel(reliefExaggeration, shadingGain, coastStatus) });
+        },
+    });
+    const reliefTitle = linearReliefLabel(reliefExaggeration, shadingGain, coastStatus);
+    const reliefMaterialOptions = { waterMask: earthWaterMask, coastMask, reliefExaggeration, shadingGain };
     const surfaceMaterial = createSurfaceMaterialLodConfig({
         earthRadius: 2,
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
@@ -477,7 +490,7 @@ export function createEarthLayers({
         nightLights,
         setNightLightsStatusListener,
         setSurfaceStatusListener,
-        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })), regional: regionalSurface?.getStatus() ?? null, terrain: terrainRelief?.getStatus() ?? null }), // LOT 23 (+ LOT 24 stats, LOT 41 regional, LOT 42 terrain)
+        getRuntimeSignals: () => ({ relief: reliefOutcome, surface: { ...surfaceEvent }, nightLights: nightLightsStatus.state, surfaceStats: surfaceStats.map((s) => ({ ...s })), regional: regionalSurface?.getStatus() ?? null, terrain: terrainRelief?.getStatus() ?? null, coast: coastMask.getStatus() }), // LOT 23 (+ LOT 24 stats, LOT 41 regional, LOT 42 terrain, LOT 43 coast)
         // LOT 41 / 42: once per frame (frame-runtime.js); selection, debounce, uploads of both tile-window layers.
         updateRegionalSurface: (camera) => { regionalSurface?.update(camera, earth); terrainRelief?.update(camera, earth); },
         getRegionalSurfaceDebug: () => regionalSurface?.getDebugState() ?? null,
@@ -489,6 +502,7 @@ export function createEarthLayers({
             gibsController.abort(new DOMException('earth layers disposed', 'AbortError'));
             regionalSurface?.dispose(); // LOT 41: requests, LRU bitmaps, atlas
             terrainRelief?.dispose(); // LOT 42: idem
+            coastMask.dispose(); // LOT 43: fetch, worker, texture
             clearTimeout(blackMarbleWatchdog);
             clearTimeout(surfaceWatchdog);
         },

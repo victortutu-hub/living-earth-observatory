@@ -59,9 +59,13 @@ export function reliefNormalENU({ heights, water, latDeg, width = RELIEF_LINEAR_
     return n.map((v) => v / length);
 }
 
-export function linearReliefLabel(exaggeration = RELIEF_LINEAR_EXAGGERATION, shadingGain = RELIEF_SHADING_GAIN) {
+// LOT 43: `coast` = coast-mask.js status; ready -> Natural Earth coastline with MOD44W inland water, otherwise MOD44W.
+export function linearReliefLabel(exaggeration = RELIEF_LINEAR_EXAGGERATION, shadingGain = RELIEF_SHADING_GAIN, coast = null) {
     const fmt = (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
-    const sources = 'linear, ETOPO 2022 60″ ice surface, area-averaged 1/6°; water mask MODIS MOD44W; lake surfaces rendered at 0 m — ETOPO has no lake levels';
+    const water = coast?.state === 'ready'
+        ? `${coast.label}; inland water MODIS MOD44W`
+        : coast?.state === 'unavailable' ? `water mask MODIS MOD44W (${coast.label})` : 'water mask MODIS MOD44W';
+    const sources = `linear, ETOPO 2022 60″ ice surface, area-averaged 1/6°; ${water}; lake surfaces rendered at 0 m — ETOPO has no lake levels`;
     const geometry = exaggeration > 0 ? `vertical exaggeration ×${fmt(exaggeration)} (geometry)` : 'no geometric displacement';
     return `Relief: ${geometry}, shading gain ×${fmt(shadingGain)} (${sources})`;
 }

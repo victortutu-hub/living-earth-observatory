@@ -3,6 +3,7 @@ import { ATMOSPHERE, ATMOSPHERE_GLSL } from './atmosphere-physics.js';
 import { RELIEF_LINEAR_EXAGGERATION, RELIEF_SHADING_GAIN, RELIEF_SOURCE, linearDisplacementScale } from './relief-linear.js';
 import { injectRegionalSurface } from './gibs-regional-surface.js';
 import { TERRAIN_SLOPE_MARKER, injectTerrainRelief } from './terrarium-relief.js';
+import { coastMaskGlsl } from './coast-mask.js';
 
 // Relief (LOT 4b-B): ETOPO 2022 60" ice surface in metres, area-averaged to
 // 1/6 deg, displaced linearly (x E) with water flat at 0 m, and normals computed
@@ -31,10 +32,10 @@ const LINEAR_RELIEF_FRAGMENT_PARS = `
         uniform float uWaterMaskReadyTw;
         uniform float uShadingGainTw;
         varying vec3 vReliefEastTw;
-        varying vec3 vReliefNorthTw;
-        // Water fraction: MOD44W once loaded, z <= 0 until then.
+        varying vec3 vReliefNorthTw;${coastMaskGlsl()}
+        // Water fraction: MOD44W once loaded, z <= 0 until then; near the coast the Natural Earth field (LOT 43).
         float reliefWaterTw(vec2 uv, float h) {
-            return mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw);
+            return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw));
         }
         float reliefSurfaceHeightTw(vec2 uv) {
             float h = texture2D(uReliefMapTw, uv).r;
@@ -84,9 +85,12 @@ const AERIAL_PERSPECTIVE_BODY = `
 // surfaceHeight = mix(z, max(z, 0), water): the sea and lakes are flat at 0 m,
 // dry land below sea level (Qattara, Death Valley) keeps its negative height.
 // The local east/north directions feed the shader normals.
-function injectLinearDisplacement(shader, waterMask) {
+function injectLinearDisplacement(shader, waterMask, coastMask) {
     shader.uniforms.uWaterMaskTw = waterMask?.uniform ?? { value: null }; // shared: swapped once the R8 mask loads
     shader.uniforms.uWaterMaskReadyTw = waterMask?.ready ?? { value: 0 };
+    // LOT 43: fragment only; the vertex displacement keeps MOD44W (vertices 0.7° apart, coarser than either mask).
+    shader.uniforms.uCoastDistTw = coastMask?.uniform ?? { value: null };
+    shader.uniforms.uCoastReadyTw = coastMask?.ready ?? { value: 0 };
     shader.vertexShader = shader.vertexShader.replace(
         '#include <common>',
         `#include <common>
@@ -120,8 +124,8 @@ export const AERIAL_PERSPECTIVE_UNIFORMS = Object.freeze([
 
 // Shared by Phong and PBR: relief strength, aerial perspective uniforms,
 // world-position varying and the GLSL physics library.
-function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, waterMask = null, shadingGain = RELIEF_SHADING_GAIN }) {
-    injectLinearDisplacement(shader, waterMask);
+function injectReliefAndAerialPerspective(shader, THREE, { reliefStrength, waterMask = null, coastMask = null, shadingGain = RELIEF_SHADING_GAIN }) {
+    injectLinearDisplacement(shader, waterMask, coastMask);
     shader.uniforms.uReliefStrengthTw = { value: reliefStrength };
     // Shading only: the geometry uses displacementScale (exaggeration E).
     shader.uniforms.uShadingGainTw = { value: shadingGain };
@@ -302,6 +306,10 @@ function injectSurfaceMaterialShared(shader, { surfaceMaterial }) {
 
 function surfaceMaterialPbrRoughnessBody() {
     return `
+        // LOT 43: the ocean roughness (earth-roughness.js, 0.22) follows the same water mask as the relief; a
+        // colour-classified "ocean" texel on land takes the "other" value (0.68).
+        roughnessFactor = mix(roughnessFactor,
+            mix(roughnessFactor < 0.3 ? 0.68 : roughnessFactor, 0.22, 1.0 - surfaceLandWeightTw), uCoastReadyTw);
         vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
         float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
         roughnessFactor = clamp(
@@ -334,6 +342,8 @@ export function createEarthMaterial({
     shadingGain = RELIEF_SHADING_GAIN,
     // { uniform: { value: texture }, ready: { value } } shared by every material (MOD44W R8).
     waterMask = null,
+    // LOT 43: the same shape for the Natural Earth coast field (coast-mask.js); null = MOD44W only.
+    coastMask = null,
     reliefTextureRef = { current: earthRelief },
     surfaceMaterial = createSurfaceMaterialLodConfig(),
     // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
@@ -365,6 +375,7 @@ export function createEarthMaterial({
         injectReliefAndAerialPerspective(shader, THREE, {
             reliefStrength: overrides.reliefStrength ?? RELIEF_STRENGTH.phong,
             waterMask,
+            coastMask,
             shadingGain
         });
         shader.uniforms.uSunDirTw = { value: new THREE.Vector3(1, 0, 0) };
@@ -428,6 +439,9 @@ export function createEarthMaterial({
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <specularmap_fragment>',
             `#include <specularmap_fragment>
+            // LOT 43: the ocean specular is the same water fraction as the relief land weight (the specular map
+            // holds MOD44W, used until the coast field loads).
+            specularStrength = mix(specularStrength, 1.0 - surfaceLandWeightTw, uCoastReadyTw);
             ${surfaceMaterialPhongSpecularBody()}
             {
                 float sDot = dot(normalize(vWorldNormalTw), normalize(uSunDirTw));
@@ -490,6 +504,8 @@ export function createEarthMaterialPBR({
     shadingGain = RELIEF_SHADING_GAIN,
     // { uniform: { value: texture }, ready: { value } } shared by every material (MOD44W R8).
     waterMask = null,
+    // LOT 43: the same shape for the Natural Earth coast field (coast-mask.js); null = MOD44W only.
+    coastMask = null,
     reliefTextureRef = { current: earthRelief },
     surfaceMaterial = createSurfaceMaterialLodConfig(),
     // Visual-lock A/B overrides only (reliefStrength); {} = defaults.
@@ -523,6 +539,7 @@ export function createEarthMaterialPBR({
         injectReliefAndAerialPerspective(shader, THREE, {
             reliefStrength: overrides.reliefStrength ?? RELIEF_STRENGTH.pbr,
             waterMask,
+            coastMask,
             shadingGain
         });
 

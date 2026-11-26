@@ -634,6 +634,7 @@ export function createEarthAppServices({
             nightLights: layers.nightLights || null,
             regional: layers.regional || null, // LOT 41
             terrain: layers.terrain || null, // LOT 42
+            coast: layers.coast || null, // LOT 43
             layers: [
                 providerLayer('usgs', usgsProvider?.getStatus?.()),
                 providerLayer('firms', firmsProvider?.getStatus?.()),
