@@ -7,7 +7,17 @@
 //   landNE  = clamp(0.5 + d / w, 0, 1)            -> a coast edge one screen pixel wide, at any zoom;
 //   inland  = smoothstep(12 km, 20 km, d)          -> inland water (lakes, rivers) keeps the MOD44W fraction, but
 //             only from 12-20 km inland: closer, MOD44W at 1/6 deg still holds the coarse sea of its coastal texels;
-//   water   = max(1 - landNE, MOD44W * inland);
+//   image   = land in the displayed Blue Marble NG albedo (observed): blue <= max(red, green) and not near-black
+//             (deep water is near black, where JPEG noise makes red >= blue): (1 - smoothstep(0.9, 1.05, b / max(r, g)))
+//             * smoothstep(0.012, 0.03, max(r, g)), linear RGB; 0 south of 60 S (ice shelves: water in NE and MOD44W);
+//   gate    = 1 - smoothstep(0.996, 0.9995, MOD44W) -> the 1/6 deg MOD44W cell (observed) is not all water (8 bits: 254/255
+//             is about 1 km2 of land in the cell, 255 all water);
+//   water   = max((1 - landNE) * (1 - image * gate), MOD44W * inland);
+//             a reconstructed source (Natural Earth, generalized at 1:10M) never turns into sea a pixel that the observed
+//             image shows as land where MOD44W also sees land in the cell (small islands, generalized coasts); turbid
+//             water far from land stays water (gate 0). The image never turns NE land into water (a coarse image loses
+//             small islands: not evidence of water). Only the pixel's own land weight uses the image (relief, specular,
+//             roughness); the neighbour heights of the relief normal and the vertex displacement do not;
 //   far     = smoothstep(maxKm, 1.5 maxKm, w)      -> a pixel wider than the encoded range: MOD44W alone.
 // Before the field loads (or if it fails), the water fraction is MOD44W as before (coast-mask-fallback).
 // Antarctic ice shelves: water in both Natural Earth land and MOD44W (unchanged).
@@ -20,18 +30,32 @@ export const COAST_MASK = Object.freeze({
     farFadeFactor: Object.freeze([1, 1.5]), // x maxKm
     minFootprintKm: 0.05,
     touchWidth: 4096, // touch: the field at half resolution (decoded resized)
+    // LOT 43 (before push): the observed image keeps its land
+    imageRatio: Object.freeze([0.9, 1.05]), // b / max(r, g), linear: land 0.2-0.9 (rock ~0.87), green shallow sea ~1.17
+    imageBright: Object.freeze([0.012, 0.03]), // max(r, g), linear (sRGB ~28 -> ~48)
+    imageSouthLat: Object.freeze([-62, -58]),
+    mod44wLandGate: Object.freeze([0.996, 0.9995]), // 254/255 (>= ~1 km2 of land in the cell) -> open; 255 (all water) -> closed
 });
 export const COAST_LABEL = EARTH_COAST_DISTANCE.label;
 export const COAST_FALLBACK_LABEL = 'Coastline: MODIS MOD44W 1/6° water fraction (Natural Earth coast field unavailable — fallback)';
 
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-/** JS mirror of coastWaterTw: water fraction from the distance (km), the pixel footprint (km) and MOD44W. */
-export function coastWaterFraction({ distanceKm, footprintKm, mod44wWater, maxKm = EARTH_COAST_DISTANCE.maxKm, ready = true }) {
+/** JS mirror of coastImageLandTw: land evidence (0..1) of a displayed albedo (linear RGB) at a latitude. */
+export function coastImageLand([r, g, b], lat) {
+    const m = Math.max(r, g);
+    return (1 - smoothstep(COAST_MASK.imageRatio[0], COAST_MASK.imageRatio[1], b / Math.max(m, 1e-4)))
+        * smoothstep(COAST_MASK.imageBright[0], COAST_MASK.imageBright[1], m)
+        * smoothstep(COAST_MASK.imageSouthLat[0], COAST_MASK.imageSouthLat[1], lat);
+}
+
+/** JS mirror of coastWaterTw: water fraction from the distance (km), the pixel footprint (km), MOD44W and the image. */
+export function coastWaterFraction({ distanceKm, footprintKm, mod44wWater, imageLand = 0, maxKm = EARTH_COAST_DISTANCE.maxKm, ready = true }) {
     if (!ready) return mod44wWater;
     const d = Math.min(maxKm, Math.max(-maxKm, distanceKm));
     const land = Math.min(1, Math.max(0, 0.5 + d / Math.max(footprintKm, COAST_MASK.minFootprintKm)));
-    const water = Math.max(1 - land, mod44wWater * smoothstep(COAST_MASK.inlandKm[0], COAST_MASK.inlandKm[1], d));
+    const gate = 1 - smoothstep(COAST_MASK.mod44wLandGate[0], COAST_MASK.mod44wLandGate[1], mod44wWater);
+    const water = Math.max((1 - land) * (1 - imageLand * gate), mod44wWater * smoothstep(COAST_MASK.inlandKm[0], COAST_MASK.inlandKm[1], d));
     const far = smoothstep(COAST_MASK.farFadeFactor[0] * maxKm, COAST_MASK.farFadeFactor[1] * maxKm, footprintKm);
     return water + (mod44wWater - water) * far;
 }
@@ -40,19 +64,28 @@ export function coastWaterFraction({ distanceKm, footprintKm, mod44wWater, maxKm
 export const coastDistanceFromSample = (sample, maxKm = EARTH_COAST_DISTANCE.maxKm) => ((sample * 255 - 127.5) / 127.5) * maxKm;
 
 const glslFloat = (v) => (Number.isInteger(v) ? `${v}.0` : String(v));
-/** GLSL (fragment <common>): uniforms and coastWaterTw(uv, mod44wWater). Call it in uniform control flow (dFdx). */
+/** GLSL (fragment <common>): uniforms, coastImageLandTw(albedo, uv), coastWaterTw(uv, mod44wWater, imageLand). Uniform control flow (dFdx). */
 export function coastMaskGlsl(maxKm = EARTH_COAST_DISTANCE.maxKm) {
     const m = glslFloat(maxKm);
     return `
         uniform sampler2D uCoastDistTw;
         uniform float uCoastReadyTw;
-        float coastWaterTw(vec2 uv, float mod44wWater) {
-            // LOT 43: Natural Earth 10m coast field near the coast, MOD44W for inland water and the far field.
+        // LOT 43: land evidence of the displayed (observed) Blue Marble NG albedo, linear RGB; 0 south of 60 S.
+        float coastImageLandTw(vec3 albedo, vec2 uv) {
+            float coastImgMaxTw = max(albedo.r, albedo.g);
+            return (1.0 - smoothstep(${glslFloat(COAST_MASK.imageRatio[0])}, ${glslFloat(COAST_MASK.imageRatio[1])}, albedo.b / max(coastImgMaxTw, 1e-4)))
+                * smoothstep(${glslFloat(COAST_MASK.imageBright[0])}, ${glslFloat(COAST_MASK.imageBright[1])}, coastImgMaxTw)
+                * smoothstep(${glslFloat(COAST_MASK.imageSouthLat[0])}, ${glslFloat(COAST_MASK.imageSouthLat[1])}, uv.y * 180.0 - 90.0);
+        }
+        float coastWaterTw(vec2 uv, float mod44wWater, float imageLand) {
+            // LOT 43: Natural Earth 10m coast field near the coast, MOD44W for inland water and the far field; the
+            // observed image keeps its land where the MOD44W cell holds land.
             vec2 coastKmTw = vec2(2.0 * PI * 6371.0 * cos(radians(uv.y * 180.0 - 90.0)), PI * 6371.0);
             float coastFootTw = max(length(dFdx(uv) * coastKmTw), length(dFdy(uv) * coastKmTw));
             float coastDTw = (texture2D(uCoastDistTw, uv).r * 255.0 - 127.5) / 127.5 * ${m};
             float coastLandTw = clamp(0.5 + coastDTw / max(coastFootTw, ${glslFloat(COAST_MASK.minFootprintKm)}), 0.0, 1.0);
-            float coastWaterOutTw = max(1.0 - coastLandTw, mod44wWater * smoothstep(${glslFloat(COAST_MASK.inlandKm[0])}, ${glslFloat(COAST_MASK.inlandKm[1])}, coastDTw));
+            float coastGateTw = 1.0 - smoothstep(${glslFloat(COAST_MASK.mod44wLandGate[0])}, ${glslFloat(COAST_MASK.mod44wLandGate[1])}, mod44wWater);
+            float coastWaterOutTw = max((1.0 - coastLandTw) * (1.0 - imageLand * coastGateTw), mod44wWater * smoothstep(${glslFloat(COAST_MASK.inlandKm[0])}, ${glslFloat(COAST_MASK.inlandKm[1])}, coastDTw));
             coastWaterOutTw = mix(coastWaterOutTw, mod44wWater, smoothstep(${glslFloat(COAST_MASK.farFadeFactor[0] * maxKm)}, ${glslFloat(COAST_MASK.farFadeFactor[1] * maxKm)}, coastFootTw));
             return mix(mod44wWater, coastWaterOutTw, uCoastReadyTw);
         }`;

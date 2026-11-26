@@ -141,8 +141,9 @@ describe('Earth materials', () => {
         expect(shader.fragmentShader).toContain('uShadingGainTw * vec2(');
         expect(shader.fragmentShader).toContain('reliefSunTw = smoothstep(-0.05, 0.05');
         expect(shader.fragmentShader).toContain('surfaceLandWeightTw * reliefSunTw');
-        // Land weight from the water fraction, not from a gray threshold.
-        expect(shader.fragmentShader).toContain('float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);');
+        // Land weight from the water fraction, not from a gray threshold (LOT 43, intentional: + the coast field and
+        // the land of the displayed albedo, see tests/earth-lot43-coast-mask.test.js).
+        expect(shader.fragmentShader).toContain('float surfaceLandWeightTw = 1.0 - surfaceWaterTw(vMapUv, surfaceReliefTw, surfaceAlbedoTw);');
         expect(shader.fragmentShader).not.toMatch(/CoastStart|uSeaLevelTw|normalMap|bathyRampTw|gradClipTw|visual-lock debug view/);
         // The aerial perspective runs once, right before the opaque output.
         expect(shader.fragmentShader.split('atmoAerialInscatter(vWorldPosTw').length - 1).toBe(1);

@@ -35,7 +35,11 @@ const LINEAR_RELIEF_FRAGMENT_PARS = `
         varying vec3 vReliefNorthTw;${coastMaskGlsl()}
         // Water fraction: MOD44W once loaded, z <= 0 until then; near the coast the Natural Earth field (LOT 43).
         float reliefWaterTw(vec2 uv, float h) {
-            return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw));
+            return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw), 0.0);
+        }
+        // LOT 43: the same where the displayed albedo (observed image) is known: the fragment's own land weight.
+        float surfaceWaterTw(vec2 uv, float h, vec3 albedo) {
+            return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw), coastImageLandTw(albedo, uv));
         }
         float reliefSurfaceHeightTw(vec2 uv) {
             float h = texture2D(uReliefMapTw, uv).r;
@@ -191,6 +195,7 @@ function injectDayNightTint(shader, THREE) {
     shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_fragment>',
         `#include <map_fragment>
+        vec3 surfaceAlbedoTw = diffuseColor.rgb; // LOT 43: the displayed albedo (regional detail included), before the tints
         // V3.5 - refractie atmosferica (+0.567 grade ≈ +0.0099 in produs
         // scalar la terminator) - Soarele ramane vizibil putin dupa apusul
         // geometric, acelasi motiv ca in atmosphere.js/noctilucent-cloud-system.js.
@@ -222,9 +227,10 @@ function injectDayNightTint(shader, THREE) {
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * duskTintTw, twilightTw * uEarthTwilightTw);
         diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);
 
-        // Land weight = 1 - MOD44W water fraction (z <= 0 until the mask loads).
+        // Land weight = 1 - water fraction (MOD44W, z <= 0 until it loads; Natural Earth near the coast, the observed
+        // image keeping its land: LOT 43).
         float surfaceReliefTw = texture2D(uReliefMapTw, vMapUv).r;
-        float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);`
+        float surfaceLandWeightTw = 1.0 - surfaceWaterTw(vMapUv, surfaceReliefTw, surfaceAlbedoTw);`
     );
 }
 
@@ -407,6 +413,7 @@ export function createEarthMaterial({
         shader.fragmentShader = shader.fragmentShader.replace(
             '#include <map_fragment>',
             `#include <map_fragment>
+            vec3 surfaceAlbedoTw = diffuseColor.rgb; // LOT 43: the displayed albedo (regional detail included), before the tints
             // V3.5 - refractie atmosferica, vezi atmosphere.js.
             float sunDotTw = dot(normalize(vWorldNormalTw), normalize(uSunDirTw)) + 0.0099;
             float dayMaskTw = smoothstep(-0.10, 0.24, sunDotTw);
@@ -430,9 +437,10 @@ export function createEarthMaterial({
             diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * duskTintTw, twilightTw * uEarthTwilightTw);
             diffuseColor.rgb *= mix(1.0, 0.72, deepNightTw * uEarthNightTw);
 
-            // Land weight = 1 - MOD44W water fraction (z <= 0 until the mask loads).
+            // Land weight = 1 - water fraction (MOD44W, z <= 0 until it loads; Natural Earth near the coast, the observed
+            // image keeping its land: LOT 43).
             float surfaceReliefTw = texture2D(uReliefMapTw, vMapUv).r;
-            float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);`
+            float surfaceLandWeightTw = 1.0 - surfaceWaterTw(vMapUv, surfaceReliefTw, surfaceAlbedoTw);`
         );
 
         // Ocean roughness at the terminator: boosts specular ocean glints near sunrise/sunset.

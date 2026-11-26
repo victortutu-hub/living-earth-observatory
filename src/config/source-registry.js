@@ -198,7 +198,7 @@ export const SOURCE_DEFINITIONS = Object.freeze({
   naturalEarthLand: defineSource({
     title: 'Natural Earth 10m land v5.1.1',
     provenance: 'reconstructed',
-    provenanceNote: 'Coastline: Natural Earth 10m land v5.1.1 (public domain), rasterized locally — cartographic land polygons compiled at 1:10 million ("Land polygons including major islands. Derived from 10m coastline."), not an observation; signed distance to the coast (8192 x 4096, ±32 km in 8 bits) used for the land / water weight near the coast; inland water (lakes, rivers) and the far field stay on NASA MODIS MOD44W; Antarctic ice shelves are water in both',
+    provenanceNote: 'Coastline: Natural Earth 10m land v5.1.1 (public domain), rasterized locally — cartographic land polygons compiled at 1:10 million ("Land polygons including major islands. Derived from 10m coastline."), not an observation; signed distance to the coast (8192 x 4096, ±32 km in 8 bits) used for the land / water weight near the coast; inland water (lakes, rivers) and the far field stay on NASA MODIS MOD44W; Antarctic ice shelves are water in both; it never turns into sea a pixel that the observed Blue Marble NG image shows as land where the MOD44W cell also holds land (small islands missing at 1:10M are kept)',
     authority: 'Natural Earth (NACIS)',
     endpoint: 'Local asset assets/earth/coast-distance-ne10m-8192x4096-<hash>.png, built by tools/build-coast-distance.mjs from ne_10m_land.zip (naciscdn.org, SHA-256 e547d749…22dc)',
     type: 'Signed distance to the coast (km, + land, - water), 8-bit equirectangular grey PNG',

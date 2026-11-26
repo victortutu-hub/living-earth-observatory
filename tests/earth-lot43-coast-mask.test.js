@@ -3,8 +3,9 @@ import fs from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from '../lib/three@0.185.1/build/three.module.js';
 import {
-  COAST_FALLBACK_LABEL, COAST_LABEL, COAST_MASK, coastDistanceFromSample, coastFieldWidth, coastMaskGlsl, coastWaterFraction, loadCoastMask, rgbaToR8SouthFirst,
+  COAST_FALLBACK_LABEL, COAST_LABEL, COAST_MASK, coastDistanceFromSample, coastFieldWidth, coastImageLand, coastMaskGlsl, coastWaterFraction, loadCoastMask, rgbaToR8SouthFirst,
 } from '../src/earth/coast-mask.js';
+import { classifySegments, signedCoastDistance } from '../tools/lib/coast-distance.mjs';
 import { createEarthMaterial, createEarthMaterialPBR } from '../src/earth/earth-material.js';
 import { linearReliefLabel } from '../src/earth/relief-linear.js';
 import { EARTH_RUNTIME_REASONS, earthRuntimeState } from '../src/earth/earth-runtime-state.js';
@@ -26,6 +27,49 @@ describe('LOT 43: land / water weight (coast-mask.js, the same rule as the shade
     expect(w({ distanceKm: 6, footprintKm: 3, mod44wWater: 0.8 })).toBe(0);
     expect(COAST_MASK.inlandKm).toEqual([12, 20]);
   });
+  // Linear RGB of Blue Marble NG pixels read in the z5 tiles (tmp/lot43/transect.mjs): Naxos land (sRGB 115,92,50),
+  // near-black deep sea where JPEG noise has red >= blue (8,3,0), deep blue (1,1,11), turquoise shallow water
+  // (40,120,150), dark forest (40,55,30), bright rock (144,132,110); green shallow Adriatic (57,89,96), grey limestone.
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const px = (r, g, b) => [lin(r), lin(g), lin(b)];
+  it('image land: land colours yes; near-black or blue water no; nothing south of 60 S (ice shelves)', () => {
+    expect(coastImageLand(px(115, 92, 50), 37)).toBe(1);
+    expect(coastImageLand(px(144, 132, 110), 37)).toBe(1);
+    expect(coastImageLand(px(40, 55, 30), 10)).toBeGreaterThan(0.9);
+    expect(coastImageLand(px(8, 3, 0), 37)).toBe(0);
+    expect(coastImageLand(px(1, 1, 11), 37)).toBe(0);
+    expect(coastImageLand(px(40, 120, 150), 37)).toBe(0);
+    expect(coastImageLand(px(57, 89, 96), 44)).toBe(0); // green shallow Adriatic water (capture, d 3.1)
+    expect(coastImageLand(px(150, 145, 135), 43.8)).toBeGreaterThan(0.5); // grey limestone (Kornati)
+    expect(coastImageLand(px(220, 225, 230), -78)).toBe(0); // Ross / Ronne ice shelf colour
+    expect(coastImageLand(px(115, 92, 50), -65)).toBe(0);
+  });
+  it('a synthetic island smaller than the Natural Earth texel, present in the image, stays land', () => {
+    // a 2 x 2 km island (0.018 deg) 20 km from any NE coast: no texel centre of the 8192 x 4096 field falls in it
+    const s = 0.009; const lat = 36.6; const lon = 24.9;
+    const { segments } = classifySegments([Float64Array.from([lon - s, lat - s, lon + s, lat - s, lon + s, lat + s, lon - s, lat + s])]);
+    const { signed } = signedCoastDistance(segments, 8192, 4096, 32);
+    const k = Math.floor((90 - lat) / 180 * 4096) * 8192 + Math.floor((lon + 180) / 360 * 8192);
+    expect(signed[k]).toBeLessThan(0); // the field calls it sea
+    const image = coastImageLand(px(115, 92, 50), lat);
+    // MOD44W 1/6 deg cell: mostly water, but not all (0.99)
+    expect(w({ distanceKm: signed[k], footprintKm: 1.6, mod44wWater: 0.99, imageLand: image })).toBeLessThan(0.01);
+    expect(w({ distanceKm: signed[k], footprintKm: 1.6, mod44wWater: 0.99, imageLand: 0 })).toBeGreaterThan(0.9); // LOT 43 before the fix: sea
+    // the sea around it (near-black in the image) stays sea
+    expect(w({ distanceKm: signed[k], footprintKm: 1.6, mod44wWater: 0.99, imageLand: coastImageLand(px(8, 3, 0), lat) })).toBeGreaterThan(0.9);
+  });
+  it('the image keeps land only where the MOD44W cell holds land: turbid water (all-water cell) stays sea', () => {
+    const turbid = coastImageLand(px(120, 105, 70), 30.5);
+    expect(turbid).toBe(1); // brown turbid water looks like land in the image
+    expect(w({ distanceKm: -20, footprintKm: 3, mod44wWater: 1, imageLand: turbid })).toBe(1);
+    expect(w({ distanceKm: -20, footprintKm: 3, mod44wWater: 0.95, imageLand: turbid })).toBe(0);
+    expect(COAST_MASK.mod44wLandGate).toEqual([0.996, 0.9995]);
+  });
+  it('the image never turns Natural Earth land into water, and NE coasts stay as they are where the image is water', () => {
+    expect(w({ distanceKm: 5, footprintKm: 3, mod44wWater: 0.5, imageLand: 0 })).toBe(0);
+    expect(w({ distanceKm: -1.5, footprintKm: 3, mod44wWater: 0.5, imageLand: 0 })).toBe(1);
+    expect(w({ distanceKm: 0, footprintKm: 3, mod44wWater: 0.5, imageLand: 0 })).toBeCloseTo(0.5, 12);
+  });
   it('sea: Natural Earth only (MOD44W land in the sea near the coast is its coarse coastal texel)', () => {
     expect(w({ distanceKm: -8, footprintKm: 3, mod44wWater: 0.2 })).toBe(1);
   });
@@ -37,7 +81,7 @@ describe('LOT 43: land / water weight (coast-mask.js, the same rule as the shade
   });
   it('the shader carries the same constants; a texture sample decodes to km', () => {
     const glsl = coastMaskGlsl(32);
-    for (const s of ['uniform sampler2D uCoastDistTw;', 'uniform float uCoastReadyTw;', 'float coastWaterTw(vec2 uv, float mod44wWater)', 'smoothstep(12.0, 20.0, coastDTw)', 'smoothstep(32.0, 48.0, coastFootTw)', '/ 127.5 * 32.0', 'max(coastFootTw, 0.05)', 'mix(mod44wWater, coastWaterOutTw, uCoastReadyTw)']) expect(glsl).toContain(s);
+    for (const s of ['uniform sampler2D uCoastDistTw;', 'uniform float uCoastReadyTw;', 'float coastWaterTw(vec2 uv, float mod44wWater, float imageLand)', 'float coastImageLandTw(vec3 albedo, vec2 uv)', 'smoothstep(0.9, 1.05, albedo.b / max(coastImgMaxTw, 1e-4))', 'smoothstep(0.012, 0.03, coastImgMaxTw)', 'smoothstep(-62.0, -58.0, uv.y * 180.0 - 90.0)', 'float coastGateTw = 1.0 - smoothstep(0.996, 0.9995, mod44wWater);', 'max((1.0 - coastLandTw) * (1.0 - imageLand * coastGateTw), mod44wWater * smoothstep(12.0, 20.0, coastDTw))', 'smoothstep(12.0, 20.0, coastDTw)', 'smoothstep(32.0, 48.0, coastFootTw)', '/ 127.5 * 32.0', 'max(coastFootTw, 0.05)', 'mix(mod44wWater, coastWaterOutTw, uCoastReadyTw)']) expect(glsl).toContain(s);
     expect(coastDistanceFromSample(127.5 / 255, 32)).toBeCloseTo(0, 12);
     expect(coastDistanceFromSample(1, 32)).toBeCloseTo(32, 12);
   });
@@ -65,8 +109,14 @@ describe('LOT 43: materials use one mask for relief, specular and roughness', ()
     material.onBeforeCompile(shader);
     expect(shader.uniforms.uCoastDistTw).toBe(coastMask.uniform); // shared with every material
     expect(shader.uniforms.uCoastReadyTw).toBe(coastMask.ready);
-    expect(shader.fragmentShader).toContain('return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw));');
-    expect(shader.fragmentShader).toContain('float surfaceLandWeightTw = 1.0 - reliefWaterTw(vMapUv, surfaceReliefTw);');
+    // neighbour heights of the relief normal: no image; the fragment's own land weight: the displayed albedo
+    expect(shader.fragmentShader).toContain('return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw), 0.0);');
+    expect(shader.fragmentShader).toContain('return coastWaterTw(uv, mix(step(h, 0.0), texture2D(uWaterMaskTw, uv).r, uWaterMaskReadyTw), coastImageLandTw(albedo, uv));');
+    expect(shader.fragmentShader).toContain('float surfaceLandWeightTw = 1.0 - surfaceWaterTw(vMapUv, surfaceReliefTw, surfaceAlbedoTw);');
+    // the albedo is taken right after map_fragment (regional detail included), before the day / night tints
+    const fs0 = shader.fragmentShader;
+    expect(fs0.indexOf('vec3 surfaceAlbedoTw = diffuseColor.rgb;')).toBeGreaterThan(fs0.indexOf('#include <map_fragment>'));
+    expect(fs0.indexOf('vec3 surfaceAlbedoTw = diffuseColor.rgb;')).toBeLessThan(fs0.indexOf('diffuseColor.rgb *= mix(mix(vec3(1.0), nightTintTw'));
     expect(shader.fragmentShader.indexOf('float coastWaterTw(')).toBeLessThan(shader.fragmentShader.indexOf('float reliefWaterTw('));
     expect(shader.vertexShader).not.toContain('uCoastDistTw'); // the vertex displacement keeps MOD44W
     if (name === 'Phong') expect(shader.fragmentShader).toContain('specularStrength = mix(specularStrength, 1.0 - surfaceLandWeightTw, uCoastReadyTw);');
