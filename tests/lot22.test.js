@@ -31,7 +31,7 @@ const EARTH = [
   ['runtime-state', "Runtime state from Earth's own signals", true], // LOT 23
   ['mobile', 'Mobile layout checked on a real phone', true], // LOT 29
   ['measured-performance', 'Measured performance (real GTX 1650, real phone)', true], // LOT 29
-  ['surface-detail', 'Surface detail at high zoom (Sprint 2.4, interpretive)', false],
+  ['surface-detail', 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', false], // LOT 45 (intentional): reworded, still open
 ];
 const PROTEIN = [
   ['alphafold-structure', 'AlphaFold structure via the shared broker', true],
@@ -57,7 +57,7 @@ function evidenceTests(evidence) {
 }
 
 describe.each([
-  ['living-earth', earth, EARTH, 92, 'Surface detail at high zoom (Sprint 2.4, interpretive)', // LOT 29 (LOT 23: 75, LOT 22: 67)
+  ['living-earth', earth, EARTH, 92, 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', // LOT 45 reworded (LOT 29: 92, LOT 23: 75, LOT 22: 67)
     'Live: real relief & bathymetry, physical Sun direction (artistic fill declared), physical earthshine on the Moon, live event and geophysical layers, 365-day history, real sky, still/video export'], // LOT 31
   ['living-protein', protein, PROTEIN, 58, 'Experimental context beside prediction confidence',
     'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins'],

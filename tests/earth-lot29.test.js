@@ -119,7 +119,7 @@ describe('LOT 29: the contract ticks mobile + measured-performance only with bot
     expect(earth.roadmap.criteria.filter((c) => c.done)).toHaveLength(11);
     expect(earth.roadmap.progress).toBe(92);
     expect(open.map((c) => c.id)).toEqual(['surface-detail']);
-    expect(earth.roadmap.next).toBe('Surface detail at high zoom (Sprint 2.4, interpretive)');
+    expect(earth.roadmap.next).toBe('Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill'); // LOT 45 (intentional): reworded, still open
     for (const id of ['mobile', 'measured-performance']) expect(earth.roadmap.criteria.find((c) => c.id === id).evidence).toMatch(/docs\/perf\/2026-11-19-earth-/);
   });
 });
