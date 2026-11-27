@@ -195,6 +195,7 @@
     #issStatus,
     #airglowStatus,
     #zodiacalLightStatus,
+    #interpretiveMaterialStatus,
     #noctilucentCloudStatus,
     #dataSourceStatus,
     #eonetRefreshStatus {
@@ -298,6 +299,7 @@
     #issStatus[data-state="on"],
     #airglowStatus[data-state="on"],
     #zodiacalLightStatus[data-state="on"],
+    #interpretiveMaterialStatus[data-state="on"],
     #noctilucentCloudStatus[data-state="on"] {
         color: #d7f2ff;
         border-color: rgba(127, 214, 255, 0.24);
@@ -812,6 +814,8 @@
             </label>
             <input id="zodiacalIntensity" type="range" min="0.35" max="2.2" step="0.05" value="1">
         </div>
+        <button id="interpretiveMaterialBtn" type="button" aria-pressed="false" title="Interpretive material response (procedural, not geography): a smooth roughness / specular variation on land near the camera (full below camera distance 4.7, fading out to 6.0). Off by default; the imagery and relief stay the observed / reconstructed data either way.">Interpretive material: off</button>
+        <div id="interpretiveMaterialStatus" data-state="off">Interpretive material: off</div>
         <button id="noctilucentCloudBtn" title="Seasonal mesospheric ice clouds constrained to high-latitude twilight; procedural morphology, not a live cloud snapshot.">Noctilucent: off</button>
         <div id="noctilucentCloudStatus" data-state="off">Noctilucent: off</div>
         <select id="noctilucentPreset" title="Noctilucent visibility preset">

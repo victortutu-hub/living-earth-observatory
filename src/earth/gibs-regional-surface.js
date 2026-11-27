@@ -180,11 +180,13 @@ export function regionalWindowKey(selection) {
 }
 
 /** Suffix of the #surfaceStatus line ('' when the layer is off). */
-export function describeRegionalStatus(status) {
+// LOT 46: `base` is what is on the globe under the detail: 'z3' (the GIBS level) or 'local fallback texture' (the
+// bundled Blue Marble NG image, when GIBS itself is unavailable). The status says what is on screen.
+export function describeRegionalStatus(status, base = 'z3') {
     if (!status || status.state === 'off') return '';
     const z = `regional detail z${status.level}`;
-    if (status.state === 'unavailable') return ` · ${z} unavailable (${status.failed} tiles failed) — z3 shown`;
-    if (status.state === 'partial') return ` · ${z}: ${status.failed} of ${status.wanted} tiles unavailable — z3 shown there; ${REGIONAL_LABEL}`;
+    if (status.state === 'unavailable') return ` · ${z} unavailable (${status.failed} tiles failed) — ${base} shown`;
+    if (status.state === 'partial') return ` · ${z}: ${status.failed} of ${status.wanted} tiles unavailable — ${base} shown there; ${REGIONAL_LABEL}`;
     if (status.state === 'loading') return ` · ${z} loading (${status.resident}/${status.wanted} tiles); ${REGIONAL_LABEL}`;
     return ` · ${z} (${status.resident}/${status.wanted} tiles); ${REGIONAL_LABEL}`;
 }

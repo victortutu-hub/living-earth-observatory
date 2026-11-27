@@ -79,6 +79,8 @@ export function createAppVisualFoundation({
         getEarthMatPBR,
         setMaterialMode,
         setSurfaceMaterialResponseEnabled,
+        toggleInterpretiveMaterial, // LOT 46
+        getInterpretiveMaterialEnabled, // LOT 46
         getSurfaceMaterialDebugSnapshot,
         surfaceReady,
         nightLights,
@@ -165,6 +167,8 @@ export function createAppVisualFoundation({
         getEarthMatPBR,
         setMaterialMode,
         setSurfaceMaterialResponseEnabled,
+        toggleInterpretiveMaterial, // LOT 46
+        getInterpretiveMaterialEnabled, // LOT 46
         getSurfaceMaterialDebugSnapshot,
         surfaceReady,
         nightLights,

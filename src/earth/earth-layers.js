@@ -1,7 +1,8 @@
 import { makeAtmosphereMat, setAtmosphereMode } from './atmosphere.js';
-import { createEarthMaterial, createEarthMaterialPBR, syncActiveReliefTexture } from './earth-material.js';
+import { createEarthMaterial, createEarthMaterialPBR, setSurfaceMesoDefine, syncActiveReliefTexture } from './earth-material.js';
 import { createEarthRoughnessTexture } from './earth-roughness.js';
-import { createSurfaceMaterialLodConfig, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
+import { INTERPRETIVE_MATERIAL_SOURCE, createSurfaceMaterialLodConfig, describeInterpretiveMaterial, interpretiveMaterialStatusText, surfaceMaterialDebugModeFromSearch, surfaceMaterialDiagnosticGainFromSearch } from './surface-material-lod.js';
+import { composeProvenanceStatus } from './temporal-provenance.js';
 import { surfaceVisualCaseFromSearch, surfaceVisualOverridesFromSearch } from './surface-visual-lock.js';
 import { BUNDLED_BLUE_MARBLE_WIDTH, NIGHT_LIGHTS_FALLBACK_LABEL } from './earth-textures.js';
 import { makeNightLightsMat } from './night-lights.js';
@@ -60,6 +61,8 @@ export function createEarthLayers({
         mode: surfaceMaterialDebugModeFromSearch(window.location.search),
         diagnosticGain: surfaceMaterialDiagnosticGainFromSearch(window.location.search)
     });
+    // LOT 46: the interpretive material layer, off by default (?surfaceMaterial=on starts it on); not persisted.
+    let interpretiveMaterialOn = surfaceMaterial.mode === 'on';
     const nightLightsStatus = {
         state: 'loading',
         message: 'Black Marble: loading NASA GIBS / VIIRS 2016 — terminator linked'
@@ -90,8 +93,12 @@ export function createEarthLayers({
     let layersDisposed = false;
     let surfaceStats = [];
     const isAbort = (error) => error?.name === 'AbortError' || gibsController.signal.aborted;
+    // LOT 46: what is under the regional detail: the GIBS level on the globe, or the bundled (local) fallback texture.
+    let surfaceBase = 'local fallback texture';
     function reportSurface(event) {
         surfaceEvent = { kind: event.kind, retryWhenVisible: Boolean(event.retryWhenVisible) };
+        if ((event.kind === 'preview' || event.kind === 'settled') && Number.isFinite(event.z)) surfaceBase = `z${event.z}`;
+        else if (event.kind === 'still-loading' || event.kind === 'unavailable') surfaceBase = 'local fallback texture';
         publishSurfaceStatus(surfaceStatusFor(event));
     }
 
@@ -102,7 +109,7 @@ export function createEarthLayers({
     function publishSurfaceStatus(next) {
         Object.assign(surfaceStatus, next);
         if (next.message !== undefined) surfaceBaseMessage = next.message;
-        surfaceStatus.message = `${surfaceBaseMessage}${describeRegionalStatus(regionalStatus)}${describeTerrainStatus(terrainStatus)}`;
+        surfaceStatus.message = `${surfaceBaseMessage}${describeRegionalStatus(regionalStatus, surfaceBase)}${describeTerrainStatus(terrainStatus)}${describeInterpretiveMaterial(interpretiveMaterialOn)}`;
         surfaceStatusListener?.({ ...surfaceStatus });
     }
 
@@ -197,6 +204,7 @@ export function createEarthLayers({
                     terrainRelief,
                     ...reliefMaterialOptions
                 });
+                setSurfaceMesoDefine(earthMatPBR, interpretiveMaterialOn); // LOT 46: the current layer state
                 return earthMatPBR;
             })
             .catch(error => {
@@ -242,16 +250,31 @@ export function createEarthLayers({
         }
     }
 
-    // Debug-only same-session A/B hook. It changes only the meso material
-    // response uniform; maps, material objects and scene state stay untouched.
-    function setSurfaceMaterialResponseEnabled(enabled) {
-        const value = enabled ? 1 : 0;
-        for (const material of [earthMat, earthMatPBR]) {
-            const uniform = material?.userData?.shader?.uniforms?.uSurfaceMaterialMesoEnabledTw;
-            if (uniform) uniform.value = value;
-        }
-        return value === 1;
+    // LOT 46: the interpretive material layer (also the visual-lock A/B hook). On / off is a define of both Earth
+    // materials (the meso code is compiled only when on; toggling recompiles); maps and scene state stay untouched.
+    // The export renderers draw the same materials, so they follow the same state. Declared in the surface status
+    // and in #interpretiveMaterialStatus (provenance from the source registry).
+    function updateInterpretiveMaterialUi() {
+        const button = document.getElementById('interpretiveMaterialBtn');
+        const status = document.getElementById('interpretiveMaterialStatus');
+        if (button) { button.textContent = `Interpretive material: ${interpretiveMaterialOn ? 'on' : 'off'}`; button.setAttribute('aria-pressed', String(interpretiveMaterialOn)); }
+        if (!status) return;
+        status.dataset.state = interpretiveMaterialOn ? 'on' : 'off';
+        const composed = interpretiveMaterialOn
+            ? composeProvenanceStatus(INTERPRETIVE_MATERIAL_SOURCE, interpretiveMaterialStatusText(true, surfaceMaterial))
+            : { message: interpretiveMaterialStatusText(false, surfaceMaterial), title: '' };
+        status.textContent = composed.message;
+        status.title = composed.title;
     }
+    function setSurfaceMaterialResponseEnabled(enabled) {
+        interpretiveMaterialOn = Boolean(enabled);
+        for (const material of [earthMat, earthMatPBR]) setSurfaceMesoDefine(material, interpretiveMaterialOn);
+        updateInterpretiveMaterialUi();
+        publishSurfaceStatus({});
+        return interpretiveMaterialOn;
+    }
+    const toggleInterpretiveMaterial = () => setSurfaceMaterialResponseEnabled(!interpretiveMaterialOn);
+    updateInterpretiveMaterialUi();
 
     function getSurfaceMaterialDebugSnapshot() {
         const map = earth.material?.map;
@@ -485,6 +508,8 @@ export function createEarthLayers({
         getEarthMatPBR: () => earthMatPBR,
         setMaterialMode,
         setSurfaceMaterialResponseEnabled,
+        toggleInterpretiveMaterial, // LOT 46
+        getInterpretiveMaterialEnabled: () => interpretiveMaterialOn, // LOT 46
         getSurfaceMaterialDebugSnapshot,
         surfaceReady,
         nightLights,

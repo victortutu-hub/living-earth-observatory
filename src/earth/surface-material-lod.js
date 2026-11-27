@@ -1,5 +1,8 @@
 // Sprint 2.4B: this is an interpretive material response, not geography.
 // Blue Marble/GIBS and ETOPO remain the observed / observed-derived signals.
+// LOT 46: OFF by default. It is an optional layer ("Interpretive material", source interpretiveMaterial, provenance
+// interpretive), declared in the surface status when on; off, its shader code is not compiled (earth-material.js
+// SURFACE_MESO_DEFINE). Debug URL ?surfaceMaterial=on still starts it on.
 export const SURFACE_MATERIAL_REPRESENTATION = Object.freeze({
     observed: 'Blue Marble / GIBS surface imagery',
     observedDerived: 'ETOPO relief and normal',
@@ -40,7 +43,7 @@ export function surfaceMaterialDebugModeFromSearch(search = '') {
     const requested = new URLSearchParams(search).get('surfaceMaterial');
     return Object.hasOwn(SURFACE_MATERIAL_DEBUG_MODES, requested)
         ? requested
-        : SURFACE_MATERIAL_DEBUG_MODES.on;
+        : SURFACE_MATERIAL_DEBUG_MODES.off; // LOT 46: off by default
 }
 
 // Development-only gain for proving the shader path. It never changes the
@@ -52,7 +55,7 @@ export function surfaceMaterialDiagnosticGainFromSearch(search = '') {
 
 export function createSurfaceMaterialLodConfig({
     earthRadius = 2,
-    mode = SURFACE_MATERIAL_DEBUG_MODES.on,
+    mode = SURFACE_MATERIAL_DEBUG_MODES.off, // LOT 46: off by default
     diagnosticGain = 1
 } = {}) {
     if (!Number.isFinite(earthRadius) || earthRadius <= 0) {
@@ -60,7 +63,7 @@ export function createSurfaceMaterialLodConfig({
     }
     const resolvedMode = Object.hasOwn(SURFACE_MATERIAL_DEBUG_MODES, mode)
         ? mode
-        : SURFACE_MATERIAL_DEBUG_MODES.on;
+        : SURFACE_MATERIAL_DEBUG_MODES.off;
     const resolvedDiagnosticGain = Number.isFinite(diagnosticGain)
         ? Math.min(4, Math.max(1, diagnosticGain))
         : 1;
@@ -76,6 +79,19 @@ export function createSurfaceMaterialLodConfig({
         mesoFullDistance: earthRadius * SURFACE_MATERIAL_LOD.mesoFullRadiusMultiplier,
         mesoFadeOutDistance: earthRadius * SURFACE_MATERIAL_LOD.mesoFadeOutRadiusMultiplier
     });
+}
+
+// LOT 46: the layer's status. On: what it does, where, and that it is interpretive (the provenance label comes from
+// the source registry, src/config/source-registry.js interpretiveMaterial).
+export const INTERPRETIVE_MATERIAL_SOURCE = 'interpretiveMaterial';
+export function interpretiveMaterialStatusText(enabled, config = createSurfaceMaterialLodConfig()) {
+    return enabled
+        ? `Interpretive material: on — procedural roughness / specular variation on land, full below camera distance ${config.mesoFullDistance}, fading out to ${config.mesoFadeOutDistance}; not geography`
+        : 'Interpretive material: off';
+}
+/** The suffix of the surface status line while the layer is on ('' when off). */
+export function describeInterpretiveMaterial(enabled) {
+    return enabled ? ' · interpretive material on (procedural roughness / specular on land, not geography)' : '';
 }
 
 export function surfaceMaterialLodWeights(cameraDistance, config) {

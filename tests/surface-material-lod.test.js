@@ -12,7 +12,15 @@ import {
 import { syncActiveReliefTexture } from '../src/earth/earth-material.js';
 
 describe('surface material LOD', () => {
-    const config = createSurfaceMaterialLodConfig({ earthRadius: 2 });
+    // LOT 46 (intentional): the layer is off by default; the blending is checked with it on.
+    const config = createSurfaceMaterialLodConfig({ earthRadius: 2, mode: 'on' });
+
+    it('LOT 46: off by default (config and URL), on only on request', () => {
+        expect(createSurfaceMaterialLodConfig({ earthRadius: 2 }).mode).toBe(SURFACE_MATERIAL_DEBUG_MODES.off);
+        expect(surfaceMaterialDebugModeFromSearch('')).toBe(SURFACE_MATERIAL_DEBUG_MODES.off);
+        expect(surfaceMaterialDebugModeFromSearch('?surfaceMaterial=bogus')).toBe(SURFACE_MATERIAL_DEBUG_MODES.off);
+        expect(surfaceMaterialLodWeights(3.1, createSurfaceMaterialLodConfig({ earthRadius: 2 }))).toEqual({ meso: 0 });
+    });
 
     it('keeps global views unchanged and blends continental, regional and close ranges', () => {
         expect(config.mesoFullDistance).toBe(4.7);

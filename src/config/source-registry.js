@@ -498,6 +498,22 @@ export const SOURCE_DEFINITIONS = Object.freeze({
     visuals: ['Regional terrain overview', 'Terrarium summit detail (alternative)', 'Earth relief shading detail near the globe (land only; ETOPO 2022 elsewhere)'],
     observatories: ['living-himalaya', 'living-earth'],
   }),
+  // LOT 46: optional, off by default (src/earth/surface-material-lod.js).
+  interpretiveMaterial: defineSource({
+    title: 'Interpretive material (roughness / specular on land)',
+    provenance: 'interpretive',
+    provenanceNote: 'Procedural material response, not geography and not measured: two smooth bands of the direction on the sphere (frequency 7) vary the specular (Phong, ±14 %) or the roughness (PBR, ±0.085) on land; full below camera distance 4.7, fading out to 6.0; off by default, an optional layer',
+    authority: 'Luminomorphism Lab rendering',
+    endpoint: 'Local shader (src/earth/surface-material-lod.js, earth-material.js)',
+    type: 'Procedural material variation',
+    process: 'Compiled into the Earth material only while the layer is on; the observed imagery (Blue Marble NG) and the relief (ETOPO, Terrarium) are not changed.',
+    scope: 'Rendered locally by the Earth Observatory when the user turns it on; no data is fetched. The PNG / video export draws the same materials.',
+    access: { kind: 'local-rendering', label: 'Local procedural rendering', requiresProxy: false },
+    license: 'Project code.',
+    privacyClass: 'local-asset',
+    visuals: ['Land roughness / specular variation near the camera (optional)'],
+    observatories: ['living-earth'],
+  }),
   airglow: defineSource({
     title: 'Airglow layer',
     provenance: 'interpretive',
@@ -671,6 +687,7 @@ export const INITIAL_SOURCE_STATUS = Object.freeze({
   himalayaTerrainGlo30: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   terrariumTiles: { value: 'TILES', state: 'declared', updated: null },
   airglow: { value: 'PROCEDURAL', state: 'declared', updated: null },
+  interpretiveMaterial: { value: 'PROCEDURAL', state: 'declared', updated: null }, // LOT 46
   realSky: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   himalayaSkyNight: { value: 'LOCAL ASSET', state: 'declared', updated: null },
   himalayaSkyTwilight: { value: 'EMPIRICAL FIT', state: 'declared', updated: null },

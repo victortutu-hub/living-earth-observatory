@@ -163,6 +163,7 @@ export const OBSERVATORY_REGISTRY = Object.freeze([
       'openMeteo', 'openMeteoMarine', 'openMeteoEra5', 'openMeteoMarineArchive', 'gvp', 'airglow', 'zodiacal', 'noctilucent', 'realSky',
       'himalayaPeaks', 'moonTextures', 'earthNightLightsLocal', 'earthCloudsStatic', // LOT 30
       'naturalEarthLand', // LOT 43
+      'interpretiveMaterial', // LOT 46
       'terrariumTiles', // LOT 42
     ]),
     roadmap: ROADMAP.earth,

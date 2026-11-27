@@ -91,6 +91,8 @@ export function createEarthAppServices({
         getEarthMatPBR,
         setMaterialMode,
         setSurfaceMaterialResponseEnabled,
+        toggleInterpretiveMaterial, // LOT 46
+        getInterpretiveMaterialEnabled, // LOT 46
         getSurfaceMaterialDebugSnapshot,
         surfaceReady,
         nightLights,
@@ -510,6 +512,7 @@ export function createEarthAppServices({
     });
 
     const appRuntime = createEarthAppRuntime({
+        toggleInterpretiveMaterial, // LOT 46
         state,
         camera,
         renderer,

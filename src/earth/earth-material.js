@@ -264,7 +264,6 @@ function injectSurfaceMaterialShared(shader, { surfaceMaterial }) {
     shader.uniforms.uSurfaceMaterialCameraDistanceTw = { value: Infinity };
     shader.uniforms.uSurfaceMaterialMesoFullDistanceTw = { value: surfaceMaterial.mesoFullDistance };
     shader.uniforms.uSurfaceMaterialMesoFadeDistanceTw = { value: surfaceMaterial.mesoFadeOutDistance };
-    shader.uniforms.uSurfaceMaterialMesoEnabledTw = { value: surfaceMaterial.mode === 'off' ? 0 : 1 };
     shader.uniforms.uSurfaceMaterialMesoFrequencyTw = { value: surfaceMaterial.mesoFrequency };
     shader.uniforms.uSurfaceMaterialPbrRoughnessAmplitudeTw = { value: surfaceMaterial.pbrRoughnessAmplitude };
     shader.uniforms.uSurfaceMaterialPbrRoughnessMinTw = { value: surfaceMaterial.pbrRoughnessMin };
@@ -284,30 +283,44 @@ function injectSurfaceMaterialShared(shader, { surfaceMaterial }) {
     shader.fragmentShader = shader.fragmentShader.replace(
         '#include <common>',
         `#include <common>
+        uniform float uSurfaceMaterialPbrRoughnessMinTw;
+        uniform float uSurfaceMaterialPbrRoughnessMaxTw;
+        varying vec3 vSurfaceMaterialDirectionTw;
+        #ifdef ${SURFACE_MESO_DEFINE}
+        // LOT 46: the interpretive meso material response is compiled only when the layer is on (off by default).
         uniform float uSurfaceMaterialCameraDistanceTw;
         uniform float uSurfaceMaterialMesoFullDistanceTw;
         uniform float uSurfaceMaterialMesoFadeDistanceTw;
-        uniform float uSurfaceMaterialMesoEnabledTw;
         uniform float uSurfaceMaterialMesoFrequencyTw;
         uniform float uSurfaceMaterialPbrRoughnessAmplitudeTw;
-        uniform float uSurfaceMaterialPbrRoughnessMinTw;
-        uniform float uSurfaceMaterialPbrRoughnessMaxTw;
         uniform float uSurfaceMaterialPhongSpecularAmplitudeTw;
-        varying vec3 vSurfaceMaterialDirectionTw;
 
         float surfaceMaterialMesoWeightTw() {
-            return uSurfaceMaterialMesoEnabledTw * (1.0 - smoothstep(
+            return 1.0 - smoothstep(
                 uSurfaceMaterialMesoFullDistanceTw,
                 uSurfaceMaterialMesoFadeDistanceTw,
                 uSurfaceMaterialCameraDistanceTw
-            ));
+            );
         }
         float surfaceMaterialSignalTw(vec3 direction, float frequency) {
             float a = sin(dot(direction, vec3(1.17, 0.61, 0.83)) * frequency + 0.37);
             float b = sin(dot(direction, vec3(-0.49, 1.31, 0.72)) * frequency - 0.91);
             return clamp(0.5 + a * 0.30 + b * 0.20, 0.0, 1.0);
-        }`
+        }
+        #endif`
     );
+}
+
+// LOT 46: the interpretive material layer (surface-material-lod.js) is a compile-time define on both Earth materials:
+// off (the default) = the meso code is not in the program at all; on = the LOT 2.4B response. Toggling recompiles.
+export const SURFACE_MESO_DEFINE = 'SURFACE_MESO_TW';
+export function setSurfaceMesoDefine(material, enabled) {
+    if (!material) return;
+    material.defines = material.defines || {};
+    const has = Object.hasOwn(material.defines, SURFACE_MESO_DEFINE);
+    if (enabled === has) return;
+    if (enabled) material.defines[SURFACE_MESO_DEFINE] = ''; else delete material.defines[SURFACE_MESO_DEFINE];
+    material.needsUpdate = true;
 }
 
 function surfaceMaterialPbrRoughnessBody() {
@@ -316,24 +329,29 @@ function surfaceMaterialPbrRoughnessBody() {
         // colour-classified "ocean" texel on land takes the "other" value (0.68).
         roughnessFactor = mix(roughnessFactor,
             mix(roughnessFactor < 0.3 ? 0.68 : roughnessFactor, 0.22, 1.0 - surfaceLandWeightTw), uCoastReadyTw);
-        vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
-        float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
-        roughnessFactor = clamp(
-            roughnessFactor + surfaceMesoTw * uSurfaceMaterialPbrRoughnessAmplitudeTw * surfaceLandWeightTw * surfaceMaterialMesoWeightTw(),
-            uSurfaceMaterialPbrRoughnessMinTw,
-            uSurfaceMaterialPbrRoughnessMaxTw
-        );`;
+        #ifdef ${SURFACE_MESO_DEFINE}
+        {
+            vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
+            float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
+            roughnessFactor += surfaceMesoTw * uSurfaceMaterialPbrRoughnessAmplitudeTw * surfaceLandWeightTw * surfaceMaterialMesoWeightTw();
+        }
+        #endif
+        roughnessFactor = clamp(roughnessFactor, uSurfaceMaterialPbrRoughnessMinTw, uSurfaceMaterialPbrRoughnessMaxTw);`;
 }
 
 function surfaceMaterialPhongSpecularBody() {
     return `
-            // Same deterministic meso response and LOD as PBR. The existing
-            // specular map provides the water suppression before ocean glints.
-            vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
-            float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
-            float surfaceLandFromSpecularTw = 1.0 - smoothstep(0.05, 0.55, specularStrength);
-            specularStrength *= 1.0 - surfaceMesoTw * uSurfaceMaterialPhongSpecularAmplitudeTw *
-                surfaceLandFromSpecularTw * surfaceMaterialMesoWeightTw();`;
+            #ifdef ${SURFACE_MESO_DEFINE}
+            {
+                // Same deterministic meso response and LOD as PBR. The existing
+                // specular map provides the water suppression before ocean glints.
+                vec3 surfaceDirectionTw = normalize(vSurfaceMaterialDirectionTw);
+                float surfaceMesoTw = surfaceMaterialSignalTw(surfaceDirectionTw, uSurfaceMaterialMesoFrequencyTw) - 0.5;
+                float surfaceLandFromSpecularTw = 1.0 - smoothstep(0.05, 0.55, specularStrength);
+                specularStrength *= 1.0 - surfaceMesoTw * uSurfaceMaterialPhongSpecularAmplitudeTw *
+                    surfaceLandFromSpecularTw * surfaceMaterialMesoWeightTw();
+            }
+            #endif`;
 }
 
 export function createEarthMaterial({
@@ -376,6 +394,7 @@ export function createEarthMaterial({
 
     material.userData.reliefSource = RELIEF_SOURCE;
     material.userData.surfaceMaterial = surfaceMaterial;
+    setSurfaceMesoDefine(material, surfaceMaterial.mode === 'on'); // LOT 46: off by default
     material.onBeforeCompile = shader => {
         injectSurfaceMaterialShared(shader, { surfaceMaterial });
         injectReliefAndAerialPerspective(shader, THREE, {
@@ -541,6 +560,7 @@ export function createEarthMaterialPBR({
     material.userData.roughnessSource = earthRoughnessMap.userData?.source
         || 'Procedural roughness/metalness approximation (see earth-roughness.js)';
     material.userData.surfaceMaterial = surfaceMaterial;
+    setSurfaceMesoDefine(material, surfaceMaterial.mode === 'on'); // LOT 46: off by default
     material.onBeforeCompile = shader => {
         injectSurfaceMaterialShared(shader, { surfaceMaterial });
         injectDayNightTint(shader, THREE);

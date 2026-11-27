@@ -295,6 +295,7 @@ export function createControlPanel({ state }) {
         toggleAirglowLayer,
         updateAirglowSettings,
         toggleZodiacalLight,
+        toggleInterpretiveMaterial, // LOT 46
         toggleNoctilucentClouds,
         updateNoctilucentSettings,
         toggleMoonMarkers,
@@ -357,6 +358,9 @@ export function createControlPanel({ state }) {
         });
         byId('zodiacalLightBtn')?.addEventListener('click', () => {
             toggleZodiacalLight?.();
+        });
+        byId('interpretiveMaterialBtn')?.addEventListener('click', () => {
+            toggleInterpretiveMaterial?.(); // LOT 46
         });
         byId('noctilucentCloudBtn')?.addEventListener('click', () => {
             toggleNoctilucentClouds?.();

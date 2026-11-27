@@ -7,6 +7,7 @@ import { EARTH_TIME_CAPABILITIES } from './temporal-provenance.js';
 import { sceneHourOf } from './field-day-history.js';
 
 export function createEarthAppRuntime({
+    toggleInterpretiveMaterial = null, // LOT 46
     state,
     camera,
     renderer,
@@ -521,6 +522,7 @@ export function createEarthAppRuntime({
             toggleAirglowLayer,
             updateAirglowSettings,
             toggleZodiacalLight,
+            toggleInterpretiveMaterial, // LOT 46
             toggleNoctilucentClouds,
             updateNoctilucentSettings,
             toggleMoonMarkers,
