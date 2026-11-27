@@ -42,7 +42,8 @@ describe('LOT 22 protein: parseAlphaFoldPdb (criterion alphafold-structure)', ()
     expect(data).toContain('fetchJsonResource');
     expect(data).toContain('fetchTextResource');
     expect(data).not.toMatch(/\bfetch\(/);
-    expect(data).toContain("throw new Error('AlphaFold DB returned no PDB structure URL.')");
+    // LOT 48: the model file comes from its known URL (no pdbUrl from the API any more); see tests/protein-lot48.test.js.
+    expect(data).toContain('alphafold:${normalized}:cif:v${version}');
   });
 });
 
@@ -115,9 +116,9 @@ describe('LOT 22 protein: curated models (criterion curated-models)', () => {
     const html = text('living-protein.html');
     for (const accession of ['P04637', 'P69905', 'P61626', 'P00918']) {
       expect(app).toMatch(new RegExp(`${accession}: \\{\\n    accession: '${accession}'`));
-      expect(html).toContain(`<option value="${accession}">`);
+      expect(html).toContain(`data-accession="${accession}"`); // LOT 48: chips in the protein bar instead of a <select>
     }
-    expect(html.match(/<option value="P\d+">/g)).toHaveLength(4);
+    expect(html.match(/data-accession="P\d+"/g)).toHaveLength(4);
     expect(app.match(/storyTitle:/g)).toHaveLength(4);
     expect(app.match(/pdbUrl: 'https:\/\/www\.rcsb\.org\/structure\/[0-9A-Z]{4}'/g)).toHaveLength(4);
   });
@@ -128,9 +129,10 @@ describe('LOT 22 protein: explicit fallback (criterion explicit-fallback)', () =
     const app = text('src/protein/protein-app.js');
     expect(app).toContain('documented fallback trace active');
     expect(app).toContain('Fallback is illustrative continuity only; it is not a live molecular structure for ${model.accession}.');
-    expect(app).toContain('Fallback trace active while AlphaFold DB and UniProt load ${model.accession}.');
+    // LOT 48: nothing is drawn while loading; the fallback trace is the error state only.
+    expect(app).toContain('No structure is drawn while AlphaFold DB and UniProt load ${model.accession}.');
     expect(app).toContain("'UniProt annotations unavailable; structure remains available.'");
-    expect(text('living-protein.html')).toContain('Preparing documented fallback trace');
+    expect(text('living-protein.html')).toContain('Preparing the AlphaFold model'); // LOT 48
   });
 
   it('initial source status is FALLBACK with explicit reasons', () => {
@@ -152,7 +154,7 @@ describe('LOT 22 protein: source registry entries (criterion provenance)', () =>
   it('Living Protein declares exactly these sources and shows a provenance line', () => {
     const protein = OBSERVATORY_REGISTRY.find((item) => item.id === 'living-protein');
     expect([...protein.sources]).toEqual(['alpha', 'uniprot']);
-    expect(text('src/protein/protein-app.js')).toContain('`Model prediction: AlphaFold DB / EMBL-EBI - ${prediction.modelId}`');
+    expect(text('src/protein/protein-app.js')).toContain('`Model prediction: AlphaFold DB / EMBL-EBI · ${prediction.modelId}`'); // LOT 48: "·" separator
     expect(text('living-protein.html')).toContain('id="proteinProvenance"');
   });
 });

@@ -76,7 +76,7 @@ describe('LOT 25: parsing helpers', () => {
     // LOT 30: Inter is served locally (styles/inter.css) before each page's own stylesheet.
     expect(stylesheetLinks(read('index.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/main.css', token: 'lot36herotap1' }]);
     expect(stylesheetLinks(read('living-himalaya.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/himalaya.css', token: 'himalayaLot26' }]);
-    expect(stylesheetLinks(read('living-protein.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/protein.css', token: 'atlasProteinMount1' }]);
+    expect(stylesheetLinks(read('living-protein.html'))).toEqual([{ css: 'styles/inter.css', token: 'lot30inter1' }, { css: 'styles/protein.css', token: 'lot48protein1' }]);
   });
 
   it('parses a deploy manifest (sha256, two spaces, path)', () => {

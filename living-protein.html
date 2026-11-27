@@ -7,42 +7,69 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%2322D3EE' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%2322D3EE' fill-opacity='.35'/%3E%3C/svg%3E" />
   <meta name="description" content="A traceable molecular observatory built from AlphaFold model predictions and UniProt annotations.">
   <link rel="stylesheet" href="./styles/inter.css?v=lot30inter1">
-  <link rel="stylesheet" href="./styles/protein.css?v=atlasProteinMount1">
+  <link rel="stylesheet" href="./styles/protein.css?v=lot48protein1">
   <script type="importmap">{"imports":{"three":"./lib/three@0.185.1/build/three.module.js","three/addons/":"./lib/three@0.185.1/examples/jsm/"}}</script>
 </head>
 <body>
   <div id="appFadeOverlay" aria-hidden="true">Living Protein Observatory</div>
   <canvas id="proteinStage" aria-label="Interactive AlphaFold protein structure"></canvas>
-  <header class="protein-header">
-    <div class="protein-brand"><span>Luminomorphism / Molecular Scale</span><h1>Living Protein Observatory</h1><p>One predicted structure at a time, with source and model confidence kept visible.</p></div>
-    <a class="protein-return" href="./index.html?portalReturn=atlas">Return to Atlas</a>
+  <header class="protein-bar">
+    <div class="protein-brand"><span>Luminomorphism · Molecular scale</span><h1>Living Protein Observatory</h1></div>
+    <nav class="protein-models" aria-label="Protein models"><div class="protein-models-track" id="proteinModels">
+      <button type="button" class="protein-chip" data-accession="P04637" aria-pressed="true">p53</button>
+      <button type="button" class="protein-chip" data-accession="P69905" aria-pressed="false">Hemoglobin α</button>
+      <button type="button" class="protein-chip" data-accession="P61626" aria-pressed="false">Lysozyme C</button>
+      <button type="button" class="protein-chip" data-accession="P00918" aria-pressed="false">Carbonic anhydrase 2</button>
+    </div></nav>
+    <a class="protein-return" href="./index.html?portalReturn=atlas" aria-label="Return to Atlas"><span class="protein-wide-only">Return to </span>Atlas</a>
+    <div class="protein-loading" id="proteinLoading" data-state="loading" role="status"><i aria-hidden="true"></i><span id="proteinLoadingText">Preparing the AlphaFold model…</span></div>
   </header>
-  <section class="protein-panel protein-summary" aria-live="polite">
-    <span class="protein-kicker">Model subject</span><h2 id="proteinName">Cellular tumor antigen p53</h2><p id="proteinAccession">P04637 - preparing model structure</p>
-    <label class="protein-model-picker" for="proteinModel"><span>Protein model</span><select id="proteinModel"><option value="P04637">p53 - cellular tumor antigen</option><option value="P69905">Hemoglobin subunit alpha</option><option value="P61626">Lysozyme C</option><option value="P00918">Carbonic anhydrase II</option></select></label>
-    <div class="protein-status" id="proteinStatus">Preparing documented fallback trace</div><p id="proteinProvenance"></p>
-    <section class="protein-model-story" aria-label="Protein model guide">
-      <span class="protein-kicker">Curated model guide</span>
-      <h3 id="proteinStoryTitle">Genome surveillance under stress</h3>
-      <p id="proteinStoryRole">p53 coordinates a cellular response to DNA damage and other stress signals.</p>
-      <p id="proteinStoryFocus">Inspect the compact DNA-binding core first; flexible terminal regions are expected to carry lower AlphaFold confidence.</p>
-      <div class="protein-story-links">
-        <a id="proteinStoryUniProt" href="https://www.uniprot.org/uniprotkb/P04637/entry" target="_blank" rel="noreferrer">UniProt record</a>
-        <a id="proteinStoryPdb" href="https://www.rcsb.org/structure/2OCJ" target="_blank" rel="noreferrer">Experimental PDB</a>
-      </div>
+  <div class="protein-panels">
+    <section class="protein-card protein-summary" id="proteinSummaryCard" aria-live="polite">
+      <details id="proteinSummaryDetails" open>
+        <summary><span class="protein-kicker">Model subject</span><h2 id="proteinName">Cellular tumor antigen p53</h2><p id="proteinAccession">P04637 · preparing the model structure</p></summary>
+        <div class="protein-status" id="proteinStatus">Preparing the AlphaFold model</div>
+        <p class="protein-provenance" id="proteinProvenance"></p>
+        <p class="protein-version" id="proteinVersion"></p>
+        <details class="protein-model-story" id="proteinStoryDetails" aria-label="Protein model guide" open>
+          <summary><h3 id="proteinStoryTitle">Genome surveillance under stress</h3></summary>
+          <p id="proteinStoryRole">p53 coordinates a cellular response to DNA damage and other stress signals.</p>
+          <p id="proteinStoryFocus">Inspect the compact DNA-binding core first; flexible terminal regions are expected to carry lower AlphaFold confidence.</p>
+          <div class="protein-story-links">
+            <a id="proteinStoryUniProt" href="https://www.uniprot.org/uniprotkb/P04637/entry" target="_blank" rel="noreferrer">UniProt record</a>
+            <a id="proteinStoryPdb" href="https://www.rcsb.org/structure/2OCJ" target="_blank" rel="noreferrer">Experimental PDB</a>
+          </div>
+        </details>
+      </details>
     </section>
-  </section>
-  <aside class="protein-panel protein-data" aria-label="Protein provenance and confidence">
-    <span class="protein-kicker">Provenance / confidence</span><h2>Model-derived structure</h2>
-    <div class="metric"><span>Mean pLDDT</span><strong id="confidenceValue">-</strong><p id="confidenceNote">Awaiting AlphaFold model data.</p><ul id="proteinBands"></ul></div>
-    <div class="metric"><span>UniProt cross-reference</span><p id="uniprotStatus">Awaiting functional annotations.</p><ul id="proteinFeatures"></ul></div>
-    <div class="metric protein-feature-inspector" id="featureInspector" hidden>
-      <span>Selected UniProt feature</span>
-      <h3 id="featureInspectorTitle">-</h3>
-      <p id="featureInspectorRange"></p>
-      <p id="featureInspectorConfidence"></p>
-    </div>
-  </aside>
+    <aside class="protein-card protein-data" id="proteinDataCard" aria-label="Protein provenance and confidence">
+      <details id="proteinDataDetails" open>
+        <summary><span class="protein-kicker">AlphaFold confidence</span><span class="protein-mean"><strong id="confidenceValue">-</strong> mean pLDDT</span></summary>
+        <div class="protein-band-bar" id="proteinBandBar" aria-hidden="true"></div>
+        <ul class="protein-bands" id="proteinBands"></ul>
+        <p class="protein-note" id="confidenceNote">Awaiting AlphaFold model data.</p>
+        <dl class="protein-facts">
+          <dt>Secondary structure <span class="protein-tag is-reconstructed" id="proteinSecondaryTag" hidden>reconstructed</span></dt>
+          <dd><span id="proteinSecondary">Awaiting the model file.</span> <span id="proteinSecondaryNote" hidden>DSSP from the AlphaFold mmCIF, computed from the predicted coordinates; helix = α (H) + 3₁₀ (G) + π (I).</span></dd>
+          <dt>Framing</dt>
+          <dd id="proteinFraming"></dd>
+          <dt>Rendering <span class="protein-tag is-stylisation" id="proteinRenderingTag" hidden>stylisation</span></dt>
+          <dd id="proteinRendering">Cartoon (helix ribbon, strand arrow, coil tube) in the AlphaFold DB pLDDT palette; burial occlusion, gloss and depth fade are rendering choices, not data.</dd>
+        </dl>
+        <div class="protein-annotations">
+          <h3>UniProt annotations</h3>
+          <p class="protein-note" id="uniprotStatus">Awaiting functional annotations.</p>
+          <ul id="proteinFeatures"></ul>
+          <div class="protein-feature-inspector" id="featureInspector" hidden>
+            <span class="protein-kicker">Selected UniProt feature</span>
+            <h4 id="featureInspectorTitle">-</h4>
+            <p id="featureInspectorRange"></p>
+            <p id="featureInspectorConfidence"></p>
+          </div>
+        </div>
+      </details>
+    </aside>
+  </div>
   <script type="module">
     import { platformRegistry } from './src/core/platform-registry.js';
     import { createObservatoryModuleHost } from './src/core/observatory/module-host.js';
