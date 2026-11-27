@@ -43,8 +43,23 @@ export function vsyncWaitSummary(report) {
   return `GPU timer vsync waits (>= 0.9 × the refresh interval; they span the wait for the display, not GPU work): ${parts.join(', ')}. The GPU value shown is the p50; the mean is in the JSON.`;
 }
 
+/**
+ * LOT 45 (lumi-earth-perf/3): the GPU headline is the controlled render and the low mode; the phase-collision and
+ * vsync-wait shares are shown next to them, the raw p50 last. Used when the report carries gpuModes.
+ */
+export function hasGpuModes(report) { return (report.scenarios || []).some((s) => s.gpuModes !== undefined); }
+const pct = (v) => (v == null ? '—' : `${Number(v).toFixed(1)} %`);
+export function gpuModesSummary(report) {
+  if (!hasGpuModes(report)) return null;
+  const rows = (report.scenarios || []).filter((s) => s.valid && s.gpuModes);
+  if (!rows.length) return null;
+  const parts = rows.map((s) => `${s.id} ${pct(s.gpuModes.phaseCollisionPct)} phase collision, ${pct(s.gpuModes.vsyncWaitPct)} vsync${s.excludedHiddenSamples ? `, ${s.excludedHiddenSamples} hidden / unfocused samples left out` : ''}`);
+  return `GPU timer modes: the low mode is the render; ${rows[0].gpuModes.thresholdsMs.phaseCollisionMin}-${rows[0].gpuModes.thresholdsMs.phaseCollisionMax} ms samples are a phase collision, not cost; vsync waits span the wait for the display. ${parts.join('; ')}. Headline: the controlled render (16 back-to-back renders, the first dropped); fields = the wind / currents GPU work outside the render timer.`;
+}
+
 /** Results table; `customRow(s, row)` may fill the row of a non-frames scenario and return true. */
 export function resultsTable(report, customRow = () => false) {
+  if (hasGpuModes(report)) return resultsTableV3(report);
   const table = el('table');
   const head = el('tr');
   ['Scenario', 'Valid', 'FPS', 'p50 ms', 'p95 ms', 'p99 ms', 'max ms', '>33 ms', 'GPU p50 ms', 'GPU vsync waits', 'Sky GPU ms', 'Draws', 'Triangles'].forEach((h) => head.append(el('th', null, h)));
@@ -57,6 +72,24 @@ export function resultsTable(report, customRow = () => false) {
       [s.id, s.valid ? 'yes' : `no — ${s.reason}`, fmt(f.meanFps), fmt(f.p50Ms), fmt(f.p95Ms), fmt(f.p99Ms), fmt(f.maxMs), f.over33Ms ?? '—', g ? fmt(g.valueMs, 2) : (s.valid ? 'n/a' : '—'), g && Number.isInteger(g.vsyncWaitSamples) ? String(g.vsyncWaitSamples) : '—', fmt(s.skyGpuMs, 2), s.drawCalls ?? '—', s.triangles ?? '—']
         .forEach((v) => row.append(el('td', null, String(v))));
     }
+    table.append(row);
+  }
+  const wrap = el('div', 'lumi-perf-table');
+  wrap.append(table);
+  return wrap;
+}
+
+function resultsTableV3(report) {
+  const table = el('table');
+  const head = el('tr');
+  ['Scenario', 'Valid', 'FPS', 'p50 ms', 'max ms', '>33 ms', 'GPU render ms (controlled p50)', 'GPU low mode p50 ms', 'Phase collision', 'Vsync waits', 'Fields GPU ms', 'Total GPU ms', 'GPU raw p50 ms', 'Sky GPU ms', 'Draws'].forEach((h) => head.append(el('th', null, h)));
+  table.append(head);
+  for (const s of report.scenarios) {
+    const row = el('tr', s.valid ? null : 'is-invalid');
+    const f = s.frames || {};
+    const m = s.gpuModes || {};
+    [s.id, s.valid ? 'yes' : `no — ${s.reason}`, fmt(f.meanFps), fmt(f.p50Ms), fmt(f.maxMs), f.over33Ms ?? '—', fmt(s.controlledRenderMs?.p50Ms, 2), fmt(m.lowModeP50Ms, 2), pct(m.phaseCollisionPct), pct(m.vsyncWaitPct), fmt(s.fieldsUpdateMs?.p50Ms, 2), fmt(s.totalGpuMs?.controlledMs, 2), fmt(s.gpu?.p50Ms, 2), fmt(s.skyGpuMs, 2), s.drawCalls ?? '—']
+      .forEach((v) => row.append(el('td', null, String(v))));
     table.append(row);
   }
   const wrap = el('div', 'lumi-perf-table');
@@ -118,7 +151,7 @@ export function mountPerfPanel({ schema, scenarios, timing, createRunner, filePr
     const notes = [
       report.environment.headless ? `Note: ${HEADLESS_NOTE}.` : null,
       ...report.scenarios.filter((s) => s.vsync?.likely).map((s) => `${s.id}: ${s.vsync.note}.`),
-      vsyncWaitSummary(report),
+      hasGpuModes(report) ? gpuModesSummary(report) : vsyncWaitSummary(report), // LOT 45
       ...extraNotes(report),
       report.validation.length ? `Schema problems: ${report.validation.join('; ')}` : `Report valid (schema ${schema}).`,
     ].filter(Boolean);

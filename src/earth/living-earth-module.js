@@ -113,6 +113,8 @@ export function createLivingEarthModule({ THREE, earcut }) {
             };
           },
           renderOnce: () => composer.render(),
+          // LOT 45: one update of the field layers (wind, currents), for their controlled GPU timer.
+          updateFieldsOnce: () => { const t = performance.now() / 1000; appServices.windParticles?.update?.(t); appServices.oceanCurrents?.update?.(t); },
           runtime: () => latest && { state: latest.state, reasons: latest.reasons, secondary: latest.secondary, pending: latest.pending },
           loadTimings: () => ({
             firstFrameAt: appRuntime.firstFrameAt(),

@@ -4,10 +4,10 @@
 // B uses the LIVE wind and currents (Open-Meteo, requested directly by the page as in normal use),
 // never the ERA5 / SMOC history through the proxy. The page-load times and the layout checks go in
 // the same report. Nothing is sent anywhere; the user's state is restored afterwards.
-import { EARTH_PERF_SCHEMA, EARTH_PERF_TIMES, EARTH_RUN_TIMING, EARTH_SCENARIOS, HEADLESS_NOTE, validateEarthPerfReport } from './earth-perf-schema.js';
+import { EARTH_PERF_SCHEMA, EARTH_PERF_TIMES, EARTH_RUN_TIMING, EARTH_SCENARIOS, HEADLESS_NOTE, earthGpuHeadline, validateEarthPerfReport } from './earth-perf-schema.js';
 import { runLayoutChecks } from './earth-layout-checks.js';
-import { measureToggleGpuCost } from '../../core/perf/perf-gpu.js';
-import { createScenarioHarness, deviceInfo, isHeadlessEnvironment, nextFrame } from '../../core/perf/perf-harness.js';
+import { measureControlledRender, measureToggleGpuCost } from '../../core/perf/perf-gpu.js';
+import { angleBackend, browserInfo, createScenarioHarness, deviceInfo, isHeadlessEnvironment, nextFrame } from '../../core/perf/perf-harness.js';
 import { mountPerfPanel } from '../../core/perf/perf-panel.js';
 import { SKY_MAP_ASSET } from '../../config/sky-map.js';
 import { SKY_STARS_ASSET } from '../../config/sky-stars.js';
@@ -62,16 +62,31 @@ export function nightView(sunDirection, distance = NIGHT_DISTANCE) {
 }
 
 /**
- * api: { webglContext(), drawingBufferSize(), setFrameProbe(p), setView(target, camera), view(),
+ * api: { webglContext(), drawingBufferSize(), setFrameProbe(p), setView(target, camera), view(), updateFieldsOnce() (LOT 45),
  *        state(), restore(saved), prepare() (static camera, no auto rotation / drift),
  *        setFields({ wind, currents }), fieldStatus(), setTime(iso | null), timeSnapshot(),
  *        sunDirection(), skyToggle() -> { setOn, restore }, renderOnce(), runtime(), loadTimings() }
  */
 export function createEarthPerfRunner({ api, onProgress = () => {}, timing = EARTH_RUN_TIMING, fieldTimeoutMs = FIELD_TIMEOUT_MS }) {
-  const harness = createScenarioHarness({ gl: api.webglContext(), setFrameProbe: (p) => api.setFrameProbe(p), setView: (target, camera) => api.setView(target, camera), timing });
+  // LOT 45 (lumi-earth-perf/3): samples from a hidden or unfocused page are left out and counted; the three GPU modes,
+  // the controlled render and the field layers' own GPU work are reported per scenario.
+  const harness = createScenarioHarness({
+    gl: api.webglContext(), setFrameProbe: (p) => api.setFrameProbe(p), setView: (target, camera) => api.setView(target, camera), timing,
+    pageState: () => ({ visible: document.visibilityState === 'visible', focused: document.hasFocus() }), reportModes: true,
+  });
   const { waitUntil, framesScenario } = harness;
   const settle = async (frames = 10) => { for (let i = 0; i < frames; i++) await nextFrame(); };
+  // LOT 45: 16 back-to-back renders after the window, the first dropped (null if the timer was disjoint).
+  const controlled = async (renderOnce) => {
+    const c = await measureControlledRender({ gl: api.webglContext(), renderOnce, samples: 16, drop: 1 });
+    return c.available && !c.disjoint && c.samples ? { p50Ms: c.p50Ms, p90Ms: c.p90Ms, samples: c.samples } : null;
+  };
+  const measureControlled = () => controlled(api.renderOnce);
+  // The field layers' own GPU work (GPGPU + trails) runs before the render, outside its timer: 16 back-to-back
+  // updates, the first dropped (B).
+  const measureFields = () => controlled(api.updateFieldsOnce);
   const withSky = {
+    measureControlled,
     measureSkyCost: async () => {
       const toggle = api.skyToggle();
       const cost = await measureToggleGpuCost({ gl: api.webglContext(), samples: 8, renderOnce: api.renderOnce, setOn: toggle.setOn, restore: toggle.restore });
@@ -90,13 +105,13 @@ export function createEarthPerfRunner({ api, onProgress = () => {}, timing = EAR
     }
     await settle();
     const v = api.view();
-    return { target: v.target, camera: v.camera, extra: { time: api.timeSnapshot(), fields: api.fieldStatus(), runtime: api.runtime() } };
+    return { target: v.target, camera: v.camera, fieldsOn: Boolean(fields.wind || fields.currents), extra: { time: api.timeSnapshot(), fields: api.fieldStatus(), runtime: api.runtime() } };
   }
 
   const runners = {
     A: () => framesScenario('A', async () => ({ ...(await prepare({})), skyCost: true }), withSky),
-    B: () => framesScenario('B', async () => ({ ...(await prepare({ fields: { wind: true, currents: true } })), orbit: true })),
-    C: () => framesScenario('C', async () => prepare({ time: EARTH_PERF_TIMES.historicalDay })),
+    B: () => framesScenario('B', async () => ({ ...(await prepare({ fields: { wind: true, currents: true } })), orbit: true }), { measureControlled, measureFields }),
+    C: () => framesScenario('C', async () => prepare({ time: EARTH_PERF_TIMES.historicalDay }), { measureControlled }),
     D: () => framesScenario('D', async () => {
       api.setTime(EARTH_PERF_TIMES.night);
       await settle(5); // the Sun moves to the scene time first
@@ -110,7 +125,7 @@ export function createEarthPerfRunner({ api, onProgress = () => {}, timing = EAR
     const report = {
       schema: EARTH_PERF_SCHEMA, createdAt: new Date().toISOString(),
       environment: { headless },
-      device: deviceInfo(api.webglContext(), api.drawingBufferSize()),
+      device: (() => { const d = deviceInfo(api.webglContext(), api.drawingBufferSize()); return { ...d, browser: browserInfo(d.userAgent), angleBackend: angleBackend(d.gpuRenderer) }; })(),
       page: { url: location.pathname + location.search, origin: location.origin, version: pageVersion(), assets: assetsInfo() },
       pageLoad: pageLoad(api), times: EARTH_PERF_TIMES, timing, scenarios: [],
     };
@@ -130,6 +145,8 @@ export function createEarthPerfRunner({ api, onProgress = () => {}, timing = EAR
       if (!harness.isAborted()) await api.restore(saved);
     }
     report.device.canvas = api.drawingBufferSize();
+    // LOT 45: the headline is the controlled render and the low mode; the raw p50 stays a field.
+    report.headline = report.scenarios.map((s) => ({ id: s.id, ...(earthGpuHeadline(s) || { kind: null, controlledRenderMs: null, lowModeP50Ms: null, totalGpuMs: null, rawP50Ms: null }) }));
     report.validation = validateEarthPerfReport(report);
     return report;
   }

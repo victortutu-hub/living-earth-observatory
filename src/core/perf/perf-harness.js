@@ -6,9 +6,10 @@
 //   - the shared part of the report validator (the error texts of LOT 19 are kept verbatim).
 // No network, no DOM writes.
 import { createFrameProbe, median } from './perf-gpu.js';
-import { frameStats, summarize, vsyncAssessment, vsyncWaitNote, vsyncWaitStats } from './perf-stats.js';
+import { PHASE_COLLISION_NOTE, frameStats, gpuModes, summarize, totalGpuMs, vsyncAssessment, vsyncWaitNote, vsyncWaitStats } from './perf-stats.js';
 
 export const HEADLESS_NOTE = 'headless — not a real-device measurement';
+export { PHASE_COLLISION_NOTE }; // LOT 45: for the Earth schema (no static import of perf-stats elsewhere, LOT 19 rule)
 
 /**
  * LOT 32: the GPU part of a frames scenario, as a pure function.
@@ -36,6 +37,20 @@ export function isHeadlessEnvironment(nav = navigator) {
   return nav.webdriver === true || /HeadlessChrome/.test(nav.userAgent);
 }
 
+/** LOT 45: browser name and version from a user agent (Edge, Opera, Samsung Internet, Chrome, Firefox, Safari). */
+export function browserInfo(userAgent = '') {
+  const tests = [['Edge', /Edg(?:A|iOS)?\/([\d.]+)/], ['Opera', /OPR\/([\d.]+)/], ['Samsung Internet', /SamsungBrowser\/([\d.]+)/], ['Chrome', /(?:Chrome|CriOS)\/([\d.]+)/], ['Firefox', /(?:Firefox|FxiOS)\/([\d.]+)/], ['Safari', /Version\/([\d.]+).*Safari/]];
+  for (const [name, re] of tests) { const m = userAgent.match(re); if (m) return { name, version: m[1] }; }
+  return { name: 'unknown', version: null };
+}
+
+/** LOT 45: the ANGLE backend named in the unmasked renderer string, or null (not ANGLE / not exposed). */
+export function angleBackend(gpuRenderer = '') {
+  if (!/^ANGLE \(/.test(gpuRenderer)) return null;
+  for (const [name, re] of [['D3D11', /Direct3D11|D3D11/], ['D3D9', /Direct3D9|D3D9/], ['Vulkan', /Vulkan/], ['Metal', /Metal/], ['OpenGL ES', /OpenGL ES/], ['OpenGL', /OpenGL/]]) if (re.test(gpuRenderer)) return name;
+  return 'unknown';
+}
+
 /** Device block of a report: `canvas` is the drawing buffer in device pixels. */
 export function deviceInfo(gl, canvas) {
   const debug = gl.getExtension('WEBGL_debug_renderer_info');
@@ -52,12 +67,17 @@ export function deviceInfo(gl, canvas) {
  * Scenario harness. `setFrameProbe(probe|null)` hooks the probe around the page's render call;
  * `setView(target, camera)` places the camera for the scripted orbit (scene units of the page).
  */
-export function createScenarioHarness({ gl, setFrameProbe, setView, timing, orbitPeriodMs = DEFAULT_ORBIT_PERIOD_MS }) {
+/**
+ * LOT 45: `pageState()` -> { visible, focused } per GPU sample (hidden / unfocused samples left out and counted);
+ * `reportModes`: a frames scenario also reports gpuModes, excludedHiddenSamples, controlledRenderMs (framesScenario's
+ * `measureControlled`), fieldsUpdateMs (`measureFields`, when setup's `fieldsOn`) and totalGpuMs. Both off: the LOT 32 behaviour.
+ */
+export function createScenarioHarness({ gl, setFrameProbe, setView, timing, orbitPeriodMs = DEFAULT_ORBIT_PERIOD_MS, pageState = null, reportModes = false }) {
   let aborted = false;
   let hiddenDuringScenario = false;
   const onVisibility = () => { if (document.hidden) hiddenDuringScenario = true; };
   document.addEventListener('visibilitychange', onVisibility);
-  const probe = createFrameProbe(gl);
+  const probe = createFrameProbe(gl, { pageState });
 
   async function waitUntil(test, timeoutMs = READY_TIMEOUT_MS) {
     const start = performance.now();
@@ -104,7 +124,7 @@ export function createScenarioHarness({ gl, setFrameProbe, setView, timing, orbi
    * One frames scenario. setup() -> { invalid?, orbit?: boolean | (t) => void, target, camera,
    * extra?, skyCost? }; measureSkyCost() -> { skyGpuMs } | null runs after the window.
    */
-  async function framesScenario(id, setup, { measureSkyCost = null } = {}) {
+  async function framesScenario(id, setup, { measureSkyCost = null, measureControlled = null, measureFields = null } = {}) {
     hiddenDuringScenario = document.hidden;
     const info = await setup();
     if (info.invalid) return invalid(id, info.invalid);
@@ -126,6 +146,15 @@ export function createScenarioHarness({ gl, setFrameProbe, setView, timing, orbi
       drawCalls: median(r.calls), triangles: median(r.triangles), switch: null, ...info.extra,
     };
     if (!frames) Object.assign(out, { frames: null, gpu: null });
+    if (reportModes && out.valid) {
+      const modes = probe.gpuAvailable ? gpuModes(r.gpuMs, vsync.refreshHz) : null;
+      out.gpuModes = modes ? { ...modes, note: PHASE_COLLISION_NOTE } : null;
+      out.excludedHiddenSamples = r.excludedHiddenSamples;
+      out.fieldsUpdateMs = info.fieldsOn && measureFields && probe.gpuAvailable ? await measureFields() : null;
+      out.controlledRenderMs = measureControlled && probe.gpuAvailable ? await measureControlled() : null;
+      out.totalGpuMs = totalGpuMs({ controlledRenderMs: out.controlledRenderMs, lowModeP50Ms: modes?.lowModeP50Ms ?? null, fieldsUpdateMs: out.fieldsUpdateMs });
+      if (!out.gpu && probe.gpuAvailable && r.excludedHiddenSamples) out.gpuNote = `every GPU sample left out: the page was hidden or not focused (${r.excludedHiddenSamples} samples)`;
+    }
     if (info.skyCost && measureSkyCost && probe.gpuAvailable && out.valid) {
       const sky = await measureSkyCost();
       out.skyGpuMs = sky?.skyGpuMs ?? null;
@@ -166,7 +195,8 @@ export function validateBaseReport(report, { schema, scenarios: expected, timing
   const accepted = [].concat(schema);
   need(accepted.includes(report.schema), `schema must be ${accepted.join(' or ')}`);
   // LOT 32: from `vsyncFieldsFrom` on, a frames scenario with GPU statistics carries the vsync-wait fields.
-  const wantsVsyncFields = vsyncFieldsFrom !== null && report.schema === vsyncFieldsFrom;
+  // LOT 45: `vsyncFieldsFrom` may list several versions (Earth /2 and /3).
+  const wantsVsyncFields = vsyncFieldsFrom !== null && [].concat(vsyncFieldsFrom).includes(report.schema);
   need(typeof report.createdAt === 'string' && !Number.isNaN(Date.parse(report.createdAt)), 'createdAt must be an ISO date');
   const d = report.device || {};
   need(typeof d.userAgent === 'string', 'device.userAgent missing');

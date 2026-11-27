@@ -77,3 +77,62 @@ export function vsyncAssessment(frameP50Ms, gpuP50Ms = null) {
     note: `vsync-limited: median ≈ ${match.interval.toFixed(1)} ms (${match.hz} Hz); frame times show the display refresh, not the rendering cost${gpuHeadroom ? ' (GPU time well below the interval)' : ''}`,
   };
 }
+
+// LOT 45 (from the LOT 44 investigation, GTX 1650, ANGLE D3D11, Chrome / Edge 158): the GPU TIME_ELAPSED
+// samples of one scenario fall in three modes. Only the low mode is the rendering itself.
+// - low mode (< PHASE_COLLISION_MIN_MS): the render, about 3.5 ms from an idle GPU (2.8 ms with the GPU busy);
+// - phase collision [PHASE_COLLISION_MIN_MS, PHASE_COLLISION_MAX_MS): the submission falls on another GPU load or
+//   wait outside the scene (it vanishes when the submission moves by 2 ms, not with gl.finish()); about 7 ms there,
+//   for whole scenarios at a time; a phase collision, not cost;
+// - vsync wait (>= VSYNC_WAIT_FRACTION × the refresh interval, LOT 32): the wait for the display.
+// Samples between PHASE_COLLISION_MAX_MS and the vsync threshold (or above it with no known refresh rate) are
+// counted as `otherSamples`, in no mode.
+export const PHASE_COLLISION_MIN_MS = 5;
+export const PHASE_COLLISION_MAX_MS = 12;
+export const PHASE_COLLISION_NOTE = 'phase collision, not cost';
+
+/**
+ * The three modes of a GPU timer series (ms). Returns null for no samples, else { lowModeP50Ms, lowModeSamples,
+ * phaseCollisionSamples, phaseCollisionPct, vsyncWaitSamples, vsyncWaitPct, otherSamples, thresholdsMs }.
+ * vsyncWaitSamples / vsyncWaitPct are null when no refresh rate is known.
+ */
+export function gpuModes(samplesMs, refreshHz) {
+  const values = samplesMs.filter((v) => Number.isFinite(v) && v >= 0);
+  if (!values.length) return null;
+  const vsyncMs = Number.isFinite(refreshHz) && refreshHz > 0 ? (VSYNC_WAIT_FRACTION * 1000) / refreshHz : null;
+  const low = values.filter((v) => v < PHASE_COLLISION_MIN_MS);
+  const collision = values.filter((v) => v >= PHASE_COLLISION_MIN_MS && v < PHASE_COLLISION_MAX_MS);
+  const vsync = vsyncMs === null ? null : values.filter((v) => v >= vsyncMs).length;
+  const pct = (n) => round((100 * n) / values.length, 1);
+  return {
+    lowModeP50Ms: low.length ? round(percentile([...low].sort((a, b) => a - b), 50)) : null,
+    lowModeSamples: low.length,
+    phaseCollisionSamples: collision.length,
+    phaseCollisionPct: pct(collision.length),
+    vsyncWaitSamples: vsync,
+    vsyncWaitPct: vsync === null ? null : pct(vsync),
+    otherSamples: values.length - low.length - collision.length - (vsync ?? 0),
+    thresholdsMs: { phaseCollisionMin: PHASE_COLLISION_MIN_MS, phaseCollisionMax: PHASE_COLLISION_MAX_MS, vsyncWait: round(vsyncMs) },
+  };
+}
+
+/** p50 / p90 of a short series (controlled renders, field updates); null for no samples. */
+export function shortStats(samplesMs) {
+  const values = samplesMs.filter((v) => Number.isFinite(v) && v >= 0);
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return { p50Ms: round(percentile(sorted, 50)), p90Ms: round(percentile(sorted, 90)), samples: values.length };
+}
+
+/**
+ * Total GPU time of a frame: the render plus the field layers' own work (GPGPU + trails), which runs before the
+ * render and is not in the render timer. Either part may be null (no fields: 0 is added).
+ */
+export function totalGpuMs({ controlledRenderMs = null, lowModeP50Ms = null, fieldsUpdateMs = null }) {
+  const fields = fieldsUpdateMs?.p50Ms ?? 0;
+  return {
+    controlledMs: controlledRenderMs?.p50Ms != null ? round(controlledRenderMs.p50Ms + fields) : null,
+    lowModeMs: lowModeP50Ms != null ? round(lowModeP50Ms + fields) : null,
+    fieldsMs: fieldsUpdateMs?.p50Ms ?? null,
+  };
+}

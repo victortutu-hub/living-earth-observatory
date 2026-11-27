@@ -2,9 +2,40 @@
 
 These are reports from the in-page harness (`?perf=1`). The reports in this folder use schemas `lumi-earth-perf/1`
 (Earth) and `lumi-himalaya-perf/1` (the older gateway ones). Since LOT 32, new reports are `/2`. A `/2` report adds
-`gpu.vsyncWaitSamples`, `gpu.meanExclVsyncMs` and `gpuVsyncNote` (see below). The validators accept `/1` and `/2`.
+`gpu.vsyncWaitSamples`, `gpu.meanExclVsyncMs` and `gpuVsyncNote` (see below). Since LOT 45, new Earth reports are
+`lumi-earth-perf/3` (see "Reading the GPU figures"). The validators accept `/1`, `/2` and (Earth) `/3`.
 The JSON files are kept byte-for-byte: `.gitattributes` sets `docs/perf/*.json -text`, and the reports cited by
 the registry have their SHA-256 there.
+
+## Reading the GPU figures (LOT 44, LOT 45)
+
+The GPU timer (`TIME_ELAPSED` around the render, ANGLE D3D11 on the GTX 1650) gives samples in three modes.
+Only the first is the cost of the render:
+
+| Mode | Typical value (GTX 1650) | What it is | `/3` field |
+| --- | --- | --- | --- |
+| Low mode | ~3.5 ms (from an idle GPU); ~2.8 ms with the GPU already busy | the render itself | `gpuModes.lowModeP50Ms` |
+| Phase collision, 5 to 12 ms | ~7 ms, often for a whole scenario | the submission lands on another GPU load or wait outside the scene; it disappears when the submission moves by 2 ms, and not with `gl.finish()`: **a phase collision, not cost** | `gpuModes.phaseCollisionPct` |
+| Vsync wait | ~16.3 ms at 60 Hz (>= 0.9 × the refresh interval) | the wait for the display | `gpuModes.vsyncWaitPct`, `gpu.vsyncWaitSamples` |
+
+The 5 and 12 ms limits are named constants (`PHASE_COLLISION_MIN_MS`, `PHASE_COLLISION_MAX_MS` in
+`src/core/perf/perf-stats.js`). A `/3` report also carries:
+- `controlledRenderMs`, the **headline**: 16 renders back to back after the window, the first dropped, p50 and p90
+  (the method of the sky cost). It does not depend on the phase against the display.
+- `fieldsUpdateMs` (B): the GPU work of the wind and currents layers (GPGPU and trails). It runs before the render and
+  is not in the render timer. It is measured the same controlled way (16 updates, the first dropped).
+- `totalGpuMs`: render + fields (`controlledMs`, `lowModeMs`).
+- `excludedHiddenSamples`: samples taken while the page was hidden or not focused, left out and counted.
+- `device.browser`, `device.angleBackend` and `report.headline` (controlled render and low mode per scenario).
+
+The raw p50 (`gpu.p50Ms`) stays in the JSON as a field; it is not the headline.
+
+**Rule for a measurement run:** one tab, no other GPU load (video, games, other 3D pages), the page visible and
+focused for the whole run.
+
+LOT 44 also found that a second timer in the frame loop moves the render timer itself: an extra query pair before
+the render added ~1.5 ms to every sample (LOT 45, first design). The field layers are therefore timed outside the
+loop.
 
 | File | Device / browser | Origin | SHA-256 |
 | --- | --- | --- | --- |
@@ -15,12 +46,44 @@ the registry have their SHA-256 there.
 | 2026-11-23-earth-desktop-gtx1650-edge158-run3.json | GTX 1650, Edge 158 | production (deploy-himalaya-24) | `00d8b1c749ddee44be9c761bf212f8c9bec41b3bae38339889634cee2093e1e8` |
 | 2026-11-25-earth-desktop-gtx1650-edge158-lot41.json | GTX 1650, Edge 158 | production (deploy-himalaya-31, LOT 41) | `ef2a3efd7d8cbf9b3718b22bd4d605bae7e82761488733663369364f4e7fcff3` |
 | 2026-11-25-earth-mobile-adreno740-edgea158-lot41.json | Adreno 740, Edge Android 158 | production (deploy-himalaya-31, LOT 41) | `ba6a35537ca6f769edfd6a425fb54bb28114bc7c82dfec04e5023cf6974375e1` |
+| 2026-11-27-earth-desktop-gtx1650-chrome158-lot45-local.json | GTX 1650, Chrome 158 (`/3`) | local (LOT 45 verification) | `f6beb1402acac686ab587fea1a53f7e4660244603b193c5cdcbb96e256a815ab` |
 
 The three 2026-11-23 reports reached the repository as text pasted into the chat, not as the downloaded files.
 They pass `validateEarthPerfReport` (0 errors, embedded `validation: []`), but they may not be byte-identical
 to the original downloads. The SHA-256 values above are those of the files as committed.
 
+## 2026-11-27 (LOT 45): local verification of `lumi-earth-perf/3`
+
+One `/3` report, the first from the new instrument. It is a local run, not a production run, and is not in the
+registry.
+- Setup: Chrome 158, windowed (`headless: false`), GTX 1650, ANGLE D3D11, devicePixelRatio 1.25, canvas
+  1925 x 985, one tab, served from the repository (`http://127.0.0.1:8799`).
+- Network: NASA GIBS tiles replayed from the local cache. Open-Meteo wind and currents were a synthetic uniform field
+  (the LOT 32 field), so B is not the live data. EONET answered with an empty list.
+- The page was set as focused through the DevTools protocol (the window could be behind another application).
+- 0 samples excluded; validation `[]`.
+
+GPU, ms:
+
+| Scenario | Controlled render p50 (headline) | Low mode p50 | Phase collision | Vsync waits | Fields | Total (controlled) | Raw p50 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A | 3.65 | 3.69 | 0.8 % | 5.8 % | — | 3.65 | 3.70 |
+| B | 3.55 | 3.44 | 1.3 % | 0 % | 0.36 | 3.91 | 3.44 |
+| C | 3.63 | 3.60 | 0.5 % | 8.7 % | — | 3.63 | 3.65 |
+| D | 3.60 | 3.69 | 1.2 % | 11.5 % | — | 3.60 | 3.70 |
+
+No scenario was in the phase-collision state in this run. B, with the field layers' own work, is the most
+expensive scenario (3.91 ms), as expected.
+
 ## 2026-11-25 (after LOT 41): production deploy-himalaya-31
+
+**Note (LOT 44 / LOT 45):** the 6.0 to 6.8 ms GPU values of A, C and D below are a phase collision on ANGLE D3D11,
+not a cost. In LOT 44 (local, GTX 1650, Chrome 158) the same state was reproduced and taken apart:
+- the render costs ~3.5 ms from an idle GPU and ~2.8 ms with the GPU busy, in A as in B;
+- B is ~3.9 ms with its fields (+0.38 ms of GPGPU and trails, outside the render timer);
+- the ~7 ms samples vanish when the submission moves by 2 ms, and stay with `gl.finish()`.
+
+New reports (`/3`) separate the modes (see "Reading the GPU figures").
 
 Two `/2` reports, delivered as files and committed byte for byte. Both pass `validateEarthPerfReport` (0 errors,
 embedded `validation: []`), real devices (`headless: false`), origin `https://luminomorphism.ro`. They are not in the
@@ -37,8 +100,7 @@ registry: `OBSERVATORY_MEASURED` still cites the 2026-11-19 reports.
 
 - No vsync-wait sample, so the high A/C/D values are not the ~16.3 ms waits described below.
 - A controlled measurement after the window gave 3.69 ms (A) and 4.21 ms (D) (reported with the delivery, not in
-  the JSON). The difference from the in-run p50 is still under investigation; it matches the "about 7 ms at the
-  same clock" state of the 2026-11-23 runs.
+  the JSON). The difference from the in-run p50 is the phase collision explained in LOT 44 (see the note above).
 - Page: surface shown at 2147 ms, runtime LIVE at 3764 ms.
 
 **Phone** (Adreno 740, Edge Android 158, devicePixelRatio 4, 360 x 615 viewport):
@@ -55,6 +117,14 @@ registry: `OBSERVATORY_MEASURED` still cites the 2026-11-19 reports.
 - No GPU timer on this device: `gpu` is null, `gpuNote` "GPU timer unavailable".
 
 ## 2026-11-23 (LOT 32): a measurement artefact, not a regression
+
+**Note (LOT 44 / LOT 45):** the "about 7 ms at the same clock" state below, left unexplained in LOT 32, is a phase
+collision on ANGLE D3D11, not a cost.
+- The render is ~3.5 ms from an idle GPU and ~2.8 ms with the GPU busy; B is ~3.9 ms with its fields.
+- In LOT 44 the ~7 ms samples vanished when the submission moved by 2 ms, and stayed with `gl.finish()`.
+- The extra time falls in the first scene pass, not in the canvas pass.
+
+`/3` reports count these samples apart (`gpuModes.phaseCollisionPct`).
 
 These runs are not in the registry. `OBSERVATORY_MEASURED` still cites the 2026-11-19 reports.
 

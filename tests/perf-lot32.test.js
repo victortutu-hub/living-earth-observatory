@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { VSYNC_WAIT_FRACTION, vsyncWaitNote, vsyncWaitStats } from '../src/core/perf/perf-stats.js';
 import { gpuScenarioFields } from '../src/core/perf/perf-harness.js';
 import { gpuHeadline, vsyncWaitSummary } from '../src/core/perf/perf-panel.js';
-import { EARTH_PERF_SCHEMA, EARTH_PERF_SCHEMA_V1, validateEarthPerfReport } from '../src/earth/perf/earth-perf-schema.js';
+import { EARTH_PERF_SCHEMA, EARTH_PERF_SCHEMA_V1, EARTH_PERF_SCHEMA_V2, validateEarthPerfReport } from '../src/earth/perf/earth-perf-schema.js';
 import { PERF_SCHEMA, PERF_SCHEMA_V1, validatePerfReport } from '../src/himalaya/perf/perf-schema.js';
 import { OBSERVATORY_MEASURED } from '../src/config/capability-registry.js';
 
@@ -51,8 +51,9 @@ describe('LOT 32: vsync-wait samples of the GPU timer', () => {
 });
 
 describe('LOT 32: schema versions /2 (new) and /1 (still valid)', () => {
-  it('new reports are /2; the /1 constants are kept', () => {
-    expect([EARTH_PERF_SCHEMA_V1, EARTH_PERF_SCHEMA]).toEqual(['lumi-earth-perf/1', 'lumi-earth-perf/2']);
+  // LOT 45 (intentional): new Earth reports are /3; /1 and /2 are kept and still validate.
+  it('new reports are /2 (Himalaya) and /3 (Earth, LOT 45); the /1 and /2 constants are kept', () => {
+    expect([EARTH_PERF_SCHEMA_V1, EARTH_PERF_SCHEMA_V2, EARTH_PERF_SCHEMA]).toEqual(['lumi-earth-perf/1', 'lumi-earth-perf/2', 'lumi-earth-perf/3']);
     expect([PERF_SCHEMA_V1, PERF_SCHEMA]).toEqual(['lumi-himalaya-perf/1', 'lumi-himalaya-perf/2']);
   });
 
@@ -61,13 +62,16 @@ describe('LOT 32: schema versions /2 (new) and /1 (still valid)', () => {
     '2026-11-25-earth-desktop-gtx1650-edge158-lot41.json': 'ef2a3efd7d8cbf9b3718b22bd4d605bae7e82761488733663369364f4e7fcff3',
     '2026-11-25-earth-mobile-adreno740-edgea158-lot41.json': 'ba6a35537ca6f769edfd6a425fb54bb28114bc7c82dfec04e5023cf6974375e1',
   };
-  it('every report in docs/perf/ still validates, Earth and Himalaya (the 8 older ones /1, the 2026-11-25 ones /2)', () => {
+  // LOT 45 (intentional): + the local /3 verification run of the new instrument.
+  const V3_REPORTS = fs.readdirSync(new URL('../docs/perf/', import.meta.url)).filter((f) => /^2026-11-27-earth-.*lot45.*\.json$/.test(f));
+  it('every report in docs/perf/ still validates, Earth and Himalaya (the 8 older ones /1, the 2026-11-25 ones /2, LOT 45 /3)', () => {
     const files = fs.readdirSync(new URL('../docs/perf/', import.meta.url)).filter((f) => f.endsWith('.json'));
-    expect(files.length).toBe(10);
+    expect(files.length).toBe(10 + V3_REPORTS.length);
+    expect(V3_REPORTS.length).toBe(1);
     for (const f of files) {
       const r = read(`docs/perf/${f}`);
       const errors = r.schema.startsWith('lumi-earth-perf/') ? validateEarthPerfReport(r) : validatePerfReport(r);
-      const expected = V2_REPORTS[f] ? EARTH_PERF_SCHEMA : r.schema.startsWith('lumi-earth') ? EARTH_PERF_SCHEMA_V1 : PERF_SCHEMA_V1;
+      const expected = V3_REPORTS.includes(f) ? EARTH_PERF_SCHEMA : V2_REPORTS[f] ? EARTH_PERF_SCHEMA_V2 : r.schema.startsWith('lumi-earth') ? EARTH_PERF_SCHEMA_V1 : PERF_SCHEMA_V1;
       expect([f, r.schema, errors]).toEqual([f, expected, []]);
     }
   });
@@ -83,7 +87,7 @@ describe('LOT 32: schema versions /2 (new) and /1 (still valid)', () => {
 
   it('a /2 report needs the vsync-wait fields; with them (number or null) it validates; other schemas are refused', () => {
     const v1 = read(RUN1);
-    const v2 = { ...v1, schema: EARTH_PERF_SCHEMA };
+    const v2 = { ...v1, schema: EARTH_PERF_SCHEMA_V2 };
     expect(validateEarthPerfReport(v2)).toContain('A: gpu.vsyncWaitSamples, gpu.meanExclVsyncMs and gpuVsyncNote required (number or null)');
     const filled = { ...v2, scenarios: v2.scenarios.map((s) => ({ ...s, gpu: { ...s.gpu, vsyncWaitSamples: 0, meanExclVsyncMs: s.gpu.meanMs }, gpuVsyncNote: 'n' })) };
     expect(validateEarthPerfReport(filled)).toEqual([]);
@@ -91,7 +95,7 @@ describe('LOT 32: schema versions /2 (new) and /1 (still valid)', () => {
     expect(validateEarthPerfReport(nulls)).toEqual([]);
     const tooMany = { ...filled, scenarios: filled.scenarios.map((s) => ({ ...s, gpu: { ...s.gpu, vsyncWaitSamples: s.gpu.count + 1 } })) };
     expect(validateEarthPerfReport(tooMany)).toContain('A: gpu.vsyncWaitSamples, gpu.meanExclVsyncMs and gpuVsyncNote required (number or null)');
-    expect(validateEarthPerfReport({ ...v1, schema: 'lumi-earth-perf/3' })).toContain('schema must be lumi-earth-perf/1 or lumi-earth-perf/2');
+    expect(validateEarthPerfReport({ ...v1, schema: 'lumi-earth-perf/4' })).toContain('schema must be lumi-earth-perf/1 or lumi-earth-perf/2 or lumi-earth-perf/3'); // LOT 45: + /3
   });
 });
 

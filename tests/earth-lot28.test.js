@@ -7,7 +7,7 @@ import * as himalayaStats from '../src/himalaya/perf/perf-stats.js';
 import { createFrameProbe, measureToggleGpuCost } from '../src/core/perf/perf-gpu.js';
 import { HEADLESS_NOTE } from '../src/core/perf/perf-harness.js';
 import { PERF_SCHEMA, PERF_SCHEMA_V1, validatePerfReport } from '../src/himalaya/perf/perf-schema.js';
-import { EARTH_PERF_SCHEMA, EARTH_PERF_TIMES, EARTH_SCENARIOS, validateEarthPerfReport } from '../src/earth/perf/earth-perf-schema.js';
+import { EARTH_PERF_SCHEMA, EARTH_PERF_SCHEMA_V1, EARTH_PERF_TIMES, EARTH_SCENARIOS, validateEarthPerfReport } from '../src/earth/perf/earth-perf-schema.js';
 import { BASE_TEXT_SELECTOR, runLayoutChecks } from '../src/earth/perf/earth-layout-checks.js';
 import { OBSERVATORY_REGISTRY } from '../src/config/observatory-registry.js';
 import { PLATFORM_TAXONOMY } from '../src/config/platform-taxonomy.js';
@@ -128,8 +128,9 @@ describe('LOT 28: Living Earth ?perf=1', () => {
 describe('LOT 28: report schema lumi-earth-perf/1', () => {
   const frames = { count: 600, meanMs: 16.7, p50Ms: 16.7, p95Ms: 16.8, p99Ms: 17, maxMs: 18, meanFps: 60, over33Ms: 0 };
   const layout = { viewport: [390, 844], mobileLayout: true, checks: [{ id: 'viewport', pass: true, value: [390, 844] }, { id: 'no-horizontal-scroll', pass: true, value: {} }], allPass: true, smallTextPx: [] };
+  // LOT 45 (intentional): this is a /1 report; the current schema is /3 (tests/perf-lot45.test.js).
   const report = () => ({
-    schema: EARTH_PERF_SCHEMA, createdAt: '2026-11-19T12:00:00Z', environment: { headless: false },
+    schema: EARTH_PERF_SCHEMA_V1, createdAt: '2026-11-19T12:00:00Z', environment: { headless: false },
     device: { userAgent: 'x', devicePixelRatio: 2, viewport: [390, 844], canvas: [780, 1688], gpuRenderer: 'not exposed', timerQuery: false },
     page: { url: '/earth-eonet-relief.html?perf=1', origin: 'https://luminomorphism.ro', version: {}, assets: [] },
     pageLoad: { firstRenderedFrameMs: 800, surfaceShownMs: 2500, runtimeLiveMs: null }, layout,
