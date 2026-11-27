@@ -114,12 +114,13 @@ describe('LOT 29: the contract ticks mobile + measured-performance only with bot
     expect(codes([byRole.desktop, { ...byRole.mobile, layoutAllPass: false }])).toEqual(['mobile-without-layout-run']);
   });
 
-  it('11 of 12 = 92 %; next threshold = the open criterion', () => {
+  // LOT 46 (intentional): 12 of 12 = 100 % (LOT 29: 11 of 12, open surface-detail).
+  it('12 of 12 = 100 %; next = the cleanup after Sprint 2.4', () => {
     const open = earth.roadmap.criteria.filter((c) => !c.done);
-    expect(earth.roadmap.criteria.filter((c) => c.done)).toHaveLength(11);
-    expect(earth.roadmap.progress).toBe(92);
-    expect(open.map((c) => c.id)).toEqual(['surface-detail']);
-    expect(earth.roadmap.next).toBe('Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill'); // LOT 45 (intentional): reworded, still open
+    expect(earth.roadmap.criteria.filter((c) => c.done)).toHaveLength(12);
+    expect(earth.roadmap.progress).toBe(100);
+    expect(open.map((c) => c.id)).toEqual([]);
+    expect(earth.roadmap.next).toBe('Cleanup after Sprint 2.4 (non-blocking: atlas pre-allocation, export detail, coastline leftovers)'); // LOT 46 (intentional)
     for (const id of ['mobile', 'measured-performance']) expect(earth.roadmap.criteria.find((c) => c.id === id).evidence).toMatch(/docs\/perf\/2026-11-19-earth-/);
   });
 });

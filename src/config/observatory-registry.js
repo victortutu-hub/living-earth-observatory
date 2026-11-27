@@ -18,10 +18,10 @@ function roadmapFromCriteria({ stage, next, criteria }) {
 const ROADMAP = Object.freeze({
   platform: Object.freeze({ progress: 72, stage: 'Foundation active', next: 'Shared contracts, lifecycle and reproducible diagnostics' }),
   // LOT 22: was a hand-written 100 ('Live observatory'); 8 of 12 criteria. LOT 23: 9 of 12 (runtime state).
-  // LOT 29: 11 of 12 (mobile + measured performance from the docs/perf/ runs).
+  // LOT 29: 11 of 12 (mobile + measured performance from the docs/perf/ runs). LOT 46: 12 of 12 (surface detail).
   earth: roadmapFromCriteria({
     stage: 'Live: real relief & bathymetry, physical Sun direction (artistic fill declared), physical earthshine on the Moon, live event and geophysical layers, 365-day history, real sky, still/video export', // LOT 31
-    next: 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', // LOT 45 (LOT 29: 'Surface detail at high zoom', LOT 23: mobile layout)
+    next: 'Cleanup after Sprint 2.4 (non-blocking: atlas pre-allocation, export detail, coastline leftovers)', // LOT 46 (LOT 45: the surface-detail criterion, LOT 29: 'Surface detail at high zoom')
     criteria: [
       { id: 'real-relief', label: 'Real relief & bathymetry (ETOPO 2022 + GIBS surface)', done: true,
         evidence: 'src/earth/relief-linear.js, gibs-surface.js, gibs-tiles.js · tests relief-linear, surface-relief-atmosphere, gibs-tiles · LOT 4b on production 2026-11-13 (Gate 1)' },
@@ -45,10 +45,10 @@ const ROADMAP = Object.freeze({
         evidence: 'docs/perf/2026-11-19-earth-mobile-adreno740-edge157.json (SHA-256 in OBSERVATORY_MEASURED) · Adreno 740, Edge 157 Android, 360×615, mobile layout, 5 of 5 layout checks pass · src/earth/perf/earth-layout-checks.js · tests earth-lot29, earth-lot28' },
       { id: 'measured-performance', label: 'Measured performance (real GTX 1650, real phone)', done: true, // LOT 29: checked by the contract
         evidence: 'docs/perf/2026-11-19-earth-desktop-gtx1650-edge157.json + 2026-11-19-earth-mobile-adreno740-edge157.json (SHA-256 in OBSERVATORY_MEASURED; lumi-earth-perf/1, scenarios A-D valid, not headless) · tests earth-lot29, earth-lot28' },
-      // LOT 45: reworded; still open: the distance-gated meso material response (surface-material-lod.js, interpretive,
-      // on by default below 6.0, not declared in the UI) and the offline regional status ("z3 shown" over the bundled
-      // fallback texture).
-      { id: 'surface-detail', label: 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', done: false },
+      // LOT 45: reworded. LOT 46: ticked - the interpretive material response is off by default, optional and declared;
+      // the offline regional status says what is on screen.
+      { id: 'surface-detail', label: 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', done: true,
+        evidence: 'src/earth/gibs-regional-surface.js, terrarium-relief.js, coast-mask.js, surface-material-lod.js (interpretive material off by default, optional, declared) · tests earth-lot41-regional, earth-lot42-terrain, earth-lot43-coast-mask, earth-lot43-coast-field, earth-lot46 · LOT 45 / 46 captures: Aegean and Himalaya at 4.5 and 3.1, desktop and emulated mobile, regional + Terrarium active, LIVE; offline: secondary reasons, "local fallback texture shown"' },
     ],
   }),
   // LOT 22: was a hand-written 55; now 7 of 12 criteria (1-6 ticked after tests/protein-lot22.test.js).

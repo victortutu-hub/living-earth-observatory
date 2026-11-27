@@ -31,7 +31,7 @@ const EARTH = [
   ['runtime-state', "Runtime state from Earth's own signals", true], // LOT 23
   ['mobile', 'Mobile layout checked on a real phone', true], // LOT 29
   ['measured-performance', 'Measured performance (real GTX 1650, real phone)', true], // LOT 29
-  ['surface-detail', 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', false], // LOT 45 (intentional): reworded, still open
+  ['surface-detail', 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', true], // LOT 46 (intentional): ticked (LOT 45: reworded)
 ];
 const PROTEIN = [
   ['alphafold-structure', 'AlphaFold structure via the shared broker', true],
@@ -57,7 +57,7 @@ function evidenceTests(evidence) {
 }
 
 describe.each([
-  ['living-earth', earth, EARTH, 92, 'Observed detail down to the minimum camera distance (3.1): regional Blue Marble imagery (GIBS z4–z6) and DEM relief (Terrarium z5–z7, on land), Natural Earth 10m coastline; no interpretive fill', // LOT 45 reworded (LOT 29: 92, LOT 23: 75, LOT 22: 67)
+  ['living-earth', earth, EARTH, 100, 'Cleanup after Sprint 2.4 (non-blocking: atlas pre-allocation, export detail, coastline leftovers)', // LOT 46: 12 of 12 (LOT 29: 92, LOT 23: 75, LOT 22: 67)
     'Live: real relief & bathymetry, physical Sun direction (artistic fill declared), physical earthshine on the Moon, live event and geophysical layers, 365-day history, real sky, still/video export'], // LOT 31
   ['living-protein', protein, PROTEIN, 58, 'Experimental context beside prediction confidence',
     'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins'],
@@ -72,10 +72,12 @@ describe.each([
     expect(roadmap.progress).toBe(percent);
   });
 
-  it('stage and next threshold (= first open criterion)', () => {
+  // LOT 46 (intentional): with every criterion ticked (Earth 12/12) there is no open one; next is then the cleanup.
+  it('stage and next threshold (= first open criterion, when one is open)', () => {
     expect(roadmap.stage).toBe(stage);
     expect(roadmap.next).toBe(next);
-    expect(roadmap.criteria.find((c) => !c.done).label).toBe(next);
+    const open = roadmap.criteria.find((c) => !c.done);
+    if (open) expect(open.label).toBe(next); else expect(percent).toBe(100);
   });
 
   it('every ticked criterion carries evidence naming existing test files; open ones carry none', () => {
@@ -90,7 +92,8 @@ describe.each([
 
   it('passes the module contract; a hand-written percent next to the criteria is rejected', () => {
     expect(codes(id, roadmap)).toEqual([]);
-    expect(codes(id, { ...roadmap, progress: 100 })).toContain('manual-progress-with-criteria');
+    // LOT 46 (intentional): a hand-written percent that differs from the computed one (Earth is now 100).
+    expect(codes(id, { ...roadmap, progress: roadmap.progress === 100 ? 99 : 100 })).toContain('manual-progress-with-criteria');
   });
 
   it('measured-performance only with docs/perf runs: the contract refuses to tick it without them', () => {
