@@ -24,7 +24,8 @@ export function mirrorChildRuntime({ frame, childHost, id, context, win = window
   };
   const onChildRuntime = (event) => { if (event.detail?.id === id) copyRuntime(event.detail); };
   childDocument?.addEventListener('lumi:observatory-runtime', onChildRuntime);
-  // The host context writes its own "module-ready" (LIVE) right after the adapter's start resolves.
+  // The host context writes its own "module-ready" right after the adapter's start resolves (LOT 50: still in the
+  // loading phase, not LIVE); this first copy is the adapter's own publication.
   const initialCopy = win.setTimeout(() => copyRuntime(childHost?.snapshot?.(id)?.runtime), 0);
   return () => {
     win.clearTimeout(initialCopy);

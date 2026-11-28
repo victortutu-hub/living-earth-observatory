@@ -14,6 +14,21 @@ export const MODULE_LIFECYCLE = Object.freeze({
   ERROR: 'error',
 });
 
+// LOT 50: a running module is not LIVE until it says so. "module-ready" is a lifecycle event: the record stays in the
+// loading phase (FALLBACK + phase loading, badge "LOADING") until the module's first own publication through
+// context.setRuntime (earth-runtime-state / himalaya-runtime-state / protein-runtime-state, or the Atlas mirror of the
+// child page). A module that publishes nothing within MODULE_RUNTIME_SILENCE_MS of becoming ready is marked FALLBACK
+// with reason module-runtime-silent, never LIVE. The modules publish their first state one task after start resolves
+// (measured in LOT 50: 5 ms to 1.3 s), so 10 s is a fault, not a slow start. After stop / destroy nothing the module
+// writes is accepted (DESTROYED_IS_TERMINAL); the silence timer is owned and cleared there.
+export const MODULE_RUNTIME_SILENCE_MS = 10_000;
+export const MODULE_RUNTIME_REASONS = Object.freeze({
+  starting: 'module-starting',
+  ready: 'module-ready',
+  silent: 'module-runtime-silent',
+  startFailed: 'module-start-failed',
+});
+
 function asCleanup(candidate) {
   if (typeof candidate === 'function') return candidate;
   if (typeof candidate?.dispose === 'function') return () => candidate.dispose();
@@ -48,6 +63,8 @@ export function createObservatoryModuleContext({
   runtime = observatoryRuntime,
   data = dataBroker,
   sourceDefinitions = SOURCE_DEFINITIONS,
+  runtimeSilenceMs = MODULE_RUNTIME_SILENCE_MS,
+  timers = globalThis,
 } = {}) {
   if (!observatory?.id) {
     return createUnavailableContext(observatory?.id, 'Unknown observatory module.');
@@ -75,8 +92,24 @@ export function createObservatoryModuleContext({
     });
   }
 
-  function setRuntime(state, meta = {}) {
+  let ownRuntimeSeen = false;
+  let silenceTimer = null;
+
+  function writeRuntime(state, meta = {}) {
     return runtime?.set?.(observatory.id, state, { ...meta, writer: 'module' }) || null; // LOT 23
+  }
+
+  function clearSilence() {
+    if (silenceTimer !== null) timers.clearTimeout(silenceTimer);
+    silenceTimer = null;
+  }
+
+  /** The module's own publication (LOT 50: the only way to LIVE; ignored once stopping, stopped or destroyed). */
+  function setRuntime(state, meta = {}) {
+    if (lifecycle === MODULE_LIFECYCLE.STOPPING || lifecycle === MODULE_LIFECYCLE.STOPPED || lifecycle === MODULE_LIFECYCLE.DESTROYED) return null;
+    ownRuntimeSeen = true;
+    clearSilence();
+    return writeRuntime(state, meta);
   }
 
   function onDispose(cleanup) {
@@ -130,7 +163,9 @@ export function createObservatoryModuleContext({
       if (abortController.signal.aborted) abortController = new AbortController();
       const startGeneration = lifecycleGeneration;
       lifecycle = MODULE_LIFECYCLE.STARTING;
-      setRuntime(RUNTIME_STATE.FALLBACK, { phase: RUNTIME_PHASE.LOADING, reason: 'module-starting' });
+      ownRuntimeSeen = false;
+      clearSilence();
+      writeRuntime(RUNTIME_STATE.FALLBACK, { phase: RUNTIME_PHASE.LOADING, reason: MODULE_RUNTIME_REASONS.starting });
       const pendingStart = Promise.resolve()
         .then(() => (isCurrentStart(startGeneration) ? initializer?.(context) : null))
         .then(async (result) => {
@@ -141,13 +176,22 @@ export function createObservatoryModuleContext({
           }
           if (cleanup) onDispose(cleanup);
           lifecycle = MODULE_LIFECYCLE.RUNNING;
-          setRuntime(RUNTIME_STATE.LIVE, { phase: RUNTIME_PHASE.READY, reason: 'module-ready' });
+          // LOT 50: a lifecycle event, not a LIVE claim; an own record already written stays.
+          if (!ownRuntimeSeen) {
+            writeRuntime(RUNTIME_STATE.FALLBACK, { phase: RUNTIME_PHASE.LOADING, reason: MODULE_RUNTIME_REASONS.ready });
+            const silenceGeneration = lifecycleGeneration;
+            silenceTimer = timers.setTimeout(() => {
+              silenceTimer = null;
+              if (ownRuntimeSeen || lifecycle !== MODULE_LIFECYCLE.RUNNING || lifecycleGeneration !== silenceGeneration) return;
+              writeRuntime(RUNTIME_STATE.FALLBACK, { phase: RUNTIME_PHASE.READY, reason: MODULE_RUNTIME_REASONS.silent });
+            }, runtimeSilenceMs);
+          }
           return snapshot();
         })
         .catch((error) => {
           if (!isCurrentStart(startGeneration)) return snapshot();
           lifecycle = MODULE_LIFECYCLE.ERROR;
-          setRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.ERROR, reason: 'module-start-failed', error: error.message });
+          writeRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.ERROR, reason: MODULE_RUNTIME_REASONS.startFailed, error: error.message });
           throw error;
         });
       const sharedStartPromise = pendingStart.finally(() => {
@@ -164,12 +208,13 @@ export function createObservatoryModuleContext({
 
       const stopGeneration = ++lifecycleGeneration;
       lifecycle = MODULE_LIFECYCLE.STOPPING;
+      clearSilence();
       abortController.abort(reason);
       stopPromise = runCleanups(reason)
         .then(() => {
           if (lifecycle === MODULE_LIFECYCLE.DESTROYED || lifecycleGeneration !== stopGeneration) return snapshot();
           lifecycle = MODULE_LIFECYCLE.STOPPED;
-          setRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.CANCELLED, reason });
+          writeRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.CANCELLED, reason });
           return snapshot();
         })
         .finally(() => { stopPromise = null; });
@@ -180,9 +225,10 @@ export function createObservatoryModuleContext({
     async destroy(reason = 'module-destroyed') {
       if (lifecycle === MODULE_LIFECYCLE.DESTROYED) return destroyPromise || snapshot();
       lifecycleGeneration += 1;
+      clearSilence();
       abortController.abort(reason);
       lifecycle = MODULE_LIFECYCLE.DESTROYED;
-      setRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.CANCELLED, reason });
+      writeRuntime(RUNTIME_STATE.OFFLINE, { phase: RUNTIME_PHASE.CANCELLED, reason });
       const pendingStop = stopPromise;
       destroyPromise = Promise.resolve(pendingStop)
         .then(() => runCleanups(reason))
