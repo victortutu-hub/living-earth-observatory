@@ -57,8 +57,11 @@ export function pickModelRecord(records, accession) {
   return list.find((record) => record?.entryId === `AF-${normalizeAccession(accession)}-F1`) || list[0] || null;
 }
 
-/** One model file (mmCIF) at a given version; publishes the 'alpha' runtime status. */
-export function fetchModelFile(accession, version, signal, { fetchText = fetchTextResource } = {}) {
+/**
+ * One model file (mmCIF) at a given version; publishes the 'alpha' runtime status. LOT 49: `publishErrors: false` for
+ * the reload at another version (its failure leaves the model shown, so the source is not marked offline).
+ */
+export function fetchModelFile(accession, version, signal, { fetchText = fetchTextResource, publishErrors = true } = {}) {
   const normalized = normalizeAccession(accession);
   const url = alphaFoldModelUrl(normalized, version);
   return fetchText(`alphafold:${normalized}:cif:v${version}`, url, {
@@ -69,9 +72,9 @@ export function fetchModelFile(accession, version, signal, { fetchText = fetchTe
     sourceTimeSelector: () => null,
   }).then((result) => {
     publishRuntimeStatus('alpha', result);
-    return { accession: normalized, version, modelId: `AF-${normalized}-F1`, cifText: result.data, sourceUrl: url, runtime: result.meta };
+    return { accession: normalized, version, modelId: `AF-${normalized}-F1`, cifText: result.data, sourceUrl: url, runtime: result.meta, runtimeState: result.state };
   }, (error) => {
-    publishRuntimeError('alpha', error);
+    if (publishErrors) publishRuntimeError('alpha', error);
     throw error;
   });
 }

@@ -51,7 +51,7 @@ const ROADMAP = Object.freeze({
         evidence: 'src/earth/gibs-regional-surface.js, terrarium-relief.js, coast-mask.js, surface-material-lod.js (interpretive material off by default, optional, declared) · tests earth-lot41-regional, earth-lot42-terrain, earth-lot43-coast-mask, earth-lot43-coast-field, earth-lot46 · LOT 45 / 46 captures: Aegean and Himalaya at 4.5 and 3.1, desktop and emulated mobile, regional + Terrarium active, LIVE; offline: secondary reasons, "local fallback texture shown"' },
     ],
   }),
-  // LOT 22: was a hand-written 55; now 7 of 12 criteria (1-6 ticked after tests/protein-lot22.test.js).
+  // LOT 22: was a hand-written 55; now 7 of 12 criteria (1-6 ticked after tests/protein-lot22.test.js). LOT 49: 8 of 12 (runtime-state).
   protein: roadmapFromCriteria({
     stage: 'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins',
     next: 'Experimental context beside prediction confidence',
@@ -72,7 +72,8 @@ const ROADMAP = Object.freeze({
         evidence: 'src/protein/living-protein-atlas-module.js · tests atlas-module-lifecycle, observatory-deep-link' },
       { id: 'experimental-context', label: 'Experimental context beside prediction confidence', done: false },
       { id: 'pae', label: 'Predicted aligned error (PAE)', done: false },
-      { id: 'runtime-state', label: 'Runtime state from own signals', done: false },
+      { id: 'runtime-state', label: 'Runtime state from own signals', done: true, // LOT 49
+        evidence: 'src/protein/protein-runtime-state.js, protein-app.js, living-protein-module.js, living-protein-atlas-module.js (child-runtime-mirror.js) · test protein-lot49 (every transition and secondary reason, the Atlas mirror) · checked in the browser, page and Atlas, desktop and m390: network, cache, expired cache, API down, UniProt down, no model, loading (page = child record = Atlas record = badge)' },
       { id: 'mobile', label: 'Mobile layout checked on a real phone', done: false },
       { id: 'measured-performance', label: 'Measured performance', done: false },
     ],

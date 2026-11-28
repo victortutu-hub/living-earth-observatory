@@ -1,6 +1,6 @@
 import { OBSERVATORY_REGISTRY } from '../config/observatory-registry.js';
 import { RUNTIME_STATE, runtimeDisplayValue, createRuntimeMeta } from './runtime/runtime-states.js';
-import { hasRuntime, observatoryRuntimeBadge } from './observatory-runtime-badge.js';
+import { hasRuntime, observatoryRuntimeBadge, runtimeBadgeLabel } from './observatory-runtime-badge.js';
 
 // Only routed observatories have a runtime. Planned / research / development
 // records are not services that can be offline; their badge shows the
@@ -28,7 +28,7 @@ function broadcast(id, record) {
   // LOT 21: a mount-only badge (live child without a gateway) is shown only while mounted.
   const shown = observatoryRuntimeBadge(observatoryById.get(id), record).runtimeBound;
   document.querySelectorAll(`[data-observatory-runtime="${id}"]`).forEach((element) => {
-    element.textContent = record.value;
+    element.textContent = runtimeBadgeLabel(record); // LOT 49: "LOADING" while loading; record.value unchanged
     element.dataset.state = record.state;
     if (record.phase) element.dataset.phase = record.phase;
     element.hidden = !shown;

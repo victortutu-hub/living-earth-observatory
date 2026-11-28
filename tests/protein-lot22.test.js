@@ -135,9 +135,10 @@ describe('LOT 22 protein: explicit fallback (criterion explicit-fallback)', () =
     expect(text('living-protein.html')).toContain('Preparing the AlphaFold model'); // LOT 48
   });
 
-  it('initial source status is FALLBACK with explicit reasons', () => {
-    expect(INITIAL_SOURCE_STATUS.alpha).toMatchObject({ value: 'FALLBACK', state: 'fallback', reason: 'procedural-structure-active' });
-    expect(INITIAL_SOURCE_STATUS.uniprot).toMatchObject({ value: 'FALLBACK', state: 'fallback', reason: 'annotations-not-loaded' });
+  it('initial source status with explicit reasons', () => {
+    // LOT 49: alpha makes no claim before the model is requested (the page writes LOADING -> LIVE / FALLBACK).
+    expect(INITIAL_SOURCE_STATUS.alpha).toMatchObject({ value: 'NOT LOADED', state: 'declared', reason: 'model-not-requested' });
+    expect(INITIAL_SOURCE_STATUS.uniprot).toMatchObject({ value: 'NOT LOADED', state: 'declared', reason: 'annotations-not-requested' }); // LOT 49
   });
 });
 

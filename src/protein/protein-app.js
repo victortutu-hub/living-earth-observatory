@@ -5,6 +5,8 @@ import { createProteinScene } from './protein-scene.js';
 import { formatFeature, framingText, residueSummary, secondaryStructureText, versionText } from './protein-format.js';
 import { freeAreaInsets } from './protein-layout-checks.js';
 import { prepareObservatoryEntry } from '../portal-continuity.js';
+import { alphaSourceStatus, createProteinRuntimePublisher, modelSourceOf } from './protein-runtime-state.js';
+import { atlasStatus } from '../core/status-store.js';
 
 const PROTEIN_MODELS = {
   P04637: {
@@ -57,6 +59,8 @@ const fallback = [
 const MOBILE_QUERY = '(max-width: 760px)';
 // LOT 48: what the secondary-structure and rendering rows say when no model is drawn.
 export const NO_MODEL_TEXT = Object.freeze({ loading: 'Awaiting the model file.', none: 'Not applicable — no model file.' });
+// LOT 49: the confidence card without a model file.
+export const NO_CONFIDENCE_TEXT = 'AlphaFold model confidence unavailable — no model file.';
 
 function text(id, value) { const node = document.getElementById(id); if (node) node.textContent = value; }
 function hex(color) { return `#${color.toString(16).padStart(6, '0')}`; }
@@ -94,7 +98,7 @@ function setLoading(state, message) {
   text('proteinLoadingText', message);
 }
 
-export function startProteinApp({ signal } = {}) {
+export function startProteinApp({ signal, setRuntime = null } = {}) {
   const portalEntry = prepareObservatoryEntry({ observatoryId: 'living-protein', title: 'Living Protein Observatory' });
   document.body.classList.toggle('is-atlas-embedded', Boolean(portalEntry.embedded));
   const scene = createProteinScene(document.getElementById('proteinStage'));
@@ -105,6 +109,16 @@ export function startProteinApp({ signal } = {}) {
   let entryTimer = null;
   let revealTimer = null;
   let disposed = false;
+
+  // LOT 49: runtime state from the page's own signals (protein-runtime-state.js), written through the module context
+  // only when it changes. The first write follows the context's own "module-ready" write (a task later).
+  const runtime = createProteinRuntimePublisher(setRuntime);
+  let runtimeStartTimer = null;
+  const updateRuntime = (patch, reset = false) => runtime.update(patch, { reset });
+  function writeAlpha(model, error) {
+    const status = alphaSourceStatus(model, error);
+    atlasStatus.setStatus('alpha', status.value, status.state, status.meta);
+  }
   const modelButtons = [...document.querySelectorAll('[data-accession]')];
   const mobile = window.matchMedia?.(MOBILE_QUERY);
   // LOT 48: on a phone the drawer opens on the subject and its provenance; confidence and the model guide unfold on tap.
@@ -200,6 +214,7 @@ export function startProteinApp({ signal } = {}) {
     scene.renderStructure({ segments, kindOf: (atom) => secondary.get(atom.residue)?.kind || 'coil', framing: framing.atoms });
     performance.mark?.('lp:model-shown');
     setModelPresence('model');
+    updateRuntime({ model: 'loaded', modelSource: modelSourceOf({ state: prediction.runtimeState, meta: prediction.runtime }), fallbackTrace: false });
     text('proteinAccession', residueSummary(prediction.accession, atoms.length, segments.length));
     text('proteinStatus', `AlphaFold model loaded · mean pLDDT ${confidence.average.toFixed(1)}`);
     text('proteinProvenance', `Model prediction: AlphaFold DB / EMBL-EBI · ${prediction.modelId}`);
@@ -239,6 +254,8 @@ export function startProteinApp({ signal } = {}) {
     text('confidenceNote', 'Awaiting AlphaFold model confidence.');
     text('uniprotStatus', 'Loading UniProt annotations.');
     setLoading('loading', `Loading the AlphaFold model file (v${AF_MODEL_VERSION})…`);
+    updateRuntime({}, true);
+    writeAlpha('loading');
 
     // LOT 48: the model file and the metadata start together; the drawing waits for the file only.
     const { structure, metadata } = startProteinPrediction(model.accession, current.signal);
@@ -256,13 +273,14 @@ export function startProteinApp({ signal } = {}) {
         if (meta?.name) text('proteinName', meta.name);
         const { reported, reload } = modelVersionDecision(prediction.version, meta);
         text('proteinVersion', versionText({ requested: prediction.version, reported }));
-        if (!reload) return;
+        if (!reload) { updateRuntime({ version: reported === null ? 'unavailable' : 'confirmed' }); return; }
         let newer;
         try {
-          newer = await fetchModelFile(model.accession, reported, current.signal);
+          newer = await fetchModelFile(model.accession, reported, current.signal, { publishErrors: false });
         } catch (error) {
           if (error?.name === 'AbortError' || version !== loadVersion) return;
           text('proteinVersion', versionText({ requested: prediction.version, reported, failed: true }));
+          updateRuntime({ version: 'reload-failed' });
           console.warn(`[Living Protein] Model v${reported} unavailable; v${prediction.version} stays shown and declared.`, error);
           return;
         }
@@ -271,6 +289,7 @@ export function startProteinApp({ signal } = {}) {
         atoms = renderModel(model, newer);
         if (profile) renderFeatures(atoms, profile);
         text('proteinVersion', versionText({ requested: prediction.version, reported, reloaded: true }));
+        updateRuntime({ version: 'reloaded' });
       }).catch((error) => { if (error?.name !== 'AbortError') console.warn('[Living Protein] Version check failed; the model shown stays declared at its version.', error); });
     } catch (error) {
       if (version !== loadVersion || error?.name === 'AbortError') return;
@@ -282,6 +301,9 @@ export function startProteinApp({ signal } = {}) {
       setModelPresence('none');
       text('proteinFraming', 'No model file: the grey trace is the illustrative fallback, not a structure.');
       text('uniprotStatus', 'No remote annotations available.');
+      text('confidenceNote', NO_CONFIDENCE_TEXT);
+      updateRuntime({ model: 'failed', fallbackTrace: true });
+      writeAlpha('failed', error);
       setLoading('error', `Model unavailable · illustrative trace, not a structure`);
       enter();
       return;
@@ -292,8 +314,10 @@ export function startProteinApp({ signal } = {}) {
       profile = profileResult.value;
       text('proteinName', profile.name || model.label);
       renderFeatures(atoms, profile);
+      updateRuntime({ uniprot: 'loaded' });
     } else {
       text('uniprotStatus', 'UniProt annotations unavailable; structure remains available.');
+      updateRuntime({ uniprot: 'unavailable' });
     }
     setLoading('ready', 'Ready');
   }
@@ -311,6 +335,8 @@ export function startProteinApp({ signal } = {}) {
     controller?.abort();
     if (entryTimer !== null) window.clearTimeout(entryTimer);
     if (revealTimer !== null) window.clearTimeout(revealTimer);
+    if (runtimeStartTimer !== null) window.clearTimeout(runtimeStartTimer);
+    runtime.stop();
     modelButtons.forEach((button) => button.removeEventListener('click', onModelClick));
     layoutObserver.disconnect();
     window.removeEventListener('resize', updateInsets);
@@ -326,6 +352,7 @@ export function startProteinApp({ signal } = {}) {
   // LOT 48: the page never waits behind the entry overlay for the network: a model in the cache shows at once, a slow
   // file enters with the loading pill (no geometry until the model file arrives).
   revealTimer = window.setTimeout(enter, 450);
+  runtimeStartTimer = window.setTimeout(() => runtime.start(), 0);
   window.addEventListener('pagehide', dispose, { once: true });
   signal?.addEventListener?.('abort', dispose, { once: true });
   return dispose;

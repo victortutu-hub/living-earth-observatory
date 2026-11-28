@@ -1,3 +1,5 @@
+import { mirrorChildRuntime } from '../core/observatory/child-runtime-mirror.js';
+
 const PROTEIN_READY_TIMEOUT_MS = 30_000;
 
 function waitForProteinHost(frame, signal) {
@@ -61,7 +63,10 @@ export function createLivingProteinAtlasModule({ route = './living-protein.html'
       };
       try {
         const childHost = await waitForProteinHost(frame, context.signal);
+        // LOT 49: mirror the child's runtime state (its own signals) in the host page while mounted.
+        const stopMirror = mirrorChildRuntime({ frame, childHost, id: 'living-protein', context });
         return async (reason = 'atlas-unmount') => {
+          stopMirror();
           try {
             await childHost.destroy('living-protein', reason);
           } catch (error) {

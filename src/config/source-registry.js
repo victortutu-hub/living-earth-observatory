@@ -663,8 +663,10 @@ export function describeSourceProvenance(key, { validAt = null } = {}) {
 export const INITIAL_SOURCE_STATUS = Object.freeze({
   eonet: { value: 'FALLBACK', state: 'fallback', phase: 'idle', updated: null, reason: 'awaiting-live-snapshot' },
   gibs: { value: 'FALLBACK', state: 'fallback', phase: 'idle', updated: null, reason: 'procedural-texture-active' },
-  alpha: { value: 'FALLBACK', state: 'fallback', phase: 'idle', updated: null, reason: 'procedural-structure-active' },
-  uniprot: { value: 'FALLBACK', state: 'fallback', phase: 'idle', updated: null, reason: 'annotations-not-loaded' },
+  // LOT 49: no claim before the model is requested; the page writes LOADING, then LIVE (the model file) or FALLBACK
+  // (no model file: illustrative trace). On the Atlas landing page the gateway preview writes its own record.
+  alpha: { value: 'NOT LOADED', state: 'declared', phase: 'idle', updated: null, reason: 'model-not-requested' },
+  uniprot: { value: 'NOT LOADED', state: 'declared', phase: 'idle', updated: null, reason: 'annotations-not-requested' }, // LOT 49
   usgs: { value: 'OBSERVATORY', state: 'declared', updated: null },
   firms: { value: 'OBSERVATORY', state: 'declared', updated: null },
   gdacs: { value: 'FALLBACK', state: 'declared', updated: null },

@@ -8,6 +8,15 @@
 // module (loading / ready / error), copied from the child page; idle (never
 // mounted) or cancelled (unmounted) means no runtime claim.
 
+/**
+ * LOT 49: the visible label of a runtime record. A module still loading is coded FALLBACK + phase 'loading' (the
+ * module context's "module-starting" convention); its badge reads "LOADING", the record itself is unchanged.
+ */
+export function runtimeBadgeLabel(record) {
+    if (record?.phase === 'loading') return 'LOADING';
+    return record?.value || 'FALLBACK';
+}
+
 export function hasRuntime(observatory) {
     return Boolean(observatory?.route);
 }
@@ -36,5 +45,5 @@ export function observatoryRuntimeBadge(observatory, runtimeRecord, statusLabel)
     if (isMountOnlyRuntime(observatory) && !isMountedRuntime(runtimeRecord)) {
         return { text: 'NOT RUNNING', state: 'declared', runtimeBound: false };
     }
-    return { text: runtimeRecord?.value || 'FALLBACK', state: runtimeRecord?.state || 'fallback', runtimeBound: true };
+    return { text: runtimeBadgeLabel(runtimeRecord), state: runtimeRecord?.state || 'fallback', runtimeBound: true };
 }

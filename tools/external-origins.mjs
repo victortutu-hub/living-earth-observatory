@@ -38,7 +38,7 @@ export const EXTERNAL_ORIGINS = Object.freeze([
   e({ origin: 'http://127.0.0.1:8787', role: 'proxy', pages: ['earth'], note: 'local development proxy (nasa-proxy-server.js)' }),
   // --- Origins that come from responses (not written in code): declared with their parent API.
   e({ origin: 'https://sentinel-cogs.s3.us-west-2.amazonaws.com', role: 'data', derivedFrom: 'https://earth-search.aws.element84.com', pages: ['himalaya'], note: 'Sentinel-2 COG windows (asset hrefs of the STAC items)' }),
-  e({ origin: 'https://alphafold.ebi.ac.uk', role: 'data', derivedFrom: 'https://alphafold.ebi.ac.uk/api/', paths: ['/files/'], pages: ['protein'], note: 'AlphaFold model files (pdbUrl of the prediction record)' }),
+  e({ origin: 'https://alphafold.ebi.ac.uk', role: 'data', derivedFrom: 'https://alphafold.ebi.ac.uk/api/', paths: ['/files/'], pages: ['protein'], note: 'AlphaFold model files: Living Protein requests AF-{acc}-F1-model_v6.cif directly at its known URL (the API only confirms the version); the gateway preview still follows the pdbUrl of the prediction record' }),
   // --- Doc-links (never requested).
   ...[
     ['https://www.uniprot.org', 'UniProt entry links'], ['https://www.rcsb.org', 'PDB entry links'], ['https://doi.org', 'citations'],

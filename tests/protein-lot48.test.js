@@ -93,7 +93,7 @@ describe('LOT 48 loading: a different version reported by the API', () => {
   it('the app wires the decision: reload through fetchModelFile and the declared version line', () => {
     const app = text('src/protein/protein-app.js');
     expect(app).toContain('modelVersionDecision(prediction.version, meta)');
-    expect(app).toContain('fetchModelFile(model.accession, reported, current.signal)');
+    expect(app).toContain('fetchModelFile(model.accession, reported, current.signal, { publishErrors: false })'); // LOT 49
     expect(app).toContain("versionText({ requested: prediction.version, reported, reloaded: true })");
     // The drawing awaits the structure only; the metadata is chained after the first render.
     expect(app.indexOf('await structure')).toBeLessThan(app.indexOf('metadata.then('));

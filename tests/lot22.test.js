@@ -43,7 +43,7 @@ const PROTEIN = [
   ['lifecycle', 'Atlas mount / unmount, abort', true],
   ['experimental-context', 'Experimental context beside prediction confidence', false],
   ['pae', 'Predicted aligned error (PAE)', false],
-  ['runtime-state', 'Runtime state from own signals', false],
+  ['runtime-state', 'Runtime state from own signals', true], // LOT 49
   ['mobile', 'Mobile layout checked on a real phone', false],
   ['measured-performance', 'Measured performance', false],
 ];
@@ -59,7 +59,7 @@ function evidenceTests(evidence) {
 describe.each([
   ['living-earth', earth, EARTH, 100, 'Cleanup after Sprint 2.4 (non-blocking: atlas pre-allocation, export detail, coastline leftovers)', // LOT 46: 12 of 12 (LOT 29: 92, LOT 23: 75, LOT 22: 67)
     'Live: real relief & bathymetry, physical Sun direction (artistic fill declared), physical earthshine on the Moon, live event and geophysical layers, 365-day history, real sky, still/video export'], // LOT 31
-  ['living-protein', protein, PROTEIN, 58, 'Experimental context beside prediction confidence',
+  ['living-protein', protein, PROTEIN, 67, 'Experimental context beside prediction confidence',
     'Live v0.1: AlphaFold structure, pLDDT confidence, UniProt features, 4 curated proteins'],
 ])('LOT 22: %s progress from criteria', (id, item, expected, percent, next, stage) => {
   const { roadmap } = item;
